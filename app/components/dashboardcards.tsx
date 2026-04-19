@@ -73,63 +73,78 @@ function KPICard({ metric, index }: { metric: Metric; index: number }) {
   const [hovered, setHovered] = useState(false);
   const positive = metric.change >= 0;
 
-  const displayValue = metric.decimals !== undefined
-    ? animated.toFixed(metric.decimals)
-    : Math.round(animated).toLocaleString();
+  const displayValue =
+    metric.decimals !== undefined
+      ? animated.toFixed(metric.decimals)
+      : Math.round(animated).toLocaleString();
 
   return (
     <div
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       className={`
-        relative rounded-2xl border border-white/7 p-5 cursor-default
+        relative rounded-2xl border border-white/10 p-5 cursor-default
         transition-all duration-300 overflow-hidden
-        bg-linear-to-br ${metric.color}
-        ${hovered ? `scale-[1.02] shadow-2xl ${metric.glow} border-white/12` : "scale-100"}
+        bg-gradient-to-br ${metric.color}
+        ${hovered ? `scale-[1.02] shadow-2xl ${metric.glow} border-white/20` : "scale-100"}
       `}
       style={{
         animationDelay: `${index * 100}ms`,
-        background: hovered
-          ? undefined
-          : "rgba(255,255,255,0.02)",
+        background: hovered ? undefined : "rgba(255,255,255,0.02)",
       }}
     >
       {/* Decorative circle */}
-      <div className={`absolute -right-4 -top-4 w-24 h-24 rounded-full opacity-10
-        bg-linear-to-br ${metric.color}`} />
+      <div
+        className={`absolute -right-4 -top-4 w-24 h-24 rounded-full opacity-10
+        bg-gradient-to-br ${metric.color}`}
+      />
 
       <div className="flex items-start justify-between mb-4">
-        <div className="w-9 h-9 rounded-xl flex items-center justify-center text-sm
-          bg-white/7 border border-white/6">
+        <div
+          className="w-9 h-9 rounded-xl flex items-center justify-center text-sm
+          bg-white/10 border border-white/10"
+        >
           {metric.icon}
         </div>
-        <span className={`
+        <span
+          className={`
           flex items-center gap-1 text-xs font-semibold px-2 py-1 rounded-full
-          ${positive
-            ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
-            : "bg-red-500/10 text-red-400 border border-red-500/20"
+          ${
+            positive
+              ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
+              : "bg-red-500/10 text-red-400 border border-red-500/20"
           }
-        `}>
+        `}
+        >
           {positive ? "↑" : "↓"} {Math.abs(metric.change)}%
         </span>
       </div>
 
       <div>
-        <p className="text-2xl font-bold text-white tracking-tight"
-          style={{ fontFamily: "'DM Sans', sans-serif" }}>
-          {metric.prefix}{displayValue}{metric.suffix}
+        <p
+          className="text-2xl font-bold text-white tracking-tight"
+          style={{ fontFamily: "'DM Sans', sans-serif" }}
+        >
+          {metric.prefix}
+          {displayValue}
+          {metric.suffix}
         </p>
-        <p className="text-xs text-white/35 mt-1" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+        <p
+          className="text-xs text-white/40 mt-1"
+          style={{ fontFamily: "'DM Sans', sans-serif" }}
+        >
           {metric.label}
         </p>
       </div>
 
-      {/* Mini sparkline placeholder */}
+      {/* Mini sparkline */}
       <div className="mt-3 h-8 flex items-end gap-0.5 opacity-30">
         {[40, 65, 45, 70, 55, 80, 60, 90, 75, 100].map((h, i) => (
-          <div key={i}
+          <div
+            key={i}
             className="flex-1 rounded-sm bg-white transition-all duration-500"
-            style={{ height: `${h}%`, opacity: hovered ? 0.6 : 0.3 }} />
+            style={{ height: `${h}%`, opacity: hovered ? 0.6 : 0.3 }}
+          />
         ))}
       </div>
     </div>

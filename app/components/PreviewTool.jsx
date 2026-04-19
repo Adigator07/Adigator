@@ -3,7 +3,9 @@
 import { useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import TemplateRenderer from "./TemplateRenderer";
-import { templates } from "../templates/newsTemplates";
+import { templates as newsTemplates } from "../templates/newsTemplates";
+import { templates as gamingTemplates } from "../templates/gamingTemplates";
+import { templates as ecommerceTemplates } from "../templates/ecommerceTemplates";
 import {
   UploadCloud,
   CheckCircle2,
@@ -19,6 +21,12 @@ import {
   Library,
   FileImage,
 } from "lucide-react";
+
+const templateMap = {
+  news: newsTemplates,
+  gaming: gamingTemplates,
+  ecommerce: ecommerceTemplates,
+};
 
 // 🎯 PROGRAMMATIC SIZES
 const ALLOWED_SIZES = [
@@ -755,6 +763,8 @@ export default function PreviewTool() {
                 </label>
               </div>
 
+              // ...existing code...
+
               {/* PREVIEW */}
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
@@ -763,15 +773,15 @@ export default function PreviewTool() {
                 className="bg-gradient-to-br from-white/5 to-white/10 border border-white/20 p-8 rounded-xl overflow-x-auto"
               >
                 <div className="inline-block">
-                  {templates.map((tpl, i) => {
+                  {currentTemplates.map((tpl, i) => {
                     const matchedCreative = validCreatives.find(
                       (c) => c.size === tpl.size
                     );
 
                     return (
-                      <div key={i} className="mb-8">
+                      <div key={tpl.id} className="mb-8">
                         <h3 className="text-white mb-4 text-center">
-                          Slide {i + 1} — {tpl.size}
+                          Slide {i + 1} — {tpl.name} ({tpl.size})
                         </h3>
                         <TemplateRenderer
                           template={tpl}
@@ -794,13 +804,18 @@ export default function PreviewTool() {
                 </div>
                 <div className="bg-gradient-to-br from-green-500/20 to-green-600/20 border border-green-500/30 rounded-xl p-4 text-center">
                   <p className="text-3xl font-bold text-green-400">
-                    {templates.length}
+                    {currentTemplates.length}
                   </p>
                   <p className="text-xs text-gray-400 mt-2">Ad Slots</p>
                 </div>
                 <div className="bg-gradient-to-br from-purple-500/20 to-purple-600/20 border border-purple-500/30 rounded-xl p-4 text-center">
                   <p className="text-3xl font-bold text-purple-400">
-                    {Math.round((validCreatives.length / templates.length) * 100)}%
+                    {currentTemplates.length > 0
+                      ? Math.round(
+                          (validCreatives.length / currentTemplates.length) * 100
+                        )
+                      : 0}
+                    %
                   </p>
                   <p className="text-xs text-gray-400 mt-2">Coverage</p>
                 </div>
