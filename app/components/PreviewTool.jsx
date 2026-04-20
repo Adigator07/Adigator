@@ -474,15 +474,25 @@ export default function PreviewTool() {
               <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} key={selectedTemplate}
                 className="bg-gradient-to-br from-white/5 to-white/10 border border-white/20 p-8 rounded-xl overflow-x-auto">
                 <div className="inline-block">
-                  {currentTemplates.map((tpl, i) => {
-                    const matchedCreative = validCreatives.find((c) => c.size === tpl.size);
-                    return (
-                      <div key={tpl.id} className="mb-8">
-                        <h3 className="text-white mb-4 text-center">Slide {i + 1} — {tpl.name} ({tpl.size})</h3>
-                        <TemplateRenderer template={tpl} creative={matchedCreative} showSlotLabels={showSlotLabels} />
-                      </div>
-                    );
-                  })}
+                  {validCreatives.map((creative, i) => {
+  const tpl = currentTemplates.find(t => t.size === creative.size);
+
+  if (!tpl) return null;
+
+  return (
+    <div key={creative.id} className="mb-8">
+      <h3 className="text-white mb-4 text-center">
+        Slide {i + 1} — {tpl.name} ({creative.size})
+      </h3>
+
+      <TemplateRenderer
+        template={tpl}
+        creative={creative}
+        showSlotLabels={showSlotLabels}
+      />
+    </div>
+  );
+})}
                 </div>
               </motion.div>
 
