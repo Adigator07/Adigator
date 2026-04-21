@@ -3,13 +3,16 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import TemplateRenderer from "./TemplateRenderer";
+import EditCreativeModal from "./EditCreativeModal";
+import CreativeCard from "./CreativeCard";
 import { templates as newsTemplates } from "../templates/newsTemplates";
 import { templates as gamingTemplates } from "../templates/gamingTemplates";
 import { templates as ecommerceTemplates } from "../templates/ecommerceTemplates";
 import { supabase } from "../lib/supabase";
+import { suggestBestSizes, autoFitImage } from "../hooks/useImageEditor";
 import {
   UploadCloud, CheckCircle2, XCircle, AlertCircle,
-  Trash2, Edit2, Check, X, Download,
+  Trash2, Edit2, Check, X, Download, Wand2,
 } from "lucide-react";
 
 const templateMap = {
@@ -42,6 +45,8 @@ export default function PreviewTool() {
   const [editingId, setEditingId] = useState(null);
   const [editingName, setEditingName] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [editModalCreative, setEditModalCreative] = useState(null);
+  const [originalBackups, setOriginalBackups] = useState({});
   const fileRef = useRef(null);
   const userRef = useRef(null);
 
@@ -116,6 +121,42 @@ export default function PreviewTool() {
     }
   };
 
+  // Update a creative after editing (resize/crop)
+  const handleCreativeUpdate = useCallback((id, updates) => {
+    setCreatives((prev) => {
+      return prev.map((c) => {
+        if (c.id !== id) return c;
+        // Store original backup before first edit
+        if (!originalBackups[id]) {
+          setOriginalBackups((b) => ({ ...b, [id]: { ...c } }));
+        }
+        const updated = { ...c, ...updates };
+        saveToSupabase(updated);
+        return updated;
+      });
+    });
+  }, [originalBackups, saveToSupabase]);
+
+  // One-click auto-fix: suggest best size → auto-fit → update
+  const handleAutoFix = useCallback(async (id) => {
+    const creative = creatives.find((c) => c.id === id);
+    if (!creative) return;
+    const [origW, origH] = creative.size.split("x").map(Number);
+    const suggestions = suggestBestSizes(origW, origH);
+    if (suggestions.length === 0) return;
+    const best = suggestions[0];
+    try {
+      const newUrl = await autoFitImage(creative.url, best.w, best.h);
+      handleCreativeUpdate(id, {
+        url: newUrl,
+        size: best.label,
+        valid: true,
+      });
+    } catch (e) {
+      console.error("handleAutoFix error:", e);
+    }
+  }, [creatives, handleCreativeUpdate]);
+
   const handleFiles = (files) => {
     setIsLoading(true);
     let processed = 0;
@@ -178,11 +219,10 @@ export default function PreviewTool() {
           <div className="flex items-center gap-2">
             {[1, 2, 3, 4, 5].map((s) => (
               <motion.div key={s}
-                className={`w-10 h-10 rounded-full flex items-center justify-center text-xs font-bold transition ${
-                  step === s ? "bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg shadow-purple-500/30"
-                  : step > s ? "bg-green-600 text-white"
-                  : "bg-white/10 text-gray-500"
-                }`}
+                className={`w-10 h-10 rounded-full flex items-center justify-center text-xs font-bold transition ${step === s ? "bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg shadow-purple-500/30"
+                    : step > s ? "bg-green-600 text-white"
+                      : "bg-white/10 text-gray-500"
+                  }`}
               >
                 {step > s ? "✓" : s}
               </motion.div>
@@ -213,9 +253,8 @@ export default function PreviewTool() {
               </div>
 
               <motion.div
-                className={`relative rounded-3xl border-2 border-dashed transition-all p-16 text-center cursor-pointer ${
-                  drag ? "border-purple-500 bg-purple-500/10" : "border-white/20 bg-white/5 hover:border-purple-400"
-                }`}
+                className={`relative rounded-3xl border-2 border-dashed transition-all p-16 text-center cursor-pointer ${drag ? "border-purple-500 bg-purple-500/10" : "border-white/20 bg-white/5 hover:border-purple-400"
+                  }`}
                 onDragOver={(e) => { e.preventDefault(); setDrag(true); }}
                 onDragLeave={() => setDrag(false)}
                 onDrop={(e) => { e.preventDefault(); setDrag(false); handleFiles(e.dataTransfer.files); }}
@@ -236,20 +275,15 @@ export default function PreviewTool() {
                   <h3 className="text-xl font-semibold text-white">Uploaded ({creatives.length})</h3>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     {creatives.map((creative) => (
-                      <motion.div key={creative.id} layout initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }}
-                        className={`relative group rounded-xl overflow-hidden border-2 transition ${
-                          creative.valid ? "border-green-500/50 bg-green-500/10" : "border-red-500/50 bg-red-500/10"
-                        }`}
-                      >
-                        <img src={creative.url} alt={creative.name} className="w-full h-32 object-cover" />
-                        <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition flex items-center justify-center">
-                          <Trash2 size={20} className="text-red-400 cursor-pointer" onClick={() => removeCreative(creative.id)} />
-                        </div>
-                        <div className="p-2 bg-black/40">
-                          <p className="text-xs font-semibold text-white truncate">{creative.name}</p>
-                          <p className={`text-xs mt-1 font-bold ${creative.valid ? "text-green-400" : "text-red-400"}`}>{creative.size}</p>
-                        </div>
-                      </motion.div>
+                      <CreativeCard
+                        key={creative.id}
+                        creative={creative}
+                        compact
+                        onEdit={(c) => setEditModalCreative(c)}
+                        onAutoFix={handleAutoFix}
+                        onRemove={removeCreative}
+                        showFixButton={!creative.valid}
+                      />
                     ))}
                   </div>
                 </motion.div>
@@ -308,17 +342,12 @@ export default function PreviewTool() {
                   </div>
                   <motion.div variants={containerVariants} initial="hidden" animate="visible" className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     {validCreatives.map((creative) => (
-                      <motion.div key={creative.id} variants={itemVariants}
-                        className="bg-gradient-to-br from-green-500/10 to-emerald-500/10 border-2 border-green-500/30 rounded-xl overflow-hidden hover:border-green-500/60 transition group">
-                        <div className="relative h-40 bg-black/20 overflow-hidden">
-                          <img src={creative.url} alt={creative.name} className="w-full h-full object-cover group-hover:scale-105 transition" />
-                          <div className="absolute top-2 right-2 bg-green-600 text-white px-2 py-1 rounded text-xs font-bold">✓ Valid</div>
-                        </div>
-                        <div className="p-3">
-                          <p className="text-xs font-semibold text-green-400 mb-2">{creative.size}</p>
-                          <p className="text-sm text-gray-300 break-words">{creative.name}</p>
-                        </div>
-                      </motion.div>
+                      <CreativeCard
+                        key={creative.id}
+                        creative={creative}
+                        onEdit={(c) => setEditModalCreative(c)}
+                        onRemove={removeCreative}
+                      />
                     ))}
                   </motion.div>
                 </div>
@@ -330,18 +359,16 @@ export default function PreviewTool() {
                     <XCircle size={24} className="text-red-500" />
                     <h3 className="text-xl font-semibold text-white">Invalid Creatives ({invalidCreatives.length})</h3>
                   </div>
-                  <div className="space-y-3">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     {invalidCreatives.map((creative) => (
-                      <motion.div key={creative.id} layout initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }}
-                        className="bg-gradient-to-r from-red-500/10 to-red-600/10 border-2 border-red-500/30 rounded-xl p-4 flex items-center justify-between">
-                        <div className="flex-1">
-                          <p className="text-sm font-semibold text-red-400 mb-1">{creative.name}</p>
-                          <p className="text-xs text-red-300">Size: {creative.size} (Not supported)</p>
-                        </div>
-                        <button onClick={() => removeCreative(creative.id)} className="ml-4 p-2 hover:bg-red-500/20 rounded transition text-red-400">
-                          <Trash2 size={18} />
-                        </button>
-                      </motion.div>
+                      <CreativeCard
+                        key={creative.id}
+                        creative={creative}
+                        onEdit={(c) => setEditModalCreative(c)}
+                        onAutoFix={handleAutoFix}
+                        onRemove={removeCreative}
+                        showFixButton
+                      />
                     ))}
                   </div>
                   <p className="text-xs text-gray-500 bg-white/5 border border-white/10 rounded p-3">
@@ -373,34 +400,12 @@ export default function PreviewTool() {
 
               <motion.div variants={containerVariants} initial="hidden" animate="visible" className="grid grid-cols-2 md:grid-cols-4 gap-6">
                 {validCreatives.map((creative) => (
-                  <motion.div key={creative.id} variants={itemVariants} layout
-                    className="bg-gradient-to-br from-purple-500/10 to-blue-500/10 border-2 border-purple-500/30 rounded-xl overflow-hidden hover:border-purple-500/60 transition group">
-                    <div className="relative h-48 bg-black/20 overflow-hidden">
-                      <img src={creative.url} alt={creative.name} className="w-full h-full object-cover group-hover:scale-105 transition" />
-                      <div className="absolute top-2 left-2 bg-purple-600 text-white px-2 py-1 rounded text-xs font-bold">{creative.size}</div>
-                    </div>
-                    <div className="p-4 space-y-3">
-                      {editingId === creative.id ? (
-                        <div className="flex gap-2">
-                          <input type="text" value={editingName} onChange={(e) => setEditingName(e.target.value)}
-                            className="flex-1 bg-white/10 border border-white/20 rounded px-2 py-1 text-sm text-white focus:outline-none focus:border-purple-500" autoFocus />
-                          <button onClick={() => saveEdit(creative.id)} className="p-1 hover:bg-green-500/20 rounded transition text-green-400"><Check size={18} /></button>
-                          <button onClick={() => setEditingId(null)} className="p-1 hover:bg-red-500/20 rounded transition text-red-400"><X size={18} /></button>
-                        </div>
-                      ) : (
-                        <div className="flex items-start justify-between gap-2">
-                          <p className="text-sm font-semibold text-white break-words flex-1">{creative.name}</p>
-                          <button onClick={() => startEdit(creative.id, creative.name)} className="p-1 hover:bg-purple-500/20 rounded transition text-purple-400 flex-shrink-0">
-                            <Edit2 size={16} />
-                          </button>
-                        </div>
-                      )}
-                      <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} onClick={() => removeCreative(creative.id)}
-                        className="w-full py-2 bg-red-500/20 border border-red-500/30 text-red-400 rounded hover:bg-red-500/30 transition text-sm font-semibold flex items-center justify-center gap-2">
-                        <Trash2 size={16} /> Remove
-                      </motion.button>
-                    </div>
-                  </motion.div>
+                  <CreativeCard
+                    key={creative.id}
+                    creative={creative}
+                    onEdit={(c) => setEditModalCreative(c)}
+                    onRemove={removeCreative}
+                  />
                 ))}
               </motion.div>
 
@@ -427,9 +432,8 @@ export default function PreviewTool() {
                 {["news", "gaming", "ecommerce"].map((type) => (
                   <motion.button key={type} variants={itemVariants} whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
                     onClick={() => setSelectedTemplate(type)}
-                    className={`p-6 rounded-xl border-2 transition text-center ${
-                      selectedTemplate === type ? "border-purple-600 bg-purple-500/20" : "border-white/20 bg-white/5 hover:border-white/40"
-                    }`}
+                    className={`p-6 rounded-xl border-2 transition text-center ${selectedTemplate === type ? "border-purple-600 bg-purple-500/20" : "border-white/20 bg-white/5 hover:border-white/40"
+                      }`}
                   >
                     <div className="text-6xl mb-4">{type === "news" ? "📰" : type === "gaming" ? "🎮" : "🛍️"}</div>
                     <h3 className="text-lg font-bold text-white mb-2 capitalize">{type}</h3>
@@ -475,24 +479,24 @@ export default function PreviewTool() {
                 className="bg-gradient-to-br from-white/5 to-white/10 border border-white/20 p-8 rounded-xl overflow-x-auto">
                 <div className="inline-block">
                   {validCreatives.map((creative, i) => {
-  const tpl = currentTemplates.find(t => t.size === creative.size);
+                    const tpl = currentTemplates.find(t => t.size === creative.size);
 
-  if (!tpl) return null;
+                    if (!tpl) return null;
 
-  return (
-    <div key={creative.id} className="mb-8">
-      <h3 className="text-white mb-4 text-center">
-        Slide {i + 1} — {tpl.name} ({creative.size})
-      </h3>
+                    return (
+                      <div key={creative.id} className="mb-8">
+                        <h3 className="text-white mb-4 text-center">
+                          Slide {i + 1} — {tpl.name} ({creative.size})
+                        </h3>
 
-      <TemplateRenderer
-        template={tpl}
-        creative={creative}
-        showSlotLabels={showSlotLabels}
-      />
-    </div>
-  );
-})}
+                        <TemplateRenderer
+                          template={tpl}
+                          creative={creative}
+                          showSlotLabels={showSlotLabels}
+                        />
+                      </div>
+                    );
+                  })}
                 </div>
               </motion.div>
 
@@ -526,6 +530,15 @@ export default function PreviewTool() {
 
         </AnimatePresence>
       </main>
+
+      {/* Edit Creative Modal */}
+      {editModalCreative && (
+        <EditCreativeModal
+          creative={editModalCreative}
+          onApply={handleCreativeUpdate}
+          onClose={() => setEditModalCreative(null)}
+        />
+      )}
     </div>
   );
 }
