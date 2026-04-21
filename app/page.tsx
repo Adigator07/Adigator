@@ -23,6 +23,7 @@ export default function Home() {
       </header>
 
       {/* HERO */}
+<<<<<<< HEAD
       <section className="text-center px-6 md:px-10 py-24 md:py-32 bg-gradient-to-b from-[#0a0f1e] to-[#111827]">
 
         <h1 className="text-4xl md:text-6xl lg:text-7xl font-semibold leading-tight tracking-tight max-w-4xl mx-auto">
@@ -94,6 +95,56 @@ export default function Home() {
         </div>
 
       </section>
+=======
+<section className="relative px-6 md:px-10 py-24 flex flex-col md:flex-row items-center gap-16">
+
+  <div className="absolute top-0 left-0 w-96 h-96 bg-purple-600 opacity-20 blur-[120px]"></div>
+
+  {/* LEFT CONTENT */}
+  <div className="flex-1 z-10">
+    <h1 className="text-4xl md:text-6xl font-bold leading-tight">
+      Stop Wasting Ad Spend on{" "}
+      <span className="bg-gradient-to-r from-purple-400 via-pink-500 to-blue-500 bg-clip-text text-transparent">
+        Creatives That Don’t Work
+      </span>
+    </h1>
+
+    <p className="mt-6 text-gray-400 text-lg max-w-lg">
+      Preview, analyze, and optimize your ad creatives before launching campaigns.
+    </p>
+
+    <div className="mt-10 flex gap-4 flex-wrap">
+      <Link href="/intelligence">
+        <button className="bg-gradient-to-r from-purple-600 to-pink-500 px-8 py-3 rounded-xl hover:scale-105 transition shadow-lg">
+          Start Analysis
+        </button>
+      </Link>
+
+      <Link href="/preview">
+        <button className="border border-white/20 px-8 py-3 rounded-xl hover:bg-white hover:text-black transition">
+          Preview Creatives
+        </button>
+      </Link>
+    </div>
+  </div>
+
+  {/* RIGHT VIDEO */}
+  <div className="flex-1 relative z-10">
+    <div className="absolute inset-0 bg-gradient-to-r from-purple-500 to-blue-500 blur-2xl opacity-30 rounded-xl"></div>
+
+    <video
+      autoPlay
+      muted
+      loop
+      playsInline
+      className="relative w-full rounded-xl object-cover"
+    >
+      <source src="/video.mp4" type="video/mp4" />
+    </video>
+  </div>
+
+</section>
+>>>>>>> cb140492f6fd76315b6ee3f73bbd9198521264ee
 
       {/* CORE VALUE (LIGHT SECTION — APPLE STYLE) */}
       <section className="px-6 md:px-10 py-24 md:py-32 text-center bg-white text-black">
