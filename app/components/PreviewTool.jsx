@@ -3,23 +3,15 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import TemplateRenderer from "./TemplateRenderer";
+import SlidePreview from "./SlidePreview";
 import EditCreativeModal from "./EditCreativeModal";
 import CreativeCard from "./CreativeCard";
-import { templates as newsTemplates } from "../templates/newsTemplates";
-import { templates as gamingTemplates } from "../templates/gamingTemplates";
-import { templates as ecommerceTemplates } from "../templates/ecommerceTemplates";
 import { supabase } from "../lib/supabase";
 import { suggestBestSizes, autoFitImage } from "../hooks/useImageEditor";
 import {
   UploadCloud, CheckCircle2, XCircle, AlertCircle,
   Trash2, Edit2, Check, X, Download, Wand2,
 } from "lucide-react";
-
-const templateMap = {
-  news: newsTemplates,
-  gaming: gamingTemplates,
-  ecommerce: ecommerceTemplates,
-};
 
 const ALLOWED_SIZES = [
   "300x250", "728x90", "160x600", "300x600",
@@ -40,7 +32,6 @@ export default function PreviewTool() {
   const [step, setStep] = useState(1);
   const [drag, setDrag] = useState(false);
   const [creatives, setCreatives] = useState([]);
-  const [selectedTemplate, setSelectedTemplate] = useState("news");
   const [showSlotLabels, setShowSlotLabels] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [editingName, setEditingName] = useState("");
@@ -58,21 +49,15 @@ export default function PreviewTool() {
     return userRef.current;
   }, []);
 
-  // Load only step and template from localStorage (NOT images - too large)
   useEffect(() => {
     const savedStep = localStorage.getItem("adigator_step");
-    const savedTemplate = localStorage.getItem("adigator_template");
     if (savedStep) setStep(parseInt(savedStep));
-    if (savedTemplate) setSelectedTemplate(savedTemplate);
   }, []);
 
   useEffect(() => {
     localStorage.setItem("adigator_step", step.toString());
   }, [step]);
 
-  useEffect(() => {
-    localStorage.setItem("adigator_template", selectedTemplate);
-  }, [selectedTemplate]);
 
   // Save creative metadata to Supabase (no image URL)
   const saveToSupabase = async (creative) => {
@@ -189,7 +174,7 @@ export default function PreviewTool() {
 
   const validCreatives = creatives.filter((c) => c.valid);
   const invalidCreatives = creatives.filter((c) => !c.valid);
-  const currentTemplates = templateMap[selectedTemplate] || newsTemplates;
+
 
   const handlePreview = async () => {
     try {
@@ -217,14 +202,14 @@ export default function PreviewTool() {
             <p className="text-sm text-gray-400 mt-1">Professional creative preview for programmatic ads</p>
           </div>
           <div className="flex items-center gap-2">
-            {[1, 2, 3, 4, 5].map((s) => (
+            {[1, 2, 3, 5].map((s) => (
               <motion.div key={s}
                 className={`w-10 h-10 rounded-full flex items-center justify-center text-xs font-bold transition ${step === s ? "bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg shadow-purple-500/30"
                     : step > s ? "bg-green-600 text-white"
                       : "bg-white/10 text-gray-500"
                   }`}
               >
-                {step > s ? "✓" : s}
+                {step > s ? "✓" : s === 5 ? 4 : s}
               </motion.div>
             ))}
           </div>
@@ -412,45 +397,9 @@ export default function PreviewTool() {
               <div className="flex gap-4 pt-4">
                 <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={() => setStep(2)}
                   className="flex-1 py-3 bg-white/10 text-white rounded-xl font-semibold hover:bg-white/20 transition">← Back</motion.button>
-                <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={() => setStep(4)}
+                <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={() => setStep(5)}
                   className="flex-1 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl font-semibold transition">
-                  Next: Select Template →
-                </motion.button>
-              </div>
-            </motion.div>
-          )}
-
-          {/* STEP 4: TEMPLATE SELECTION */}
-          {step === 4 && (
-            <motion.div key="step-4" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="space-y-8">
-              <div>
-                <h2 className="text-4xl font-bold text-white mb-2">Step 4: Select Template</h2>
-                <p className="text-gray-400">Choose a website template to preview your creatives</p>
-              </div>
-
-              <motion.div variants={containerVariants} initial="hidden" animate="visible" className="grid grid-cols-3 gap-6">
-                {["news", "gaming", "ecommerce"].map((type) => (
-                  <motion.button key={type} variants={itemVariants} whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
-                    onClick={() => setSelectedTemplate(type)}
-                    className={`p-6 rounded-xl border-2 transition text-center ${selectedTemplate === type ? "border-purple-600 bg-purple-500/20" : "border-white/20 bg-white/5 hover:border-white/40"
-                      }`}
-                  >
-                    <div className="text-6xl mb-4">{type === "news" ? "📰" : type === "gaming" ? "🎮" : "🛍️"}</div>
-                    <h3 className="text-lg font-bold text-white mb-2 capitalize">{type}</h3>
-                    <p className="text-xs text-gray-400 mb-3">
-                      {type === "news" ? "Modern news portal" : type === "gaming" ? "Gaming website" : "E-commerce page"}
-                    </p>
-                    <p className="text-sm font-semibold text-purple-400">{(templateMap[type] || []).length} ad slots</p>
-                  </motion.button>
-                ))}
-              </motion.div>
-
-              <div className="flex gap-4 pt-4">
-                <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={() => setStep(3)}
-                  className="flex-1 py-3 bg-white/10 text-white rounded-xl font-semibold hover:bg-white/20 transition">← Back</motion.button>
-                <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={handlePreview}
-                  className="flex-1 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl font-semibold transition">
-                  Next: Preview & Export →
+                  Next: Generate Dynamic Layout →
                 </motion.button>
               </div>
             </motion.div>
@@ -475,50 +424,17 @@ export default function PreviewTool() {
                 <span className="text-sm font-medium text-white">Show slot IDs</span>
               </label>
 
-              <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} key={selectedTemplate}
-                className="bg-gradient-to-br from-white/5 to-white/10 border border-white/20 p-8 rounded-xl overflow-x-auto">
-                <div className="inline-block">
-                  {validCreatives.map((creative, i) => {
-                    const tpl = currentTemplates.find(t => t.size === creative.size);
-
-                    if (!tpl) return null;
-
-                    return (
-                      <div key={creative.id} className="mb-8">
-                        <h3 className="text-white mb-4 text-center">
-                          Slide {i + 1} — {tpl.name} ({creative.size})
-                        </h3>
-
-                        <TemplateRenderer
-                          template={tpl}
-                          creative={creative}
-                          showSlotLabels={showSlotLabels}
-                        />
-                      </div>
-                    );
-                  })}
-                </div>
+              <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+                <SlidePreview
+                  validCreatives={validCreatives}
+                  showSlotLabels={showSlotLabels}
+                />
               </motion.div>
 
-              <div className="grid grid-cols-3 gap-4">
-                <div className="bg-gradient-to-br from-blue-500/20 to-blue-600/20 border border-blue-500/30 rounded-xl p-4 text-center">
-                  <p className="text-3xl font-bold text-blue-400">{validCreatives.length}</p>
-                  <p className="text-xs text-gray-400 mt-2">Creatives Loaded</p>
-                </div>
-                <div className="bg-gradient-to-br from-green-500/20 to-green-600/20 border border-green-500/30 rounded-xl p-4 text-center">
-                  <p className="text-3xl font-bold text-green-400">{currentTemplates.length}</p>
-                  <p className="text-xs text-gray-400 mt-2">Ad Slots</p>
-                </div>
-                <div className="bg-gradient-to-br from-purple-500/20 to-purple-600/20 border border-purple-500/30 rounded-xl p-4 text-center">
-                  <p className="text-3xl font-bold text-purple-400">
-                    {currentTemplates.length > 0 ? Math.round((validCreatives.length / currentTemplates.length) * 100) : 0}%
-                  </p>
-                  <p className="text-xs text-gray-400 mt-2">Coverage</p>
-                </div>
-              </div>
+
 
               <div className="flex gap-4 pt-4">
-                <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={() => setStep(4)}
+                <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={() => setStep(3)}
                   className="flex-1 py-3 bg-white/10 text-white rounded-xl font-semibold hover:bg-white/20 transition">← Back</motion.button>
                 <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={() => window.print()}
                   className="flex-1 py-3 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-xl font-semibold flex items-center justify-center gap-2">
