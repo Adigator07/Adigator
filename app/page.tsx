@@ -1,39 +1,51 @@
 "use client";
 import Link from "next/link";
-import Logo from "./components/Logo";
+import Logo from "@/components/Logo";
 
 export default function Home() {
   return (
     <main className="bg-[#030712] text-white min-h-screen overflow-hidden">
 
-      {/* NAVBAR */}
-      <div className="flex justify-between items-center px-10 py-6 border-b border-white/10 backdrop-blur-md">
-        <Logo />
+      {/* PREMIUM NAVBAR */}
+      <header className="sticky top-0 z-50 backdrop-blur-xl bg-black/30 border-b border-white/10">
+        <div className="max-w-7xl mx-auto flex justify-between items-center px-6 py-4">
 
-        <div className="flex items-center gap-8 text-sm">
-          <span className="hover:text-purple-400 cursor-pointer transition">Solutions</span>
-          <span className="hover:text-purple-400 cursor-pointer transition">About</span>
-          <span className="hover:text-purple-400 cursor-pointer transition">Contact</span>
+          <Logo />
 
-          <Link href="/login">
-            <button className="px-5 py-2 rounded-xl border border-purple-500 text-purple-400 hover:bg-purple-500 hover:text-white transition-all duration-300">
-              Login
-            </button>
-          </Link>
+          <nav className="hidden md:flex items-center gap-8 text-sm text-gray-300">
+            <span className="hover:text-white transition cursor-pointer">Solutions</span>
+            <span className="hover:text-white transition cursor-pointer">About</span>
+            <span className="hover:text-white transition cursor-pointer">Contact</span>
+          </nav>
+
+          <div className="flex items-center gap-4">
+            <Link href="/login">
+              <button className="px-5 py-2 rounded-xl border border-white/20 text-gray-300 hover:bg-white hover:text-black transition-all">
+                Login
+              </button>
+            </Link>
+
+            <Link href="/preview">
+              <button className="px-5 py-2 rounded-xl bg-gradient-to-r from-purple-600 to-pink-500 hover:scale-105 transition shadow-lg">
+                Get Started
+              </button>
+            </Link>
+          </div>
+
         </div>
-      </div>
+      </header>
 
       {/* HERO */}
-      <section className="relative px-10 py-24 flex flex-col md:flex-row items-center gap-16">
+      <section className="relative px-6 md:px-10 py-24 flex flex-col md:flex-row items-center gap-16">
 
-        {/* Glow Background */}
+        {/* Glow */}
         <div className="absolute top-0 left-0 w-96 h-96 bg-purple-600 opacity-20 blur-[120px]"></div>
 
         {/* TEXT */}
         <div className="flex-1 z-10">
-          <h1 className="text-5xl md:text-6xl font-bold leading-tight">
+          <h1 className="text-4xl md:text-6xl font-bold leading-tight">
             Stop Wasting Ad Spend on{" "}
-            <span className="bg-gradient-to-r from-purple-400 via-pink-500 to-blue-500 bg-clip-text text-transparent animate-pulse">
+            <span className="bg-gradient-to-r from-purple-400 via-pink-500 to-blue-500 bg-clip-text text-transparent">
               Creatives That Don’t Work
             </span>
           </h1>
@@ -42,15 +54,15 @@ export default function Home() {
             Preview, analyze, and optimize your ad creatives before launching campaigns.
           </p>
 
-          <div className="mt-10 flex gap-4">
+          <div className="mt-10 flex gap-4 flex-wrap">
             <Link href="/intelligence">
-              <button className="bg-gradient-to-r from-purple-600 to-pink-500 px-8 py-3 rounded-xl hover:scale-105 transition-transform duration-300 shadow-lg">
+              <button className="bg-gradient-to-r from-purple-600 to-pink-500 px-8 py-3 rounded-xl hover:scale-105 transition shadow-lg">
                 Start Analysis
               </button>
             </Link>
 
             <Link href="/preview">
-              <button className="border border-white/20 px-8 py-3 rounded-xl hover:bg-white hover:text-black transition-all duration-300">
+              <button className="border border-white/20 px-8 py-3 rounded-xl hover:bg-white hover:text-black transition">
                 Preview Creatives
               </button>
             </Link>
@@ -58,7 +70,7 @@ export default function Home() {
         </div>
 
         {/* IMAGE */}
-        <div className="flex-1 z-10 relative">
+        <div className="flex-1 relative z-10">
           <div className="absolute inset-0 bg-gradient-to-r from-purple-500 to-blue-500 blur-2xl opacity-30 rounded-xl"></div>
 
           <img
@@ -70,7 +82,7 @@ export default function Home() {
       </section>
 
       {/* PROBLEM */}
-      <section className="px-10 py-24 text-center">
+      <section className="px-6 md:px-10 py-24 text-center">
         <h2 className="text-3xl font-semibold mb-12">
           Why Most Ad Campaigns Fail
         </h2>
@@ -84,7 +96,7 @@ export default function Home() {
           ].map((item, i) => (
             <div
               key={i}
-              className="bg-white/5 backdrop-blur-lg border border-white/10 p-6 rounded-2xl w-64 hover:scale-105 hover:border-purple-500 transition duration-300"
+              className="bg-white/5 backdrop-blur-lg border border-white/10 p-6 rounded-2xl w-64 hover:scale-105 hover:border-purple-500 transition"
             >
               <p className="text-gray-300">{item}</p>
             </div>
@@ -97,7 +109,7 @@ export default function Home() {
       </section>
 
       {/* SOLUTION */}
-      <section className="px-10 py-24 text-center">
+      <section className="px-6 md:px-10 py-24 text-center">
         <h2 className="text-3xl font-semibold mb-6">
           Fix It Before You Launch
         </h2>
@@ -108,7 +120,7 @@ export default function Home() {
       </section>
 
       {/* HOW IT WORKS */}
-      <section className="px-10 py-24 text-center">
+      <section className="px-6 md:px-10 py-24 text-center">
         <h2 className="text-3xl font-semibold mb-12">How It Works</h2>
 
         <div className="grid md:grid-cols-4 gap-6">
@@ -120,7 +132,7 @@ export default function Home() {
           ].map((step, i) => (
             <div
               key={i}
-              className="bg-white/5 border border-white/10 p-6 rounded-2xl hover:scale-105 hover:border-purple-500 transition duration-300"
+              className="bg-white/5 border border-white/10 p-6 rounded-2xl hover:scale-105 hover:border-purple-500 transition"
             >
               <h3 className="font-semibold">{step}</h3>
             </div>
@@ -129,7 +141,7 @@ export default function Home() {
       </section>
 
       {/* FEATURES */}
-      <section className="px-10 py-24">
+      <section className="px-6 md:px-10 py-24">
         <h2 className="text-3xl font-semibold text-center mb-12">
           Core Solutions
         </h2>
@@ -154,7 +166,7 @@ export default function Home() {
       </section>
 
       {/* CTA */}
-      <section className="px-10 py-24 text-center relative">
+      <section className="px-6 md:px-10 py-24 text-center relative">
         <div className="absolute inset-0 bg-purple-600 opacity-10 blur-[120px]"></div>
 
         <h2 className="text-3xl font-semibold mb-6">
@@ -162,16 +174,17 @@ export default function Home() {
         </h2>
 
         <Link href="/preview">
-          <button className="bg-gradient-to-r from-purple-600 to-pink-500 px-10 py-4 rounded-xl hover:scale-110 transition duration-300 shadow-xl">
+          <button className="bg-gradient-to-r from-purple-600 to-pink-500 px-10 py-4 rounded-xl hover:scale-110 transition shadow-xl">
             Get Started Free
           </button>
         </Link>
       </section>
 
       {/* FOOTER */}
-      <footer className="px-10 py-8 border-t border-white/10 text-center text-gray-500">
+      <footer className="px-6 md:px-10 py-8 border-t border-white/10 text-center text-gray-500">
         © 2026 Adigator
       </footer>
+
     </main>
   );
 }
