@@ -34,14 +34,13 @@ const AnimatedButton = ({
       transition={{ type: "spring", stiffness: 400, damping: 25 }}
       className={`${baseStyle} ${styles[variant]} ${className}`}
     >
-      {/* Subtle Inner Shine */}
       <div className="absolute inset-0 rounded-full bg-gradient-to-tr from-white/0 via-white/20 to-white/0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
       <span className="relative z-10 flex items-center gap-2">{children}</span>
     </motion.button>
   );
 
   return href ? <Link href={href} className="inline-block">{buttonContent}</Link> : buttonContent;
-};
+};  
 
 // ------------------------------------------------------------------
 // ANIMATION VARIANTS
@@ -89,7 +88,6 @@ export default function Home() {
 
       {/* NAVBAR */}
       <header className="relative z-50 flex justify-between items-center px-6 md:px-12 h-20 border-b border-white/5 bg-[#030712]/50 backdrop-blur-2xl transition-all">
-        {/* LOGO */}
         <motion.div 
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
@@ -103,7 +101,6 @@ export default function Home() {
           />
         </motion.div>
 
-        {/* MENU + LOGIN */}
         <motion.div 
           initial={{ opacity: 0, x: 20 }}
           animate={{ opacity: 1, x: 0 }}
@@ -134,7 +131,6 @@ export default function Home() {
           initial="hidden"
           animate="visible"
         >
-          {/* Badge */}
           <motion.div variants={fadeUpItem} className="mb-8 flex justify-center">
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-fuchsia-500/30 bg-fuchsia-500/10 text-fuchsia-300 text-xs md:text-sm font-medium tracking-wide backdrop-blur-sm shadow-[0_0_20px_rgba(217,70,239,0.1)] hover:bg-fuchsia-500/20 transition-colors duration-300 cursor-pointer">
               <span className="relative flex h-2 w-2">
@@ -147,7 +143,7 @@ export default function Home() {
 
           <motion.h1 
             variants={fadeUpItem}
-            className="text-6xl md:text-8xl lg:text-[7rem] font-bold leading-[1.05] tracking-tighter text-white drop-shadow-2xl"
+            className="text-5xl md:text-7xl font-bold leading-[1.1] tracking-tight text-white drop-shadow-2xl"
           >
             Know your ad works.
             <br />
@@ -158,7 +154,7 @@ export default function Home() {
 
           <motion.p 
             variants={fadeUpItem}
-            className="mt-8 text-gray-400 max-w-2xl mx-auto text-lg md:text-xl leading-relaxed font-light tracking-wide"
+            className="mt-8 text-gray-400 max-w-2xl mx-auto text-base md:text-xl leading-relaxed font-light tracking-wide"
           >
             Preview, analyze, and validate your creatives in real environments before launching campaigns. Save budget. Increase ROI.
           </motion.p>
@@ -188,7 +184,7 @@ export default function Home() {
         >
           <div className="absolute inset-0 bg-gradient-to-b from-violet-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
           <p className="text-violet-400 text-sm font-semibold tracking-wider uppercase mb-4">For Advertisers</p>
-          <h2 className="text-3xl md:text-5xl font-medium mb-6 leading-tight tracking-tight text-white">
+          <h2 className="text-2xl md:text-4xl font-medium mb-6 leading-tight tracking-tight text-white">
             Stop guessing. <br/>Start knowing.
           </h2>
           <p className="text-gray-400 text-base md:text-lg leading-relaxed font-light">
@@ -205,7 +201,7 @@ export default function Home() {
         >
           <div className="absolute inset-0 bg-gradient-to-b from-blue-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
           <p className="text-blue-400 text-sm font-semibold tracking-wider uppercase mb-4">For Agencies</p>
-          <h2 className="text-3xl md:text-5xl font-medium mb-6 leading-tight tracking-tight text-white">
+          <h2 className="text-2xl md:text-4xl font-medium mb-6 leading-tight tracking-tight text-white">
             Impress clients <br/>before launch.
           </h2>
           <p className="text-gray-400 text-base md:text-lg leading-relaxed font-light">
@@ -214,7 +210,7 @@ export default function Home() {
         </motion.div>
       </section>
 
-      {/* DEMO SECTION */}
+      {/* DEMO SECTION - Restored */}
       <section className="relative z-10 px-6 md:px-10 py-32 md:py-40 text-center">
         <motion.div
           initial="hidden"
@@ -223,13 +219,13 @@ export default function Home() {
           variants={fadeUpContainer}
           className="max-w-6xl mx-auto"
         >
-          <motion.h2 variants={fadeUpItem} className="text-4xl md:text-6xl font-medium mb-6 tracking-tight">
+          <motion.h2 variants={fadeUpItem} className="text-3xl md:text-5xl font-medium mb-6 tracking-tight">
             Your ad, in the wild.
             <br className="hidden md:block" />
             <span className="text-gray-500"> Before it runs.</span>
           </motion.h2>
 
-          <motion.p variants={fadeUpItem} className="text-gray-400 max-w-2xl mx-auto mb-16 text-lg font-light tracking-wide">
+          <motion.p variants={fadeUpItem} className="text-gray-400 max-w-2xl mx-auto mb-16 text-base md:text-lg font-light tracking-wide">
             Place your creatives into real-world layouts and understand how they actually perform visually before spending a single dollar.
           </motion.p>
 
@@ -237,7 +233,6 @@ export default function Home() {
             variants={scaleUpItem}
             className="relative group rounded-3xl overflow-hidden border border-white/10 bg-[#0f172a] shadow-[0_0_80px_rgba(0,0,0,0.8)]"
           >
-            {/* macOS styled window bar */}
             <div className="h-12 border-b border-white/5 bg-white/5 flex items-center px-6 gap-2">
               <div className="w-3 h-3 rounded-full bg-red-500/80" />
               <div className="w-3 h-3 rounded-full bg-yellow-500/80" />
@@ -267,11 +262,11 @@ export default function Home() {
           viewport={{ once: true, margin: "-100px" }}
           variants={fadeUpContainer}
         >
-          <motion.h2 variants={fadeUpItem} className="text-5xl md:text-7xl font-bold max-w-5xl mx-auto leading-tight tracking-tighter">
+          <motion.h2 variants={fadeUpItem} className="text-4xl md:text-6xl font-bold max-w-5xl mx-auto leading-tight tracking-tight">
             Creative quality is your biggest performance lever.
           </motion.h2>
 
-          <motion.p variants={fadeUpItem} className="mt-8 max-w-2xl mx-auto text-gray-600 text-lg md:text-xl font-light tracking-wide">
+          <motion.p variants={fadeUpItem} className="mt-8 max-w-2xl mx-auto text-gray-600 text-base md:text-lg font-light tracking-wide">
             Most campaigns fail before they launch due to poor formatting and context mismatch. Adigator helps you fix that instantly.
           </motion.p>
         </motion.div>
@@ -279,7 +274,6 @@ export default function Home() {
 
       {/* FINAL CTA */}
       <section className="relative z-10 px-6 md:px-10 py-32 md:py-48 text-center bg-[#030712] relative overflow-hidden">
-        {/* Subtle Bottom Glow */}
         <div className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2 w-[800px] h-[400px] bg-violet-600/20 rounded-full blur-[120px] pointer-events-none" />
 
         <motion.div
@@ -289,12 +283,12 @@ export default function Home() {
           variants={fadeUpContainer}
           className="relative z-10"
         >
-          <motion.h2 variants={fadeUpItem} className="text-5xl md:text-7xl font-bold mb-10 tracking-tighter text-white">
+          <motion.h2 variants={fadeUpItem} className="text-4xl md:text-6xl font-bold mb-10 tracking-tight text-white">
             Your next campaign <br/>deserves a smarter start.
           </motion.h2>
 
           <motion.div variants={fadeUpItem}>
-            <AnimatedButton href="/preview" variant="primary" className="px-12 py-4 text-lg shadow-[0_0_40px_rgba(168,85,247,0.4)]">
+            <AnimatedButton href="/preview" variant="primary" className="px-12 py-4 text-base shadow-[0_0_40px_rgba(168,85,247,0.4)]">
               Start free preview
             </AnimatedButton>
           </motion.div>
