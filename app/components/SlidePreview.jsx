@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import TemplateRenderer from "./TemplateRenderer";
 import { universalSlots } from "../templates/universalSlots";
 import {
-  ChevronLeft, ChevronRight, Shuffle, Layers, Info, Sparkles
+  ChevronLeft, ChevronRight, Shuffle, Layers, Info, Sparkles, Monitor, Smartphone, CheckCircle2
 } from "lucide-react";
 
 const SIZE_PRIORITY = {
@@ -115,6 +115,7 @@ export default function SlidePreview({
   const [activeIndex, setActiveIndex] = useState(0);
   const [direction, setDirection] = useState(0);
   const [shuffledCreatives, setShuffledCreatives] = useState(null);
+  const [isMobile, setIsMobile] = useState(false);
 
   const creativesToUse = shuffledCreatives || validCreatives;
 
@@ -159,19 +160,49 @@ export default function SlidePreview({
 
   return (
     <div className="space-y-6">
-      {/* Auto Layout Header */}
-      {displayedSlots.length > 0 && (
-        <motion.div
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="flex items-center justify-between bg-purple-500/10 border border-purple-500/20 rounded-xl px-4 py-3"
-        >
-          <div className="flex items-center gap-2 text-purple-400">
-            <Sparkles size={18} />
-            <span className="text-sm font-semibold">Dynamic Layout Engine: Ad placements optimized</span>
+      {/* Preview Engine Header */}
+      <div className="bg-slate-900 border border-white/10 rounded-2xl p-6">
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+          <div>
+            <div className="flex items-center gap-2 text-purple-400 mb-1">
+              <Sparkles size={16} />
+              <span className="text-sm font-bold tracking-widest uppercase">Preview Engine</span>
+            </div>
+            <h2 className="text-2xl font-bold text-white">See Your Ads Before They Go Live</h2>
+            
+            <div className="flex items-center gap-4 mt-3">
+              <span className="flex items-center gap-1.5 text-xs text-gray-400">
+                <CheckCircle2 size={14} className="text-green-400" /> Multi-platform preview
+              </span>
+              <span className="flex items-center gap-1.5 text-xs text-gray-400">
+                <CheckCircle2 size={14} className="text-green-400" /> Real ad formats
+              </span>
+              <span className="flex items-center gap-1.5 text-xs text-gray-400">
+                <CheckCircle2 size={14} className="text-green-400" /> Realistic Website Layout
+              </span>
+            </div>
           </div>
-        </motion.div>
-      )}
+
+          <div className="flex items-center bg-black/40 p-1.5 rounded-xl border border-white/10">
+            <button
+              onClick={() => setIsMobile(false)}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition ${
+                !isMobile ? "bg-white/10 text-white shadow-md" : "text-gray-500 hover:text-gray-300"
+              }`}
+            >
+              <Monitor size={16} /> Desktop
+            </button>
+            <button
+              onClick={() => setIsMobile(true)}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition ${
+                isMobile ? "bg-white/10 text-white shadow-md" : "text-gray-500 hover:text-gray-300"
+              }`}
+            >
+              <Smartphone size={16} /> Mobile
+            </button>
+          </div>
+        </div>
+      </div>
 
       {displayedSlots.length === 0 && (
         <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-8 text-center">
@@ -311,6 +342,7 @@ export default function SlidePreview({
               activeSlotId={activeSlot?.id}
               slotCreativeMap={slotCreativeMap}
               showSlotLabels={showSlotLabels}
+              isMobile={isMobile}
             />
           </div>
         </motion.div>
