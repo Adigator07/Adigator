@@ -99,7 +99,7 @@ export default function Home() {
           <img
             src="/logo.png"
             alt="Adigator Logo"
-            className="h-full w-auto object-contain scale-280 origin-left"
+            className="h-full w-auto object-contain scale-283 origin-left"
           />
         </motion.div>
 
