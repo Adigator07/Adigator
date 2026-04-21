@@ -33,47 +33,54 @@ export default function Home() {
       </header>
 
       {/* HERO */}
-      <section className="relative px-6 md:px-10 py-24 flex flex-col md:flex-row items-center gap-16">
+<section className="relative px-6 md:px-10 py-24 flex flex-col md:flex-row items-center gap-16">
 
-        <div className="absolute top-0 left-0 w-96 h-96 bg-purple-600 opacity-20 blur-[120px]"></div>
+  <div className="absolute top-0 left-0 w-96 h-96 bg-purple-600 opacity-20 blur-[120px]"></div>
 
-        <div className="flex-1 z-10">
-          <h1 className="text-4xl md:text-6xl font-bold leading-tight">
-            Stop Wasting Ad Spend on{" "}
-            <span className="bg-gradient-to-r from-purple-400 via-pink-500 to-blue-500 bg-clip-text text-transparent">
-              Creatives That Don’t Work
-            </span>
-          </h1>
+  {/* LEFT CONTENT */}
+  <div className="flex-1 z-10">
+    <h1 className="text-4xl md:text-6xl font-bold leading-tight">
+      Stop Wasting Ad Spend on{" "}
+      <span className="bg-gradient-to-r from-purple-400 via-pink-500 to-blue-500 bg-clip-text text-transparent">
+        Creatives That Don’t Work
+      </span>
+    </h1>
 
-          <p className="mt-6 text-gray-400 text-lg max-w-lg">
-            Preview, analyze, and optimize your ad creatives before launching campaigns.
-          </p>
+    <p className="mt-6 text-gray-400 text-lg max-w-lg">
+      Preview, analyze, and optimize your ad creatives before launching campaigns.
+    </p>
 
-          <div className="mt-10 flex gap-4 flex-wrap">
-            <Link href="/intelligence">
-              <button className="bg-gradient-to-r from-purple-600 to-pink-500 px-8 py-3 rounded-xl hover:scale-105 transition shadow-lg">
-                Start Analysis
-              </button>
-            </Link>
+    <div className="mt-10 flex gap-4 flex-wrap">
+      <Link href="/intelligence">
+        <button className="bg-gradient-to-r from-purple-600 to-pink-500 px-8 py-3 rounded-xl hover:scale-105 transition shadow-lg">
+          Start Analysis
+        </button>
+      </Link>
 
-            <Link href="/preview">
-              <button className="border border-white/20 px-8 py-3 rounded-xl hover:bg-white hover:text-black transition">
-                Preview Creatives
-              </button>
-            </Link>
-          </div>
-        </div>
+      <Link href="/preview">
+        <button className="border border-white/20 px-8 py-3 rounded-xl hover:bg-white hover:text-black transition">
+          Preview Creatives
+        </button>
+      </Link>
+    </div>
+  </div>
 
-        <div className="flex-1 relative z-10">
-          <div className="absolute inset-0 bg-gradient-to-r from-purple-500 to-blue-500 blur-2xl opacity-30 rounded-xl"></div>
+  {/* RIGHT VIDEO */}
+  <div className="flex-1 relative z-10">
+    <div className="absolute inset-0 bg-gradient-to-r from-purple-500 to-blue-500 blur-2xl opacity-30 rounded-xl"></div>
 
-          <img
-            src="https://images.unsplash.com/photo-1677442136019-21780ecad995"
-            alt="AI"
-            className="relative rounded-xl shadow-2xl hover:scale-105 transition duration-500"
-          />
-        </div>
-      </section>
+    <video
+      autoPlay
+      muted
+      loop
+      playsInline
+      className="relative w-full rounded-xl object-cover"
+    >
+      <source src="/video.mp4" type="video/mp4" />
+    </video>
+  </div>
+
+</section>
 
       {/* PROBLEM */}
       <section className="px-6 md:px-10 py-24 text-center">
