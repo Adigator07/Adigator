@@ -87,11 +87,16 @@ export default function Home() {
         </p>
 
         <div className="max-w-5xl mx-auto rounded-2xl overflow-hidden border border-white/10 shadow-2xl">
-          <img
-            src="https://images.unsplash.com/photo-1677442136019-21780ecad995"
-            className="w-full object-cover"
-          />
-        </div>
+  <video
+    autoPlay
+    muted
+    loop
+    playsInline
+    className="w-full object-cover"
+  >
+    <source src="/video.mp4" type="video/mp4" />
+  </video>
+</div>
 
       </section>
 
