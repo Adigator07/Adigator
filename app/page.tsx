@@ -6,21 +6,30 @@ export default function Home() {
     <main className="bg-[#0a0f1e] text-white">
 
       {/* NAVBAR */}
-      <header className="flex justify-between items-center px-6 md:px-12 py-5 border-b border-white/10 bg-[#0a0f1e]/80 backdrop-blur-lg sticky top-0 z-50">
-        <img src="/logo.png" className="h-10 md:h-12 w-auto" />
+      <header className="flex justify-between items-center px-6 md:px-12 h-14 md:h-16 border-b border-white/10 bg-[#0a0f1e]/80 backdrop-blur-lg sticky top-0 z-50">
 
-        <div className="hidden md:flex items-center gap-8 text-sm text-gray-300">
-          <span className="hover:text-white cursor-pointer">Solutions</span>
-          <span className="hover:text-white cursor-pointer">About</span>
-          <span className="hover:text-white cursor-pointer">Contact</span>
-        </div>
+  {/* LOGO */}
+  <img
+  src="/logo.png"
+  className="h-full w-auto object-contain scale-135"
+ />
 
-        <Link href="/login">
-          <button className="px-4 md:px-5 py-2 border border-white/20 text-gray-300 rounded-xl hover:bg-white hover:text-black transition text-sm">
-            Login
-          </button>
-        </Link>
-      </header>
+  {/* MENU + LOGIN */}
+  <div className="flex items-center gap-6 md:gap-8 text-sm text-gray-300">
+
+    <span className="hover:text-white cursor-pointer">Solutions</span>
+    <span className="hover:text-white cursor-pointer">About</span>
+    <span className="hover:text-white cursor-pointer">Contact</span>
+
+    <Link href="/login">
+      <button className="px-4 py-2 border border-white/20 text-gray-300 rounded-xl hover:bg-white hover:text-black transition text-sm">
+        Login
+      </button>
+    </Link>
+
+  </div>
+
+</header>
 
       {/* HERO */}
       <section className="text-center px-6 md:px-10 py-24 md:py-32 bg-gradient-to-b from-[#0a0f1e] to-[#111827]">
