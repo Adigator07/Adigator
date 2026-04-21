@@ -11,8 +11,8 @@ export default function Home() {
         {/* LOGO */}
         <div className="flex items-center">
           <img
-            src="/Logo.png"
-            alt="Adigator Logo"
+            src="/logo.png"
+            alt="Adigator logo"
             className="h-16 w-auto mix-blend-lighten object-contain"
           />
         </div>
