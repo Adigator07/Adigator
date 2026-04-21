@@ -60,7 +60,7 @@ const fadeUpItem = {
   visible: { 
     opacity: 1, 
     y: 0, 
-    transition: { type: "spring", stiffness: 80, damping: 20 } 
+    transition: { type: "spring" as const, stiffness: 80, damping: 20 } 
   },
 };
 
@@ -69,7 +69,7 @@ const scaleUpItem = {
   visible: { 
     opacity: 1, 
     scale: 1, 
-    transition: { type: "spring", stiffness: 100, damping: 20 } 
+    transition: { type: "spring" as const, stiffness: 100, damping: 20 } 
   },
 };
 
