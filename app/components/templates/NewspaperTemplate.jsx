@@ -2,6 +2,7 @@
 
 import { Search, Menu, UserCircle, ChevronRight, Share2, BookmarkPlus } from "lucide-react";
 import AdSlot from "../AdSlot";
+import { generateTemplateContent } from "../../lib/templateContent";
 
 export default function NewspaperTemplate({
   topSlots,
@@ -15,6 +16,7 @@ export default function NewspaperTemplate({
   isMobile,
 }) {
   const adSlotProps = { activeSlotId, slotCreativeMap, showSlotLabels, isMobile };
+  const content = generateTemplateContent("newspaper");
 
   return (
     <div
@@ -87,12 +89,12 @@ export default function NewspaperTemplate({
         {/* ── CENTER CONTENT ZONE ── */}
         <main className="flex-1 flex flex-col min-w-0">
           <div className="space-y-4 mb-6">
-            <span className="text-blue-600 font-bold uppercase tracking-wider text-xs">Technology & AI</span>
+            <span className="text-blue-600 font-bold uppercase tracking-wider text-xs">World News</span>
             <h1 className={`${isMobile ? 'text-3xl' : 'text-5xl'} font-extrabold text-slate-900 leading-tight tracking-tight`}>
-              The Next Generation of Web Rendering Has Arrived
+              {content.hero.headline}
             </h1>
             <h2 className="text-lg md:text-xl text-slate-500 leading-relaxed font-medium">
-              How modern frameworks are fundamentally changing the way developers build interactive applications for millions of users worldwide.
+              {content.hero.subtitle}
             </h2>
             
             <div className="flex items-center justify-between border-y border-slate-200 py-4 mt-6">
@@ -120,12 +122,12 @@ export default function NewspaperTemplate({
           ) : (
             <div className="w-full aspect-[16/9] mb-8 bg-slate-100 relative group overflow-hidden">
               <img
-                src="https://images.unsplash.com/photo-1550751827-4bd374c3f58b?auto=format&fit=crop&w=1200&q=80"
-                alt="Tech"
+                src={content.hero.image}
+                alt="Hero"
                 className="w-full h-full object-cover"
               />
               <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-4">
-                <p className="text-white text-xs opacity-80">Photo by Unsplash / Modern computing</p>
+                <p className="text-white text-xs opacity-80">Staff Photographer / The Daily Chronicle</p>
               </div>
             </div>
           )}
@@ -161,13 +163,10 @@ export default function NewspaperTemplate({
               More in Technology <ChevronRight size={20} className="text-blue-600" />
             </h3>
             <div className={`grid ${isMobile ? 'grid-cols-1 gap-6' : 'grid-cols-2 gap-8'}`}>
-              {[
-                { title: "The rise of generative AI in enterprise workflows", img: "https://images.unsplash.com/photo-1620712943543-bcc4688e7485?auto=format&fit=crop&w=400&q=80" },
-                { title: "Global chip shortage finally shows signs of easing", img: "https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=400&q=80" }
-              ].map((post, idx) => (
+              {content.articles.map((post, idx) => (
                 <div key={idx} className="group cursor-pointer">
                   <div className="aspect-[3/2] bg-slate-200 mb-3 overflow-hidden rounded-lg">
-                    <img src={post.img} alt="Post" className="w-full h-full object-cover group-hover:scale-105 transition duration-500" />
+                    <img src={post.image} alt="Post" className="w-full h-full object-cover group-hover:scale-105 transition duration-500" />
                   </div>
                   <h4 className="font-bold text-slate-900 group-hover:text-blue-600 transition leading-snug">{post.title}</h4>
                   <p className="text-xs text-slate-500 mt-2">3 hours ago</p>
@@ -186,11 +185,7 @@ export default function NewspaperTemplate({
                 Trending Now
               </h3>
               <div className="space-y-5">
-                {[
-                  "Markets rally as inflation cools faster than expected",
-                  "New breakthrough in quantum battery storage announced",
-                  "Director's cut of sci-fi epic shatters box office records"
-                ].map((title, i) => (
+                {content.trending.map((title, i) => (
                   <div key={i} className="flex gap-4 group cursor-pointer border-b border-slate-100 pb-4 last:border-0 last:pb-0">
                     <span className="text-2xl font-black text-slate-200 group-hover:text-blue-200 transition">0{i+1}</span>
                     <h4 className="font-semibold text-sm text-slate-700 group-hover:text-blue-600 transition leading-snug">{title}</h4>

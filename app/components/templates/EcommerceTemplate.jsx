@@ -2,6 +2,7 @@
 
 import { Search, Menu, ShoppingCart, Star, Heart } from "lucide-react";
 import AdSlot from "../AdSlot";
+import { generateTemplateContent } from "../../lib/templateContent";
 
 export default function EcommerceTemplate({
   topSlots,
@@ -15,6 +16,7 @@ export default function EcommerceTemplate({
   isMobile,
 }) {
   const adSlotProps = { activeSlotId, slotCreativeMap, showSlotLabels, isMobile };
+  const content = generateTemplateContent("ecommerce");
 
   return (
     <div
@@ -118,8 +120,8 @@ export default function EcommerceTemplate({
           ) : (
             <div className="w-full aspect-[4/1] bg-gradient-to-r from-indigo-500 to-purple-600 rounded-2xl overflow-hidden relative shadow-md flex items-center px-8">
               <div className="text-white z-10">
-                <h2 className="text-3xl font-black mb-2">Summer Tech Sale</h2>
-                <p className="text-indigo-100 mb-4">Up to 40% off on premium electronics.</p>
+                <h2 className="text-3xl font-black mb-2">{content.hero.headline}</h2>
+                <p className="text-indigo-100 mb-4">{content.hero.subtitle}</p>
                 <button className="bg-white text-indigo-600 font-bold px-6 py-2 rounded-full hover:bg-indigo-50 transition">Shop Now</button>
               </div>
             </div>
@@ -129,25 +131,25 @@ export default function EcommerceTemplate({
           <div>
             <h2 className="text-xl font-bold text-slate-900 mb-4">Featured Deals</h2>
             <div className={`grid ${isMobile ? 'grid-cols-2 gap-3' : 'grid-cols-3 gap-6'}`}>
-              {[1, 2, 3, 4, 5, 6].map((item) => (
-                <div key={item} className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition relative group">
+              {content.products.map((item, idx) => (
+                <div key={idx} className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition relative group">
                   <button className="absolute top-3 right-3 text-slate-300 hover:text-rose-500 transition z-10"><Heart size={20} /></button>
                   <div className="aspect-square bg-slate-100 rounded-lg mb-4 flex items-center justify-center p-4">
-                    <img src="https://via.placeholder.com/200x200?text=Product+Image" alt="Product" className="object-contain w-full h-full mix-blend-multiply opacity-80" />
+                    <img src={item.image} alt={item.name} className="object-contain w-full h-full mix-blend-multiply opacity-80" />
                   </div>
-                  <h3 className="font-semibold text-slate-800 line-clamp-2 text-sm">Premium Wireless Noise-Cancelling Headphones Pro</h3>
+                  <h3 className="font-semibold text-slate-800 line-clamp-2 text-sm">{item.name}</h3>
                   <div className="flex items-center gap-1 mt-2 text-amber-400">
                     <Star size={14} fill="currentColor" />
                     <Star size={14} fill="currentColor" />
                     <Star size={14} fill="currentColor" />
                     <Star size={14} fill="currentColor" />
                     <Star size={14} className="text-slate-300" />
-                    <span className="text-xs text-slate-500 ml-1">(428)</span>
+                    <span className="text-xs text-slate-500 ml-1">({item.reviews})</span>
                   </div>
                   <div className="mt-3 flex items-center justify-between">
                     <div>
-                      <span className="text-lg font-black text-slate-900">$249.00</span>
-                      <span className="text-xs text-slate-400 line-through ml-2">$349.00</span>
+                      <span className="text-lg font-black text-slate-900">${item.price}</span>
+                      <span className="text-xs text-slate-400 line-through ml-2">${item.oldPrice}</span>
                     </div>
                   </div>
                   <button className="w-full mt-4 bg-indigo-600 text-white font-bold text-sm py-2 rounded-lg hover:bg-indigo-700 transition opacity-0 group-hover:opacity-100">

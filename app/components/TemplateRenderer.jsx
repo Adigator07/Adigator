@@ -2,6 +2,8 @@
 
 import NewspaperTemplate from "./templates/NewspaperTemplate";
 import EcommerceTemplate from "./templates/EcommerceTemplate";
+import GamingTemplate from "./templates/GamingTemplate";
+import HealthTemplate from "./templates/HealthTemplate";
 
 export default function TemplateRenderer({
   allSlots = [],
@@ -33,13 +35,15 @@ export default function TemplateRenderer({
   switch (selectedTemplate) {
     case "ecommerce":
       return <EcommerceTemplate {...commonProps} />;
+    case "gaming":
+      return <GamingTemplate {...commonProps} />;
+    case "health":
+      return <HealthTemplate {...commonProps} />;
     case "newspaper":
     case "food":
-    case "health":
     case "technology":
     case "business":
     case "education":
-    case "gaming":
     case "entertainment":
     default:
       // Fallback all others to newspaper for now
