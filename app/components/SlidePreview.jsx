@@ -111,6 +111,7 @@ const slideVariants = {
 export default function SlidePreview({
   validCreatives,
   showSlotLabels,
+  selectedTemplate,
 }) {
   const [activeIndex, setActiveIndex] = useState(0);
   const [direction, setDirection] = useState(0);
@@ -343,6 +344,7 @@ export default function SlidePreview({
               slotCreativeMap={slotCreativeMap}
               showSlotLabels={showSlotLabels}
               isMobile={isMobile}
+              selectedTemplate={selectedTemplate}
             />
           </div>
         </motion.div>

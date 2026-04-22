@@ -11,7 +11,20 @@ import { suggestBestSizes, autoFitImage } from "../hooks/useImageEditor";
 import {
   UploadCloud, CheckCircle2, XCircle, AlertCircle,
   Trash2, Edit2, Check, X, Download, Wand2,
+  Newspaper, ShoppingCart, Coffee, Activity, Laptop, Briefcase, GraduationCap, Gamepad2, Film,
 } from "lucide-react";
+
+const TEMPLATES = [
+  { id: "newspaper", name: "Newspaper", icon: Newspaper, desc: "Modern news portal", slots: 7 },
+  { id: "ecommerce", name: "Ecommerce", icon: ShoppingCart, desc: "Online storefront", slots: 7 },
+  { id: "food", name: "Food & Recipe", icon: Coffee, desc: "Culinary blog", slots: 6 },
+  { id: "health", name: "Health", icon: Activity, desc: "Medical & wellness", slots: 5 },
+  { id: "technology", name: "Technology", icon: Laptop, desc: "Tech review site", slots: 7 },
+  { id: "business", name: "Business", icon: Briefcase, desc: "Corporate dashboard", slots: 6 },
+  { id: "education", name: "Education", icon: GraduationCap, desc: "Online learning", slots: 5 },
+  { id: "gaming", name: "Gaming", icon: Gamepad2, desc: "Esports & streaming", slots: 7 },
+  { id: "entertainment", name: "Entertainment", icon: Film, desc: "Movie & media portal", slots: 6 },
+];
 
 const ALLOWED_SIZES = [
   "300x250", "728x90", "160x600", "300x600",
@@ -30,6 +43,7 @@ const itemVariants = {
 
 export default function PreviewTool() {
   const [step, setStep] = useState(1);
+  const [selectedTemplate, setSelectedTemplate] = useState("newspaper");
   const [drag, setDrag] = useState(false);
   const [creatives, setCreatives] = useState([]);
   const [showSlotLabels, setShowSlotLabels] = useState(false);
@@ -397,9 +411,64 @@ export default function PreviewTool() {
               <div className="flex gap-4 pt-4">
                 <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={() => setStep(2)}
                   className="flex-1 py-3 bg-white/10 text-white rounded-xl font-semibold hover:bg-white/20 transition">← Back</motion.button>
+                <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={() => setStep(4)}
+                  className="flex-1 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl font-semibold transition">
+                  Next: Select Template →
+                </motion.button>
+              </div>
+            </motion.div>
+          )}
+
+          {/* STEP 4: SELECT TEMPLATE */}
+          {step === 4 && (
+            <motion.div key="step-4" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="space-y-8">
+              <div>
+                <h2 className="text-4xl font-bold text-white mb-2">Step 4: Select Template</h2>
+                <p className="text-gray-400">Choose a website category to preview your ads in a realistic context</p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {TEMPLATES.map((tpl) => {
+                  const Icon = tpl.icon;
+                  const isSelected = selectedTemplate === tpl.id;
+                  return (
+                    <motion.div
+                      key={tpl.id}
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      onClick={() => setSelectedTemplate(tpl.id)}
+                      className={`relative cursor-pointer rounded-2xl p-6 border-2 transition-all overflow-hidden ${
+                        isSelected 
+                          ? "border-blue-500 bg-gradient-to-br from-blue-900/40 to-purple-900/40 shadow-[0_0_30px_rgba(59,130,246,0.3)]" 
+                          : "border-white/10 bg-white/5 hover:border-white/30 hover:bg-white/10"
+                      }`}
+                    >
+                      {isSelected && (
+                        <div className="absolute top-4 right-4 text-blue-400">
+                          <CheckCircle2 size={24} />
+                        </div>
+                      )}
+                      <div className={`w-14 h-14 rounded-xl flex items-center justify-center mb-4 ${
+                        isSelected ? "bg-blue-500 text-white shadow-lg shadow-blue-500/50" : "bg-white/10 text-gray-300"
+                      }`}>
+                        <Icon size={28} />
+                      </div>
+                      <h3 className={`text-xl font-bold mb-1 ${isSelected ? "text-white" : "text-gray-200"}`}>{tpl.name}</h3>
+                      <p className="text-sm text-gray-400 mb-4">{tpl.desc}</p>
+                      <div className="text-xs font-semibold uppercase tracking-wider text-purple-400 bg-purple-500/10 w-fit px-3 py-1 rounded-full">
+                        {tpl.slots} Ad Zones
+                      </div>
+                    </motion.div>
+                  );
+                })}
+              </div>
+
+              <div className="flex gap-4 pt-4">
+                <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={() => setStep(3)}
+                  className="flex-1 py-3 bg-white/10 text-white rounded-xl font-semibold hover:bg-white/20 transition">← Back</motion.button>
                 <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={() => setStep(5)}
                   className="flex-1 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl font-semibold transition">
-                  Next: Generate Dynamic Layout →
+                  Next: Generate Preview Engine →
                 </motion.button>
               </div>
             </motion.div>
@@ -428,6 +497,7 @@ export default function PreviewTool() {
                 <SlidePreview
                   validCreatives={validCreatives}
                   showSlotLabels={showSlotLabels}
+                  selectedTemplate={selectedTemplate}
                 />
               </motion.div>
 
