@@ -1,5 +1,6 @@
 "use client";
 
+import React from "react";
 import { Search, Menu, ShoppingCart, Star, Heart } from "lucide-react";
 import AdSlot from "../AdSlot";
 import { generateTemplateContent } from "../../lib/templateContent";
@@ -132,30 +133,46 @@ export default function EcommerceTemplate({
             <h2 className="text-xl font-bold text-slate-900 mb-4">Featured Deals</h2>
             <div className={`grid ${isMobile ? 'grid-cols-2 gap-3' : 'grid-cols-3 gap-6'}`}>
               {content.products.map((item, idx) => (
-                <div key={idx} className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition relative group">
-                  <button className="absolute top-3 right-3 text-slate-300 hover:text-rose-500 transition z-10"><Heart size={20} /></button>
-                  <div className="aspect-square bg-slate-100 rounded-lg mb-4 flex items-center justify-center p-4">
-                    <img src={item.image} alt={item.name} className="object-contain w-full h-full mix-blend-multiply opacity-80" />
-                  </div>
-                  <h3 className="font-semibold text-slate-800 line-clamp-2 text-sm">{item.name}</h3>
-                  <div className="flex items-center gap-1 mt-2 text-amber-400">
-                    <Star size={14} fill="currentColor" />
-                    <Star size={14} fill="currentColor" />
-                    <Star size={14} fill="currentColor" />
-                    <Star size={14} fill="currentColor" />
-                    <Star size={14} className="text-slate-300" />
-                    <span className="text-xs text-slate-500 ml-1">({item.reviews})</span>
-                  </div>
-                  <div className="mt-3 flex items-center justify-between">
-                    <div>
-                      <span className="text-lg font-black text-slate-900">${item.price}</span>
-                      <span className="text-xs text-slate-400 line-through ml-2">${item.oldPrice}</span>
+                <React.Fragment key={idx}>
+                  <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition relative group">
+                    <button className="absolute top-3 right-3 text-slate-300 hover:text-rose-500 transition z-10"><Heart size={20} /></button>
+                    <div className="aspect-square bg-slate-100 rounded-lg mb-4 flex items-center justify-center p-4">
+                      <img src={item.image} alt={item.name} className="object-contain w-full h-full mix-blend-multiply opacity-80" />
                     </div>
+                    <h3 className="font-semibold text-slate-800 line-clamp-2 text-sm">{item.name}</h3>
+                    <div className="flex items-center gap-1 mt-2 text-amber-400">
+                      <Star size={14} fill="currentColor" />
+                      <Star size={14} fill="currentColor" />
+                      <Star size={14} fill="currentColor" />
+                      <Star size={14} fill="currentColor" />
+                      <Star size={14} className="text-slate-300" />
+                      <span className="text-xs text-slate-500 ml-1">({item.reviews})</span>
+                    </div>
+                    <div className="mt-3 flex items-center justify-between">
+                      <div>
+                        <span className="text-lg font-black text-slate-900">${item.price}</span>
+                        <span className="text-xs text-slate-400 line-through ml-2">${item.oldPrice}</span>
+                      </div>
+                    </div>
+                    <button className="w-full mt-4 bg-indigo-600 text-white font-bold text-sm py-2 rounded-lg hover:bg-indigo-700 transition opacity-0 group-hover:opacity-100">
+                      Add to Cart
+                    </button>
                   </div>
-                  <button className="w-full mt-4 bg-indigo-600 text-white font-bold text-sm py-2 rounded-lg hover:bg-indigo-700 transition opacity-0 group-hover:opacity-100">
-                    Add to Cart
-                  </button>
-                </div>
+
+                  {/* Inject Inline Ad every 3 products */}
+                  {(idx + 1) % 3 === 0 && contentSlots[Math.floor(idx / 3)] && (
+                    <div className="col-span-full w-full my-4 py-6 border-y border-slate-100 flex flex-col items-center bg-slate-50">
+                      <p className="text-[10px] text-slate-400 uppercase tracking-widest mb-2 font-semibold">Sponsored Advertisement</p>
+                      <AdSlot
+                        slotDef={contentSlots[Math.floor(idx / 3)]}
+                        activeSlotId={activeSlotId}
+                        slotCreativeMap={slotCreativeMap}
+                        showSlotLabels={showSlotLabels}
+                        isMobile={isMobile}
+                      />
+                    </div>
+                  )}
+                </React.Fragment>
               ))}
             </div>
           </div>

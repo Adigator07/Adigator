@@ -1,5 +1,6 @@
 "use client";
 
+import React from "react";
 import { Search, Menu, Zap, TrendingUp, Cpu, Hash } from "lucide-react";
 import AdSlot from "../AdSlot";
 import { generateTemplateContent } from "../../lib/templateContent";
@@ -113,15 +114,31 @@ export default function TechnologyTemplate({
           {/* Clean Grid of Articles */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-10">
             {content.articles.map((article, idx) => (
-              <div key={idx} className="group cursor-pointer flex flex-col gap-4">
-                <div className="w-full aspect-[16/9] bg-slate-200 overflow-hidden">
-                  <img src={article.image} alt="Article" className="w-full h-full object-cover group-hover:scale-105 transition duration-500" />
+              <React.Fragment key={idx}>
+                <div className="group cursor-pointer flex flex-col gap-4">
+                  <div className="w-full aspect-[16/9] bg-slate-200 overflow-hidden">
+                    <img src={article.image} alt="Article" className="w-full h-full object-cover group-hover:scale-105 transition duration-500" />
+                  </div>
+                  <div>
+                    <h4 className="text-xl font-bold text-slate-900 group-hover:text-blue-600 transition leading-snug mb-2 tracking-tight">{article.title}</h4>
+                    <p className="text-sm text-slate-500 line-clamp-2">Deep dive into the architecture and benchmarks of the newest release impacting the developer ecosystem.</p>
+                  </div>
                 </div>
-                <div>
-                  <h4 className="text-xl font-bold text-slate-900 group-hover:text-blue-600 transition leading-snug mb-2 tracking-tight">{article.title}</h4>
-                  <p className="text-sm text-slate-500 line-clamp-2">Deep dive into the architecture and benchmarks of the newest release impacting the developer ecosystem.</p>
-                </div>
-              </div>
+
+                {/* Inject Inline Ad every 2 articles */}
+                {(idx + 1) % 2 === 0 && contentSlots[Math.floor(idx / 2)] && (
+                  <div className="col-span-1 md:col-span-2 w-full my-6 py-6 border-y border-slate-200 flex flex-col items-center bg-slate-50">
+                    <p className="text-[10px] text-slate-400 uppercase tracking-widest mb-3 font-semibold">Sponsored Content</p>
+                    <AdSlot
+                      slotDef={contentSlots[Math.floor(idx / 2)]}
+                      activeSlotId={activeSlotId}
+                      slotCreativeMap={slotCreativeMap}
+                      showSlotLabels={showSlotLabels}
+                      isMobile={isMobile}
+                    />
+                  </div>
+                )}
+              </React.Fragment>
             ))}
           </div>
 

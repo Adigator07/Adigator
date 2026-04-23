@@ -4,6 +4,11 @@ import NewspaperTemplate from "./templates/NewspaperTemplate";
 import EcommerceTemplate from "./templates/EcommerceTemplate";
 import GamingTemplate from "./templates/GamingTemplate";
 import HealthTemplate from "./templates/HealthTemplate";
+import FoodTemplate from "./templates/FoodTemplate";
+import TechnologyTemplate from "./templates/TechnologyTemplate";
+import BusinessTemplate from "./templates/BusinessTemplate";
+import EducationTemplate from "./templates/EducationTemplate";
+import EntertainmentTemplate from "./templates/EntertainmentTemplate";
 
 export default function TemplateRenderer({
   allSlots = [],
@@ -39,14 +44,18 @@ export default function TemplateRenderer({
       return <GamingTemplate {...commonProps} />;
     case "health":
       return <HealthTemplate {...commonProps} />;
-    case "newspaper":
     case "food":
+      return <FoodTemplate {...commonProps} />;
     case "technology":
+      return <TechnologyTemplate {...commonProps} />;
     case "business":
+      return <BusinessTemplate {...commonProps} />;
     case "education":
+      return <EducationTemplate {...commonProps} />;
     case "entertainment":
+      return <EntertainmentTemplate {...commonProps} />;
+    case "newspaper":
     default:
-      // Fallback all others to newspaper for now
       return <NewspaperTemplate {...commonProps} />;
   }
 }

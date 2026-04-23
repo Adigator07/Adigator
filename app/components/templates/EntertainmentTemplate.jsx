@@ -1,5 +1,6 @@
 "use client";
 
+import React from "react";
 import { Search, Menu, Play, Info, Plus, ChevronRight } from "lucide-react";
 import AdSlot from "../AdSlot";
 import { generateTemplateContent } from "../../lib/templateContent";
@@ -99,22 +100,38 @@ export default function EntertainmentTemplate({
             </h3>
             <div className="flex gap-4 overflow-x-auto scrollbar-hide pb-4">
               {content.movies.map((movie, idx) => (
-                <div key={idx} className="w-[140px] md:w-[220px] flex-shrink-0 group cursor-pointer relative">
-                  <div className="aspect-[2/3] md:aspect-video rounded-md overflow-hidden bg-gray-800 relative z-10 group-hover:scale-105 group-hover:z-30 transition duration-300 shadow-lg">
-                    <img src={movie.image} alt={movie.title} className="w-full h-full object-cover" />
-                    {/* Overlay metadata that appears on hover for desktop */}
-                    {!isMobile && (
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent opacity-0 group-hover:opacity-100 transition duration-300 flex flex-col justify-end p-4">
-                        <h4 className="font-bold text-sm leading-tight mb-2">{movie.title}</h4>
-                        <div className="flex items-center gap-2">
-                          <span className="text-green-500 font-bold text-xs">{movie.match}</span>
-                          <span className="border border-gray-400 text-gray-300 text-[10px] px-1">TV-MA</span>
+                <React.Fragment key={idx}>
+                  <div className="w-[140px] md:w-[220px] flex-shrink-0 group cursor-pointer relative">
+                    <div className="aspect-[2/3] md:aspect-video rounded-md overflow-hidden bg-gray-800 relative z-10 group-hover:scale-105 group-hover:z-30 transition duration-300 shadow-lg">
+                      <img src={movie.image} alt={movie.title} className="w-full h-full object-cover" />
+                      {/* Overlay metadata that appears on hover for desktop */}
+                      {!isMobile && (
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent opacity-0 group-hover:opacity-100 transition duration-300 flex flex-col justify-end p-4">
+                          <h4 className="font-bold text-sm leading-tight mb-2">{movie.title}</h4>
+                          <div className="flex items-center gap-2">
+                            <span className="text-green-500 font-bold text-xs">{movie.match}</span>
+                            <span className="border border-gray-400 text-gray-300 text-[10px] px-1">TV-MA</span>
+                          </div>
                         </div>
-                      </div>
-                    )}
+                      )}
+                    </div>
+                    {isMobile && <h4 className="font-medium text-xs mt-2 text-gray-300">{movie.title}</h4>}
                   </div>
-                  {isMobile && <h4 className="font-medium text-xs mt-2 text-gray-300">{movie.title}</h4>}
-                </div>
+
+                  {/* Inject Inline Ad Tile every 4 movies */}
+                  {(idx + 1) % 4 === 0 && contentSlots[Math.floor(idx / 4)] && (
+                    <div className="w-[280px] md:w-[320px] flex-shrink-0 flex flex-col items-center justify-center bg-[#0a0a0a] border border-[#222] p-2 rounded-xl">
+                      <p className="text-[10px] text-gray-500 uppercase tracking-widest mb-1 font-semibold">Sponsored</p>
+                      <AdSlot
+                        slotDef={contentSlots[Math.floor(idx / 4)]}
+                        activeSlotId={activeSlotId}
+                        slotCreativeMap={slotCreativeMap}
+                        showSlotLabels={showSlotLabels}
+                        isMobile={isMobile}
+                      />
+                    </div>
+                  )}
+                </React.Fragment>
               ))}
             </div>
           </div>

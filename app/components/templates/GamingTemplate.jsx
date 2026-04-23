@@ -1,5 +1,6 @@
 "use client";
 
+import React from "react";
 import { Search, Menu, PlayCircle, Trophy, Users, MonitorPlay } from "lucide-react";
 import AdSlot from "../AdSlot";
 import { generateTemplateContent } from "../../lib/templateContent";
@@ -113,18 +114,34 @@ export default function GamingTemplate({
             </h3>
             <div className={`grid ${isMobile ? 'grid-cols-2 gap-4' : 'grid-cols-4 gap-6'}`}>
               {content.games.map((game, idx) => (
-                <div key={idx} className="group cursor-pointer">
-                  <div className="aspect-[3/4] bg-slate-800 mb-3 rounded-xl overflow-hidden relative border border-slate-700 group-hover:border-purple-500 transition">
-                    <img src={game.image} alt="Game" className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition" />
-                    <div className="absolute top-2 left-2 bg-red-600 text-white text-[10px] font-bold px-2 py-0.5 rounded flex items-center gap-1">
-                      <span className="w-1.5 h-1.5 bg-white rounded-full animate-pulse"></span> LIVE
+                <React.Fragment key={idx}>
+                  <div className="group cursor-pointer">
+                    <div className="aspect-[3/4] bg-slate-800 mb-3 rounded-xl overflow-hidden relative border border-slate-700 group-hover:border-purple-500 transition">
+                      <img src={game.image} alt="Game" className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition" />
+                      <div className="absolute top-2 left-2 bg-red-600 text-white text-[10px] font-bold px-2 py-0.5 rounded flex items-center gap-1">
+                        <span className="w-1.5 h-1.5 bg-white rounded-full animate-pulse"></span> LIVE
+                      </div>
+                      <div className="absolute bottom-2 left-2 bg-black/60 backdrop-blur-sm text-white text-[10px] font-bold px-2 py-1 rounded flex items-center gap-1">
+                        <Users size={12} /> {game.viewers}
+                      </div>
                     </div>
-                    <div className="absolute bottom-2 left-2 bg-black/60 backdrop-blur-sm text-white text-[10px] font-bold px-2 py-1 rounded flex items-center gap-1">
-                      <Users size={12} /> {game.viewers}
-                    </div>
+                    <h4 className="font-bold text-slate-200 group-hover:text-purple-400 transition text-sm truncate">{game.title}</h4>
                   </div>
-                  <h4 className="font-bold text-slate-200 group-hover:text-purple-400 transition text-sm truncate">{game.title}</h4>
-                </div>
+
+                  {/* Inject Inline Ad every 4 games */}
+                  {(idx + 1) % 4 === 0 && contentSlots[Math.floor(idx / 4)] && (
+                    <div className="col-span-full w-full my-6 py-6 border-y border-slate-800 flex flex-col items-center bg-slate-900">
+                      <p className="text-[10px] text-slate-500 uppercase tracking-widest mb-3 font-semibold">Sponsored Advertisement</p>
+                      <AdSlot
+                        slotDef={contentSlots[Math.floor(idx / 4)]}
+                        activeSlotId={activeSlotId}
+                        slotCreativeMap={slotCreativeMap}
+                        showSlotLabels={showSlotLabels}
+                        isMobile={isMobile}
+                      />
+                    </div>
+                  )}
+                </React.Fragment>
               ))}
             </div>
           </div>

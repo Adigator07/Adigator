@@ -1,5 +1,6 @@
 "use client";
 
+import React from "react";
 import { Search, Menu, HeartPulse, Activity, Leaf, Stethoscope } from "lucide-react";
 import AdSlot from "../AdSlot";
 import { generateTemplateContent } from "../../lib/templateContent";
@@ -133,15 +134,31 @@ export default function HealthTemplate({
           <h3 className="text-2xl font-black text-slate-900 border-b-2 border-emerald-500 pb-2 mb-6 inline-block">Latest Health Insights</h3>
           <div className="space-y-6">
             {content.articles.map((article, idx) => (
-              <div key={idx} className="flex gap-4 group cursor-pointer">
-                <div className="w-1/3 aspect-video rounded-lg overflow-hidden flex-shrink-0">
-                  <img src={article.image} alt="Article" className="w-full h-full object-cover group-hover:scale-105 transition duration-500" />
+              <React.Fragment key={idx}>
+                <div className="flex gap-4 group cursor-pointer">
+                  <div className="w-1/3 aspect-video rounded-lg overflow-hidden flex-shrink-0">
+                    <img src={article.image} alt="Article" className="w-full h-full object-cover group-hover:scale-105 transition duration-500" />
+                  </div>
+                  <div>
+                    <h4 className="text-lg font-bold text-slate-900 group-hover:text-emerald-600 transition leading-snug mb-2">{article.title}</h4>
+                    <p className="text-sm text-slate-500 line-clamp-2">Learn more about how recent studies are reshaping our understanding of daily health habits and long-term vitality.</p>
+                  </div>
                 </div>
-                <div>
-                  <h4 className="text-lg font-bold text-slate-900 group-hover:text-emerald-600 transition leading-snug mb-2">{article.title}</h4>
-                  <p className="text-sm text-slate-500 line-clamp-2">Learn more about how recent studies are reshaping our understanding of daily health habits and long-term vitality.</p>
-                </div>
-              </div>
+
+                {/* Inject Inline Ad every 2 articles */}
+                {(idx + 1) % 2 === 0 && contentSlots[Math.floor(idx / 2)] && (
+                  <div className="w-full my-6 py-6 border-y border-slate-100 flex flex-col items-center bg-slate-50 rounded-xl">
+                    <p className="text-[10px] text-slate-400 uppercase tracking-widest mb-3 font-semibold font-sans">Sponsored Advertisement</p>
+                    <AdSlot
+                      slotDef={contentSlots[Math.floor(idx / 2)]}
+                      activeSlotId={activeSlotId}
+                      slotCreativeMap={slotCreativeMap}
+                      showSlotLabels={showSlotLabels}
+                      isMobile={isMobile}
+                    />
+                  </div>
+                )}
+              </React.Fragment>
             ))}
           </div>
 

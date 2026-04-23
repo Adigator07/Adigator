@@ -1,5 +1,6 @@
 "use client";
 
+import React from "react";
 import { Search, Menu, UserCircle, ChevronRight, Share2, BookmarkPlus } from "lucide-react";
 import AdSlot from "../AdSlot";
 import { generateTemplateContent } from "../../lib/templateContent";
@@ -114,23 +115,17 @@ export default function NewspaperTemplate({
             </div>
           </div>
 
-          {/* Hero Image / Content Ad */}
-          {contentSlots.length > 0 ? (
-             <div className="mb-8 w-full flex flex-col items-center">
-               {contentSlots.map((slotDef) => <AdSlot key={slotDef.id} slotDef={slotDef} {...adSlotProps} />)}
-             </div>
-          ) : (
-            <div className="w-full aspect-[16/9] mb-8 bg-slate-100 relative group overflow-hidden">
-              <img
-                src={content.hero.image}
-                alt="Hero"
-                className="w-full h-full object-cover"
-              />
-              <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-4">
-                <p className="text-white text-xs opacity-80">Staff Photographer / The Daily Chronicle</p>
-              </div>
+          {/* Hero Image */}
+          <div className="w-full aspect-[16/9] mb-8 bg-slate-100 relative group overflow-hidden">
+            <img
+              src={content.hero.image}
+              alt="Hero"
+              className="w-full h-full object-cover"
+            />
+            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-4">
+              <p className="text-white text-xs opacity-80">Staff Photographer / The Daily Chronicle</p>
             </div>
-          )}
+          </div>
 
           <article className={`prose ${isMobile ? 'prose-sm' : 'prose-base md:prose-lg'} text-slate-700 max-w-none`}>
             <p className="text-xl font-medium leading-relaxed text-slate-800 mb-6 drop-cap">
@@ -160,17 +155,36 @@ export default function NewspaperTemplate({
           {/* Related Articles Section */}
           <div className="mt-12 pt-8 border-t border-slate-200">
             <h3 className="text-xl font-black text-slate-900 uppercase tracking-tight mb-6 flex items-center gap-2">
-              More in Technology <ChevronRight size={20} className="text-blue-600" />
+              More in News <ChevronRight size={20} className="text-blue-600" />
             </h3>
             <div className={`grid ${isMobile ? 'grid-cols-1 gap-6' : 'grid-cols-2 gap-8'}`}>
               {content.articles.map((post, idx) => (
-                <div key={idx} className="group cursor-pointer">
-                  <div className="aspect-[3/2] bg-slate-200 mb-3 overflow-hidden rounded-lg">
-                    <img src={post.image} alt="Post" className="w-full h-full object-cover group-hover:scale-105 transition duration-500" />
+                <React.Fragment key={idx}>
+                  <div className="group cursor-pointer flex flex-col">
+                    <div className="aspect-[3/2] bg-slate-200 mb-3 overflow-hidden rounded-lg">
+                      <img src={post.image} alt="Post" className="w-full h-full object-cover group-hover:scale-105 transition duration-500" />
+                    </div>
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="text-[10px] font-bold text-blue-600 uppercase tracking-wider">{post.category || 'News'}</span>
+                      <span className="text-[10px] text-slate-400">• {post.timeAgo || '3h ago'}</span>
+                    </div>
+                    <h4 className="font-bold text-slate-900 group-hover:text-blue-600 transition leading-snug">{post.title}</h4>
                   </div>
-                  <h4 className="font-bold text-slate-900 group-hover:text-blue-600 transition leading-snug">{post.title}</h4>
-                  <p className="text-xs text-slate-500 mt-2">3 hours ago</p>
-                </div>
+                  
+                  {/* Inject Inline Ad every 2 articles if available */}
+                  {(idx + 1) % 2 === 0 && contentSlots[Math.floor(idx / 2)] && (
+                    <div className="col-span-1 md:col-span-2 w-full my-6 py-6 border-y border-slate-100 flex flex-col items-center bg-slate-50">
+                      <p className="text-[10px] text-slate-400 uppercase tracking-widest mb-2 font-semibold">Sponsored Content</p>
+                      <AdSlot
+                        slotDef={contentSlots[Math.floor(idx / 2)]}
+                        activeSlotId={activeSlotId}
+                        slotCreativeMap={slotCreativeMap}
+                        showSlotLabels={showSlotLabels}
+                        isMobile={isMobile}
+                      />
+                    </div>
+                  )}
+                </React.Fragment>
               ))}
             </div>
           </div>

@@ -1,5 +1,6 @@
 "use client";
 
+import React from "react";
 import { Search, Menu, BookOpen, GraduationCap, Users, PlayCircle, CheckCircle2 } from "lucide-react";
 import AdSlot from "../AdSlot";
 import { generateTemplateContent } from "../../lib/templateContent";
@@ -116,32 +117,40 @@ export default function EducationTemplate({
           </h3>
           
           <div className={`grid ${isMobile ? 'grid-cols-1 gap-6' : 'grid-cols-2 lg:grid-cols-3 gap-6'} mb-10`}>
-            {content.courses.slice(0, 3).map((course, idx) => (
-              <div key={idx} className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm hover:shadow-md transition group cursor-pointer flex flex-col">
-                <div className="w-full aspect-video bg-slate-100 relative overflow-hidden">
-                  <img src={course.image} alt={course.title} className="w-full h-full object-cover group-hover:scale-105 transition duration-500" />
-                  <div className="absolute inset-0 bg-black/20 flex items-center justify-center opacity-0 group-hover:opacity-100 transition">
-                    <PlayCircle className="text-white" size={48} />
+            {content.courses.map((course, idx) => (
+              <React.Fragment key={idx}>
+                <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm hover:shadow-md transition group cursor-pointer flex flex-col">
+                  <div className="w-full aspect-video bg-slate-100 relative overflow-hidden">
+                    <img src={course.image} alt={course.title} className="w-full h-full object-cover group-hover:scale-105 transition duration-500" />
+                    <div className="absolute inset-0 bg-black/20 flex items-center justify-center opacity-0 group-hover:opacity-100 transition">
+                      <PlayCircle className="text-white" size={48} />
+                    </div>
+                  </div>
+                  <div className="p-4 flex flex-col flex-1">
+                    <h4 className="font-bold text-slate-900 leading-tight mb-2 line-clamp-2">{course.title}</h4>
+                    <p className="text-sm text-slate-500 mb-4">{course.instructor}</p>
+                    <div className="mt-auto flex items-center text-xs font-semibold text-slate-500 gap-1 bg-slate-50 w-fit px-2 py-1 rounded">
+                      <Users size={14} /> {(course.students / 1000).toFixed(1)}k students
+                    </div>
                   </div>
                 </div>
-                <div className="p-4 flex flex-col flex-1">
-                  <h4 className="font-bold text-slate-900 leading-tight mb-2 line-clamp-2">{course.title}</h4>
-                  <p className="text-sm text-slate-500 mb-4">{course.instructor}</p>
-                  <div className="mt-auto flex items-center text-xs font-semibold text-slate-500 gap-1 bg-slate-50 w-fit px-2 py-1 rounded">
-                    <Users size={14} /> {(course.students / 1000).toFixed(1)}k students
+
+                {/* Inject Inline Ad every 3 courses */}
+                {(idx + 1) % 3 === 0 && contentSlots[Math.floor(idx / 3)] && (
+                  <div className="col-span-full w-full my-6 py-6 border-y border-slate-200 flex flex-col items-center bg-white shadow-sm rounded-xl">
+                    <p className="text-[10px] text-slate-400 uppercase tracking-widest mb-3 font-semibold">Sponsored Advertisement</p>
+                    <AdSlot
+                      slotDef={contentSlots[Math.floor(idx / 3)]}
+                      activeSlotId={activeSlotId}
+                      slotCreativeMap={slotCreativeMap}
+                      showSlotLabels={showSlotLabels}
+                      isMobile={isMobile}
+                    />
                   </div>
-                </div>
-              </div>
+                )}
+              </React.Fragment>
             ))}
           </div>
-
-          {/* Embedded Ad Row */}
-          {contentSlots.length > 0 && (
-             <div className="mb-10 w-full flex flex-col items-center bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
-               <p className="text-[10px] text-slate-400 uppercase tracking-widest mb-3 font-semibold">Advertisement</p>
-               {contentSlots.map((slotDef) => <AdSlot key={slotDef.id} slotDef={slotDef} {...adSlotProps} />)}
-             </div>
-          )}
 
           <h3 className="text-xl font-bold text-slate-900 mb-6">Learning Paths</h3>
           <div className="bg-white rounded-xl border border-slate-200 p-6 flex items-center justify-between mb-8 shadow-sm cursor-pointer hover:border-blue-300 transition">

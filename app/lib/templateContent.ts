@@ -288,7 +288,9 @@ const CONTENT_BANKS = {
       "Crimson Tide Returns",
       "Into the Abyss",
       "Urban Legends",
-      "The Forgotten Path"
+      "The Forgotten Path",
+      "Whispers in the Dark",
+      "City of Angels"
     ],
     movieImages: [
       "https://images.unsplash.com/photo-1440404653325-ab127d49abc1?auto=format&fit=crop&w=400&q=80",
@@ -296,6 +298,46 @@ const CONTENT_BANKS = {
       "https://images.unsplash.com/photo-1478720568477-152d9b164e26?auto=format&fit=crop&w=400&q=80",
       "https://images.unsplash.com/photo-1518676590629-3dcbd9c5a5c9?auto=format&fit=crop&w=400&q=80",
       "https://images.unsplash.com/photo-1485846234645-a62644f84728?auto=format&fit=crop&w=400&q=80"
+    ]
+  },
+  business: {
+    heroHeadlines: [
+      "Global Markets Surge on New Tech Policy",
+      "The Future of Corporate Sustainability",
+      "Mergers & Acquisitions Reach All-Time High",
+      "How Startups Are Disrupting Traditional Finance"
+    ],
+    heroSubtitles: [
+      "Investors are reacting positively as new regulatory frameworks encourage innovation across multiple sectors.",
+      "Top CEOs agree that long-term profitability is now inextricably linked to environmental responsibility.",
+      "Analysts break down the biggest deals of the quarter and what they mean for the global economy.",
+      "A deep dive into the fintech solutions that are bypassing legacy banking systems."
+    ],
+    heroImages: [
+      "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=1200&q=80",
+      "https://images.unsplash.com/photo-1507679799987-c73779587ccf?auto=format&fit=crop&w=1200&q=80",
+      "https://images.unsplash.com/photo-1556761175-5973dc0f32e7?auto=format&fit=crop&w=1200&q=80"
+    ],
+    trendingTitles: [
+      "Federal Reserve signals potential rate cuts",
+      "Top 5 emerging markets to watch this year",
+      "Oil prices stabilize after weeks of volatility",
+      "The impact of remote work on commercial real estate",
+      "Cryptocurrency regulations: What you need to know"
+    ],
+    articleHeadlines: [
+      "Interview with the CEO: Navigating economic headwinds",
+      "The gig economy is transforming the modern workforce",
+      "Supply chain resilience in the post-pandemic era",
+      "Venture capital funding shifts focus to green tech",
+      "Understanding the new tax codes for small businesses",
+      "Corporate governance in the age of social media"
+    ],
+    articleImages: [
+      "https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?auto=format&fit=crop&w=400&q=80",
+      "https://images.unsplash.com/photo-1554200876-56c2f25224fa?auto=format&fit=crop&w=400&q=80",
+      "https://images.unsplash.com/photo-1520607162513-3ac70ce3215d?auto=format&fit=crop&w=400&q=80",
+      "https://images.unsplash.com/photo-1551836022-d5d88e9218df?auto=format&fit=crop&w=400&q=80"
     ]
   }
 };
@@ -306,7 +348,7 @@ export function generateTemplateContent(type: string) {
   const bank = (CONTENT_BANKS as any)[bankType] || (CONTENT_BANKS as any).newspaper;
   
   if (type === "ecommerce") {
-    const products = getRandomElements(bank.productNames, 6).map((name) => ({
+    const products = getRandomElements(bank.productNames, 12).map((name) => ({
       name,
       price: (Math.random() * 200 + 49).toFixed(2),
       oldPrice: (Math.random() * 100 + 300).toFixed(2),
@@ -324,7 +366,7 @@ export function generateTemplateContent(type: string) {
   }
   
   if (type === "gaming") {
-    const games = getRandomElements(bank.gameNames, 4).map((title) => ({
+    const games = getRandomElements(bank.gameNames, 6).map((title) => ({
       title,
       image: getRandomElement(bank.gameImages),
       viewers: Math.floor(Math.random() * 90) + 10 + "K"
@@ -336,13 +378,13 @@ export function generateTemplateContent(type: string) {
         subtitle: getRandomElement(bank.heroSubtitles),
         image: getRandomElement(bank.heroImages)
       },
-      trending: getRandomElements(bank.trendingTitles, 3),
+      trending: getRandomElements(bank.trendingTitles, 5),
       games
     };
   }
 
   if (type === "food") {
-    const recipes = getRandomElements(bank.recipeNames, 6).map((title) => ({
+    const recipes = getRandomElements(bank.recipeNames, 8).map((title) => ({
       title,
       image: getRandomElement(bank.recipeImages),
       time: Math.floor(Math.random() * 45) + 15 + " min",
@@ -359,7 +401,7 @@ export function generateTemplateContent(type: string) {
   }
 
   if (type === "education") {
-    const courses = getRandomElements(bank.courseNames, 4).map((title) => ({
+    const courses = getRandomElements(bank.courseNames, 6).map((title) => ({
       title,
       image: getRandomElement(bank.courseImages),
       instructor: ["Sarah Jenkins", "Dr. Alan Turing", "Michael Chen", "Elena Rodriguez"][Math.floor(Math.random() * 4)],
@@ -376,7 +418,7 @@ export function generateTemplateContent(type: string) {
   }
 
   if (type === "entertainment") {
-    const movies = getRandomElements(bank.movieNames, 6).map((title) => ({
+    const movies = getRandomElements(bank.movieNames, 8).map((title) => ({
       title,
       image: getRandomElement(bank.movieImages),
       match: Math.floor(Math.random() * 15) + 85 + "% Match"
@@ -391,10 +433,12 @@ export function generateTemplateContent(type: string) {
     };
   }
 
-  // Default structure (Newspaper, Health, etc)
-  const articles = getRandomElements(bank.articleHeadlines || CONTENT_BANKS.newspaper.articleHeadlines, 2).map((title) => ({
+  // Default structure (Newspaper, Health, Technology, Business, etc)
+  const articles = getRandomElements(bank.articleHeadlines || CONTENT_BANKS.newspaper.articleHeadlines, 8).map((title) => ({
     title,
-    image: getRandomElement(bank.articleImages || CONTENT_BANKS.newspaper.articleImages)
+    image: getRandomElement(bank.articleImages || CONTENT_BANKS.newspaper.articleImages),
+    category: ["Tech", "World", "Business", "Health", "Science"][Math.floor(Math.random() * 5)],
+    timeAgo: Math.floor(Math.random() * 12) + 1 + "h ago"
   }));
 
   return {
@@ -403,7 +447,7 @@ export function generateTemplateContent(type: string) {
       subtitle: getRandomElement(bank.heroSubtitles),
       image: getRandomElement(bank.heroImages)
     },
-    trending: getRandomElements(bank.trendingTitles, 3),
+    trending: getRandomElements(bank.trendingTitles, 5),
     articles
   };
 }

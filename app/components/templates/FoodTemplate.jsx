@@ -1,5 +1,6 @@
 "use client";
 
+import React from "react";
 import { Search, Menu, Clock, Star, ChefHat, Bookmark } from "lucide-react";
 import AdSlot from "../AdSlot";
 import { generateTemplateContent } from "../../lib/templateContent";
@@ -101,28 +102,44 @@ export default function FoodTemplate({
           
           <div className={`grid ${isMobile ? 'grid-cols-1 gap-6' : 'grid-cols-3 gap-6'} items-start`}>
             {content.recipes.map((recipe, idx) => (
-              <div key={idx} className="bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition duration-300 border border-amber-100 group cursor-pointer flex flex-col">
-                <div className="w-full aspect-[4/5] overflow-hidden relative">
-                  <img src={recipe.image} alt="Recipe" className="w-full h-full object-cover group-hover:scale-110 transition duration-700" />
-                  <button className="absolute top-3 right-3 w-8 h-8 bg-white/90 backdrop-blur rounded-full flex items-center justify-center text-amber-700 hover:text-orange-500 hover:bg-white transition">
-                    <Bookmark size={16} />
-                  </button>
-                </div>
-                <div className="p-5 font-sans">
-                  <div className="flex items-center gap-1 text-orange-400 mb-2">
-                    <Star size={14} fill="currentColor" />
-                    <Star size={14} fill="currentColor" />
-                    <Star size={14} fill="currentColor" />
-                    <Star size={14} fill="currentColor" />
-                    <Star size={14} fill="currentColor" />
-                    <span className="text-xs text-amber-700 font-bold ml-1">{recipe.rating}</span>
+              <React.Fragment key={idx}>
+                <div className="bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition duration-300 border border-amber-100 group cursor-pointer flex flex-col">
+                  <div className="w-full aspect-[4/5] overflow-hidden relative">
+                    <img src={recipe.image} alt="Recipe" className="w-full h-full object-cover group-hover:scale-110 transition duration-700" />
+                    <button className="absolute top-3 right-3 w-8 h-8 bg-white/90 backdrop-blur rounded-full flex items-center justify-center text-amber-700 hover:text-orange-500 hover:bg-white transition">
+                      <Bookmark size={16} />
+                    </button>
                   </div>
-                  <h4 className="text-lg font-bold text-amber-950 leading-tight mb-3 font-serif group-hover:text-orange-600 transition">{recipe.title}</h4>
-                  <div className="flex items-center text-amber-700 text-xs font-semibold gap-1">
-                    <Clock size={14} /> {recipe.time}
+                  <div className="p-5 font-sans">
+                    <div className="flex items-center gap-1 text-orange-400 mb-2">
+                      <Star size={14} fill="currentColor" />
+                      <Star size={14} fill="currentColor" />
+                      <Star size={14} fill="currentColor" />
+                      <Star size={14} fill="currentColor" />
+                      <Star size={14} fill="currentColor" />
+                      <span className="text-xs text-amber-700 font-bold ml-1">{recipe.rating}</span>
+                    </div>
+                    <h4 className="text-lg font-bold text-amber-950 leading-tight mb-3 font-serif group-hover:text-orange-600 transition">{recipe.title}</h4>
+                    <div className="flex items-center text-amber-700 text-xs font-semibold gap-1">
+                      <Clock size={14} /> {recipe.time}
+                    </div>
                   </div>
                 </div>
-              </div>
+
+                {/* Inject Inline Ad every 3 recipes */}
+                {(idx + 1) % 3 === 0 && contentSlots[Math.floor(idx / 3)] && (
+                  <div className="col-span-full w-full my-6 py-6 border-y border-amber-100 flex flex-col items-center bg-white shadow-sm rounded-2xl">
+                    <p className="text-[10px] text-amber-400 uppercase tracking-widest mb-3 font-semibold font-sans">Sponsored Advertisement</p>
+                    <AdSlot
+                      slotDef={contentSlots[Math.floor(idx / 3)]}
+                      activeSlotId={activeSlotId}
+                      slotCreativeMap={slotCreativeMap}
+                      showSlotLabels={showSlotLabels}
+                      isMobile={isMobile}
+                    />
+                  </div>
+                )}
+              </React.Fragment>
             ))}
           </div>
 
