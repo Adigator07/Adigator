@@ -2,17 +2,43 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import TemplateRenderer from "./TemplateRenderer";
 import SlidePreview from "./SlidePreview";
 import EditCreativeModal from "./EditCreativeModal";
 import CreativeCard from "./CreativeCard";
 import { supabase } from "../lib/supabase";
 import { suggestBestSizes, autoFitImage } from "../hooks/useImageEditor";
+// exportToPptx is loaded dynamically (browser-only) to avoid SSR issues with pptxgenjs
 import {
   UploadCloud, CheckCircle2, XCircle, AlertCircle,
-  Trash2, Edit2, Check, X, Download, Wand2,
+  Download, LayoutGrid, Square, CheckSquare,
   Newspaper, ShoppingCart, Coffee, Activity, Laptop, Briefcase, GraduationCap, Gamepad2, Film,
 } from "lucide-react";
+
+// ── Toast Component ──────────────────────────────────────────
+function Toast({ toasts }) {
+  return (
+    <div className="fixed bottom-6 right-6 z-[9999] flex flex-col gap-2 pointer-events-none">
+      <AnimatePresence>
+        {toasts.map((t) => (
+          <motion.div
+            key={t.id}
+            initial={{ opacity: 0, y: 20, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 10, scale: 0.95 }}
+            className={`flex items-center gap-3 px-4 py-3 rounded-xl border backdrop-blur-xl shadow-2xl text-sm font-medium text-white ${
+              t.type === "success" ? "bg-green-900/80 border-green-500/40" :
+              t.type === "error"   ? "bg-red-900/80 border-red-500/40" :
+                                     "bg-slate-900/80 border-white/20"
+            }`}
+          >
+            <span>{t.type === "success" ? "✅" : t.type === "error" ? "❌" : "⏳"}</span>
+            {t.message}
+          </motion.div>
+        ))}
+      </AnimatePresence>
+    </div>
+  );
+}
 
 const TEMPLATES = [
   { id: "newspaper", name: "Newspaper", icon: Newspaper, desc: "Modern news portal", slots: 7 },
@@ -44,16 +70,45 @@ const itemVariants = {
 export default function PreviewTool() {
   const [step, setStep] = useState(1);
   const [selectedTemplate, setSelectedTemplate] = useState("newspaper");
+  const [viewMode, setViewMode] = useState("multiple");
   const [drag, setDrag] = useState(false);
   const [creatives, setCreatives] = useState([]);
   const [showSlotLabels, setShowSlotLabels] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [editingName, setEditingName] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
   const [editModalCreative, setEditModalCreative] = useState(null);
   const [originalBackups, setOriginalBackups] = useState({});
+  const [toasts, setToasts] = useState([]);
   const fileRef = useRef(null);
   const userRef = useRef(null);
+
+  const addToast = useCallback((message, type = "info") => {
+    const id = Date.now();
+    setToasts((prev) => [...prev, { id, message, type }]);
+    setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), 3500);
+  }, []);
+
+  const handleExportPptx = useCallback(async () => {
+    if (isExporting) return;
+    setIsExporting(true);
+    addToast("Generating PPTX...", "info");
+    try {
+      // Dynamic import keeps pptxgenjs out of the SSR bundle
+      const { exportToPptx } = await import("../lib/exportPptx");
+      const templateName = TEMPLATES.find((t) => t.id === selectedTemplate)?.name || "Template";
+      // Derive valid creatives inline to avoid TDZ (const validCreatives is declared later)
+      const validCr = creatives.filter((c) => c.valid);
+      const filename = await exportToPptx(validCr, viewMode, templateName);
+      addToast(`Downloaded: ${filename}`, "success");
+    } catch (err) {
+      console.error("Export error:", err);
+      addToast("Export failed. Please try again.", "error");
+    } finally {
+      setIsExporting(false);
+    }
+  }, [isExporting, creatives, viewMode, selectedTemplate, addToast]);
 
   // Cache user to avoid multiple auth calls
   const getUser = useCallback(async () => {
@@ -186,8 +241,8 @@ export default function PreviewTool() {
     });
   };
 
-  const validCreatives = creatives.filter((c) => c.valid);
-  const invalidCreatives = creatives.filter((c) => !c.valid);
+  const validCreatives = creatives.filter((c) => c && c.valid && (c.url || c.text || c.image || c.title));
+  const invalidCreatives = creatives.filter((c) => !c.valid || !(c.url || c.text || c.image || c.title));
 
 
   const handlePreview = async () => {
@@ -419,48 +474,75 @@ export default function PreviewTool() {
             </motion.div>
           )}
 
-          {/* STEP 4: SELECT TEMPLATE */}
+          {/* STEP 4: SELECT TEMPLATE + VIEW MODE */}
           {step === 4 && (
             <motion.div key="step-4" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="space-y-8">
               <div>
                 <h2 className="text-4xl font-bold text-white mb-2">Step 4: Select Template</h2>
-                <p className="text-gray-400">Choose a website category to preview your ads in a realistic context</p>
+                <p className="text-gray-400">Choose a website category and view mode for your preview</p>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {TEMPLATES.map((tpl) => {
-                  const Icon = tpl.icon;
-                  const isSelected = selectedTemplate === tpl.id;
-                  return (
-                    <motion.div
-                      key={tpl.id}
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
-                      onClick={() => setSelectedTemplate(tpl.id)}
-                      className={`relative cursor-pointer rounded-2xl p-6 border-2 transition-all overflow-hidden ${
-                        isSelected 
-                          ? "border-blue-500 bg-gradient-to-br from-blue-900/40 to-purple-900/40 shadow-[0_0_30px_rgba(59,130,246,0.3)]" 
-                          : "border-white/10 bg-white/5 hover:border-white/30 hover:bg-white/10"
-                      }`}
-                    >
-                      {isSelected && (
-                        <div className="absolute top-4 right-4 text-blue-400">
-                          <CheckCircle2 size={24} />
+              {/* VIEW MODE SELECTOR */}
+              <div className="space-y-3">
+                <h3 className="text-lg font-semibold text-white">View Mode</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {[
+                    { id: "multiple", icon: Square, title: "Multiple Slides", desc: "Each creative gets its own slide. Total slides = number of creatives." },
+                    { id: "single",   icon: LayoutGrid, title: "Single Slide (All Creatives)", desc: "All creatives displayed inside one slide in a responsive grid." },
+                  ].map((m) => {
+                    const Icon = m.icon;
+                    const sel = viewMode === m.id;
+                    return (
+                      <motion.div
+                        key={m.id}
+                        whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
+                        onClick={() => setViewMode(m.id)}
+                        className={`cursor-pointer rounded-2xl p-5 border-2 transition-all flex gap-4 items-start ${
+                          sel ? "border-purple-500 bg-purple-900/30 shadow-[0_0_24px_rgba(168,85,247,0.25)]" : "border-white/10 bg-white/5 hover:border-white/30"
+                        }`}
+                      >
+                        <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${
+                          sel ? "bg-purple-500 text-white" : "bg-white/10 text-gray-400"
+                        }`}><Icon size={22} /></div>
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <h4 className="font-bold text-white">{m.title}</h4>
+                            {sel && <CheckSquare size={16} className="text-purple-400" />}
+                          </div>
+                          <p className="text-sm text-gray-400">{m.desc}</p>
                         </div>
-                      )}
-                      <div className={`w-14 h-14 rounded-xl flex items-center justify-center mb-4 ${
-                        isSelected ? "bg-blue-500 text-white shadow-lg shadow-blue-500/50" : "bg-white/10 text-gray-300"
-                      }`}>
-                        <Icon size={28} />
-                      </div>
-                      <h3 className={`text-xl font-bold mb-1 ${isSelected ? "text-white" : "text-gray-200"}`}>{tpl.name}</h3>
-                      <p className="text-sm text-gray-400 mb-4">{tpl.desc}</p>
-                      <div className="text-xs font-semibold uppercase tracking-wider text-purple-400 bg-purple-500/10 w-fit px-3 py-1 rounded-full">
-                        {tpl.slots} Ad Zones
-                      </div>
-                    </motion.div>
-                  );
-                })}
+                      </motion.div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* TEMPLATE GRID */}
+              <div className="space-y-3">
+                <h3 className="text-lg font-semibold text-white">Template Category</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {TEMPLATES.map((tpl) => {
+                    const Icon = tpl.icon;
+                    const isSelected = selectedTemplate === tpl.id;
+                    return (
+                      <motion.div
+                        key={tpl.id} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
+                        onClick={() => setSelectedTemplate(tpl.id)}
+                        className={`relative cursor-pointer rounded-2xl p-6 border-2 transition-all overflow-hidden ${
+                          isSelected ? "border-blue-500 bg-gradient-to-br from-blue-900/40 to-purple-900/40 shadow-[0_0_30px_rgba(59,130,246,0.3)]" : "border-white/10 bg-white/5 hover:border-white/30 hover:bg-white/10"
+                        }`}
+                      >
+                        {isSelected && <div className="absolute top-4 right-4 text-blue-400"><CheckCircle2 size={24} /></div>}
+                        <div className={`w-14 h-14 rounded-xl flex items-center justify-center mb-4 ${isSelected ? "bg-blue-500 text-white shadow-lg shadow-blue-500/50" : "bg-white/10 text-gray-300"}`}>
+                          <Icon size={28} />
+                        </div>
+                        <h3 className={`text-xl font-bold mb-1 ${isSelected ? "text-white" : "text-gray-200"}`}>{tpl.name}</h3>
+                        <p className="text-sm text-gray-400 mb-4">{tpl.desc}</p>
+                        <div className="text-xs font-semibold uppercase tracking-wider text-purple-400 bg-purple-500/10 w-fit px-3 py-1 rounded-full">{tpl.slots} Ad Zones</div>
+                      </motion.div>
+                    );
+                  })}
+                </div>
               </div>
 
               <div className="flex gap-4 pt-4">
@@ -482,9 +564,13 @@ export default function PreviewTool() {
                   <h2 className="text-4xl font-bold text-white mb-2">Step 5: Preview & Export</h2>
                   <p className="text-gray-400">See your creatives in real website contexts</p>
                 </div>
-                <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} onClick={() => window.print()}
-                  className="px-8 py-3 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-xl font-semibold flex items-center gap-2">
-                  <Download size={20} /> Export PPT
+                <motion.button
+                  whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
+                  onClick={handleExportPptx}
+                  disabled={isExporting}
+                  className="px-8 py-3 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-xl font-semibold flex items-center gap-2 disabled:opacity-60"
+                >
+                  <Download size={20} /> {isExporting ? "Exporting..." : "Export PPTX"}
                 </motion.button>
               </div>
 
@@ -498,17 +584,21 @@ export default function PreviewTool() {
                   validCreatives={validCreatives}
                   showSlotLabels={showSlotLabels}
                   selectedTemplate={selectedTemplate}
+                  viewMode={viewMode}
+                  onViewModeChange={setViewMode}
                 />
               </motion.div>
 
-
-
               <div className="flex gap-4 pt-4">
-                <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={() => setStep(3)}
+                <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={() => setStep(4)}
                   className="flex-1 py-3 bg-white/10 text-white rounded-xl font-semibold hover:bg-white/20 transition">← Back</motion.button>
-                <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={() => window.print()}
-                  className="flex-1 py-3 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-xl font-semibold flex items-center justify-center gap-2">
-                  <Download size={20} /> Download PPT
+                <motion.button
+                  whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
+                  onClick={handleExportPptx}
+                  disabled={isExporting}
+                  className="flex-1 py-3 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-xl font-semibold flex items-center justify-center gap-2 disabled:opacity-60"
+                >
+                  <Download size={20} /> {isExporting ? "Exporting..." : "Download PPTX"}
                 </motion.button>
               </div>
             </motion.div>
@@ -525,6 +615,9 @@ export default function PreviewTool() {
           onClose={() => setEditModalCreative(null)}
         />
       )}
+
+      {/* Toast Notifications */}
+      <Toast toasts={toasts} />
     </div>
   );
 }
