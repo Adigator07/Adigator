@@ -78,18 +78,17 @@ export default function Dashboard() {
       {/* ── Quick Actions ────────────────────────────────────── */}
       <motion.div variants={fade}>
         <h2 className="text-sm font-bold text-white/40 uppercase tracking-widest mb-3">Quick Actions</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {[
-            { href: "/preview", icon: Plus, label: "Create New Template", sub: "Start fresh", color: "from-purple-600 to-blue-600" },
+            { href: "/preview", icon: Plus, label: "Create New Template", sub: "Start fresh with a new creative", color: "from-purple-600 to-blue-600" },
             { href: "/preview", icon: Clock, label: "Resume Last Project", sub: "Continue where you left off", color: "from-blue-600 to-cyan-600" },
-            { href: "/intelligence", icon: Eye,  label: "Ad Intelligence", sub: "Analyze & optimize", color: "from-fuchsia-600 to-pink-600" },
           ].map((a) => {
             const Icon = a.icon;
             return (
               <Link key={a.href + a.label} href={a.href}>
                 <motion.div
                   whileHover={{ scale: 1.02, y: -2 }}
-                  className="group relative rounded-2xl border border-white/10 bg-white/5 p-4 flex items-center gap-4 hover:border-white/20 hover:bg-white/8 transition-all cursor-pointer overflow-hidden"
+                  className="group relative rounded-2xl border border-white/10 bg-white/5 p-4 flex items-center gap-4 hover:border-purple-500/30 hover:bg-white/8 transition-all cursor-pointer overflow-hidden"
                 >
                   <div className={`w-11 h-11 rounded-xl bg-gradient-to-br ${a.color} flex items-center justify-center shrink-0`}>
                     <Icon size={20} className="text-white" />
@@ -98,7 +97,7 @@ export default function Dashboard() {
                     <p className="font-semibold text-white text-sm">{a.label}</p>
                     <p className="text-xs text-white/40">{a.sub}</p>
                   </div>
-                  <ArrowRight size={16} className="text-white/20 group-hover:text-white/60 transition shrink-0" />
+                  <ArrowRight size={16} className="text-white/20 group-hover:text-purple-400 transition shrink-0" />
                 </motion.div>
               </Link>
             );
@@ -135,25 +134,32 @@ export default function Dashboard() {
         )}
       </motion.div>
 
-      {/* ── Core Products ───────────────────────────────────── */}
+      {/* ── Core Product ─────────────────────────────────────── */}
       <motion.div variants={fade}>
-        <h2 className="text-sm font-bold text-white/40 uppercase tracking-widest mb-3">Core Products</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <Link href="/preview" className="group relative rounded-2xl border-2 border-purple-500/40 bg-gradient-to-br from-purple-600/20 to-blue-600/10 p-6 hover:border-purple-400 hover:shadow-2xl hover:shadow-purple-500/20 transition-all duration-300 block">
-            <div className="absolute top-4 right-4 bg-purple-500 text-white text-xs px-2 py-1 rounded-full font-bold">CORE</div>
-            <div className="text-4xl mb-4">🎨</div>
-            <h3 className="text-xl font-bold text-white mb-2">Creative Preview</h3>
-            <p className="text-white/50 text-sm mb-6">Upload, validate and preview your ad creatives across 9 templates with slide-based export.</p>
-            <div className="flex items-center gap-2 text-purple-400 font-semibold text-sm group-hover:gap-4 transition-all">Launch Preview →</div>
-          </Link>
-          <Link href="/intelligence" className="group relative rounded-2xl border-2 border-blue-500/40 bg-gradient-to-br from-blue-600/20 to-cyan-600/10 p-6 hover:border-blue-400 hover:shadow-2xl hover:shadow-blue-500/20 transition-all duration-300 block">
-            <div className="absolute top-4 right-4 bg-blue-500 text-white text-xs px-2 py-1 rounded-full font-bold">CORE</div>
-            <div className="text-4xl mb-4">🧠</div>
-            <h3 className="text-xl font-bold text-white mb-2">Ad Intelligence</h3>
-            <p className="text-white/50 text-sm mb-6">Analyze ad performance, get AI-powered insights and optimize your programmatic campaigns.</p>
-            <div className="flex items-center gap-2 text-blue-400 font-semibold text-sm group-hover:gap-4 transition-all">Launch Intelligence →</div>
-          </Link>
-        </div>
+        <h2 className="text-sm font-bold text-white/40 uppercase tracking-widest mb-3">Core Product</h2>
+        <Link href="/preview" className="group relative rounded-2xl border-2 border-purple-500/50 bg-gradient-to-br from-purple-600/25 via-blue-600/15 to-purple-600/10 p-8 hover:border-purple-400 hover:shadow-2xl hover:shadow-purple-500/30 transition-all duration-300 block overflow-hidden">
+          <div className="absolute inset-0 bg-gradient-to-r from-purple-600/0 via-purple-600/5 to-blue-600/0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
+          <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center gap-6">
+            <div className="shrink-0 w-16 h-16 rounded-2xl bg-gradient-to-br from-purple-600 to-blue-600 flex items-center justify-center text-3xl shadow-lg shadow-purple-500/30">
+              🎨
+            </div>
+            <div className="flex-1">
+              <div className="flex items-center gap-3 mb-2">
+                <h3 className="text-2xl font-extrabold text-white">Creative Preview Studio</h3>
+                <span className="bg-gradient-to-r from-purple-500 to-blue-500 text-white text-xs px-2.5 py-1 rounded-full font-bold tracking-wide">FLAGSHIP</span>
+              </div>
+              <p className="text-white/60 text-sm leading-relaxed mb-4">Upload your ad creatives, validate against IAB standards, rename &amp; organize them, then preview across 9 industry-specific templates — news, gaming, ecommerce &amp; more. Export a pixel-perfect PPTX deck in one click.</p>
+              <div className="flex flex-wrap gap-2">
+                {["9 Templates","7 Ad Formats","PPTX Export","Slide Mode","Auto-Fix"].map(tag => (
+                  <span key={tag} className="text-xs text-purple-300 bg-purple-500/15 border border-purple-500/25 px-2.5 py-1 rounded-full">{tag}</span>
+                ))}
+              </div>
+            </div>
+            <div className="shrink-0 flex items-center gap-2 text-purple-400 group-hover:text-white font-bold text-sm transition-colors">
+              Launch Studio <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
+            </div>
+          </div>
+        </Link>
       </motion.div>
 
       {/* ── Recent Projects ─────────────────────────────────── */}

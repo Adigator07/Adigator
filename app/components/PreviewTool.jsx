@@ -7,6 +7,7 @@ import EditCreativeModal from "./EditCreativeModal";
 import CreativeCard from "./CreativeCard";
 import { supabase } from "../lib/supabase";
 import { suggestBestSizes, autoFitImage } from "../hooks/useImageEditor";
+import { analyzeCreativeLocal } from "../lib/localAnalyzer";
 // exportToPptx is loaded dynamically (browser-only) to avoid SSR issues with pptxgenjs
 import {
   UploadCloud, CheckCircle2, XCircle, AlertCircle,
@@ -81,6 +82,12 @@ export default function PreviewTool() {
   const [editModalCreative, setEditModalCreative] = useState(null);
   const [originalBackups, setOriginalBackups] = useState({});
   const [toasts, setToasts] = useState([]);
+  // AI analysis state
+  const [campaignGoal, setCampaignGoal] = useState(null); // 'awareness'|'consideration'|'conversion'
+  const [showAnalysis, setShowAnalysis] = useState(false);
+  const [analysisResult, setAnalysisResult] = useState(null);
+  const [analysisLoading, setAnalysisLoading] = useState(false);
+  const [analysisCreativeId, setAnalysisCreativeId] = useState(null);
   const fileRef = useRef(null);
   const userRef = useRef(null);
 
@@ -89,6 +96,39 @@ export default function PreviewTool() {
     setToasts((prev) => [...prev, { id, message, type }]);
     setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), 3500);
   }, []);
+
+  // Download a creative as a file
+  const downloadCreative = useCallback((creative) => {
+    if (!creative.url) return;
+    const a = document.createElement("a");
+    a.href = creative.url;
+    a.download = `${creative.name || "creative"}.${creative.url.startsWith("data:image/png") ? "png" : creative.url.startsWith("data:image/gif") ? "gif" : "jpg"}`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    addToast(`Downloaded: ${creative.name}`, "success");
+  }, [addToast]);
+
+  // Call Local AI analysis
+  const runAnalysis = useCallback(async () => {
+    const creative = analysisCreativeId
+      ? creatives.find((c) => c.id === analysisCreativeId)
+      : creatives.filter((c) => c.valid)[0];
+    if (!creative) { addToast("No creative selected.", "error"); return; }
+    if (!campaignGoal) { addToast("Please select a campaign goal first.", "error"); return; }
+    setAnalysisLoading(true);
+    setAnalysisResult(null);
+    setShowAnalysis(true);
+    try {
+      const data = await analyzeCreativeLocal(creative.url, campaignGoal);
+      setAnalysisResult(data);
+      addToast("Local AI analysis complete ✨", "success");
+    } catch (err) {
+      addToast(err.message || "Analysis failed.", "error");
+    } finally {
+      setAnalysisLoading(false);
+    }
+  }, [analysisCreativeId, creatives, campaignGoal, addToast]);
 
   const handleExportPptx = useCallback(async () => {
     if (isExporting) return;
@@ -396,12 +436,31 @@ export default function PreviewTool() {
                   </div>
                   <motion.div variants={containerVariants} initial="hidden" animate="visible" className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     {validCreatives.map((creative) => (
-                      <CreativeCard
-                        key={creative.id}
-                        creative={creative}
-                        onEdit={(c) => setEditModalCreative(c)}
-                        onRemove={removeCreative}
-                      />
+                      <div key={creative.id} className="flex flex-col gap-1">
+                        <CreativeCard creative={creative} onRemove={removeCreative} />
+                        {/* Rename row */}
+                        {editingId === creative.id ? (
+                          <div className="flex gap-1">
+                            <input autoFocus value={editingName}
+                              onChange={(e) => setEditingName(e.target.value)}
+                              onKeyDown={(e) => { if (e.key === "Enter") saveEdit(creative.id); if (e.key === "Escape") setEditingId(null); }}
+                              className="flex-1 min-w-0 bg-white/10 border border-purple-500 rounded-lg px-2 py-1 text-xs text-white outline-none" />
+                            <button onClick={() => saveEdit(creative.id)} className="px-2 py-1 bg-purple-600 rounded-lg text-xs text-white">✓</button>
+                            <button onClick={() => setEditingId(null)} className="px-2 py-1 bg-white/10 rounded-lg text-xs text-white">✕</button>
+                          </div>
+                        ) : (
+                          <button onClick={() => startEdit(creative.id, creative.name)}
+                            className="text-left flex items-center gap-1 group/rn">
+                            <span className="text-xs text-gray-400 truncate group-hover/rn:text-purple-300 transition">{creative.name}</span>
+                            <span className="text-[10px] text-gray-600 group-hover/rn:text-purple-400">✏️</span>
+                          </button>
+                        )}
+                        {/* Download button */}
+                        <button onClick={() => downloadCreative(creative)}
+                          className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-green-400 transition bg-white/5 hover:bg-white/10 rounded-lg px-2 py-1.5">
+                          <Download size={12} /> Download
+                        </button>
+                      </div>
                     ))}
                   </motion.div>
                 </div>
@@ -419,9 +478,7 @@ export default function PreviewTool() {
                         key={creative.id}
                         creative={creative}
                         onEdit={(c) => setEditModalCreative(c)}
-                        onAutoFix={handleAutoFix}
                         onRemove={removeCreative}
-                        showFixButton
                       />
                     ))}
                   </div>
@@ -448,27 +505,40 @@ export default function PreviewTool() {
           {step === 3 && (
             <motion.div key="step-3" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="space-y-8">
               <div>
-                <h2 className="text-4xl font-bold text-white mb-2">Step 3: Creative Library</h2>
-                <p className="text-gray-400">Review and organize your valid creatives</p>
+                <h2 className="text-4xl font-bold text-white mb-2">Step 3: Campaign Goal</h2>
+                <p className="text-gray-400">Select your campaign objective — this guides the AI analysis</p>
               </div>
 
-              <motion.div variants={containerVariants} initial="hidden" animate="visible" className="grid grid-cols-2 md:grid-cols-4 gap-6">
-                {validCreatives.map((creative) => (
-                  <CreativeCard
-                    key={creative.id}
-                    creative={creative}
-                    onEdit={(c) => setEditModalCreative(c)}
-                    onRemove={removeCreative}
-                  />
-                ))}
-              </motion.div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {[
+                  { id: "awareness",     emoji: "📣", title: "Awareness",     color: "from-blue-600/30 to-blue-800/20",    border: "border-blue-500/50",   glow: "shadow-blue-500/20",    desc: "Maximize reach, visual clarity, and brand recognition." },
+                  { id: "consideration",emoji: "🤔", title: "Consideration", color: "from-purple-600/30 to-purple-800/20",border: "border-purple-500/50", glow: "shadow-purple-500/20",  desc: "Balance information, value proposition, and moderate CTA." },
+                  { id: "conversion",   emoji: "⚡", title: "Conversion",    color: "from-orange-600/30 to-orange-800/20",border: "border-orange-500/50",glow: "shadow-orange-500/20",  desc: "Strong CTA, high contrast, urgent and direct messaging." },
+                ].map((g) => {
+                  const sel = campaignGoal === g.id;
+                  return (
+                    <motion.div key={g.id} whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
+                      onClick={() => setCampaignGoal(g.id)}
+                      className={`cursor-pointer rounded-2xl p-8 border-2 transition-all duration-200 bg-gradient-to-br ${
+                        sel ? `${g.color} ${g.border} shadow-2xl ${g.glow}` : "border-white/10 bg-white/5 hover:border-white/25"
+                      }`}>
+                      <div className="text-5xl mb-4">{g.emoji}</div>
+                      <h3 className={`text-2xl font-extrabold mb-2 ${sel ? "text-white" : "text-gray-200"}`}>{g.title}</h3>
+                      <p className="text-sm text-gray-400 leading-relaxed">{g.desc}</p>
+                      {sel && <div className="mt-4 flex items-center gap-2 text-xs font-bold text-white/70"><CheckCircle2 size={14} className="text-green-400" /> Selected</div>}
+                    </motion.div>
+                  );
+                })}
+              </div>
 
               <div className="flex gap-4 pt-4">
                 <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={() => setStep(2)}
                   className="flex-1 py-3 bg-white/10 text-white rounded-xl font-semibold hover:bg-white/20 transition">← Back</motion.button>
-                <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={() => setStep(4)}
-                  className="flex-1 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl font-semibold transition">
-                  Next: Select Template →
+                <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
+                  onClick={() => setStep(4)}
+                  disabled={!campaignGoal}
+                  className="flex-1 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl font-semibold disabled:opacity-40 disabled:cursor-not-allowed transition">
+                  {campaignGoal ? `Next: Select Template (${campaignGoal}) →` : "Select a goal to continue"}
                 </motion.button>
               </div>
             </motion.div>
@@ -545,7 +615,132 @@ export default function PreviewTool() {
                 </div>
               </div>
 
-              <div className="flex gap-4 pt-4">
+              {/* Go to Analysis button */}
+              <div className="border-t border-white/10 pt-6">
+                <div className="flex items-center justify-between flex-wrap gap-4">
+                  <div>
+                    <p className="text-sm font-semibold text-white">AI Creative Analysis</p>
+                    <p className="text-xs text-gray-500 mt-0.5">Goal: <span className="text-purple-400 capitalize">{campaignGoal || "not set"}</span></p>
+                  </div>
+                  {validCreatives.length > 1 && (
+                    <select value={analysisCreativeId || ""}
+                      onChange={(e) => { setAnalysisCreativeId(e.target.value); setAnalysisResult(null); }}
+                      className="bg-white/10 border border-white/20 text-white text-sm rounded-xl px-3 py-2 outline-none">
+                      <option value="">First creative</option>
+                      {validCreatives.map((c) => <option key={c.id} value={c.id}>{c.name} ({c.size})</option>)}
+                    </select>
+                  )}
+                  <motion.button whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.96 }}
+                    onClick={runAnalysis}
+                    disabled={analysisLoading || !campaignGoal}
+                    className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-fuchsia-600 to-purple-600 text-white font-bold rounded-xl shadow-lg shadow-purple-500/30 disabled:opacity-50 disabled:cursor-not-allowed transition">
+                    {analysisLoading ? <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> Analyzing...</> : <><span>🧠</span> Go to Analysis</>}
+                  </motion.button>
+                </div>
+              </div>
+
+              {/* ── AI ANALYSIS PANEL ── */}
+              {showAnalysis && (
+                <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} className="rounded-3xl border border-fuchsia-500/30 bg-gradient-to-br from-fuchsia-900/20 to-purple-900/20 p-6 space-y-6">
+                  <div className="flex items-center gap-3">
+                    <span className="text-2xl">🧠</span>
+                    <div>
+                      <h3 className="text-lg font-bold text-white">AI Analysis Results</h3>
+                      <p className="text-xs text-gray-400">Goal: <span className="text-fuchsia-400 capitalize font-semibold">{campaignGoal}</span></p>
+                    </div>
+                    {analysisResult?.cached && <span className="ml-auto text-xs bg-yellow-500/20 text-yellow-400 border border-yellow-500/30 px-2 py-1 rounded-full">⚡ Cached</span>}
+                  </div>
+
+                  {analysisLoading && (
+                    <div className="flex flex-col items-center py-10 gap-4">
+                      <div className="w-12 h-12 border-4 border-fuchsia-500 border-t-transparent rounded-full animate-spin" />
+                      <p className="text-gray-400 text-sm">AI is analyzing your creative...</p>
+                    </div>
+                  )}
+
+                  {analysisResult && !analysisLoading && (() => {
+                    const r = analysisResult;
+                    const ctaMap = { none: 0, weak: 33, medium: 66, strong: 100 };
+                    const bars = [
+                      { label: "Brightness",            value: r.brightness,    color: "bg-yellow-400" },
+                      { label: "Contrast",              value: r.contrast,      color: "bg-blue-400" },
+                      { label: "Text Clarity",          value: r.text_clarity,  color: "bg-cyan-400" },
+                      { label: "Layout Score",          value: r.layout_score,  color: "bg-green-400" },
+                      { label: "Goal Alignment",        value: r.goal_fit,      color: "bg-fuchsia-400" },
+                      { label: "Overall Confidence",   value: r.overall_score, color: "bg-purple-400" },
+                    ];
+                    const insightColor = r.overall_score >= 70 ? "text-green-400" : r.overall_score >= 45 ? "text-yellow-400" : "text-red-400";
+                    return (
+                      <div className="space-y-5">
+                        {/* CTA badge */}
+                        <div className="flex items-center gap-4 flex-wrap">
+                          <div className={`flex items-center gap-2 px-4 py-2 rounded-xl border text-sm font-semibold ${
+                            r.cta_presence ? "bg-green-500/15 border-green-500/40 text-green-300" : "bg-red-500/15 border-red-500/40 text-red-300"
+                          }`}>
+                            {r.cta_presence ? "✅ CTA Present" : "❌ No CTA Detected"}
+                          </div>
+                          <div className="px-4 py-2 rounded-xl border border-white/15 bg-white/5 text-sm text-gray-300">
+                            CTA Strength: <span className="capitalize font-semibold text-white">{r.cta_strength}</span>
+                          </div>
+                          <div className="px-4 py-2 rounded-xl border border-white/15 bg-white/5 text-sm text-gray-300">
+                            Text Density: <span className="capitalize font-semibold text-white">{r.text_density}</span>
+                          </div>
+                        </div>
+
+                        {/* Progress bars */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {bars.map((b) => (
+                            <div key={b.label}>
+                              <div className="flex justify-between text-xs mb-1">
+                                <span className="text-gray-400">{b.label}</span>
+                                <span className="text-white font-bold">{b.value}</span>
+                              </div>
+                              <div className="h-2 bg-white/10 rounded-full overflow-hidden">
+                                <motion.div initial={{ width: 0 }} animate={{ width: `${b.value}%` }} transition={{ duration: 0.8, ease: "easeOut" }}
+                                  className={`h-full rounded-full ${b.color}`} />
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+
+                        {/* Overall score ring */}
+                        <div className="flex items-center gap-6 p-5 rounded-2xl bg-white/5 border border-white/10">
+                          <div className="relative w-20 h-20 shrink-0">
+                            <svg className="w-20 h-20 -rotate-90" viewBox="0 0 80 80">
+                              <circle cx="40" cy="40" r="32" fill="none" stroke="white" strokeOpacity="0.08" strokeWidth="8" />
+                              <circle cx="40" cy="40" r="32" fill="none" stroke="url(#scoreGrad)" strokeWidth="8"
+                                strokeLinecap="round" strokeDasharray={`${2 * Math.PI * 32}`}
+                                strokeDashoffset={`${2 * Math.PI * 32 * (1 - r.overall_score / 100)}`} />
+                              <defs><linearGradient id="scoreGrad" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stopColor="#a855f7" /><stop offset="100%" stopColor="#ec4899" /></linearGradient></defs>
+                            </svg>
+                            <span className={`absolute inset-0 flex items-center justify-center text-xl font-extrabold ${insightColor}`}>{r.overall_score}</span>
+                          </div>
+                          <div>
+                            <p className="text-white font-bold text-lg">Confidence Score</p>
+                            <p className={`text-sm font-semibold ${insightColor}`}>
+                              {r.overall_score >= 70 ? "Strong creative ✨" : r.overall_score >= 45 ? "Needs some work 🛠" : "Low performance ⚠️"}
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Suggestions */}
+                        {r.suggestions?.length > 0 && (
+                          <div className="space-y-2">
+                            <p className="text-sm font-semibold text-white">💡 AI Suggestions</p>
+                            {r.suggestions.map((s, i) => (
+                              <div key={i} className="flex items-start gap-3 p-3 rounded-xl bg-white/5 border border-white/8 text-sm text-gray-300">
+                                <span className="text-fuchsia-400 shrink-0 mt-0.5">→</span>{s}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
+                </motion.div>
+              )}
+
+              <div className="flex gap-4 pt-2">
                 <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={() => setStep(3)}
                   className="flex-1 py-3 bg-white/10 text-white rounded-xl font-semibold hover:bg-white/20 transition">← Back</motion.button>
                 <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={() => setStep(5)}
