@@ -86,7 +86,7 @@ export default function PreviewTool() {
   const [showAnalysis, setShowAnalysis] = useState(false);
   const [analysisResult, setAnalysisResult] = useState(null);
   const [analysisLoading, setAnalysisLoading] = useState(false);
-  const [analysisCreativeId, setAnalysisCreativeId] = useState(null);
+  const [selectedAnalysisId, setSelectedAnalysisId] = useState(null);
   const fileRef = useRef(null);
   const userRef = useRef(null);
 
@@ -108,26 +108,28 @@ export default function PreviewTool() {
     addToast(`Downloaded: ${creative.name}`, "success");
   }, [addToast]);
 
-  // Call Local AI analysis
+  // Call Local AI analysis for all valid creatives
   const runAnalysis = useCallback(async () => {
-    const creative = analysisCreativeId
-      ? creatives.find((c) => c.id === analysisCreativeId)
-      : creatives.filter((c) => c.valid)[0];
-    if (!creative) { addToast("No creative selected.", "error"); return; }
+    const validCr = creatives.filter((c) => c.valid);
+    if (validCr.length === 0) { addToast("No valid creatives to analyze.", "error"); return; }
     if (!campaignGoal) { addToast("Please select a campaign goal first.", "error"); return; }
     setAnalysisLoading(true);
     setAnalysisResult(null);
     setShowAnalysis(true);
     try {
-      const data = await analyzeCreativeLocal(creative.url, campaignGoal);
-      setAnalysisResult(data);
+      const results = [];
+      for (const creative of validCr) {
+        const data = await analyzeCreativeLocal(creative.url, campaignGoal);
+        results.push({ creative, data });
+      }
+      setAnalysisResult(results);
       addToast("Local AI analysis complete ✨", "success");
     } catch (err) {
       addToast(err.message || "Analysis failed.", "error");
     } finally {
       setAnalysisLoading(false);
     }
-  }, [analysisCreativeId, creatives, campaignGoal, addToast]);
+  }, [creatives, campaignGoal, addToast]);
 
   const handleExportPptx = useCallback(async () => {
     if (isExporting) return;
@@ -511,248 +513,321 @@ export default function PreviewTool() {
 
           {/* STEP 4: AI ANALYSIS */}
           {step === 4 && (
-            <motion.div key="step-4" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="space-y-8">
+            <motion.div key="step-4" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="space-y-6">
               <div>
                 <h2 className="text-4xl font-bold text-white mb-2">Step 4: AI Analysis</h2>
-                <p className="text-gray-400">Analyze your creatives with AI based on your campaign goal</p>
+                <p className="text-gray-400">Analyze all your creatives with AI — see which ones are ready and which need work</p>
               </div>
 
-              <div className="border border-white/10 rounded-2xl p-6 bg-white/5">
-                <div className="flex items-center justify-between flex-wrap gap-4 mb-6">
-                  <div>
-                    <p className="text-sm font-semibold text-white">Select Creative for Analysis</p>
-                    <p className="text-xs text-gray-500 mt-0.5">Goal: <span className="text-purple-400 capitalize">{campaignGoal || "not set"}</span></p>
-                  </div>
-                  {validCreatives.length > 1 && (
-                    <select value={analysisCreativeId || ""}
-                      onChange={(e) => { setAnalysisCreativeId(e.target.value); setAnalysisResult(null); }}
-                      className="bg-white/10 border border-white/20 text-white text-sm rounded-xl px-3 py-2 outline-none">
-                      <option value="">First creative</option>
-                      {validCreatives.map((c) => <option key={c.id} value={c.id}>{c.name} ({c.size})</option>)}
-                    </select>
-                  )}
-                  <motion.button whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.96 }}
-                    onClick={runAnalysis}
-                    disabled={analysisLoading || !campaignGoal}
-                    className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-fuchsia-600 to-purple-600 text-white font-bold rounded-xl shadow-lg shadow-purple-500/30 disabled:opacity-50 disabled:cursor-not-allowed transition">
-                    {analysisLoading ? <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> Analyzing...</> : <><span>🧠</span> Run Analysis</>}
-                  </motion.button>
+              {/* Run Analysis bar */}
+              <div className="flex items-center justify-between flex-wrap gap-4 p-4 rounded-2xl bg-white/5 border border-white/10">
+                <div>
+                  <p className="text-sm font-semibold text-white">Campaign Goal: <span className="text-purple-400 capitalize">{campaignGoal}</span></p>
+                  <p className="text-xs text-gray-500 mt-0.5">Analyzing {validCreatives.length} valid creative{validCreatives.length !== 1 ? "s" : ""}</p>
                 </div>
+                <motion.button whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.96 }}
+                  onClick={async () => {
+                    if (validCreatives.length === 0) { addToast("No valid creatives to analyze.", "error"); return; }
+                    if (!campaignGoal) { addToast("Please select a campaign goal first.", "error"); return; }
+                    setAnalysisLoading(true);
+                    setAnalysisResult(null);
+                    setShowAnalysis(false);
+                    setSelectedAnalysisId(null);
+                    try {
+                      const results = [];
+                      for (const creative of validCreatives) {
+                        const data = await analyzeCreativeLocal(creative.url, campaignGoal);
+                        results.push({ creative, data });
+                      }
+                      setAnalysisResult(results);
+                      setSelectedAnalysisId(results[0]?.creative.id || null);
+                      setShowAnalysis(true);
+                      addToast(`Analyzed ${results.length} creative${results.length !== 1 ? "s" : ""} ✨`, "success");
+                    } catch (err) {
+                      addToast(err.message || "Analysis failed.", "error");
+                    } finally {
+                      setAnalysisLoading(false);
+                    }
+                  }}
+                  disabled={analysisLoading || !campaignGoal}
+                  className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-fuchsia-600 to-purple-600 text-white font-bold rounded-xl shadow-lg shadow-purple-500/30 disabled:opacity-50 disabled:cursor-not-allowed transition">
+                  {analysisLoading
+                    ? <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> Analyzing all creatives...</>
+                    : <><span>🧠</span> Run Analysis on All Creatives</>}
+                </motion.button>
+              </div>
 
-                {/* ── AI ANALYSIS PANEL ── */}
-                {showAnalysis && (
-                  <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} className="rounded-3xl border border-fuchsia-500/30 bg-gradient-to-br from-fuchsia-900/20 to-purple-900/20 p-6 space-y-6">
-                    <div className="flex items-center gap-3">
-                      <span className="text-2xl">🧠</span>
-                      <div>
-                        <h3 className="text-lg font-bold text-white">AI Analysis Results</h3>
-                        <p className="text-xs text-gray-400">Goal: <span className="text-fuchsia-400 capitalize font-semibold">{campaignGoal}</span></p>
-                      </div>
-                      {analysisResult?.cached && <span className="ml-auto text-xs bg-yellow-500/20 text-yellow-400 border border-yellow-500/30 px-2 py-1 rounded-full">⚡ Cached</span>}
+              {/* Loading progress */}
+              {analysisLoading && (
+                <div className="text-center py-10 space-y-4">
+                  <div className="w-14 h-14 border-4 border-fuchsia-500 border-t-transparent rounded-full animate-spin mx-auto" />
+                  <p className="text-gray-400 text-sm">AI is analyzing your creatives one by one...</p>
+                </div>
+              )}
+
+              {/* Results */}
+              {showAnalysis && analysisResult && Array.isArray(analysisResult) && !analysisLoading && (() => {
+                const perfect = analysisResult.filter(r => r.data.overall_score >= 70);
+                const needsWork = analysisResult.filter(r => r.data.overall_score < 70);
+                const selected = analysisResult.find(r => r.creative.id === selectedAnalysisId);
+
+                return (
+                  <div className="space-y-6">
+                    {/* Summary Banner */}
+                    <div className="p-5 rounded-2xl bg-gradient-to-br from-slate-800/60 to-slate-900/60 border border-white/10 space-y-2">
+                      <h3 className="text-base font-bold text-white mb-3">📊 Analysis Summary</h3>
+                      {perfect.length > 0 && (
+                        <p className="text-sm text-green-300">
+                          ✅ <strong>{perfect.map(r => r.creative.name).join(", ")}</strong> {perfect.length === 1 ? "has" : "have"} strong IAB standards and {perfect.length === 1 ? "is" : "are"} ready for preview.
+                        </p>
+                      )}
+                      {needsWork.length > 0 && (
+                        <p className="text-sm text-yellow-300">
+                          ⚠️ <strong>{needsWork.map(r => r.creative.name).join(", ")}</strong> {needsWork.length === 1 ? "needs" : "need"} improvements — click on {needsWork.length === 1 ? "it" : "them"} to see suggestions.
+                        </p>
+                      )}
                     </div>
 
-                    {analysisLoading && (
-                      <div className="flex flex-col items-center py-10 gap-4">
-                        <div className="w-12 h-12 border-4 border-fuchsia-500 border-t-transparent rounded-full animate-spin" />
-                        <p className="text-gray-400 text-sm">AI is analyzing your creative...</p>
-                      </div>
-                    )}
-
-                    {analysisResult && !analysisLoading && (() => {
-                      const r = analysisResult;
-                      const bars = [
-                        { label: "Brightness",            value: r.brightness,    color: "bg-yellow-400" },
-                        { label: "Contrast",              value: r.contrast,      color: "bg-blue-400" },
-                        { label: "Text Clarity",          value: r.text_clarity,  color: "bg-cyan-400" },
-                        { label: "Layout Score",          value: r.layout_score,  color: "bg-green-400" },
-                        { label: "Goal Alignment",        value: r.goal_fit,      color: "bg-fuchsia-400" },
-                        { label: "Overall Confidence",   value: r.overall_score, color: "bg-purple-400" },
-                      ];
-                      const insightColor = r.overall_score >= 70 ? "text-green-400" : r.overall_score >= 45 ? "text-yellow-400" : "text-red-400";
-                      return (
-                        <div className="space-y-5">
-                          {/* CTA badge */}
-                          <div className="flex items-center gap-4 flex-wrap">
-                            <div className={`flex items-center gap-2 px-4 py-2 rounded-xl border text-sm font-semibold ${
-                              r.cta_presence ? "bg-green-500/15 border-green-500/40 text-green-300" : "bg-red-500/15 border-red-500/40 text-red-300"
-                            }`}>
-                              {r.cta_presence ? "✅ CTA Present" : "❌ No CTA Detected"}
-                            </div>
-                            <div className="px-4 py-2 rounded-xl border border-white/15 bg-white/5 text-sm text-gray-300">
-                              CTA Strength: <span className="capitalize font-semibold text-white">{r.cta_strength}</span>
-                            </div>
-                            <div className="px-4 py-2 rounded-xl border border-white/15 bg-white/5 text-sm text-gray-300">
-                              Text Density: <span className="capitalize font-semibold text-white">{r.text_density}</span>
-                            </div>
-                          </div>
-
-                          {/* Progress bars */}
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            {bars.map((b) => (
-                              <div key={b.label}>
-                                <div className="flex justify-between text-xs mb-1">
-                                  <span className="text-gray-400">{b.label}</span>
-                                  <span className="text-white font-bold">{b.value}</span>
-                                </div>
-                                <div className="h-2 bg-white/10 rounded-full overflow-hidden">
-                                  <motion.div initial={{ width: 0 }} animate={{ width: `${b.value}%` }} transition={{ duration: 0.8, ease: "easeOut" }}
-                                    className={`h-full rounded-full ${b.color}`} />
-                                </div>
+                    {/* Two-panel layout */}
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                      {/* LEFT: Creative List */}
+                      <div className="space-y-2">
+                        <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Creatives</p>
+                        {analysisResult.map((res) => {
+                          const score = res.data.overall_score;
+                          const isGood = score >= 70;
+                          const isSelected = selectedAnalysisId === res.creative.id;
+                          return (
+                            <motion.button
+                              key={res.creative.id}
+                              whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
+                              onClick={() => setSelectedAnalysisId(res.creative.id)}
+                              className={`w-full flex items-center gap-3 p-3 rounded-xl border-2 text-left transition-all ${
+                                isSelected
+                                  ? "border-fuchsia-500 bg-fuchsia-900/30"
+                                  : "border-white/10 bg-white/5 hover:border-white/25"
+                              }`}
+                            >
+                              <img src={res.creative.url} className="w-12 h-10 rounded-lg object-cover shrink-0 border border-white/20" />
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-semibold text-white truncate">{res.creative.name}</p>
+                                <p className={`text-xs font-bold ${isGood ? "text-green-400" : score >= 45 ? "text-yellow-400" : "text-red-400"}`}>{score}/100 — {isGood ? "Ready ✓" : "Needs work"}</p>
                               </div>
-                            ))}
-                          </div>
+                              <div className={`w-2.5 h-2.5 rounded-full shrink-0 ${isGood ? "bg-green-400" : score >= 45 ? "bg-yellow-400" : "bg-red-400"}`} />
+                            </motion.button>
+                          );
+                        })}
+                      </div>
 
-                          {/* Overall score ring */}
-                          <div className="flex items-center gap-6 p-5 rounded-2xl bg-white/5 border border-white/10">
-                            <div className="relative w-20 h-20 shrink-0">
-                              <svg className="w-20 h-20 -rotate-90" viewBox="0 0 80 80">
-                                <circle cx="40" cy="40" r="32" fill="none" stroke="white" strokeOpacity="0.08" strokeWidth="8" />
-                                <circle cx="40" cy="40" r="32" fill="none" stroke="url(#scoreGrad)" strokeWidth="8"
-                                  strokeLinecap="round" strokeDasharray={`${2 * Math.PI * 32}`}
-                                  strokeDashoffset={`${2 * Math.PI * 32 * (1 - r.overall_score / 100)}`} />
-                                <defs><linearGradient id="scoreGrad" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stopColor="#a855f7" /><stop offset="100%" stopColor="#ec4899" /></linearGradient></defs>
-                              </svg>
-                              <span className={`absolute inset-0 flex items-center justify-center text-xl font-extrabold ${insightColor}`}>{r.overall_score}</span>
+                      {/* RIGHT: Detail Panel */}
+                      {selected && (() => {
+                        const r = selected.data;
+                        const insightColor = r.overall_score >= 70 ? "text-green-400" : r.overall_score >= 45 ? "text-yellow-400" : "text-red-400";
+                        const bars = [
+                          { label: "Brightness", value: r.brightness, color: "bg-yellow-400" },
+                          { label: "Contrast", value: r.contrast, color: "bg-blue-400" },
+                          { label: "Text Clarity", value: r.text_clarity, color: "bg-cyan-400" },
+                          { label: "Layout Score", value: r.layout_score, color: "bg-green-400" },
+                          { label: "Goal Alignment", value: r.goal_fit, color: "bg-fuchsia-400" },
+                          { label: "Overall Score", value: r.overall_score, color: "bg-purple-400" },
+                        ];
+                        return (
+                          <motion.div
+                            key={selected.creative.id}
+                            initial={{ opacity: 0, x: 12 }} animate={{ opacity: 1, x: 0 }}
+                            className="lg:col-span-2 rounded-2xl border border-fuchsia-500/30 bg-gradient-to-br from-fuchsia-900/20 to-purple-900/20 p-6 space-y-5"
+                          >
+                            {/* Header */}
+                            <div className="flex items-center gap-4">
+                              <img src={selected.creative.url} className="w-20 h-16 rounded-xl object-cover border border-white/20" />
+                              <div>
+                                <h4 className="text-lg font-bold text-white">{selected.creative.name} – Suggestions</h4>
+                                <p className={`text-sm font-semibold ${insightColor}`}>
+                                  {r.overall_score >= 70 ? "Strong creative ✨" : r.overall_score >= 45 ? "Needs some work 🛠" : "Low performance ⚠️"} ({r.overall_score}/100)
+                                </p>
+                              </div>
                             </div>
-                            <div>
-                              <p className="text-white font-bold text-lg">Confidence Score</p>
-                              <p className={`text-sm font-semibold ${insightColor}`}>
-                                {r.overall_score >= 70 ? "Strong creative ✨" : r.overall_score >= 45 ? "Needs some work 🛠" : "Low performance ⚠️"}
-                              </p>
-                            </div>
-                          </div>
 
-                          {/* Suggestions */}
-                          {r.suggestions?.length > 0 && (
-                            <div className="space-y-2">
-                              <p className="text-sm font-semibold text-white">💡 AI Suggestions</p>
-                              {r.suggestions.map((s, i) => (
-                                <div key={i} className="flex items-start gap-3 p-3 rounded-xl bg-white/5 border border-white/8 text-sm text-gray-300">
-                                  <span className="text-fuchsia-400 shrink-0 mt-0.5">→</span>{s}
+                            {/* Badges */}
+                            <div className="flex flex-wrap gap-2">
+                              <span className={`px-3 py-1 rounded-full text-xs font-bold border ${r.cta_presence ? "bg-green-500/15 border-green-500/40 text-green-300" : "bg-red-500/15 border-red-500/40 text-red-300"}`}>
+                                {r.cta_presence ? "✅ CTA Present" : "❌ No CTA"}
+                              </span>
+                              <span className="px-3 py-1 rounded-full text-xs font-bold border border-white/15 bg-white/5 text-gray-300">
+                                CTA: <span className="text-white capitalize">{r.cta_strength}</span>
+                              </span>
+                              <span className="px-3 py-1 rounded-full text-xs font-bold border border-white/15 bg-white/5 text-gray-300">
+                                Text: <span className="text-white capitalize">{r.text_density}</span>
+                              </span>
+                            </div>
+
+                            {/* Metric bars */}
+                            <div className="grid grid-cols-2 gap-3">
+                              {bars.map(b => (
+                                <div key={b.label}>
+                                  <div className="flex justify-between text-xs mb-1">
+                                    <span className="text-gray-400">{b.label}</span>
+                                    <span className="text-white font-bold">{b.value}</span>
+                                  </div>
+                                  <div className="h-2 bg-white/10 rounded-full overflow-hidden">
+                                    <motion.div initial={{ width: 0 }} animate={{ width: `${b.value}%` }} transition={{ duration: 0.7, ease: "easeOut" }}
+                                      className={`h-full rounded-full ${b.color}`} />
+                                  </div>
                                 </div>
                               ))}
                             </div>
-                          )}
 
-                          {/* Download Analysis Report Image Button */}
-                          <div className="pt-4 border-t border-fuchsia-500/20">
-                            <motion.button
-                              whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
-                              onClick={() => {
-                                const targetCreative = analysisCreativeId 
-                                  ? creatives.find((c) => c.id === analysisCreativeId) 
-                                  : creatives.filter((c) => c.valid)[0];
-                                if (targetCreative && analysisResult) {
-                                  const canvas = document.createElement('canvas');
-                                  canvas.width = 800;
-                                  canvas.height = 1100;
-                                  const ctx = canvas.getContext('2d');
-                                  
-                                  // Background
-                                  ctx.fillStyle = '#0f172a'; // slate-900
-                                  ctx.fillRect(0, 0, canvas.width, canvas.height);
-                                  
-                                  const img = new Image();
-                                  img.onload = () => {
-                                    // Draw creative image
-                                    const maxImgW = 700;
-                                    const maxImgH = 400;
-                                    let imgW = img.width;
-                                    let imgH = img.height;
-                                    const ratio = Math.min(maxImgW / imgW, maxImgH / imgH);
-                                    imgW = imgW * ratio;
-                                    imgH = imgH * ratio;
-                                    
-                                    const imgX = (800 - imgW) / 2;
-                                    const imgY = 40;
-                                    
-                                    // Image border
-                                    ctx.fillStyle = '#1e293b';
-                                    ctx.fillRect(imgX - 4, imgY - 4, imgW + 8, imgH + 8);
-                                    ctx.drawImage(img, imgX, imgY, imgW, imgH);
-                                    
-                                    // Title
-                                    let textY = imgY + imgH + 60;
-                                    ctx.fillStyle = '#ffffff';
-                                    ctx.font = 'bold 36px sans-serif';
-                                    ctx.fillText('Adigator AI Analysis Report', 40, textY);
-                                    
-                                    // Metadata
-                                    textY += 40;
-                                    ctx.fillStyle = '#cbd5e1'; // slate-300
-                                    ctx.font = '22px sans-serif';
-                                    ctx.fillText(`Creative: ${targetCreative.name}    |    Goal: ${(campaignGoal || 'None').toUpperCase()}`, 40, textY);
-                                    
-                                    // Overall score
-                                    textY += 70;
-                                    ctx.fillStyle = analysisResult.overall_score >= 70 ? '#4ade80' : analysisResult.overall_score >= 45 ? '#facc15' : '#f87171';
-                                    ctx.font = 'bold 48px sans-serif';
-                                    ctx.fillText(`Overall Confidence: ${analysisResult.overall_score}/100`, 40, textY);
-                                    
-                                    // Details
-                                    textY += 70;
-                                    ctx.fillStyle = '#ffffff';
-                                    ctx.font = 'bold 24px sans-serif';
-                                    ctx.fillText('Metrics:', 40, textY);
-                                    
-                                    const metrics = [
-                                      { label: "Brightness", val: analysisResult.brightness },
-                                      { label: "Contrast", val: analysisResult.contrast },
-                                      { label: "Text Clarity", val: analysisResult.text_clarity },
-                                      { label: "Layout Score", val: analysisResult.layout_score },
-                                      { label: "Goal Alignment", val: analysisResult.goal_fit },
-                                      { label: "CTA Strength", val: analysisResult.cta_strength, text: true },
-                                      { label: "Text Density", val: analysisResult.text_density, text: true },
-                                    ];
-                                    
-                                    textY += 40;
-                                    ctx.font = '22px sans-serif';
-                                    metrics.forEach(m => {
-                                      ctx.fillStyle = '#94a3b8'; // slate-400
-                                      ctx.fillText(`${m.label}:`, 40, textY);
-                                      ctx.fillStyle = '#ffffff';
-                                      ctx.fillText(m.text ? String(m.val).toUpperCase() : `${m.val}/100`, 240, textY);
-                                      textY += 35;
-                                    });
+                            {/* Suggestions */}
+                            <div>
+                              <p className="text-sm font-bold text-white mb-2">💡 Suggestions</p>
+                              {r.suggestions?.length > 0 ? r.suggestions.map((s, i) => (
+                                <div key={i} className="flex items-start gap-2 p-2.5 rounded-lg bg-white/5 border border-white/8 text-sm text-gray-300 mb-1.5">
+                                  <span className="text-fuchsia-400 shrink-0">→</span>{s}
+                                </div>
+                              )) : (
+                                <p className="text-sm text-green-400">No improvements needed — this creative is ready!</p>
+                              )}
+                            </div>
+                          </motion.div>
+                        );
+                      })()}
+                    </div>
 
-                                    // Suggestions
-                                    if (analysisResult.suggestions?.length) {
-                                      textY += 20;
-                                      ctx.fillStyle = '#ffffff';
-                                      ctx.font = 'bold 24px sans-serif';
-                                      ctx.fillText('Suggestions:', 40, textY);
-                                      textY += 35;
-                                      ctx.font = '20px sans-serif';
-                                      ctx.fillStyle = '#cbd5e1';
-                                      analysisResult.suggestions.forEach(s => {
-                                        ctx.fillText(`• ${s}`, 40, textY);
-                                        textY += 30;
-                                      });
-                                    }
-                                    
-                                    // Download
-                                    const dataUrl = canvas.toDataURL('image/png');
-                                    const a = document.createElement('a');
-                                    a.href = dataUrl;
-                                    a.download = `${targetCreative.name}_analysis_report.png`;
-                                    document.body.appendChild(a);
-                                    a.click();
-                                    document.body.removeChild(a);
-                                  };
-                                  img.src = targetCreative.url;
-                                }
-                              }}
-                              className="flex items-center justify-center gap-2 w-full py-3 bg-white/10 hover:bg-white/20 border border-fuchsia-500/40 text-fuchsia-200 rounded-xl font-bold transition"
-                            >
-                              <Download size={18} /> Download Analysis Report (Image)
-                            </motion.button>
-                          </div>
-                        </div>
-                      );
-                    })()}
-                  </motion.div>
-                )}
-              </div>
+                    {/* Download Full Report (PDF) */}
+                    <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
+                      onClick={async () => {
+                        try {
+                          const { jsPDF } = await import("jspdf");
+                          const doc = new jsPDF({ format: 'a4', unit: 'pt' });
+                          
+                          // Page 1: Summary
+                          doc.setFillColor(15, 23, 42); // slate-900 background
+                          doc.rect(0, 0, 595.28, 841.89, 'F');
+                          
+                          doc.setTextColor(255, 255, 255);
+                          doc.setFontSize(24);
+                          doc.text("Adigator AI Analysis Report", 40, 60);
+                          
+                          doc.setFontSize(14);
+                          doc.setTextColor(203, 213, 225); // slate-300
+                          doc.text(`Campaign Goal: ${(campaignGoal || 'None').toUpperCase()}`, 40, 90);
+                          doc.text(`Date: ${new Date().toLocaleString()}`, 40, 110);
+                          
+                          const perfect2 = analysisResult.filter(r => r.data.overall_score >= 70);
+                          const needs2 = analysisResult.filter(r => r.data.overall_score < 70);
+                          
+                          doc.setFontSize(16);
+                          doc.setTextColor(74, 222, 128); // green-400
+                          doc.text(`Ready: ${perfect2.length} creatives`, 40, 150);
+                          if (perfect2.length > 0) {
+                            doc.setFontSize(12);
+                            const textLines = doc.splitTextToSize(perfect2.map(c => c.creative.name).join(", "), 515);
+                            doc.text(textLines, 40, 170);
+                          }
+                          
+                          doc.setFontSize(16);
+                          doc.setTextColor(250, 204, 21); // yellow-400
+                          doc.text(`Needs Improvement: ${needs2.length} creatives`, 40, 220);
+                          if (needs2.length > 0) {
+                            doc.setFontSize(12);
+                            const textLines = doc.splitTextToSize(needs2.map(c => c.creative.name).join(", "), 515);
+                            doc.text(textLines, 40, 240);
+                          }
+
+                          // Load all images first
+                          const imagePromises = analysisResult.map(res => {
+                            return new Promise((resolve) => {
+                              const img = new Image();
+                              img.onload = () => resolve({ img, res });
+                              img.onerror = () => resolve({ img: null, res }); // Skip if error
+                              img.src = res.creative.url;
+                            });
+                          });
+                          
+                          const loadedData = await Promise.all(imagePromises);
+                          
+                          for (const { img, res } of loadedData) {
+                            doc.addPage();
+                            doc.setFillColor(15, 23, 42);
+                            doc.rect(0, 0, 595.28, 841.89, 'F');
+                            
+                            doc.setTextColor(255, 255, 255);
+                            doc.setFontSize(22);
+                            doc.text(`Creative: ${res.creative.name}`, 40, 60);
+                            
+                            let currentY = 100;
+                            
+                            if (img) {
+                              const maxImgW = 515;
+                              const maxImgH = 300;
+                              let imgW = img.width;
+                              let imgH = img.height;
+                              const ratio = Math.min(maxImgW / imgW, maxImgH / imgH);
+                              imgW = imgW * ratio;
+                              imgH = imgH * ratio;
+                              
+                              const imgX = 40 + (maxImgW - imgW) / 2;
+                              // Try rendering the image, fallback gracefully
+                              try {
+                                doc.addImage(res.creative.url, imgX, currentY, imgW, imgH);
+                              } catch (e) {
+                                console.warn("Failed to add image to PDF", e);
+                              }
+                              
+                              currentY += imgH + 40;
+                            }
+                            
+                            // Score
+                            const isGood = res.data.overall_score >= 70;
+                            const isOk = res.data.overall_score >= 45;
+                            if (isGood) doc.setTextColor(74, 222, 128);
+                            else if (isOk) doc.setTextColor(250, 204, 21);
+                            else doc.setTextColor(248, 113, 113);
+                            
+                            doc.setFontSize(18);
+                            doc.text(`Confidence Score: ${res.data.overall_score}/100`, 40, currentY);
+                            
+                            currentY += 30;
+                            doc.setTextColor(148, 163, 184); // slate-400
+                            doc.setFontSize(14);
+                            doc.text(`Brightness: ${res.data.brightness} | Contrast: ${res.data.contrast} | Layout: ${res.data.layout_score}`, 40, currentY);
+                            
+                            currentY += 20;
+                            doc.text(`CTA: ${res.data.cta_presence ? "Present" : "Missing"} | Strength: ${res.data.cta_strength} | Text Density: ${res.data.text_density}`, 40, currentY);
+                            
+                            currentY += 40;
+                            doc.setTextColor(255, 255, 255);
+                            doc.setFontSize(16);
+                            doc.text("Suggestions:", 40, currentY);
+                            
+                            currentY += 25;
+                            doc.setTextColor(203, 213, 225);
+                            doc.setFontSize(14);
+                            const suggestions = res.data.suggestions || [];
+                            if (suggestions.length === 0) {
+                              doc.setTextColor(74, 222, 128);
+                              doc.text("• Ready for preview! No improvements needed.", 40, currentY);
+                            } else {
+                              suggestions.forEach(s => {
+                                const lines = doc.splitTextToSize(`• ${s}`, 515);
+                                doc.text(lines, 40, currentY);
+                                currentY += lines.length * 18;
+                              });
+                            }
+                          }
+                          
+                          doc.save("Campaign_Analysis_Report.pdf");
+                        } catch (error) {
+                          console.error("Failed to generate PDF report", error);
+                          addToast("Failed to generate report PDF", "error");
+                        }
+                      }}
+                      className="flex items-center justify-center gap-2 w-full py-3 bg-white/10 hover:bg-white/20 border border-fuchsia-500/40 text-fuchsia-200 rounded-xl font-bold transition">
+                      <Download size={18} /> Download Full Analysis Report (PDF)
+                    </motion.button>
+                  </div>
+                );
+              })()}
 
               <div className="flex gap-4 pt-2">
                 <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={() => setStep(3)}
