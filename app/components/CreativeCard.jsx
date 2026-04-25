@@ -14,9 +14,7 @@ const cardVariants = {
 export default function CreativeCard({
   creative,
   onEdit,
-  onAutoFix,
   onRemove,
-  showFixButton = false,
   compact = false,
 }) {
   return (
@@ -55,17 +53,7 @@ export default function CreativeCard({
               <Edit2 size={16} />
             </motion.button>
           )}
-          {showFixButton && !creative.valid && onAutoFix && (
-            <motion.button
-              whileHover={{ scale: 1.15 }}
-              whileTap={{ scale: 0.9 }}
-              onClick={(e) => { e.stopPropagation(); onAutoFix(creative.id); }}
-              className="p-2 rounded-lg bg-amber-600/90 backdrop-blur-sm text-white shadow-lg shadow-amber-500/30 hover:bg-amber-500 transition"
-              title="Fix Automatically"
-            >
-              <Wand2 size={16} />
-            </motion.button>
-          )}
+
           {onRemove && (
             <motion.button
               whileHover={{ scale: 1.15 }}
@@ -119,17 +107,6 @@ export default function CreativeCard({
           </span>
         </div>
 
-        {/* One-click fix for invalid - visible without hover on list view */}
-        {showFixButton && !creative.valid && onAutoFix && (
-          <motion.button
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-            onClick={(e) => { e.stopPropagation(); onAutoFix(creative.id); }}
-            className="w-full mt-2 py-1.5 rounded-lg bg-gradient-to-r from-amber-600/60 to-orange-500/60 border border-amber-400/20 text-amber-200 text-[11px] font-semibold flex items-center justify-center gap-1.5 hover:from-amber-600/80 hover:to-orange-500/80 transition"
-          >
-            <Wand2 size={12} /> Fix Automatically
-          </motion.button>
-        )}
       </div>
     </motion.div>
   );

@@ -6,7 +6,6 @@ import SlidePreview from "./SlidePreview";
 import EditCreativeModal from "./EditCreativeModal";
 import CreativeCard from "./CreativeCard";
 import { supabase } from "../lib/supabase";
-import { suggestBestSizes, autoFitImage } from "../hooks/useImageEditor";
 import { analyzeCreativeLocal } from "../lib/localAnalyzer";
 // exportToPptx is loaded dynamically (browser-only) to avoid SSR issues with pptxgenjs
 import {
@@ -231,25 +230,7 @@ export default function PreviewTool() {
     });
   }, [originalBackups, saveToSupabase]);
 
-  // One-click auto-fix: suggest best size → auto-fit → update
-  const handleAutoFix = useCallback(async (id) => {
-    const creative = creatives.find((c) => c.id === id);
-    if (!creative) return;
-    const [origW, origH] = creative.size.split("x").map(Number);
-    const suggestions = suggestBestSizes(origW, origH);
-    if (suggestions.length === 0) return;
-    const best = suggestions[0];
-    try {
-      const newUrl = await autoFitImage(creative.url, best.w, best.h);
-      handleCreativeUpdate(id, {
-        url: newUrl,
-        size: best.label,
-        valid: true,
-      });
-    } catch (e) {
-      console.error("handleAutoFix error:", e);
-    }
-  }, [creatives, handleCreativeUpdate]);
+
 
   const handleFiles = (files) => {
     setIsLoading(true);
@@ -296,31 +277,18 @@ export default function PreviewTool() {
     } catch (e) {
       console.error("handlePreview error:", e);
     }
-    setStep(5);
+    setStep(6);
   };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 text-white">
       {/* HEADER */}
-      <header className="sticky top-0 z-50 backdrop-blur-xl bg-black/30 border-b border-white/10 px-10 py-6">
+      <header className="sticky top-0 z-50 backdrop-blur-xl bg-black/30 border-b border-white/10 px-10 py-3">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div>
-            <h1 className="text-4xl font-black bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
+            <h1 className="text-2xl font-black bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
               Adigator Creative Studio
             </h1>
-            <p className="text-sm text-gray-400 mt-1">Professional creative preview for programmatic ads</p>
-          </div>
-          <div className="flex items-center gap-2">
-            {[1, 2, 3, 5].map((s) => (
-              <motion.div key={s}
-                className={`w-10 h-10 rounded-full flex items-center justify-center text-xs font-bold transition ${step === s ? "bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg shadow-purple-500/30"
-                    : step > s ? "bg-green-600 text-white"
-                      : "bg-white/10 text-gray-500"
-                  }`}
-              >
-                {step > s ? "✓" : s === 5 ? 4 : s}
-              </motion.div>
-            ))}
           </div>
         </div>
       </header>
@@ -330,7 +298,7 @@ export default function PreviewTool() {
         <motion.div
           className="h-full bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500"
           initial={{ width: "0%" }}
-          animate={{ width: `${(step / 5) * 100}%` }}
+          animate={{ width: `${(step / 6) * 100}%` }}
           transition={{ duration: 0.5 }}
         />
       </div>
@@ -373,10 +341,7 @@ export default function PreviewTool() {
                         key={creative.id}
                         creative={creative}
                         compact
-                        onEdit={(c) => setEditModalCreative(c)}
-                        onAutoFix={handleAutoFix}
                         onRemove={removeCreative}
-                        showFixButton={!creative.valid}
                       />
                     ))}
                   </div>
@@ -398,7 +363,7 @@ export default function PreviewTool() {
                   </button>
                   <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={() => setStep(2)}
                     className="flex-1 py-3 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-xl font-semibold transition">
-                    Next: Validation →
+                    Next: Edit Creative →
                   </motion.button>
                 </div>
               )}
@@ -409,8 +374,8 @@ export default function PreviewTool() {
           {step === 2 && (
             <motion.div key="step-2" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="space-y-8">
               <div>
-                <h2 className="text-4xl font-bold text-white mb-2">Step 2: Validation</h2>
-                <p className="text-gray-400">Check which creatives meet programmatic ad standards</p>
+                <h2 className="text-4xl font-bold text-white mb-2">Step 2: Edit Creative</h2>
+                <p className="text-gray-400">Review and edit your creatives to meet programmatic ad standards</p>
               </div>
 
               <div className="grid grid-cols-3 gap-4">
@@ -538,17 +503,273 @@ export default function PreviewTool() {
                   onClick={() => setStep(4)}
                   disabled={!campaignGoal}
                   className="flex-1 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl font-semibold disabled:opacity-40 disabled:cursor-not-allowed transition">
-                  {campaignGoal ? `Next: Select Template (${campaignGoal}) →` : "Select a goal to continue"}
+                  {campaignGoal ? `Next: AI Analysis →` : "Select a goal to continue"}
                 </motion.button>
               </div>
             </motion.div>
           )}
 
-          {/* STEP 4: SELECT TEMPLATE + VIEW MODE */}
+          {/* STEP 4: AI ANALYSIS */}
           {step === 4 && (
             <motion.div key="step-4" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="space-y-8">
               <div>
-                <h2 className="text-4xl font-bold text-white mb-2">Step 4: Select Template</h2>
+                <h2 className="text-4xl font-bold text-white mb-2">Step 4: AI Analysis</h2>
+                <p className="text-gray-400">Analyze your creatives with AI based on your campaign goal</p>
+              </div>
+
+              <div className="border border-white/10 rounded-2xl p-6 bg-white/5">
+                <div className="flex items-center justify-between flex-wrap gap-4 mb-6">
+                  <div>
+                    <p className="text-sm font-semibold text-white">Select Creative for Analysis</p>
+                    <p className="text-xs text-gray-500 mt-0.5">Goal: <span className="text-purple-400 capitalize">{campaignGoal || "not set"}</span></p>
+                  </div>
+                  {validCreatives.length > 1 && (
+                    <select value={analysisCreativeId || ""}
+                      onChange={(e) => { setAnalysisCreativeId(e.target.value); setAnalysisResult(null); }}
+                      className="bg-white/10 border border-white/20 text-white text-sm rounded-xl px-3 py-2 outline-none">
+                      <option value="">First creative</option>
+                      {validCreatives.map((c) => <option key={c.id} value={c.id}>{c.name} ({c.size})</option>)}
+                    </select>
+                  )}
+                  <motion.button whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.96 }}
+                    onClick={runAnalysis}
+                    disabled={analysisLoading || !campaignGoal}
+                    className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-fuchsia-600 to-purple-600 text-white font-bold rounded-xl shadow-lg shadow-purple-500/30 disabled:opacity-50 disabled:cursor-not-allowed transition">
+                    {analysisLoading ? <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> Analyzing...</> : <><span>🧠</span> Run Analysis</>}
+                  </motion.button>
+                </div>
+
+                {/* ── AI ANALYSIS PANEL ── */}
+                {showAnalysis && (
+                  <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} className="rounded-3xl border border-fuchsia-500/30 bg-gradient-to-br from-fuchsia-900/20 to-purple-900/20 p-6 space-y-6">
+                    <div className="flex items-center gap-3">
+                      <span className="text-2xl">🧠</span>
+                      <div>
+                        <h3 className="text-lg font-bold text-white">AI Analysis Results</h3>
+                        <p className="text-xs text-gray-400">Goal: <span className="text-fuchsia-400 capitalize font-semibold">{campaignGoal}</span></p>
+                      </div>
+                      {analysisResult?.cached && <span className="ml-auto text-xs bg-yellow-500/20 text-yellow-400 border border-yellow-500/30 px-2 py-1 rounded-full">⚡ Cached</span>}
+                    </div>
+
+                    {analysisLoading && (
+                      <div className="flex flex-col items-center py-10 gap-4">
+                        <div className="w-12 h-12 border-4 border-fuchsia-500 border-t-transparent rounded-full animate-spin" />
+                        <p className="text-gray-400 text-sm">AI is analyzing your creative...</p>
+                      </div>
+                    )}
+
+                    {analysisResult && !analysisLoading && (() => {
+                      const r = analysisResult;
+                      const bars = [
+                        { label: "Brightness",            value: r.brightness,    color: "bg-yellow-400" },
+                        { label: "Contrast",              value: r.contrast,      color: "bg-blue-400" },
+                        { label: "Text Clarity",          value: r.text_clarity,  color: "bg-cyan-400" },
+                        { label: "Layout Score",          value: r.layout_score,  color: "bg-green-400" },
+                        { label: "Goal Alignment",        value: r.goal_fit,      color: "bg-fuchsia-400" },
+                        { label: "Overall Confidence",   value: r.overall_score, color: "bg-purple-400" },
+                      ];
+                      const insightColor = r.overall_score >= 70 ? "text-green-400" : r.overall_score >= 45 ? "text-yellow-400" : "text-red-400";
+                      return (
+                        <div className="space-y-5">
+                          {/* CTA badge */}
+                          <div className="flex items-center gap-4 flex-wrap">
+                            <div className={`flex items-center gap-2 px-4 py-2 rounded-xl border text-sm font-semibold ${
+                              r.cta_presence ? "bg-green-500/15 border-green-500/40 text-green-300" : "bg-red-500/15 border-red-500/40 text-red-300"
+                            }`}>
+                              {r.cta_presence ? "✅ CTA Present" : "❌ No CTA Detected"}
+                            </div>
+                            <div className="px-4 py-2 rounded-xl border border-white/15 bg-white/5 text-sm text-gray-300">
+                              CTA Strength: <span className="capitalize font-semibold text-white">{r.cta_strength}</span>
+                            </div>
+                            <div className="px-4 py-2 rounded-xl border border-white/15 bg-white/5 text-sm text-gray-300">
+                              Text Density: <span className="capitalize font-semibold text-white">{r.text_density}</span>
+                            </div>
+                          </div>
+
+                          {/* Progress bars */}
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {bars.map((b) => (
+                              <div key={b.label}>
+                                <div className="flex justify-between text-xs mb-1">
+                                  <span className="text-gray-400">{b.label}</span>
+                                  <span className="text-white font-bold">{b.value}</span>
+                                </div>
+                                <div className="h-2 bg-white/10 rounded-full overflow-hidden">
+                                  <motion.div initial={{ width: 0 }} animate={{ width: `${b.value}%` }} transition={{ duration: 0.8, ease: "easeOut" }}
+                                    className={`h-full rounded-full ${b.color}`} />
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+
+                          {/* Overall score ring */}
+                          <div className="flex items-center gap-6 p-5 rounded-2xl bg-white/5 border border-white/10">
+                            <div className="relative w-20 h-20 shrink-0">
+                              <svg className="w-20 h-20 -rotate-90" viewBox="0 0 80 80">
+                                <circle cx="40" cy="40" r="32" fill="none" stroke="white" strokeOpacity="0.08" strokeWidth="8" />
+                                <circle cx="40" cy="40" r="32" fill="none" stroke="url(#scoreGrad)" strokeWidth="8"
+                                  strokeLinecap="round" strokeDasharray={`${2 * Math.PI * 32}`}
+                                  strokeDashoffset={`${2 * Math.PI * 32 * (1 - r.overall_score / 100)}`} />
+                                <defs><linearGradient id="scoreGrad" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stopColor="#a855f7" /><stop offset="100%" stopColor="#ec4899" /></linearGradient></defs>
+                              </svg>
+                              <span className={`absolute inset-0 flex items-center justify-center text-xl font-extrabold ${insightColor}`}>{r.overall_score}</span>
+                            </div>
+                            <div>
+                              <p className="text-white font-bold text-lg">Confidence Score</p>
+                              <p className={`text-sm font-semibold ${insightColor}`}>
+                                {r.overall_score >= 70 ? "Strong creative ✨" : r.overall_score >= 45 ? "Needs some work 🛠" : "Low performance ⚠️"}
+                              </p>
+                            </div>
+                          </div>
+
+                          {/* Suggestions */}
+                          {r.suggestions?.length > 0 && (
+                            <div className="space-y-2">
+                              <p className="text-sm font-semibold text-white">💡 AI Suggestions</p>
+                              {r.suggestions.map((s, i) => (
+                                <div key={i} className="flex items-start gap-3 p-3 rounded-xl bg-white/5 border border-white/8 text-sm text-gray-300">
+                                  <span className="text-fuchsia-400 shrink-0 mt-0.5">→</span>{s}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+
+                          {/* Download Analysis Report Image Button */}
+                          <div className="pt-4 border-t border-fuchsia-500/20">
+                            <motion.button
+                              whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
+                              onClick={() => {
+                                const targetCreative = analysisCreativeId 
+                                  ? creatives.find((c) => c.id === analysisCreativeId) 
+                                  : creatives.filter((c) => c.valid)[0];
+                                if (targetCreative && analysisResult) {
+                                  const canvas = document.createElement('canvas');
+                                  canvas.width = 800;
+                                  canvas.height = 1100;
+                                  const ctx = canvas.getContext('2d');
+                                  
+                                  // Background
+                                  ctx.fillStyle = '#0f172a'; // slate-900
+                                  ctx.fillRect(0, 0, canvas.width, canvas.height);
+                                  
+                                  const img = new Image();
+                                  img.onload = () => {
+                                    // Draw creative image
+                                    const maxImgW = 700;
+                                    const maxImgH = 400;
+                                    let imgW = img.width;
+                                    let imgH = img.height;
+                                    const ratio = Math.min(maxImgW / imgW, maxImgH / imgH);
+                                    imgW = imgW * ratio;
+                                    imgH = imgH * ratio;
+                                    
+                                    const imgX = (800 - imgW) / 2;
+                                    const imgY = 40;
+                                    
+                                    // Image border
+                                    ctx.fillStyle = '#1e293b';
+                                    ctx.fillRect(imgX - 4, imgY - 4, imgW + 8, imgH + 8);
+                                    ctx.drawImage(img, imgX, imgY, imgW, imgH);
+                                    
+                                    // Title
+                                    let textY = imgY + imgH + 60;
+                                    ctx.fillStyle = '#ffffff';
+                                    ctx.font = 'bold 36px sans-serif';
+                                    ctx.fillText('Adigator AI Analysis Report', 40, textY);
+                                    
+                                    // Metadata
+                                    textY += 40;
+                                    ctx.fillStyle = '#cbd5e1'; // slate-300
+                                    ctx.font = '22px sans-serif';
+                                    ctx.fillText(`Creative: ${targetCreative.name}    |    Goal: ${(campaignGoal || 'None').toUpperCase()}`, 40, textY);
+                                    
+                                    // Overall score
+                                    textY += 70;
+                                    ctx.fillStyle = analysisResult.overall_score >= 70 ? '#4ade80' : analysisResult.overall_score >= 45 ? '#facc15' : '#f87171';
+                                    ctx.font = 'bold 48px sans-serif';
+                                    ctx.fillText(`Overall Confidence: ${analysisResult.overall_score}/100`, 40, textY);
+                                    
+                                    // Details
+                                    textY += 70;
+                                    ctx.fillStyle = '#ffffff';
+                                    ctx.font = 'bold 24px sans-serif';
+                                    ctx.fillText('Metrics:', 40, textY);
+                                    
+                                    const metrics = [
+                                      { label: "Brightness", val: analysisResult.brightness },
+                                      { label: "Contrast", val: analysisResult.contrast },
+                                      { label: "Text Clarity", val: analysisResult.text_clarity },
+                                      { label: "Layout Score", val: analysisResult.layout_score },
+                                      { label: "Goal Alignment", val: analysisResult.goal_fit },
+                                      { label: "CTA Strength", val: analysisResult.cta_strength, text: true },
+                                      { label: "Text Density", val: analysisResult.text_density, text: true },
+                                    ];
+                                    
+                                    textY += 40;
+                                    ctx.font = '22px sans-serif';
+                                    metrics.forEach(m => {
+                                      ctx.fillStyle = '#94a3b8'; // slate-400
+                                      ctx.fillText(`${m.label}:`, 40, textY);
+                                      ctx.fillStyle = '#ffffff';
+                                      ctx.fillText(m.text ? String(m.val).toUpperCase() : `${m.val}/100`, 240, textY);
+                                      textY += 35;
+                                    });
+
+                                    // Suggestions
+                                    if (analysisResult.suggestions?.length) {
+                                      textY += 20;
+                                      ctx.fillStyle = '#ffffff';
+                                      ctx.font = 'bold 24px sans-serif';
+                                      ctx.fillText('Suggestions:', 40, textY);
+                                      textY += 35;
+                                      ctx.font = '20px sans-serif';
+                                      ctx.fillStyle = '#cbd5e1';
+                                      analysisResult.suggestions.forEach(s => {
+                                        ctx.fillText(`• ${s}`, 40, textY);
+                                        textY += 30;
+                                      });
+                                    }
+                                    
+                                    // Download
+                                    const dataUrl = canvas.toDataURL('image/png');
+                                    const a = document.createElement('a');
+                                    a.href = dataUrl;
+                                    a.download = `${targetCreative.name}_analysis_report.png`;
+                                    document.body.appendChild(a);
+                                    a.click();
+                                    document.body.removeChild(a);
+                                  };
+                                  img.src = targetCreative.url;
+                                }
+                              }}
+                              className="flex items-center justify-center gap-2 w-full py-3 bg-white/10 hover:bg-white/20 border border-fuchsia-500/40 text-fuchsia-200 rounded-xl font-bold transition"
+                            >
+                              <Download size={18} /> Download Analysis Report (Image)
+                            </motion.button>
+                          </div>
+                        </div>
+                      );
+                    })()}
+                  </motion.div>
+                )}
+              </div>
+
+              <div className="flex gap-4 pt-2">
+                <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={() => setStep(3)}
+                  className="flex-1 py-3 bg-white/10 text-white rounded-xl font-semibold hover:bg-white/20 transition">← Back</motion.button>
+                <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={() => setStep(5)}
+                  className="flex-1 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl font-semibold transition">
+                  Next: Select Template →
+                </motion.button>
+              </div>
+            </motion.div>
+          )}
+
+          {/* STEP 5: SELECT TEMPLATE + VIEW MODE */}
+          {step === 5 && (
+            <motion.div key="step-5" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="space-y-8">
+              <div>
+                <h2 className="text-4xl font-bold text-white mb-2">Step 5: Select Template</h2>
                 <p className="text-gray-400">Choose a website category and view mode for your preview</p>
               </div>
 
@@ -615,135 +836,10 @@ export default function PreviewTool() {
                 </div>
               </div>
 
-              {/* Go to Analysis button */}
-              <div className="border-t border-white/10 pt-6">
-                <div className="flex items-center justify-between flex-wrap gap-4">
-                  <div>
-                    <p className="text-sm font-semibold text-white">AI Creative Analysis</p>
-                    <p className="text-xs text-gray-500 mt-0.5">Goal: <span className="text-purple-400 capitalize">{campaignGoal || "not set"}</span></p>
-                  </div>
-                  {validCreatives.length > 1 && (
-                    <select value={analysisCreativeId || ""}
-                      onChange={(e) => { setAnalysisCreativeId(e.target.value); setAnalysisResult(null); }}
-                      className="bg-white/10 border border-white/20 text-white text-sm rounded-xl px-3 py-2 outline-none">
-                      <option value="">First creative</option>
-                      {validCreatives.map((c) => <option key={c.id} value={c.id}>{c.name} ({c.size})</option>)}
-                    </select>
-                  )}
-                  <motion.button whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.96 }}
-                    onClick={runAnalysis}
-                    disabled={analysisLoading || !campaignGoal}
-                    className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-fuchsia-600 to-purple-600 text-white font-bold rounded-xl shadow-lg shadow-purple-500/30 disabled:opacity-50 disabled:cursor-not-allowed transition">
-                    {analysisLoading ? <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> Analyzing...</> : <><span>🧠</span> Go to Analysis</>}
-                  </motion.button>
-                </div>
-              </div>
-
-              {/* ── AI ANALYSIS PANEL ── */}
-              {showAnalysis && (
-                <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} className="rounded-3xl border border-fuchsia-500/30 bg-gradient-to-br from-fuchsia-900/20 to-purple-900/20 p-6 space-y-6">
-                  <div className="flex items-center gap-3">
-                    <span className="text-2xl">🧠</span>
-                    <div>
-                      <h3 className="text-lg font-bold text-white">AI Analysis Results</h3>
-                      <p className="text-xs text-gray-400">Goal: <span className="text-fuchsia-400 capitalize font-semibold">{campaignGoal}</span></p>
-                    </div>
-                    {analysisResult?.cached && <span className="ml-auto text-xs bg-yellow-500/20 text-yellow-400 border border-yellow-500/30 px-2 py-1 rounded-full">⚡ Cached</span>}
-                  </div>
-
-                  {analysisLoading && (
-                    <div className="flex flex-col items-center py-10 gap-4">
-                      <div className="w-12 h-12 border-4 border-fuchsia-500 border-t-transparent rounded-full animate-spin" />
-                      <p className="text-gray-400 text-sm">AI is analyzing your creative...</p>
-                    </div>
-                  )}
-
-                  {analysisResult && !analysisLoading && (() => {
-                    const r = analysisResult;
-                    const ctaMap = { none: 0, weak: 33, medium: 66, strong: 100 };
-                    const bars = [
-                      { label: "Brightness",            value: r.brightness,    color: "bg-yellow-400" },
-                      { label: "Contrast",              value: r.contrast,      color: "bg-blue-400" },
-                      { label: "Text Clarity",          value: r.text_clarity,  color: "bg-cyan-400" },
-                      { label: "Layout Score",          value: r.layout_score,  color: "bg-green-400" },
-                      { label: "Goal Alignment",        value: r.goal_fit,      color: "bg-fuchsia-400" },
-                      { label: "Overall Confidence",   value: r.overall_score, color: "bg-purple-400" },
-                    ];
-                    const insightColor = r.overall_score >= 70 ? "text-green-400" : r.overall_score >= 45 ? "text-yellow-400" : "text-red-400";
-                    return (
-                      <div className="space-y-5">
-                        {/* CTA badge */}
-                        <div className="flex items-center gap-4 flex-wrap">
-                          <div className={`flex items-center gap-2 px-4 py-2 rounded-xl border text-sm font-semibold ${
-                            r.cta_presence ? "bg-green-500/15 border-green-500/40 text-green-300" : "bg-red-500/15 border-red-500/40 text-red-300"
-                          }`}>
-                            {r.cta_presence ? "✅ CTA Present" : "❌ No CTA Detected"}
-                          </div>
-                          <div className="px-4 py-2 rounded-xl border border-white/15 bg-white/5 text-sm text-gray-300">
-                            CTA Strength: <span className="capitalize font-semibold text-white">{r.cta_strength}</span>
-                          </div>
-                          <div className="px-4 py-2 rounded-xl border border-white/15 bg-white/5 text-sm text-gray-300">
-                            Text Density: <span className="capitalize font-semibold text-white">{r.text_density}</span>
-                          </div>
-                        </div>
-
-                        {/* Progress bars */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          {bars.map((b) => (
-                            <div key={b.label}>
-                              <div className="flex justify-between text-xs mb-1">
-                                <span className="text-gray-400">{b.label}</span>
-                                <span className="text-white font-bold">{b.value}</span>
-                              </div>
-                              <div className="h-2 bg-white/10 rounded-full overflow-hidden">
-                                <motion.div initial={{ width: 0 }} animate={{ width: `${b.value}%` }} transition={{ duration: 0.8, ease: "easeOut" }}
-                                  className={`h-full rounded-full ${b.color}`} />
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-
-                        {/* Overall score ring */}
-                        <div className="flex items-center gap-6 p-5 rounded-2xl bg-white/5 border border-white/10">
-                          <div className="relative w-20 h-20 shrink-0">
-                            <svg className="w-20 h-20 -rotate-90" viewBox="0 0 80 80">
-                              <circle cx="40" cy="40" r="32" fill="none" stroke="white" strokeOpacity="0.08" strokeWidth="8" />
-                              <circle cx="40" cy="40" r="32" fill="none" stroke="url(#scoreGrad)" strokeWidth="8"
-                                strokeLinecap="round" strokeDasharray={`${2 * Math.PI * 32}`}
-                                strokeDashoffset={`${2 * Math.PI * 32 * (1 - r.overall_score / 100)}`} />
-                              <defs><linearGradient id="scoreGrad" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stopColor="#a855f7" /><stop offset="100%" stopColor="#ec4899" /></linearGradient></defs>
-                            </svg>
-                            <span className={`absolute inset-0 flex items-center justify-center text-xl font-extrabold ${insightColor}`}>{r.overall_score}</span>
-                          </div>
-                          <div>
-                            <p className="text-white font-bold text-lg">Confidence Score</p>
-                            <p className={`text-sm font-semibold ${insightColor}`}>
-                              {r.overall_score >= 70 ? "Strong creative ✨" : r.overall_score >= 45 ? "Needs some work 🛠" : "Low performance ⚠️"}
-                            </p>
-                          </div>
-                        </div>
-
-                        {/* Suggestions */}
-                        {r.suggestions?.length > 0 && (
-                          <div className="space-y-2">
-                            <p className="text-sm font-semibold text-white">💡 AI Suggestions</p>
-                            {r.suggestions.map((s, i) => (
-                              <div key={i} className="flex items-start gap-3 p-3 rounded-xl bg-white/5 border border-white/8 text-sm text-gray-300">
-                                <span className="text-fuchsia-400 shrink-0 mt-0.5">→</span>{s}
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })()}
-                </motion.div>
-              )}
-
               <div className="flex gap-4 pt-2">
-                <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={() => setStep(3)}
+                <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={() => setStep(4)}
                   className="flex-1 py-3 bg-white/10 text-white rounded-xl font-semibold hover:bg-white/20 transition">← Back</motion.button>
-                <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={() => setStep(5)}
+                <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={() => setStep(6)}
                   className="flex-1 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl font-semibold transition">
                   Next: Generate Preview Engine →
                 </motion.button>
@@ -751,9 +847,9 @@ export default function PreviewTool() {
             </motion.div>
           )}
 
-          {/* STEP 5: PREVIEW & EXPORT */}
-          {step === 5 && (
-            <motion.div key="step-5" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="space-y-8">
+          {/* STEP 6: PREVIEW & EXPORT */}
+          {step === 6 && (
+            <motion.div key="step-6" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="space-y-8">
               <div className="flex items-center justify-between">
                 <div>
                   <h2 className="text-4xl font-bold text-white mb-2">Step 5: Preview & Export</h2>
@@ -785,7 +881,7 @@ export default function PreviewTool() {
               </motion.div>
 
               <div className="flex gap-4 pt-4">
-                <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={() => setStep(4)}
+                <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={() => setStep(5)}
                   className="flex-1 py-3 bg-white/10 text-white rounded-xl font-semibold hover:bg-white/20 transition">← Back</motion.button>
                 <motion.button
                   whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
