@@ -192,7 +192,7 @@ export default function Home() {
             className="mt-10 flex flex-wrap items-center gap-4"
           >
             <Link
-              href="/preview"
+              href="/preview-tool"
               className="rounded-xl bg-gradient-to-r from-purple-500 to-pink-500 px-7 py-3 text-sm font-semibold text-white shadow-lg shadow-purple-500/30 transition-all duration-300 hover:scale-105"
             >
               Start Free Preview
@@ -416,7 +416,7 @@ export default function Home() {
           Stop guessing. Validate, preview, and launch creatives with confidence.
         </p>
         <Link
-          href="/preview"
+          href="/preview-tool"
           className="mt-10 inline-flex rounded-xl bg-gradient-to-r from-purple-500 to-pink-500 px-8 py-3 text-sm font-semibold text-white shadow-lg shadow-purple-500/30 transition-all duration-300 hover:scale-105"
         >
           Start Free Preview

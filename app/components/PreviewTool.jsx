@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import SlidePreview from "./SlidePreview";
 import EditCreativeModal from "./EditCreativeModal";
@@ -103,6 +104,7 @@ const containerVariants = { hidden: { opacity: 0 }, visible: { opacity: 1, trans
 const itemVariants = { hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } };
 
 export default function PreviewTool() {
+  const router = useRouter();
   const [step, setStep] = useState(1);
   const [platform, setPlatform] = useState(null); // 'google' | 'programmatic'
   const [campaignGoal, setCampaignGoal] = useState(null);
@@ -163,6 +165,21 @@ export default function PreviewTool() {
 
   const validCreatives = creatives.filter((c) => c && c.valid && (c.url || c.text || c.image || c.title));
   const invalidCreatives = creatives.filter((c) => c && (!c.valid || !(c.url || c.text || c.image || c.title)));
+  const uploadedCreatives = validCreatives;
+
+  const goNext = useCallback(() => {
+    if (step === 1 && (!platform || !campaignGoal || !audienceType)) return;
+    if (step === 2 && uploadedCreatives.length === 0) return;
+    setStep((prev) => Math.min(prev + 1, TOTAL_STEPS));
+  }, [step, platform, campaignGoal, audienceType, uploadedCreatives.length]);
+
+  const goBack = useCallback(() => {
+    if (step === 1) {
+      router.push("/");
+      return;
+    }
+    setStep((prev) => Math.max(prev - 1, 1));
+  }, [step, router]);
 
   useEffect(() => {
     const savedStep = localStorage.getItem("adigator_step");
@@ -175,6 +192,12 @@ export default function PreviewTool() {
   useEffect(() => {
     localStorage.setItem("adigator_step", step.toString());
   }, [step]);
+
+  useEffect(() => {
+    if (step === 3 && uploadedCreatives.length === 0) {
+      setStep(2);
+    }
+  }, [step, uploadedCreatives.length]);
 
   const getUser = useCallback(async () => {
     if (userRef.current) return userRef.current;
@@ -521,17 +544,11 @@ export default function PreviewTool() {
 
               <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-white/10 bg-slate-950/85 backdrop-blur-xl">
                 <div className="mx-auto flex w-full max-w-7xl gap-4 px-6 py-4 md:px-10">
-                  <NavBtn
-                    variant="back"
-                    onClick={() => {
-                      if (typeof window !== "undefined" && window.history.length > 1) window.history.back();
-                      else if (typeof window !== "undefined") window.location.href = "/dashboard";
-                    }}
-                  >
+                  <NavBtn variant="back" onClick={goBack}>
                     ← Back
                   </NavBtn>
                   <NavBtn
-                    onClick={() => setStep(2)}
+                    onClick={goNext}
                     disabled={!platform || !campaignGoal || !audienceType}
                   >
                     Upload Creatives →
@@ -631,8 +648,8 @@ export default function PreviewTool() {
               )}
 
               <div className="flex gap-4 pt-4">
-                <NavBtn variant="back" onClick={() => setStep(1)}>← Back</NavBtn>
-                <NavBtn onClick={() => setStep(3)} disabled={validCreatives.length === 0}>Next: AI Analysis →</NavBtn>
+                <NavBtn variant="back" onClick={goBack}>← Back</NavBtn>
+                <NavBtn onClick={goNext} disabled={uploadedCreatives.length === 0}>Next: AI Analysis →</NavBtn>
               </div>
             </motion.div>
           )}
@@ -674,12 +691,13 @@ export default function PreviewTool() {
                     audienceType={audienceType} 
                     onDownloadReport={handleDownloadReport} 
                   />
-                  <div className="flex gap-4 pt-6">
-                    <NavBtn variant="back" onClick={() => setStep(2)}>← Back</NavBtn>
-                    <NavBtn onClick={() => setStep(4)}>Next: Select Template →</NavBtn>
-                  </div>
                 </>
               )}
+
+              <div className="flex gap-4 pt-6">
+                <NavBtn variant="back" onClick={goBack}>← Back</NavBtn>
+                {analysisResult && <NavBtn onClick={goNext}>Next: Select Template →</NavBtn>}
+              </div>
             </motion.div>
           )}
 
@@ -735,8 +753,8 @@ export default function PreviewTool() {
               </div>
 
               <div className="flex gap-4 pt-4">
-                <NavBtn variant="back" onClick={() => setStep(3)}>← Back</NavBtn>
-                <NavBtn onClick={() => setStep(5)}>Generate Preview Engine →</NavBtn>
+                <NavBtn variant="back" onClick={goBack}>← Back</NavBtn>
+                <NavBtn onClick={goNext}>Generate Preview Engine →</NavBtn>
               </div>
             </motion.div>
           )}
@@ -771,7 +789,7 @@ export default function PreviewTool() {
               </motion.div>
 
               <div className="flex gap-4 pt-4">
-                <NavBtn variant="back" onClick={() => setStep(4)}>← Back</NavBtn>
+                <NavBtn variant="back" onClick={goBack}>← Back</NavBtn>
                 <NavBtn variant="success" onClick={handleExportPptx} disabled={isExporting} className="flex justify-center items-center gap-2">
                   <Download size={20} /> {isExporting ? "Generating..." : "Download PPTX"}
                 </NavBtn>
