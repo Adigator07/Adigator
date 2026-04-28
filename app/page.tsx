@@ -7,6 +7,7 @@ import { AnimatePresence, motion } from "framer-motion";
 export default function Home() {
   const [activePreview, setActivePreview] = useState(0);
   const [isPreviewPaused, setIsPreviewPaused] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const workflow = [
     {
@@ -123,27 +124,82 @@ export default function Home() {
   }, [heroPreviewCards.length, isPreviewPaused]);
 
   return (
-    <main className="relative min-h-screen overflow-x-hidden bg-[#020617] text-white">
+    <main className="relative min-h-screen bg-[#020617] text-white">
       <div className="pointer-events-none absolute inset-0">
-        <div className="absolute -top-24 left-[-200px] h-[520px] w-[520px] rounded-full bg-purple-500/20 blur-[150px]" />
-        <div className="absolute right-[-140px] top-[20%] h-[420px] w-[420px] rounded-full bg-blue-500/20 blur-[120px]" />
-        <div className="absolute bottom-[-180px] left-1/2 h-[420px] w-[420px] -translate-x-1/2 rounded-full bg-pink-500/15 blur-[140px]" />
+        <div className="absolute -top-24 left-[-200px] h-[520px] w-[520px] rounded-full bg-purple-500/20 blur-[70px] md:blur-[150px]" />
+        <div className="absolute right-[-140px] top-[20%] h-[420px] w-[420px] rounded-full bg-blue-500/20 blur-[70px] md:blur-[120px]" />
+        <div className="absolute bottom-[-180px] left-1/2 hidden h-[420px] w-[420px] -translate-x-1/2 rounded-full bg-pink-500/15 blur-[80px] md:block md:blur-[140px]" />
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_12%,rgba(147,51,234,0.14),transparent_32%),radial-gradient(circle_at_82%_24%,rgba(59,130,246,0.12),transparent_35%)]" />
       </div>
 
-      <header className="relative z-10 mx-auto flex w-full max-w-6xl items-center justify-between px-6 py-7 md:px-10">
-        <h1 className="text-lg font-semibold tracking-[0.22em] uppercase">Adigator</h1>
+      <header className="relative z-30 mx-auto flex w-full max-w-6xl items-center justify-between px-6 py-7 md:px-10">
+        <Link href="/" className="text-lg font-semibold tracking-[0.22em] uppercase">Adigator</Link>
         <nav className="hidden items-center gap-8 text-sm md:flex">
-          <span className="cursor-pointer text-gray-400 transition hover:text-white">Platform</span>
-          <span className="cursor-pointer text-gray-400 transition hover:text-white">Customers</span>
-          <span className="cursor-pointer text-gray-400 transition hover:text-white">Pricing</span>
+          <Link href="/product" className="cursor-pointer text-gray-400 transition hover:text-white">Product</Link>
+          <Link href="/about" className="cursor-pointer text-gray-400 transition hover:text-white">About</Link>
+          <Link href="/login" className="cursor-pointer text-gray-400 transition hover:text-white">Login</Link>
         </nav>
-        <Link href="/login" className="rounded-xl border border-white/20 bg-white/5 px-5 py-2 text-sm font-medium text-white backdrop-blur-lg transition-all duration-300 hover:border-white hover:bg-white/10">
-          Login
-        </Link>
+
+        <button
+          type="button"
+          aria-label="Open menu"
+          onClick={() => setMobileMenuOpen(true)}
+          className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/20 bg-white/5 text-white md:hidden"
+        >
+          <span className="sr-only">Menu</span>
+          <div className="space-y-1.5">
+            <div className="h-0.5 w-4 bg-white" />
+            <div className="h-0.5 w-4 bg-white" />
+            <div className="h-0.5 w-4 bg-white" />
+          </div>
+        </button>
       </header>
 
-      <section className="relative z-10 mx-auto grid w-full max-w-6xl gap-10 px-6 pb-24 pt-12 md:grid-cols-[1.08fr_0.92fr] md:px-10 md:pt-16">
+      <AnimatePresence>
+        {mobileMenuOpen && (
+          <>
+            <motion.button
+              type="button"
+              aria-label="Close menu overlay"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              onClick={() => setMobileMenuOpen(false)}
+              className="fixed inset-0 z-40 bg-black/60 md:hidden"
+            />
+
+            <motion.aside
+              initial={{ x: "100%" }}
+              animate={{ x: 0 }}
+              exit={{ x: "100%" }}
+              transition={{ duration: 0.28, ease: "easeOut" }}
+              className="fixed right-0 top-0 z-50 h-full w-[82%] max-w-xs border-l border-white/10 bg-[#0b1224] p-6 md:hidden"
+            >
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-semibold uppercase tracking-[0.14em] text-gray-300">Menu</p>
+                <button
+                  type="button"
+                  aria-label="Close menu"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="rounded-lg border border-white/20 px-2 py-1 text-xs text-gray-300"
+                >
+                  Close
+                </button>
+              </div>
+
+              <div className="mt-8 flex flex-col gap-3">
+                <Link onClick={() => setMobileMenuOpen(false)} href="/product" className="rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-medium text-white">Product</Link>
+                <Link onClick={() => setMobileMenuOpen(false)} href="/about" className="rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-medium text-white">About</Link>
+                <Link onClick={() => setMobileMenuOpen(false)} href="/login" className="rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-medium text-white">Login</Link>
+              </div>
+            </motion.aside>
+          </>
+        )}
+      </AnimatePresence>
+
+      <section id="product" className="landing-section relative z-10">
+        <div className="landing-container grid w-full gap-10 md:grid-cols-[1.08fr_0.92fr]">
         <div>
           <motion.p
             initial={{ opacity: 0, y: 16 }}
@@ -157,8 +213,8 @@ export default function Home() {
           <motion.h2
             initial={{ opacity: 0, y: 26 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 0.1, ease: "easeOut" }}
-            className="mt-6 max-w-2xl text-5xl font-semibold leading-[1.08] md:text-7xl"
+            transition={{ duration: 0.6, delay: 0.1, ease: "easeOut" }}
+            className="mt-6 max-w-2xl text-4xl font-semibold leading-[1.08] sm:text-5xl md:text-7xl"
           >
             Know your ad works.
             <span className="block bg-gradient-to-r from-purple-400 to-pink-500 bg-clip-text text-transparent">Before you spend.</span>
@@ -193,11 +249,11 @@ export default function Home() {
           >
             <Link
               href="/preview-tool"
-              className="rounded-xl bg-gradient-to-r from-purple-500 to-pink-500 px-7 py-3 text-sm font-semibold text-white shadow-lg shadow-purple-500/30 transition-all duration-300 hover:scale-105"
+              className="w-full rounded-xl bg-gradient-to-r from-purple-500 to-pink-500 px-7 py-3 text-center text-sm font-semibold text-white shadow-lg shadow-purple-500/30 transition-all duration-300 hover:scale-105 sm:w-auto"
             >
               Start Free Preview
             </Link>
-            <button className="rounded-xl border border-white/20 px-7 py-3 text-sm font-semibold text-white transition-all duration-300 hover:border-white hover:bg-white/5 hover:scale-105">
+            <button className="w-full rounded-xl border border-white/20 px-7 py-3 text-sm font-semibold text-white transition-all duration-300 hover:border-white hover:bg-white/5 hover:scale-105 sm:w-auto">
               Watch 90s Walkthrough
             </button>
           </motion.div>
@@ -208,10 +264,10 @@ export default function Home() {
         <motion.div
           initial={{ opacity: 0, y: 26 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.75, delay: 0.25, ease: "easeOut" }}
+          transition={{ duration: 0.6, delay: 0.25, ease: "easeOut" }}
           onMouseEnter={() => setIsPreviewPaused(true)}
           onMouseLeave={() => setIsPreviewPaused(false)}
-          className="rounded-2xl border border-white/10 bg-white/5 p-5 shadow-2xl shadow-black/30 backdrop-blur-lg transition-all duration-300 hover:scale-[1.02] hover:border-purple-500"
+          className="hero-card rounded-2xl border border-white/10 bg-white/5 p-5 shadow-2xl shadow-black/30 backdrop-blur-lg transition-all duration-300 hover:scale-[1.02] hover:border-purple-500"
         >
           <div className="mb-4 flex items-center justify-between">
             <p className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-500">Live Preview Simulation</p>
@@ -251,9 +307,11 @@ export default function Home() {
             ))}
           </div>
         </motion.div>
+        </div>
       </section>
 
-      <section className="relative z-10 mx-auto w-full max-w-6xl px-6 pb-24 md:px-10">
+      <section className="landing-section relative z-10">
+        <div className="landing-container w-full">
         <div className="grid gap-8 rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur-lg md:grid-cols-[0.95fr_1.05fr] md:p-8">
           <div>
             <h3 className="text-3xl font-semibold leading-tight text-white md:text-4xl">See your ads before they go live</h3>
@@ -275,9 +333,11 @@ export default function Home() {
             </div>
           </div>
         </div>
+        </div>
       </section>
 
-      <section className="relative z-10 mx-auto w-full max-w-6xl px-6 pb-24 md:px-10">
+      <section className="landing-section relative z-10">
+        <div className="landing-container w-full">
         <div className="grid gap-8 rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur-lg md:grid-cols-[0.9fr_1.1fr] md:p-8">
           <div>
             <h3 className="text-3xl font-semibold leading-tight text-white md:text-4xl">See exactly why a creative will fail</h3>
@@ -298,10 +358,12 @@ export default function Home() {
             </div>
           </div>
         </div>
+        </div>
       </section>
 
-      <section className="relative z-10 mx-auto w-full max-w-6xl px-6 pb-24 md:px-10">
-        <div className="grid gap-5 rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur-lg md:grid-cols-3 md:p-8">
+      <section className="landing-section relative z-10">
+        <div className="landing-container w-full">
+        <div className="grid gap-5 rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur-lg sm:grid-cols-2 lg:grid-cols-3 md:p-8">
           {[
             { title: "Supports all IAB banner sizes", detail: "Launch with standard dimensions already validated." },
             { title: "Works across mobile & desktop", detail: "Check creative behavior across major device layouts." },
@@ -320,9 +382,11 @@ export default function Home() {
             </motion.div>
           ))}
         </div>
+        </div>
       </section>
 
-      <section className="relative z-10 mx-auto w-full max-w-6xl px-6 pb-24 md:px-10">
+      <section className="landing-section relative z-10">
+        <div className="landing-container w-full">
         <div className="flex items-end justify-between gap-6">
           <h3 className="max-w-xl text-3xl font-semibold leading-tight text-white md:text-4xl">
             A three-stage system your team can repeat every campaign.
@@ -332,7 +396,7 @@ export default function Home() {
           </p>
         </div>
 
-        <div className="mt-10 grid gap-6 md:grid-cols-3">
+        <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {workflow.map((step, i) => (
             <motion.div
               key={step.title}
@@ -348,12 +412,14 @@ export default function Home() {
             </motion.div>
           ))}
         </div>
+        </div>
       </section>
 
-      <section className="relative z-10 mx-auto w-full max-w-6xl px-6 pb-28 md:px-10">
+      <section className="landing-section relative z-10">
+        <div className="landing-container w-full">
         <div className="mb-8 rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur-lg md:p-8">
           <h3 className="text-3xl font-semibold leading-tight text-white md:text-4xl">Know which creatives to launch</h3>
-          <div className="mt-6 grid gap-4 md:grid-cols-3">
+          <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {[
               "Top creatives automatically identified",
               "Weak creatives flagged",
@@ -400,9 +466,11 @@ export default function Home() {
             <p className="mt-8 text-sm font-semibold">Creative Director, Growth Agency</p>
           </div>
         </div>
+        </div>
       </section>
 
-      <section className="relative z-10 border-y border-white/10 bg-[#020617] px-6 py-20 text-center text-white md:px-10">
+      <section className="landing-section relative z-10 border-y border-white/10 bg-[#020617] text-center text-white">
+        <div className="landing-container w-full">
         <motion.h3
           initial={{ opacity: 0, y: 16 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -417,10 +485,11 @@ export default function Home() {
         </p>
         <Link
           href="/preview-tool"
-          className="mt-10 inline-flex rounded-xl bg-gradient-to-r from-purple-500 to-pink-500 px-8 py-3 text-sm font-semibold text-white shadow-lg shadow-purple-500/30 transition-all duration-300 hover:scale-105"
+          className="mt-10 inline-flex w-full justify-center rounded-xl bg-gradient-to-r from-purple-500 to-pink-500 px-8 py-3 text-sm font-semibold text-white shadow-lg shadow-purple-500/30 transition-all duration-300 hover:scale-105 sm:w-auto"
         >
           Start Free Preview
         </Link>
+        </div>
       </section>
 
       <footer className="relative z-10 px-6 py-6 text-center text-xs uppercase tracking-[0.14em] text-gray-500 md:px-10">

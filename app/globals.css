@@ -27,8 +27,25 @@
 }
 
 /* Smooth scrolling */
-* {
+html {
   scroll-behavior: smooth;
+  overflow-x: hidden;
+  max-width: 100%;
+  width: 100%;
+  background: #020617;
+}
+
+body {
+  overflow-x: hidden;
+  overflow-y: auto;
+  max-width: 100%;
+  width: 100%;
+  margin: 0;
+  background: #020617;
+}
+
+* {
+  box-sizing: border-box;
 }
 
 /* Selection */
@@ -66,4 +83,73 @@ option {
   -ms-overflow-style: none;
 }
 .scrollbar-none::-webkit-scrollbar { display: none; }
+
+/* Landing page layout helpers */
+.landing-container {
+  width: 100%;
+  max-width: min(1200px, 100%);
+  margin: 0 auto;
+  padding: 0 20px;
+}
+
+.container {
+  width: 100%;
+  max-width: 100%;
+  padding: 0 16px;
+}
+
+.landing-section {
+  padding: 64px 20px;
+  margin: 0;
+}
+
+.hero-card {
+  position: relative;
+  width: 100%;
+  max-width: 420px;
+  min-height: 300px;
+  overflow: hidden;
+  margin: 0 auto;
+}
+
+section {
+  width: 100%;
+  max-width: 100%;
+}
+
+main {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: clip;
+}
+
+img,
+video {
+  max-width: 100%;
+  height: auto;
+}
+
+footer {
+  background: #020617;
+  padding: 40px 0;
+}
+
+@media (max-width: 768px) {
+  .landing-section {
+    padding: 48px 16px;
+    margin: 0;
+  }
+
+  body {
+    overflow-x: hidden;
+  }
+
+  .container,
+  .landing-container {
+    padding-left: 16px;
+    padding-right: 16px;
+    width: 100%;
+    max-width: 100%;
+  }
+}
 

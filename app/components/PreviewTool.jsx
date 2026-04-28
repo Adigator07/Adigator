@@ -447,8 +447,12 @@ export default function PreviewTool() {
 
       {/* PROGRESS */}
       <div className="h-1 bg-white/5">
-        <motion.div className="h-full bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500"
-          initial={{ width: "0%" }} animate={{ width: `${(step / TOTAL_STEPS) * 100}%` }} transition={{ duration: 0.5 }} />
+        <motion.div
+          className="h-full origin-left bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500"
+          initial={{ scaleX: 0 }}
+          animate={{ scaleX: step / TOTAL_STEPS }}
+          transition={{ duration: 0.5, ease: "easeOut" }}
+        />
       </div>
 
       <main className="max-w-7xl mx-auto px-6 md:px-10 py-12">
