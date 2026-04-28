@@ -23,10 +23,9 @@ function Toast({ toasts }) {
       <AnimatePresence>
         {toasts.map((t) => (
           <motion.div key={t.id} initial={{ opacity: 0, y: 20, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 10, scale: 0.95 }}
-            className={`flex items-center gap-3 px-4 py-3 rounded-xl border backdrop-blur-xl shadow-2xl text-sm font-medium text-white ${
-              t.type === "success" ? "bg-green-900/80 border-green-500/40" :
-              t.type === "error"   ? "bg-red-900/80 border-red-500/40" : "bg-slate-900/80 border-white/20"
-            }`}
+            className={`flex items-center gap-3 px-4 py-3 rounded-xl border backdrop-blur-xl shadow-2xl text-sm font-medium text-white ${t.type === "success" ? "bg-green-900/80 border-green-500/40" :
+                t.type === "error" ? "bg-red-900/80 border-red-500/40" : "bg-slate-900/80 border-white/20"
+              }`}
           >
             <span>{t.type === "success" ? "✅" : t.type === "error" ? "❌" : "⏳"}</span>
             {t.message}
@@ -62,7 +61,7 @@ const PLATFORMS = [
   {
     id: "programmatic", icon: "📡", title: "Programmatic Ads", desc: "Real-time bidding across premium publisher inventory",
     color: "from-violet-600/30 to-violet-800/20", border: "border-violet-500/50",
-    desktop: ["300x250", "728x90", "970x250", "300x600", "160x620"],
+    desktop: ["300x250", "728x90", "970x250", "300x600", "160x600"],
     mobile: ["320x50", "300x250", "320x100"],
   },
 ];
@@ -109,7 +108,7 @@ export default function PreviewTool() {
   const [platform, setPlatform] = useState(null); // 'google' | 'programmatic'
   const [campaignGoal, setCampaignGoal] = useState(null);
   const [audienceType, setAudienceType] = useState(null);
-  
+
   const [creatives, setCreatives] = useState([]);
   const [drag, setDrag] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -120,7 +119,7 @@ export default function PreviewTool() {
 
   const [analysisResult, setAnalysisResult] = useState(null);
   const [analysisLoading, setAnalysisLoading] = useState(false);
-  
+
   const [selectedTemplate, setSelectedTemplate] = useState("newspaper");
   const [viewMode, setViewMode] = useState("multiple");
   const [showSlotLabels, setShowSlotLabels] = useState(false);
@@ -295,7 +294,7 @@ export default function PreviewTool() {
   const runAnalysis = useCallback(async () => {
     if (validCreatives.length === 0) { addToast("No valid creatives to analyze.", "error"); return; }
     if (!campaignGoal || !platform || !audienceType) { addToast("Missing configuration.", "error"); return; }
-    
+
     setAnalysisLoading(true); setAnalysisResult(null);
     try {
       const results = [];
@@ -317,63 +316,63 @@ export default function PreviewTool() {
     try {
       const { jsPDF } = await import("jspdf");
       const doc = new jsPDF({ format: 'a4', unit: 'pt' });
-      
+
       const setBg = () => { doc.setFillColor(15, 23, 42); doc.rect(0, 0, 595.28, 841.89, 'F'); };
       setBg();
-      
+
       doc.setTextColor(255, 255, 255); doc.setFontSize(22); doc.text("Adigator Creative Analysis Report", 40, 55);
-      
+
       doc.setFontSize(12); doc.setTextColor(203, 213, 225);
-      doc.text(`Platform: ${(platform||'').toUpperCase()} | Goal: ${(campaignGoal||'').toUpperCase()} | Audience: ${(audienceType||'').toUpperCase()}`, 40, 80);
+      doc.text(`Platform: ${(platform || '').toUpperCase()} | Goal: ${(campaignGoal || '').toUpperCase()} | Audience: ${(audienceType || '').toUpperCase()}`, 40, 80);
       doc.text(`Date: ${new Date().toLocaleString()}`, 40, 98);
-      
+
       const sorted = [...analysisResult].sort((a, b) => b.data.overall_score - a.data.overall_score);
-      
+
       doc.setFontSize(16); doc.setTextColor(255, 255, 255); doc.text("Creative Ranking", 40, 130);
-      
+
       let currentY = 152;
       sorted.forEach((res, rank) => {
         const score = res.data.overall_score;
         if (score >= 70) doc.setTextColor(74, 222, 128);
         else if (score >= 45) doc.setTextColor(250, 204, 21);
         else doc.setTextColor(248, 113, 113);
-        
+
         doc.setFontSize(13);
         doc.text(`${rank === 0 ? "1st" : rank === 1 ? "2nd" : rank === 2 ? "3rd" : `#${rank + 1}`}. ${res.creative.name} — ${score}/100`, 40, currentY);
         currentY += 16;
-        
+
         doc.setFontSize(10); doc.setTextColor(148, 163, 184);
         let verdict = "";
         if (score >= 80) verdict = `"${res.creative.name}" is perfect and strongly aligned with all standards.`;
         else if (score >= 65) verdict = `"${res.creative.name}" meets most standards — minor improvements suggested.`;
         else if (score >= 45) verdict = `"${res.creative.name}" needs work — CTA alignment and visibility require attention.`;
         else verdict = `"${res.creative.name}" has critical issues — not recommended for launch without revisions.`;
-        
+
         const lines = doc.splitTextToSize(verdict, 515);
         doc.text(lines, 50, currentY);
         currentY += lines.length * 14 + 4;
-        
+
         if (currentY > 760) { doc.addPage(); setBg(); currentY = 40; }
       });
-      
+
       for (const res of analysisResult) {
         doc.addPage(); setBg();
         doc.setTextColor(255, 255, 255); doc.setFontSize(18); doc.text(`Creative: ${res.creative.name}`, 40, 48);
-        
+
         let cy = 72;
-        try { doc.addImage(res.creative.url, 40, cy, 200, 130); cy += 145; } catch (e) {}
-        
+        try { doc.addImage(res.creative.url, 40, cy, 200, 130); cy += 145; } catch (e) { }
+
         const s = res.data.overall_score;
         if (s >= 70) doc.setTextColor(74, 222, 128);
         else if (s >= 45) doc.setTextColor(250, 204, 21);
         else doc.setTextColor(248, 113, 113);
-        
+
         doc.setFontSize(15); doc.text(`Score: ${s}/100`, 40, cy); cy += 20;
-        
+
         doc.setTextColor(148, 163, 184); doc.setFontSize(11);
         doc.text(`Visibility: ${res.data.adVisibilityScore} | Goal Alignment: ${res.data.goalAlignmentIndicator} | CTA: ${res.data.cta_strength}`, 40, cy); cy += 16;
         doc.text(`Brightness: ${res.data.brightness} | Contrast: ${res.data.contrast}`, 40, cy); cy += 28;
-        
+
         doc.setTextColor(255, 255, 255); doc.setFontSize(13); doc.text("Suggestions:", 40, cy); cy += 18;
         doc.setTextColor(203, 213, 225); doc.setFontSize(11);
         (res.data.suggestions || []).forEach(sug => {
@@ -381,7 +380,7 @@ export default function PreviewTool() {
           doc.text(lines, 40, cy); cy += lines.length * 14;
         });
       }
-      
+
       doc.save("Campaign_Analysis_Report.pdf");
     } catch (err) { console.error(err); addToast("Failed to generate PDF", "error"); }
   }, [analysisResult, campaignGoal, platform, audienceType, addToast]);
@@ -401,9 +400,9 @@ export default function PreviewTool() {
   // Reusable Buttons
   const NavBtn = ({ onClick, children, variant = "primary", disabled = false }) => {
     const base = "flex-1 py-3 px-6 rounded-xl font-semibold transition disabled:opacity-40 disabled:cursor-not-allowed";
-    const bg = variant === "primary" ? "bg-gradient-to-r from-blue-600 to-purple-600 text-white" 
-             : variant === "back" ? "bg-white/10 hover:bg-white/20 text-white"
-             : "bg-gradient-to-r from-green-600 to-emerald-600 text-white";
+    const bg = variant === "primary" ? "bg-gradient-to-r from-blue-600 to-purple-600 text-white"
+      : variant === "back" ? "bg-white/10 hover:bg-white/20 text-white"
+        : "bg-gradient-to-r from-green-600 to-emerald-600 text-white";
     return (
       <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={onClick} disabled={disabled} className={`${base} ${bg}`}>
         {children}
@@ -418,9 +417,8 @@ export default function PreviewTool() {
       animate={selected ? { boxShadow: ["0 0 0 rgba(168,85,247,0)", "0 0 22px rgba(168,85,247,0.25)", "0 0 0 rgba(168,85,247,0)"] } : { boxShadow: "0 0 0 rgba(0,0,0,0)" }}
       transition={selected ? { duration: 1.6, repeat: Infinity, ease: "easeInOut" } : { duration: 0.2 }}
       onClick={onClick}
-      className={`cursor-pointer rounded-2xl p-8 border-2 transition-all duration-200 bg-gradient-to-br ${
-        selected ? `${activeClasses} shadow-2xl` : "border-white/10 bg-white/5 hover:border-white/25"
-      }`}>
+      className={`cursor-pointer rounded-2xl p-8 border-2 transition-all duration-200 bg-gradient-to-br ${selected ? `${activeClasses} shadow-2xl` : "border-white/10 bg-white/5 hover:border-white/25"
+        }`}>
       {children}
     </motion.div>
   );
@@ -436,9 +434,8 @@ export default function PreviewTool() {
           <div className="hidden lg:flex items-center gap-1 text-xs">
             {STEP_LABELS.map((label, idx) => (
               <div key={idx} className="flex items-center">
-                <div className={`flex items-center gap-1 px-2 py-1 rounded-lg font-semibold transition-all ${
-                  step === idx + 1 ? "bg-purple-500/30 text-purple-300" : step > idx + 1 ? "text-green-400" : "text-gray-600"
-                }`}>
+                <div className={`flex items-center gap-1 px-2 py-1 rounded-lg font-semibold transition-all ${step === idx + 1 ? "bg-purple-500/30 text-purple-300" : step > idx + 1 ? "text-green-400" : "text-gray-600"
+                  }`}>
                   {step > idx + 1 ? "✓" : `${idx + 1}.`} {label}
                 </div>
                 {idx < STEP_LABELS.length - 1 && <span className="text-white/15 mx-0.5">›</span>}
@@ -563,14 +560,13 @@ export default function PreviewTool() {
             <motion.div key="step-2" variants={itemVariants} initial="hidden" animate="visible" exit="hidden" className="space-y-8">
               <div>
                 <h2 className="text-4xl font-bold text-white mb-2">Step 2: Upload & Validate</h2>
-                <p className="text-gray-400">Supported {PLATFORMS.find(p=>p.id===platform)?.title} sizes: {allowedSizes.join(", ")}</p>
+                <p className="text-gray-400">Supported {PLATFORMS.find(p => p.id === platform)?.title} sizes: {allowedSizes.join(", ")}</p>
               </div>
 
               {/* Upload Dropzone */}
               <div
-                className={`relative rounded-3xl border-2 border-dashed transition-all p-12 text-center cursor-pointer ${
-                  drag ? "border-purple-500 bg-purple-500/10" : "border-white/20 bg-white/5 hover:border-purple-400"
-                }`}
+                className={`relative rounded-3xl border-2 border-dashed transition-all p-12 text-center cursor-pointer ${drag ? "border-purple-500 bg-purple-500/10" : "border-white/20 bg-white/5 hover:border-purple-400"
+                  }`}
                 onDragOver={(e) => { e.preventDefault(); setDrag(true); }}
                 onDragLeave={() => setDrag(false)}
                 onDrop={(e) => { e.preventDefault(); setDrag(false); handleFiles(e.dataTransfer.files); }}
@@ -607,7 +603,7 @@ export default function PreviewTool() {
               {/* Valid List */}
               {validCreatives.length > 0 && (
                 <div className="space-y-4">
-                  <h3 className="text-xl font-semibold text-white flex items-center gap-2"><CheckCircle2 className="text-green-500"/> Valid Creatives</h3>
+                  <h3 className="text-xl font-semibold text-white flex items-center gap-2"><CheckCircle2 className="text-green-500" /> Valid Creatives</h3>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     {validCreatives.map((creative) => (
                       <div key={creative.id} className="flex flex-col gap-1">
@@ -638,7 +634,7 @@ export default function PreviewTool() {
               {/* Invalid List */}
               {invalidCreatives.length > 0 && (
                 <div className="space-y-4">
-                  <h3 className="text-xl font-semibold text-white flex items-center gap-2"><XCircle className="text-red-500"/> Invalid Creatives</h3>
+                  <h3 className="text-xl font-semibold text-white flex items-center gap-2"><XCircle className="text-red-500" /> Invalid Creatives</h3>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     {invalidCreatives.map((creative) => (
                       <CreativeCard key={creative.id} creative={creative} onEdit={(c) => setEditModalCreative(c)} onRemove={removeCreative} />
@@ -659,7 +655,7 @@ export default function PreviewTool() {
             <motion.div key="step-3" variants={itemVariants} initial="hidden" animate="visible" exit="hidden" className="space-y-6">
               <div>
                 <h2 className="text-4xl font-bold text-white mb-2">Step 3: AI Analysis</h2>
-                <p className="text-gray-400">Analyze your creatives against {PLATFORMS.find(p=>p.id===platform)?.title} standards.</p>
+                <p className="text-gray-400">Analyze your creatives against {PLATFORMS.find(p => p.id === platform)?.title} standards.</p>
               </div>
 
               {!analysisResult && !analysisLoading && (
@@ -684,12 +680,12 @@ export default function PreviewTool() {
 
               {analysisResult && !analysisLoading && (
                 <>
-                  <AnalysisPanel 
-                    analysisResult={analysisResult} 
-                    campaignGoal={campaignGoal} 
-                    platform={platform} 
-                    audienceType={audienceType} 
-                    onDownloadReport={handleDownloadReport} 
+                  <AnalysisPanel
+                    analysisResult={analysisResult}
+                    campaignGoal={campaignGoal}
+                    platform={platform}
+                    audienceType={audienceType}
+                    onDownloadReport={handleDownloadReport}
                   />
                 </>
               )}
@@ -717,9 +713,8 @@ export default function PreviewTool() {
                     { id: "single", icon: LayoutGrid, title: "Single Slide (All)", desc: "All creatives displayed inside one slide." },
                   ].map((m) => (
                     <motion.div key={m.id} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={() => setViewMode(m.id)}
-                      className={`cursor-pointer rounded-2xl p-5 border-2 transition-all flex gap-4 items-start ${
-                        viewMode === m.id ? "border-purple-500 bg-purple-900/30 shadow-lg" : "border-white/10 bg-white/5 hover:border-white/30"
-                      }`}>
+                      className={`cursor-pointer rounded-2xl p-5 border-2 transition-all flex gap-4 items-start ${viewMode === m.id ? "border-purple-500 bg-purple-900/30 shadow-lg" : "border-white/10 bg-white/5 hover:border-white/30"
+                        }`}>
                       <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${viewMode === m.id ? "bg-purple-500 text-white" : "bg-white/10 text-gray-400"}`}>
                         <m.icon size={22} />
                       </div>

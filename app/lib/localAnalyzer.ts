@@ -75,7 +75,7 @@ export const PLATFORM_SIZES: Record<Platform, { desktop: string[]; mobile: strin
     mobile:  ["320x50", "320x100", "300x250", "200x100"],
   },
   programmatic: {
-    desktop: ["300x250", "728x90", "970x250", "300x600", "160x620"],
+    desktop: ["300x250", "728x90", "970x250", "300x600", "160x600"],
     mobile:  ["320x50", "300x250", "320x100"],
   },
 };
