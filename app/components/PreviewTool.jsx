@@ -48,8 +48,8 @@ const TEMPLATES = [
   { id: "entertainment", name: "Entertainment", icon: Film, desc: "Movie & media portal", slots: 6 },
 ];
 
-const TOTAL_STEPS = 7;
-const STEP_LABELS = ["Platform", "Goal", "Audience", "Upload", "Analysis", "Template", "Preview"];
+const TOTAL_STEPS = 5;
+const STEP_LABELS = ["Setup", "Upload", "Analysis", "Template", "Preview"];
 
 const PLATFORMS = [
   {
@@ -127,12 +127,35 @@ export default function PreviewTool() {
   const [toasts, setToasts] = useState([]);
   const fileRef = useRef(null);
   const userRef = useRef(null);
+  const goalSectionRef = useRef(null);
+  const audienceSectionRef = useRef(null);
+
+  const selectedPlatform = PLATFORMS.find((p) => p.id === platform)?.title || "Not selected";
+  const selectedGoal = GOALS.find((g) => g.id === campaignGoal)?.title || "Not selected";
+  const selectedAudience = AUDIENCES.find((a) => a.id === audienceType)?.title || "Not selected";
 
   const addToast = useCallback((message, type = "info") => {
     const id = Date.now();
     setToasts((prev) => [...prev, { id, message, type }]);
     setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), 3500);
   }, []);
+
+  const scrollToSection = useCallback((ref) => {
+    if (!ref?.current) return;
+    window.setTimeout(() => {
+      ref.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 120);
+  }, []);
+
+  const handlePlatformSelect = useCallback((id) => {
+    setPlatform(id);
+    scrollToSection(goalSectionRef);
+  }, [scrollToSection]);
+
+  const handleGoalSelect = useCallback((id) => {
+    setCampaignGoal(id);
+    scrollToSection(audienceSectionRef);
+  }, [scrollToSection]);
 
   const allowedSizes = platform
     ? [...(PLATFORM_SIZES[platform]?.desktop || []), ...(PLATFORM_SIZES[platform]?.mobile || [])]
@@ -143,7 +166,10 @@ export default function PreviewTool() {
 
   useEffect(() => {
     const savedStep = localStorage.getItem("adigator_step");
-    if (savedStep) setStep(parseInt(savedStep));
+    if (savedStep) {
+      const parsed = parseInt(savedStep);
+      setStep(Number.isNaN(parsed) ? 1 : Math.min(Math.max(parsed, 1), TOTAL_STEPS));
+    }
   }, []);
 
   useEffect(() => {
@@ -363,7 +389,12 @@ export default function PreviewTool() {
   };
 
   const SelectionCard = ({ selected, onClick, children, activeClasses }) => (
-    <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }} onClick={onClick}
+    <motion.div
+      whileHover={{ scale: 1.03 }}
+      whileTap={{ scale: 0.97 }}
+      animate={selected ? { boxShadow: ["0 0 0 rgba(168,85,247,0)", "0 0 22px rgba(168,85,247,0.25)", "0 0 0 rgba(168,85,247,0)"] } : { boxShadow: "0 0 0 rgba(0,0,0,0)" }}
+      transition={selected ? { duration: 1.6, repeat: Infinity, ease: "easeInOut" } : { duration: 0.2 }}
+      onClick={onClick}
       className={`cursor-pointer rounded-2xl p-8 border-2 transition-all duration-200 bg-gradient-to-br ${
         selected ? `${activeClasses} shadow-2xl` : "border-white/10 bg-white/5 hover:border-white/25"
       }`}>
@@ -403,99 +434,118 @@ export default function PreviewTool() {
       <main className="max-w-7xl mx-auto px-6 md:px-10 py-12">
         <AnimatePresence mode="wait">
 
-          {/* STEP 1: PLATFORM */}
+          {/* STEP 1: SETUP CAMPAIGN */}
           {step === 1 && (
-            <motion.div key="step-1" variants={itemVariants} initial="hidden" animate="visible" exit="hidden" className="space-y-8">
+            <motion.div key="step-1" variants={containerVariants} initial="hidden" animate="visible" exit="hidden" className="space-y-12 pb-28">
               <div>
-                <h2 className="text-4xl font-bold text-white mb-2">Step 1: Choose Platform</h2>
-                <p className="text-gray-400">Where will these ads run? This determines size validation and best practices.</p>
+                <h2 className="text-4xl font-bold text-white mb-2">Step 1: Setup Campaign</h2>
+                <p className="text-gray-400">Configure platform, goal, and audience before uploading creatives.</p>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {PLATFORMS.map((p) => (
-                  <SelectionCard key={p.id} selected={platform === p.id} onClick={() => setPlatform(p.id)} activeClasses={`${p.color} ${p.border}`}>
-                    <div className="text-5xl mb-4">{p.icon}</div>
-                    <h3 className={`text-2xl font-extrabold mb-2 ${platform === p.id ? "text-white" : "text-gray-200"}`}>{p.title}</h3>
-                    <p className="text-sm text-gray-400 leading-relaxed mb-4">{p.desc}</p>
-                    <div className="space-y-2">
-                      <p className="text-xs font-bold text-white/70 uppercase">Supported Sizes:</p>
-                      <div className="flex flex-wrap gap-1.5">
-                        {[...p.desktop, ...p.mobile].slice(0, 6).map(s => (
-                          <span key={s} className="px-2 py-1 bg-white/10 rounded text-[10px] text-gray-300">{s}</span>
-                        ))}
-                        {([...p.desktop, ...p.mobile].length > 6) && <span className="px-2 py-1 bg-white/10 rounded text-[10px] text-gray-300">+{([...p.desktop, ...p.mobile].length - 6)} more</span>}
+
+              <motion.div variants={itemVariants} className="rounded-2xl border border-white/10 bg-white/5 p-5 backdrop-blur-lg">
+                <p className="text-xs uppercase tracking-[0.14em] text-gray-500">Selected Setup</p>
+                <div className="mt-3 grid gap-2 text-sm md:grid-cols-3">
+                  <p className="text-gray-300">Platform: <span className="text-white font-semibold">{selectedPlatform}</span></p>
+                  <p className="text-gray-300">Goal: <span className="text-white font-semibold">{selectedGoal}</span></p>
+                  <p className="text-gray-300">Audience: <span className="text-white font-semibold">{selectedAudience}</span></p>
+                </div>
+              </motion.div>
+
+              <motion.section variants={itemVariants} className="space-y-5">
+                <div>
+                  <h3 className="text-2xl font-bold text-white">Choose Platform</h3>
+                  <p className="mt-1 text-gray-400">Where will these ads run? This determines size validation and best practices.</p>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {PLATFORMS.map((p) => (
+                    <SelectionCard key={p.id} selected={platform === p.id} onClick={() => handlePlatformSelect(p.id)} activeClasses={`${p.color} ${p.border}`}>
+                      <div className="text-5xl mb-4">{p.icon}</div>
+                      <h3 className={`text-2xl font-extrabold mb-2 ${platform === p.id ? "text-white" : "text-gray-200"}`}>{p.title}</h3>
+                      <p className="text-sm text-gray-400 leading-relaxed mb-4">{p.desc}</p>
+                      <div className="space-y-2">
+                        <p className="text-xs font-bold text-white/70 uppercase">Supported Sizes:</p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {[...p.desktop, ...p.mobile].slice(0, 6).map(s => (
+                            <span key={s} className="px-2 py-1 bg-white/10 rounded text-[10px] text-gray-300">{s}</span>
+                          ))}
+                          {([...p.desktop, ...p.mobile].length > 6) && <span className="px-2 py-1 bg-white/10 rounded text-[10px] text-gray-300">+{([...p.desktop, ...p.mobile].length - 6)} more</span>}
+                        </div>
                       </div>
-                    </div>
-                  </SelectionCard>
-                ))}
-              </div>
-              <div className="flex gap-4 pt-4">
-                <NavBtn onClick={() => setStep(2)} disabled={!platform}>Next: Campaign Goal →</NavBtn>
+                    </SelectionCard>
+                  ))}
+                </div>
+              </motion.section>
+
+              <motion.section ref={goalSectionRef} variants={itemVariants} className="space-y-5">
+                <div>
+                  <h3 className="text-2xl font-bold text-white">Campaign Goal</h3>
+                  <p className="mt-1 text-gray-400">Select your objective to guide the AI analysis.</p>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  {GOALS.map((g) => (
+                    <SelectionCard key={g.id} selected={campaignGoal === g.id} onClick={() => handleGoalSelect(g.id)} activeClasses={`${g.color} ${g.border}`}>
+                      <div className="text-5xl mb-4">{g.emoji}</div>
+                      <p className="text-xs font-bold text-purple-400 uppercase tracking-widest mb-1">{g.subtitle}</p>
+                      <h3 className={`text-2xl font-extrabold mb-2 ${campaignGoal === g.id ? "text-white" : "text-gray-200"}`}>{g.title}</h3>
+                      <p className="text-sm text-gray-400 leading-relaxed mb-6">{g.desc}</p>
+                      {campaignGoal === g.id && (
+                        <div className="bg-white/10 p-3 rounded-xl">
+                          <p className="text-[10px] font-bold text-gray-300 uppercase mb-2">Recommended CTAs:</p>
+                          <div className="flex flex-wrap gap-1.5">
+                            {GOAL_CTA[g.id].map(cta => (
+                              <span key={cta} className="px-2 py-1 bg-purple-500/20 text-purple-200 border border-purple-500/30 rounded text-[10px]">{cta}</span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </SelectionCard>
+                  ))}
+                </div>
+              </motion.section>
+
+              <motion.section ref={audienceSectionRef} variants={itemVariants} className="space-y-5">
+                <div>
+                  <h3 className="text-2xl font-bold text-white">Audience Type</h3>
+                  <p className="mt-1 text-gray-400">Who is seeing this ad? This affects text density and visual scoring.</p>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  {AUDIENCES.map((a) => (
+                    <SelectionCard key={a.id} selected={audienceType === a.id} onClick={() => setAudienceType(a.id)} activeClasses={`${a.color} ${a.border}`}>
+                      <div className="text-5xl mb-4">{a.emoji}</div>
+                      <h3 className={`text-xl font-extrabold mb-2 ${audienceType === a.id ? "text-white" : "text-gray-200"}`}>{a.title}</h3>
+                      <p className="text-sm text-gray-400 leading-relaxed">{a.desc}</p>
+                    </SelectionCard>
+                  ))}
+                </div>
+              </motion.section>
+
+              <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-white/10 bg-slate-950/85 backdrop-blur-xl">
+                <div className="mx-auto flex w-full max-w-7xl gap-4 px-6 py-4 md:px-10">
+                  <NavBtn
+                    variant="back"
+                    onClick={() => {
+                      if (typeof window !== "undefined" && window.history.length > 1) window.history.back();
+                      else if (typeof window !== "undefined") window.location.href = "/dashboard";
+                    }}
+                  >
+                    ← Back
+                  </NavBtn>
+                  <NavBtn
+                    onClick={() => setStep(2)}
+                    disabled={!platform || !campaignGoal || !audienceType}
+                  >
+                    Upload Creatives →
+                  </NavBtn>
+                </div>
               </div>
             </motion.div>
           )}
 
-          {/* STEP 2: GOAL */}
+          {/* STEP 2: UPLOAD & VALIDATE */}
           {step === 2 && (
             <motion.div key="step-2" variants={itemVariants} initial="hidden" animate="visible" exit="hidden" className="space-y-8">
               <div>
-                <h2 className="text-4xl font-bold text-white mb-2">Step 2: Campaign Goal</h2>
-                <p className="text-gray-400">Select your objective to guide the AI analysis.</p>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                {GOALS.map((g) => (
-                  <SelectionCard key={g.id} selected={campaignGoal === g.id} onClick={() => setCampaignGoal(g.id)} activeClasses={`${g.color} ${g.border}`}>
-                    <div className="text-5xl mb-4">{g.emoji}</div>
-                    <p className="text-xs font-bold text-purple-400 uppercase tracking-widest mb-1">{g.subtitle}</p>
-                    <h3 className={`text-2xl font-extrabold mb-2 ${campaignGoal === g.id ? "text-white" : "text-gray-200"}`}>{g.title}</h3>
-                    <p className="text-sm text-gray-400 leading-relaxed mb-6">{g.desc}</p>
-                    {campaignGoal === g.id && (
-                      <div className="bg-white/10 p-3 rounded-xl">
-                        <p className="text-[10px] font-bold text-gray-300 uppercase mb-2">Recommended CTAs:</p>
-                        <div className="flex flex-wrap gap-1.5">
-                          {GOAL_CTA[g.id].map(cta => (
-                            <span key={cta} className="px-2 py-1 bg-purple-500/20 text-purple-200 border border-purple-500/30 rounded text-[10px]">{cta}</span>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </SelectionCard>
-                ))}
-              </div>
-              <div className="flex gap-4 pt-4">
-                <NavBtn variant="back" onClick={() => setStep(1)}>← Back</NavBtn>
-                <NavBtn onClick={() => setStep(3)} disabled={!campaignGoal}>Next: Audience Type →</NavBtn>
-              </div>
-            </motion.div>
-          )}
-
-          {/* STEP 3: AUDIENCE */}
-          {step === 3 && (
-            <motion.div key="step-3" variants={itemVariants} initial="hidden" animate="visible" exit="hidden" className="space-y-8">
-              <div>
-                <h2 className="text-4xl font-bold text-white mb-2">Step 3: Audience Type</h2>
-                <p className="text-gray-400">Who is seeing this ad? This affects text density and visual scoring.</p>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                {AUDIENCES.map((a) => (
-                  <SelectionCard key={a.id} selected={audienceType === a.id} onClick={() => setAudienceType(a.id)} activeClasses={`${a.color} ${a.border}`}>
-                    <div className="text-5xl mb-4">{a.emoji}</div>
-                    <h3 className={`text-xl font-extrabold mb-2 ${audienceType === a.id ? "text-white" : "text-gray-200"}`}>{a.title}</h3>
-                    <p className="text-sm text-gray-400 leading-relaxed">{a.desc}</p>
-                  </SelectionCard>
-                ))}
-              </div>
-              <div className="flex gap-4 pt-4">
-                <NavBtn variant="back" onClick={() => setStep(2)}>← Back</NavBtn>
-                <NavBtn onClick={() => setStep(4)} disabled={!audienceType}>Next: Upload Creatives →</NavBtn>
-              </div>
-            </motion.div>
-          )}
-
-          {/* STEP 4: UPLOAD & VALIDATE */}
-          {step === 4 && (
-            <motion.div key="step-4" variants={itemVariants} initial="hidden" animate="visible" exit="hidden" className="space-y-8">
-              <div>
-                <h2 className="text-4xl font-bold text-white mb-2">Step 4: Upload & Validate</h2>
+                <h2 className="text-4xl font-bold text-white mb-2">Step 2: Upload & Validate</h2>
                 <p className="text-gray-400">Supported {PLATFORMS.find(p=>p.id===platform)?.title} sizes: {allowedSizes.join(", ")}</p>
               </div>
 
@@ -581,17 +631,17 @@ export default function PreviewTool() {
               )}
 
               <div className="flex gap-4 pt-4">
-                <NavBtn variant="back" onClick={() => setStep(3)}>← Back</NavBtn>
-                <NavBtn onClick={() => setStep(5)} disabled={validCreatives.length === 0}>Next: AI Analysis →</NavBtn>
+                <NavBtn variant="back" onClick={() => setStep(1)}>← Back</NavBtn>
+                <NavBtn onClick={() => setStep(3)} disabled={validCreatives.length === 0}>Next: AI Analysis →</NavBtn>
               </div>
             </motion.div>
           )}
 
-          {/* STEP 5: AI ANALYSIS */}
-          {step === 5 && (
-            <motion.div key="step-5" variants={itemVariants} initial="hidden" animate="visible" exit="hidden" className="space-y-6">
+          {/* STEP 3: AI ANALYSIS */}
+          {step === 3 && (
+            <motion.div key="step-3" variants={itemVariants} initial="hidden" animate="visible" exit="hidden" className="space-y-6">
               <div>
-                <h2 className="text-4xl font-bold text-white mb-2">Step 5: AI Analysis</h2>
+                <h2 className="text-4xl font-bold text-white mb-2">Step 3: AI Analysis</h2>
                 <p className="text-gray-400">Analyze your creatives against {PLATFORMS.find(p=>p.id===platform)?.title} standards.</p>
               </div>
 
@@ -625,19 +675,19 @@ export default function PreviewTool() {
                     onDownloadReport={handleDownloadReport} 
                   />
                   <div className="flex gap-4 pt-6">
-                    <NavBtn variant="back" onClick={() => setStep(4)}>← Back</NavBtn>
-                    <NavBtn onClick={() => setStep(6)}>Next: Select Template →</NavBtn>
+                    <NavBtn variant="back" onClick={() => setStep(2)}>← Back</NavBtn>
+                    <NavBtn onClick={() => setStep(4)}>Next: Select Template →</NavBtn>
                   </div>
                 </>
               )}
             </motion.div>
           )}
 
-          {/* STEP 6: SELECT TEMPLATE */}
-          {step === 6 && (
-            <motion.div key="step-6" variants={itemVariants} initial="hidden" animate="visible" exit="hidden" className="space-y-8">
+          {/* STEP 4: SELECT TEMPLATE */}
+          {step === 4 && (
+            <motion.div key="step-4" variants={itemVariants} initial="hidden" animate="visible" exit="hidden" className="space-y-8">
               <div>
-                <h2 className="text-4xl font-bold text-white mb-2">Step 6: Select Template</h2>
+                <h2 className="text-4xl font-bold text-white mb-2">Step 4: Select Template</h2>
                 <p className="text-gray-400">Choose a layout context and view mode.</p>
               </div>
 
@@ -685,18 +735,18 @@ export default function PreviewTool() {
               </div>
 
               <div className="flex gap-4 pt-4">
-                <NavBtn variant="back" onClick={() => setStep(5)}>← Back</NavBtn>
-                <NavBtn onClick={() => setStep(7)}>Generate Preview Engine →</NavBtn>
+                <NavBtn variant="back" onClick={() => setStep(3)}>← Back</NavBtn>
+                <NavBtn onClick={() => setStep(5)}>Generate Preview Engine →</NavBtn>
               </div>
             </motion.div>
           )}
 
-          {/* STEP 7: PREVIEW */}
-          {step === 7 && (
-            <motion.div key="step-7" variants={itemVariants} initial="hidden" animate="visible" exit="hidden" className="space-y-8">
+          {/* STEP 5: PREVIEW */}
+          {step === 5 && (
+            <motion.div key="step-5" variants={itemVariants} initial="hidden" animate="visible" exit="hidden" className="space-y-8">
               <div className="flex items-center justify-between">
                 <div>
-                  <h2 className="text-4xl font-bold text-white mb-2">Step 7: Preview & Export</h2>
+                  <h2 className="text-4xl font-bold text-white mb-2">Step 5: Preview & Export</h2>
                   <p className="text-gray-400">See your creatives in realistic website contexts.</p>
                 </div>
                 <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} onClick={handleExportPptx} disabled={isExporting}
@@ -721,7 +771,7 @@ export default function PreviewTool() {
               </motion.div>
 
               <div className="flex gap-4 pt-4">
-                <NavBtn variant="back" onClick={() => setStep(6)}>← Back</NavBtn>
+                <NavBtn variant="back" onClick={() => setStep(4)}>← Back</NavBtn>
                 <NavBtn variant="success" onClick={handleExportPptx} disabled={isExporting} className="flex justify-center items-center gap-2">
                   <Download size={20} /> {isExporting ? "Generating..." : "Download PPTX"}
                 </NavBtn>
