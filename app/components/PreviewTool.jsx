@@ -37,15 +37,15 @@ function Toast({ toasts }) {
 }
 
 const TEMPLATES = [
-  { id: "newspaper", name: "Newspaper", icon: Newspaper, desc: "Modern news portal", slots: 7 },
-  { id: "ecommerce", name: "Ecommerce", icon: ShoppingCart, desc: "Online storefront", slots: 7 },
-  { id: "food", name: "Food & Recipe", icon: Coffee, desc: "Culinary blog", slots: 6 },
-  { id: "health", name: "Health", icon: Activity, desc: "Medical & wellness", slots: 5 },
-  { id: "technology", name: "Technology", icon: Laptop, desc: "Tech review site", slots: 7 },
-  { id: "business", name: "Business", icon: Briefcase, desc: "Corporate dashboard", slots: 6 },
-  { id: "education", name: "Education", icon: GraduationCap, desc: "Online learning", slots: 5 },
-  { id: "gaming", name: "Gaming", icon: Gamepad2, desc: "Esports & streaming", slots: 7 },
-  { id: "entertainment", name: "Entertainment", icon: Film, desc: "Movie & media portal", slots: 6 },
+  { id: "newspaper", name: "News website layout", icon: Newspaper, desc: "Awareness top funnel", slots: 7 },
+  { id: "ecommerce", name: "E-commerce product page", icon: ShoppingCart, desc: "Conversion bottom funnel", slots: 7 },
+  { id: "food", name: "Blog / Article page", icon: Coffee, desc: "Awareness top funnel", slots: 6 },
+  { id: "health", name: "Native ad placement", icon: Activity, desc: "Awareness top funnel", slots: 5 },
+  { id: "technology", name: "Product landing page", icon: Laptop, desc: "Consideration mid funnel", slots: 7 },
+  { id: "business", name: "Feature comparison layout", icon: Briefcase, desc: "Consideration mid funnel", slots: 6 },
+  { id: "education", name: "Review/testimonial page", icon: GraduationCap, desc: "Consideration mid funnel", slots: 5 },
+  { id: "gaming", name: "App install screen", icon: Gamepad2, desc: "Conversion bottom funnel", slots: 7 },
+  { id: "entertainment", name: "Video platform preview", icon: Film, desc: "Awareness top funnel", slots: 6 },
 ];
 
 const TOTAL_STEPS = 4;
@@ -303,6 +303,9 @@ export default function PreviewTool() {
         results.push({ creative, data });
       }
       setAnalysisResult(results);
+      if (results.length > 0 && results[0].data.recommendedTemplates?.length > 0) {
+        setSelectedTemplate(results[0].data.recommendedTemplates[0]);
+      }
       addToast(`Analyzed ${results.length} creative${results.length !== 1 ? "s" : ""} ✨`, "success");
     } catch (err) {
       addToast(err.message || "Analysis failed.", "error");
@@ -726,7 +729,11 @@ export default function PreviewTool() {
                   showSlotLabels={showSlotLabels}
                   selectedTemplate={selectedTemplate}
                   setSelectedTemplate={setSelectedTemplate}
-                  TEMPLATES={TEMPLATES}
+                  TEMPLATES={
+                    analysisResult?.[0]?.data?.recommendedTemplates?.length > 0
+                      ? TEMPLATES.filter(tpl => analysisResult[0].data.recommendedTemplates.includes(tpl.id))
+                      : TEMPLATES
+                  }
                   viewMode={viewMode}
                   onViewModeChange={setViewMode}
                 />

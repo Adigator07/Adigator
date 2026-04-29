@@ -433,6 +433,42 @@ export default function AnalysisPanel({
                     exit={{ opacity: 0 }}
                     className="space-y-5"
                   >
+                    {/* AI Funnel Analysis */}
+                    {selected.data.primary_stage && (
+                      <div className="p-4 rounded-xl border border-blue-500/30 bg-blue-500/5 space-y-3">
+                        <div className="flex items-center justify-between">
+                          <p className="text-sm font-bold text-blue-300 uppercase tracking-wider flex items-center gap-2">
+                            <span>🧠</span> AI Funnel Classification
+                          </p>
+                          <span className="px-2 py-1 bg-blue-500/20 text-blue-300 text-xs font-bold rounded-lg border border-blue-500/30">
+                            {selected.data.primary_stage} Stage
+                          </span>
+                        </div>
+                        <p className="text-sm text-gray-300 leading-relaxed">
+                          {selected.data.funnelReasoning}
+                        </p>
+                        
+                        <div className="grid grid-cols-3 gap-2 mt-2">
+                          <MetricBar label="Awareness" value={selected.data.stageScores?.awareness || 0} color="bg-cyan-400" />
+                          <MetricBar label="Consideration" value={selected.data.stageScores?.consideration || 0} color="bg-purple-400" />
+                          <MetricBar label="Conversion" value={selected.data.stageScores?.conversion || 0} color="bg-emerald-400" />
+                        </div>
+
+                        {selected.data.funnelSignals?.length > 0 && (
+                          <div className="pt-2 border-t border-white/10 mt-1">
+                            <p className="text-[10px] font-bold text-gray-400 uppercase mb-1.5">Detected Signals</p>
+                            <div className="flex flex-wrap gap-1.5">
+                              {selected.data.funnelSignals.map((sig, i) => (
+                                <span key={i} className="text-[10px] px-2 py-0.5 bg-white/10 text-gray-300 rounded-full border border-white/5">
+                                  {sig}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
                     {/* 6 Core Checks */}
                     <div>
                       <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">

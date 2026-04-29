@@ -65,6 +65,13 @@ export interface LocalAnalysisResult {
   imageSize:    string;
   analyzed_at:  string;
   source:       "local-ai";
+
+  // AI Funnel Analysis
+  primary_stage: "Awareness" | "Consideration" | "Conversion";
+  stageScores: { awareness: number; consideration: number; conversion: number };
+  funnelReasoning: string;
+  funnelSignals: string[];
+  recommendedTemplates: string[];
 }
 
 // ── Constants ──────────────────────────────────────────────────────────────────
@@ -482,6 +489,34 @@ export async function analyzeCreativeLocal(
           suggestions.push("Creative looks solid for this goal and platform!");
         }
 
+        // --- MOCK AI FUNNEL CLASSIFICATION LOGIC ---
+        let primary_stage: "Awareness" | "Consideration" | "Conversion" = "Awareness";
+        let stageScores = { awareness: 50, consideration: 50, conversion: 50 };
+        let funnelReasoning = "";
+        let funnelSignals: string[] = [];
+        let recommendedTemplates: string[] = [];
+
+        const ctaWord = cta.word.toLowerCase();
+        if (["buy", "shop", "install", "download", "sign up", "get"].some(w => ctaWord.includes(w))) {
+          primary_stage = "Conversion";
+          stageScores = { awareness: 30, consideration: 50, conversion: 92 };
+          funnelReasoning = "The CTA indicates a strong, immediate action intent typical for bottom-funnel audiences.";
+          funnelSignals = ["Strong transactional CTA detected", "High urgency"];
+          recommendedTemplates = ["ecommerce", "gaming"];
+        } else if (["compare", "features", "pricing", "details", "try", "check"].some(w => ctaWord.includes(w))) {
+          primary_stage = "Consideration";
+          stageScores = { awareness: 40, consideration: 88, conversion: 40 };
+          funnelReasoning = "The creative invites evaluation, comparison, or trial, which maps perfectly to the mid-funnel consideration stage.";
+          funnelSignals = ["Exploratory/comparison CTA detected", "Moderate urgency"];
+          recommendedTemplates = ["technology", "business", "education"];
+        } else {
+          primary_stage = "Awareness";
+          stageScores = { awareness: 85, consideration: 45, conversion: 20 };
+          funnelReasoning = "The creative has a soft or missing CTA, prioritizing broad brand introduction and discovery.";
+          funnelSignals = ["Soft or no CTA", "Low urgency, informational focus"];
+          recommendedTemplates = ["newspaper", "food", "health", "entertainment"];
+        }
+
         resolve({
           brightness:     px.brightness,
           contrast:       px.contrast,
@@ -506,6 +541,11 @@ export async function analyzeCreativeLocal(
           imageSize:   size,
           analyzed_at: new Date().toISOString(),
           source:      "local-ai",
+          primary_stage,
+          stageScores,
+          funnelReasoning,
+          funnelSignals,
+          recommendedTemplates,
         });
       } catch (err) {
         reject(err);
