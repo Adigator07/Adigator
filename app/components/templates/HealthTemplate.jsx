@@ -85,79 +85,76 @@ export default function HealthTemplate({
         {/* ── CENTER CONTENT ZONE ── */}
         <main className="flex-1 flex flex-col min-w-0">
           
-          <div className="flex flex-col md:flex-row gap-6 mb-8">
-            <div className="flex-1">
-              <span className="text-emerald-600 font-bold uppercase tracking-wider text-xs mb-2 block flex items-center gap-1"><Leaf size={14}/> Wellness</span>
-              <h2 className="text-3xl md:text-4xl font-extrabold text-slate-900 leading-tight mb-4">
+          <div className="flex flex-col gap-8 mb-12">
+            <div>
+              <div className="flex items-center gap-2 mb-4">
+                <span className="bg-emerald-600 text-white px-2 py-0.5 text-[10px] font-black uppercase rounded tracking-widest">Trust Verified</span>
+                <span className="text-slate-400 text-xs font-bold uppercase tracking-widest flex items-center gap-1"><Leaf size={14}/> Wellness Guide</span>
+              </div>
+              <h2 className="text-4xl md:text-5xl font-black text-slate-900 leading-[1.1] mb-6 tracking-tight">
                 {content.hero.headline}
               </h2>
-              <p className="text-slate-600 text-lg mb-6 leading-relaxed">
+              <p className="text-slate-500 text-xl mb-8 leading-relaxed font-medium max-w-3xl">
                 {content.hero.subtitle}
               </p>
-              <div className="flex items-center gap-3">
-                <img src="https://i.pravatar.cc/100?img=47" className="w-10 h-10 rounded-full" alt="Doctor" />
-                <div>
-                  <p className="text-sm font-bold text-slate-900">Dr. Emily Chen, MD</p>
-                  <p className="text-xs text-slate-500">Medically reviewed</p>
+              <div className="flex items-center justify-between border-y border-slate-100 py-6">
+                <div className="flex items-center gap-4">
+                  <img src="https://i.pravatar.cc/100?img=47" className="w-14 h-14 rounded-full border-2 border-emerald-100 p-0.5 shadow-sm" alt="Doctor" />
+                  <div>
+                    <p className="text-base font-black text-slate-900">Dr. Michael Foster, MD</p>
+                    <p className="text-xs text-slate-400 font-bold uppercase tracking-widest flex items-center gap-1">
+                      <Stethoscope size={12} className="text-emerald-500"/> Medically reviewed • Oct 2026
+                    </p>
+                  </div>
                 </div>
+                <button className="text-emerald-600 font-black text-xs uppercase tracking-widest hover:text-emerald-800 transition">Expert Panel &rarr;</button>
               </div>
             </div>
-            
-            {contentSlots.length > 0 ? (
-               <div className="flex-shrink-0 flex items-center justify-center bg-slate-50 rounded-xl p-4">
-                 {contentSlots.map((slotDef) => <AdSlot key={slotDef.id} slotDef={slotDef} {...adSlotProps} />)}
-               </div>
-            ) : (
-              <div className="w-full md:w-1/2 aspect-video rounded-xl overflow-hidden shadow-md">
-                <img src={content.hero.image} alt="Health" className="w-full h-full object-cover" />
-              </div>
-            )}
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-10">
-            {['Heart Health', 'Mental Wellness', 'Nutrition', 'Sleep'].map((topic, i) => (
-              <div key={i} className="bg-emerald-50 rounded-xl p-4 text-center cursor-pointer hover:bg-emerald-100 transition border border-emerald-100">
-                <Activity className="mx-auto text-emerald-600 mb-2" size={24} />
-                <span className="font-bold text-emerald-900 text-sm">{topic}</span>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-16">
+            {['Prevention', 'Treatment', 'Lifestyle', 'Research'].map((topic, i) => (
+              <div key={i} className="group bg-white rounded-2xl p-6 text-center cursor-pointer hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 border border-slate-100">
+                <div className="w-12 h-12 bg-emerald-50 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:bg-emerald-600 group-hover:text-white transition">
+                  <Activity size={24} />
+                </div>
+                <span className="font-black text-slate-900 text-xs uppercase tracking-widest">{topic}</span>
               </div>
             ))}
           </div>
 
-          {/* Interleaved Mobile Ads */}
-          {isMobile && rightSlots.length > 0 && (
-            <div className="my-8 flex flex-col items-center bg-slate-50 border-y border-slate-200 py-6">
-              <p className="text-[10px] text-slate-400 uppercase tracking-widest mb-3 font-semibold">Advertisement</p>
-              {rightSlots.map((slotDef) => <AdSlot key={slotDef.id} slotDef={slotDef} {...adSlotProps} />)}
+          {/* ── NATIVE HEALTH AD ── */}
+          {contentSlots.length > 0 && (
+            <div className="w-full mb-16 p-10 bg-emerald-50 rounded-[2.5rem] border border-emerald-100 flex flex-col md:flex-row items-center gap-8">
+              <div className="flex-1">
+                <span className="bg-emerald-200 text-emerald-800 text-[9px] font-black px-2 py-0.5 rounded uppercase tracking-widest mb-4 inline-block">Trusted Partner</span>
+                <h3 className="text-2xl font-black text-emerald-900 mb-4 leading-tight">Personalized Care Solutions</h3>
+                <p className="text-emerald-700/80 mb-6 font-medium">Discover holistic approaches to wellness tailored to your unique biological profile. Proven results backed by clinical data.</p>
+                <button className="bg-emerald-600 text-white px-8 py-3 rounded-full font-black text-xs uppercase tracking-widest hover:bg-emerald-700 transition shadow-lg shadow-emerald-200">
+                  Learn More
+                </button>
+              </div>
+              <div className="w-full md:w-[300px] flex-shrink-0">
+                <AdSlot slotDef={contentSlots[0]} {...adSlotProps} />
+              </div>
             </div>
           )}
 
-          <h3 className="text-2xl font-black text-slate-900 border-b-2 border-emerald-500 pb-2 mb-6 inline-block">Latest Health Insights</h3>
-          <div className="space-y-6">
+          <h3 className="text-3xl font-black text-slate-900 tracking-tighter uppercase mb-10 border-b-4 border-emerald-100 pb-4">Scientific Journals</h3>
+          <div className="space-y-10">
             {content.articles.map((article, idx) => (
               <React.Fragment key={idx}>
-                <div className="flex gap-4 group cursor-pointer">
-                  <div className="w-1/3 aspect-video rounded-lg overflow-hidden flex-shrink-0">
-                    <img src={article.image} alt="Article" className="w-full h-full object-cover group-hover:scale-105 transition duration-500" />
+                <div className="flex gap-8 group cursor-pointer items-center">
+                  <div className="w-1/3 aspect-[4/3] rounded-2xl overflow-hidden flex-shrink-0 shadow-lg group-hover:shadow-emerald-200 transition">
+                    <img src={article.image} alt="Article" className="w-full h-full object-cover group-hover:scale-105 transition duration-700" />
                   </div>
                   <div>
-                    <h4 className="text-lg font-bold text-slate-900 group-hover:text-emerald-600 transition leading-snug mb-2">{article.title}</h4>
-                    <p className="text-sm text-slate-500 line-clamp-2">Learn more about how recent studies are reshaping our understanding of daily health habits and long-term vitality.</p>
+                    <span className="text-xs font-black text-emerald-500 uppercase tracking-[0.2em] mb-2 block">Clinical Review</span>
+                    <h4 className="text-2xl font-black text-slate-900 group-hover:text-emerald-600 transition leading-tight mb-4 tracking-tight">{article.title}</h4>
+                    <p className="text-slate-500 font-medium line-clamp-2 mb-4 leading-relaxed italic">Comprehensive analysis of metabolic efficiency and long-term vitality metrics.</p>
+                    <span className="text-xs font-black text-slate-950 uppercase tracking-widest border-b-2 border-emerald-500 pb-1">Read Full Study &rarr;</span>
                   </div>
                 </div>
-
-                {/* Inject Inline Ad every 2 articles */}
-                {(idx + 1) % 2 === 0 && contentSlots[Math.floor(idx / 2)] && (
-                  <div className="w-full my-6 py-6 border-y border-slate-100 flex flex-col items-center bg-slate-50 rounded-xl">
-                    <p className="text-[10px] text-slate-400 uppercase tracking-widest mb-3 font-semibold font-sans">Sponsored Advertisement</p>
-                    <AdSlot
-                      slotDef={contentSlots[Math.floor(idx / 2)]}
-                      activeSlotId={activeSlotId}
-                      slotCreativeMap={slotCreativeMap}
-                      showSlotLabels={showSlotLabels}
-                      isMobile={isMobile}
-                    />
-                  </div>
-                )}
               </React.Fragment>
             ))}
           </div>

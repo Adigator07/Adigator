@@ -92,64 +92,57 @@ export default function EntertainmentTemplate({
         )}
 
         {/* Content Rows */}
-        <div className={`px-4 md:px-12 flex flex-col gap-10 ${topSlots.length === 0 ? '-mt-10 md:-mt-20' : ''} relative z-20`}>
+        <div className={`px-4 md:px-12 flex flex-col gap-14 ${topSlots.length === 0 ? '-mt-10 md:-mt-20' : ''} relative z-20`}>
           
           <div className="w-full">
-            <h3 className="text-xl md:text-2xl font-bold text-gray-200 mb-4 flex items-center gap-1 group cursor-pointer">
-              Trending Now <ChevronRight className="opacity-0 group-hover:opacity-100 transition text-blue-500" size={24}/>
+            <h3 className="text-xl md:text-3xl font-black text-white mb-6 flex items-center gap-2 group cursor-pointer tracking-tighter uppercase">
+              Trending Now <ChevronRight className="text-red-600 group-hover:translate-x-1 transition" size={28}/>
             </h3>
-            <div className="flex gap-4 overflow-x-auto scrollbar-hide pb-4">
+            <div className="flex gap-6 overflow-x-auto scrollbar-hide pb-8">
               {content.movies.map((movie, idx) => (
                 <React.Fragment key={idx}>
-                  <div className="w-[140px] md:w-[220px] flex-shrink-0 group cursor-pointer relative">
-                    <div className="aspect-[2/3] md:aspect-video rounded-md overflow-hidden bg-gray-800 relative z-10 group-hover:scale-105 group-hover:z-30 transition duration-300 shadow-lg">
+                  <div className="w-[180px] md:w-[280px] flex-shrink-0 group cursor-pointer relative">
+                    <div className="aspect-video rounded-xl overflow-hidden bg-zinc-900 relative z-10 group-hover:scale-105 group-hover:ring-4 group-hover:ring-red-600 transition duration-500 shadow-2xl">
                       <img src={movie.image} alt={movie.title} className="w-full h-full object-cover" />
-                      {/* Overlay metadata that appears on hover for desktop */}
+                      <div className="absolute inset-0 bg-black/20 group-hover:bg-transparent transition duration-300"></div>
+                      <div className="absolute top-2 right-2 z-20 opacity-0 group-hover:opacity-100 transition">
+                         <Plus className="w-6 h-6 bg-black/60 rounded-full p-1" />
+                      </div>
                       {!isMobile && (
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent opacity-0 group-hover:opacity-100 transition duration-300 flex flex-col justify-end p-4">
-                          <h4 className="font-bold text-sm leading-tight mb-2">{movie.title}</h4>
-                          <div className="flex items-center gap-2">
-                            <span className="text-green-500 font-bold text-xs">{movie.match}</span>
-                            <span className="border border-gray-400 text-gray-300 text-[10px] px-1">TV-MA</span>
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition duration-300 flex flex-col justify-end p-6">
+                          <h4 className="font-black text-lg leading-tight mb-2 tracking-tight uppercase">{movie.title}</h4>
+                          <div className="flex items-center gap-3">
+                            <span className="text-red-600 font-black text-xs uppercase tracking-widest">{movie.match} Match</span>
+                            <span className="bg-white/20 backdrop-blur-md text-white text-[9px] px-2 py-0.5 rounded font-black">4K UHD</span>
                           </div>
                         </div>
                       )}
                     </div>
-                    {isMobile && <h4 className="font-medium text-xs mt-2 text-gray-300">{movie.title}</h4>}
+                    {isMobile && <h4 className="font-black text-xs mt-3 text-white uppercase tracking-tighter">{movie.title}</h4>}
                   </div>
-
-                  {/* Inject Inline Ad Tile every 4 movies */}
-                  {(idx + 1) % 4 === 0 && contentSlots[Math.floor(idx / 4)] && (
-                    <div className="w-[280px] md:w-[320px] flex-shrink-0 flex flex-col items-center justify-center bg-[#0a0a0a] border border-[#222] p-2 rounded-xl">
-                      <p className="text-[10px] text-gray-500 uppercase tracking-widest mb-1 font-semibold">Sponsored</p>
-                      <AdSlot
-                        slotDef={contentSlots[Math.floor(idx / 4)]}
-                        activeSlotId={activeSlotId}
-                        slotCreativeMap={slotCreativeMap}
-                        showSlotLabels={showSlotLabels}
-                        isMobile={isMobile}
-                      />
-                    </div>
-                  )}
                 </React.Fragment>
               ))}
             </div>
           </div>
 
-          {/* ── CONTENT INLINE ADS ── */}
+          {/* ── AD BREAK SECTION (Native full-width zone) ── */}
           {contentSlots.length > 0 && (
-             <div className="w-full flex flex-col items-center bg-[#0a0a0a] border border-[#222] p-4 rounded-xl">
-               <p className="text-[10px] text-gray-500 uppercase tracking-widest mb-3 font-semibold">Advertisement</p>
-               {contentSlots.map((slotDef) => <AdSlot key={slotDef.id} slotDef={slotDef} {...adSlotProps} />)}
-             </div>
+            <div className="w-full relative py-12 border-y border-white/5 bg-gradient-to-r from-red-600/5 via-zinc-900 to-blue-600/5">
+              <div className="flex flex-col items-center">
+                <span className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.2em] mb-6">Sponsored Ad Break</span>
+                <div className="max-w-4xl w-full flex justify-center scale-110 md:scale-125">
+                  <AdSlot slotDef={contentSlots[0]} {...adSlotProps} />
+                </div>
+              </div>
+            </div>
           )}
 
           <div className="w-full">
-            <h3 className="text-xl md:text-2xl font-bold text-gray-200 mb-4">New Releases</h3>
-            <div className="flex gap-4 overflow-x-auto scrollbar-hide pb-4">
+            <h3 className="text-xl md:text-3xl font-black text-white mb-6 uppercase tracking-tighter">Binge-worthy Collections</h3>
+            <div className="flex gap-6 overflow-x-auto scrollbar-hide pb-8">
               {[...content.movies].reverse().map((movie, idx) => (
-                <div key={idx} className="w-[140px] md:w-[220px] flex-shrink-0 group cursor-pointer relative">
-                  <div className="aspect-[2/3] md:aspect-video rounded-md overflow-hidden bg-gray-800 group-hover:scale-105 transition duration-300">
+                <div key={idx} className="w-[180px] md:w-[280px] flex-shrink-0 group cursor-pointer relative">
+                  <div className="aspect-video rounded-xl overflow-hidden bg-zinc-900 group-hover:scale-105 group-hover:ring-4 group-hover:ring-white transition duration-500 shadow-2xl">
                     <img src={movie.image} alt="Movie" className="w-full h-full object-cover" />
                   </div>
                 </div>

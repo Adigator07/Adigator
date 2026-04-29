@@ -78,6 +78,19 @@ export interface LocalAnalysisResult {
   audience_type: "Cold" | "Warm" | "Hot";
   ai_cta_strength: "Soft" | "Medium" | "Strong";
   improvement_suggestions: string[];
+  cta_text?: string;
+  cta_type?: string;
+  cta_goal_fit?: string;
+  cta_scores?: {
+    clarity: number;
+    urgency: number;
+    value: number;
+    visibility: number;
+    overall: number;
+  };
+  analysis?: string;
+  impact?: string;
+  improved_ctas?: string[];
 }
 
 // ── Constants ──────────────────────────────────────────────────────────────────
@@ -582,7 +595,7 @@ export async function analyzeCreativeLocal(
           overall_score:  overall,
           cta_presence:   cta.found,
           cta_strength:   cta.strength,
-          cta_detected:   cta.word,
+
           cta_recommendations: GOAL_CTA[goal],
           coreChecks,
           platformChecks,
@@ -606,6 +619,15 @@ export async function analyzeCreativeLocal(
           audience_type: aiResult.audience_type,
           ai_cta_strength: aiResult.cta_strength,
           improvement_suggestions: aiResult.improvement_suggestions,
+          // NEW 7-STEP CTA FIELDS
+          cta_detected: aiResult.cta_detected,
+          cta_text: aiResult.cta_text,
+          cta_type: aiResult.cta_type,
+          cta_goal_fit: aiResult.cta_goal_fit,
+          cta_scores: aiResult.cta_scores,
+          analysis: aiResult.analysis,
+          impact: aiResult.impact,
+          improved_ctas: aiResult.improved_ctas,
         });
       } catch (err) {
         reject(err);

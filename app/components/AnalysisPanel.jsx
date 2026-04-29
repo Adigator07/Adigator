@@ -309,7 +309,8 @@ export default function AnalysisPanel({
 
   const TABS = [
     { id: "overview",  label: "Overview" },
-    { id: "platform",  label: "Platform Checks" },
+    { id: "cta",      label: "CTA Analysis" },
+    { id: "platform",  label: "Platform" },
   ];
 
   return (
@@ -521,6 +522,20 @@ export default function AnalysisPanel({
                             ))}
                           </div>
                         )}
+
+                        {/* Improved CTAs from AI */}
+                        {selected.data.improved_ctas?.length > 0 && (
+                          <div className="pt-3 border-t border-white/10 mt-2">
+                            <p className="text-[10px] font-bold text-blue-400 uppercase mb-2">🚀 AI-Suggested CTAs</p>
+                            <div className="flex flex-wrap gap-2">
+                              {selected.data.improved_ctas.map((cta, i) => (
+                                <span key={i} className="px-3 py-1.5 rounded-full text-[10px] font-bold bg-blue-500/10 border border-blue-500/30 text-blue-300">
+                                  {cta}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     )}
 
@@ -559,7 +574,7 @@ export default function AnalysisPanel({
                         <MetricBar label="Contrast"         value={selected.data.contrast}                color="bg-blue-400" />
                         <MetricBar label="Text Clarity"     value={selected.data.text_clarity}            color="bg-sky-400" />
                         <MetricBar label="CTA Strength"     value={
-                          { none: 0, weak: 33, medium: 66, strong: 100 }[selected.data.cta_strength] ?? 0
+                          { none: 0, soft: 33, weak: 33, medium: 66, strong: 100 }[selected.data.cta_strength?.toLowerCase()] ?? 0
                         } color="bg-green-400" />
                       </div>
                     </div>
@@ -583,6 +598,120 @@ export default function AnalysisPanel({
                           </p>
                         )}
                     </div>
+                  </motion.div>
+                )}
+
+                {tab === "cta" && (
+                  <motion.div
+                    key="cta"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="space-y-4"
+                  >
+                    {/* CTA Detected Badge */}
+                    <div className="flex items-center gap-3 flex-wrap">
+                      <span className={`px-3 py-1.5 rounded-full text-xs font-bold border ${
+                        selected.data.cta_detected
+                          ? "bg-green-500/15 border-green-500/40 text-green-300"
+                          : "bg-red-500/15 border-red-500/40 text-red-300"
+                      }`}>
+                        {selected.data.cta_detected ? "✅ CTA Detected" : "❌ No CTA Found"}
+                      </span>
+                      {selected.data.cta_text && (
+                        <span className="px-3 py-1.5 rounded-full text-xs font-bold bg-white/10 border border-white/20 text-white">
+                          "{selected.data.cta_text}"
+                        </span>
+                      )}
+                      {selected.data.cta_type && selected.data.cta_type !== "None" && (
+                        <span className={`px-3 py-1.5 rounded-full text-xs font-bold border ${
+                          selected.data.cta_type === "Hard" ? "bg-orange-500/15 border-orange-500/40 text-orange-300"
+                          : selected.data.cta_type === "Medium" ? "bg-purple-500/15 border-purple-500/40 text-purple-300"
+                          : "bg-blue-500/15 border-blue-500/40 text-blue-300"
+                        }`}>
+                          {selected.data.cta_type} CTA
+                        </span>
+                      )}
+                      {selected.data.cta_goal_fit && selected.data.cta_goal_fit !== "None" && (
+                        <span className={`px-3 py-1.5 rounded-full text-xs font-bold border ${
+                          selected.data.cta_goal_fit === "Perfect Match" ? "bg-green-500/15 border-green-500/40 text-green-300"
+                          : selected.data.cta_goal_fit === "Acceptable" ? "bg-yellow-500/15 border-yellow-500/40 text-yellow-300"
+                          : "bg-red-500/15 border-red-500/40 text-red-300"
+                        }`}>
+                          {selected.data.cta_goal_fit === "Perfect Match" ? "✓" : selected.data.cta_goal_fit === "Mismatch" ? "⚠" : "~"} {selected.data.cta_goal_fit}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* CTA Quality Scores */}
+                    {selected.data.cta_detected && selected.data.cta_scores?.overall !== null ? (
+                      <div className="p-4 rounded-xl bg-white/5 border border-white/10 space-y-3">
+                        <p className="text-xs font-bold text-gray-300 uppercase tracking-wider">CTA Quality Scores</p>
+                        {[
+                          { label: "Clarity",    value: selected.data.cta_scores?.clarity,    color: "bg-sky-400",     desc: "Is the action obvious?" },
+                          { label: "Urgency",    value: selected.data.cta_scores?.urgency,    color: "bg-orange-400",  desc: "Time pressure implied?" },
+                          { label: "Value",      value: selected.data.cta_scores?.value,      color: "bg-emerald-400", desc: "Benefit to user?" },
+                          { label: "Visibility", value: selected.data.cta_scores?.visibility, color: "bg-purple-400",  desc: "Easy to notice?" },
+                        ].map(({ label, value, color, desc }) => (
+                          <div key={label}>
+                            <div className="flex justify-between text-xs mb-1">
+                              <span className="text-gray-400">{label} <span className="text-gray-600 text-[10px]">— {desc}</span></span>
+                              <span className="text-white font-bold">{value ?? 0}/10</span>
+                            </div>
+                            <div className="h-2 bg-white/10 rounded-full overflow-hidden">
+                              <motion.div
+                                initial={{ scaleX: 0 }}
+                                animate={{ scaleX: (value ?? 0) / 10 }}
+                                transition={{ duration: 0.5, ease: "easeOut" }}
+                                className={`h-full origin-left rounded-full ${color}`}
+                              />
+                            </div>
+                          </div>
+                        ))}
+                        <div className="mt-3 pt-3 border-t border-white/10 flex items-center justify-between">
+                          <p className="text-xs font-bold text-white">Overall CTA Strength</p>
+                          <span className={`text-2xl font-black ${
+                            (selected.data.cta_scores?.overall ?? 0) >= 7 ? "text-green-400"
+                            : (selected.data.cta_scores?.overall ?? 0) >= 4.5 ? "text-yellow-400"
+                            : "text-red-400"
+                          }`}>{selected.data.cta_scores?.overall ?? 0}/10</span>
+                        </div>
+                      </div>
+                    ) : !selected.data.cta_detected && (
+                      <div className="p-4 rounded-xl bg-red-500/5 border border-red-500/20">
+                        <p className="text-sm text-red-300 font-medium">No CTA detected — scores are not applicable.</p>
+                        <p className="text-xs text-gray-400 mt-1">{selected.data.impact || "A missing CTA significantly reduces user direction and click-through potential."}</p>
+                      </div>
+                    )}
+
+                    {/* Human-like Analysis */}
+                    {selected.data.analysis && (
+                      <div className="p-4 rounded-xl bg-fuchsia-500/5 border border-fuchsia-500/20">
+                        <p className="text-[10px] font-bold text-fuchsia-400 uppercase tracking-wider mb-2">📣 Marketer Analysis</p>
+                        <p className="text-sm text-gray-300 leading-relaxed">{selected.data.analysis}</p>
+                      </div>
+                    )}
+
+                    {/* Performance Impact */}
+                    {selected.data.impact && (
+                      <div className="p-4 rounded-xl bg-amber-500/5 border border-amber-500/20">
+                        <p className="text-[10px] font-bold text-amber-400 uppercase tracking-wider mb-2">📊 Performance Impact</p>
+                        <p className="text-sm text-gray-300 leading-relaxed">{selected.data.impact}</p>
+                      </div>
+                    )}
+
+                    {/* Improved CTAs */}
+                    {selected.data.improved_ctas?.length > 0 && (
+                      <div className="p-4 rounded-xl bg-green-500/5 border border-green-500/20 space-y-3">
+                        <p className="text-[10px] font-bold text-green-400 uppercase tracking-wider">🚀 Improved CTAs — Action + Benefit + Urgency</p>
+                        {selected.data.improved_ctas.map((cta, i) => (
+                          <div key={i} className="flex items-center gap-3 p-2 rounded-lg bg-white/5">
+                            <span className="w-5 h-5 rounded-full bg-green-500/20 text-green-300 text-[10px] font-black flex items-center justify-center shrink-0">{i+1}</span>
+                            <p className="text-sm text-white font-semibold">{cta}</p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </motion.div>
                 )}
 

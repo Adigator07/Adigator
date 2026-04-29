@@ -155,6 +155,10 @@ export default function PreviewTool() {
     scrollToSection(audienceSectionRef);
   }, [scrollToSection]);
 
+  const handleAudienceSelect = useCallback((id) => {
+    setAudienceType(id);
+  }, []);
+
   const allowedSizes = platform
     ? [...(PLATFORM_SIZES[platform]?.desktop || []), ...(PLATFORM_SIZES[platform]?.mobile || [])]
     : [];
@@ -556,7 +560,7 @@ export default function PreviewTool() {
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   {AUDIENCES.map((a) => (
-                    <SelectionCard key={a.id} selected={audienceType === a.id} onClick={() => setAudienceType(a.id)} activeClasses={`${a.color} ${a.border}`}>
+                    <SelectionCard key={a.id} selected={audienceType === a.id} onClick={() => handleAudienceSelect(a.id)} activeClasses={`${a.color} ${a.border}`}>
                       <div className="text-5xl mb-4">{a.emoji}</div>
                       <h3 className={`text-xl font-extrabold mb-2 ${audienceType === a.id ? "text-white" : "text-gray-200"}`}>{a.title}</h3>
                       <p className="text-sm text-gray-400 leading-relaxed">{a.desc}</p>
@@ -749,11 +753,7 @@ export default function PreviewTool() {
                   showSlotLabels={showSlotLabels}
                   selectedTemplate={selectedTemplate}
                   setSelectedTemplate={setSelectedTemplate}
-                  TEMPLATES={
-                    analysisResult?.[0]?.data?.recommendedTemplates?.length > 0
-                      ? TEMPLATES.filter(tpl => analysisResult[0].data.recommendedTemplates.includes(tpl.id))
-                      : TEMPLATES
-                  }
+                  TEMPLATES={TEMPLATES}
                   viewMode={viewMode}
                   onViewModeChange={setViewMode}
                 />

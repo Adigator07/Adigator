@@ -79,112 +79,126 @@ export default function EcommerceTemplate({
       )}
 
       {/* ── MAIN LAYOUT WRAPPER ── */}
-      <div className={`flex flex-1 ${isMobile ? 'flex-col px-4 py-4' : 'px-8 py-8 gap-8'} w-full max-w-[1200px] mx-auto bg-slate-50`}>
+      <div className={`flex flex-1 ${isMobile ? 'flex-col px-4 py-6' : 'px-8 py-8 gap-10'} w-full max-w-[1200px] mx-auto bg-slate-50`}>
         
-        {/* ── LEFT RAIL ZONE (Filters / Ads) ── */}
+        {/* ── LEFT RAIL ZONE (Filters) ── */}
         {!isMobile && (
-          <aside className="w-[160px] md:w-[200px] flex-shrink-0 flex flex-col gap-6 pt-2">
-            <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-              <h3 className="font-bold text-slate-900 mb-3">Categories</h3>
-              <ul className="text-sm text-slate-600 space-y-2">
-                <li className="font-semibold text-indigo-600">Smartphones</li>
-                <li className="hover:text-indigo-600 cursor-pointer">Laptops & PCs</li>
-                <li className="hover:text-indigo-600 cursor-pointer">Wearables</li>
-                <li className="hover:text-indigo-600 cursor-pointer">Audio</li>
-              </ul>
+          <aside className="w-[220px] flex-shrink-0 flex flex-col gap-8 pt-2">
+            <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+              <h3 className="font-black text-slate-900 mb-5 uppercase tracking-tighter text-sm">Filter Results</h3>
               
-              <h3 className="font-bold text-slate-900 mt-6 mb-3">Price</h3>
-              <ul className="text-sm text-slate-600 space-y-2">
-                <li><label className="flex items-center gap-2"><input type="checkbox" /> Under $50</label></li>
-                <li><label className="flex items-center gap-2"><input type="checkbox" /> $50 to $100</label></li>
-                <li><label className="flex items-center gap-2"><input type="checkbox" /> $100 to $500</label></li>
-              </ul>
+              <div className="space-y-6">
+                <div>
+                  <h4 className="text-xs font-bold text-slate-400 uppercase mb-3">Categories</h4>
+                  <ul className="text-sm text-slate-600 space-y-2">
+                    <li className="font-black text-indigo-600 flex items-center justify-between">Tech & Gadgets <span className="text-[10px] bg-indigo-50 px-1.5 rounded">24</span></li>
+                    <li className="hover:text-indigo-600 cursor-pointer transition">Home Office</li>
+                    <li className="hover:text-indigo-600 cursor-pointer transition">Entertainment</li>
+                  </ul>
+                </div>
+
+                <div>
+                  <h4 className="text-xs font-bold text-slate-400 uppercase mb-3">Price Range</h4>
+                  <ul className="text-sm text-slate-600 space-y-2">
+                    <li className="flex items-center gap-2 cursor-pointer hover:text-indigo-600"><div className="w-4 h-4 border-2 border-slate-300 rounded" /> Under $100</li>
+                    <li className="flex items-center gap-2 cursor-pointer hover:text-indigo-600"><div className="w-4 h-4 border-2 border-slate-300 rounded" /> $100 - $500</li>
+                    <li className="flex items-center gap-2 cursor-pointer hover:text-indigo-600"><div className="w-4 h-4 border-2 border-slate-300 rounded" /> Over $500</li>
+                  </ul>
+                </div>
+              </div>
             </div>
 
             {leftSlots.length > 0 && (
               <div className="flex flex-col gap-4 sticky top-40">
-                <p className="text-[10px] text-slate-400 uppercase tracking-widest text-center font-semibold">Advertisement</p>
-                {leftSlots.map((slotDef) => <AdSlot key={slotDef.id} slotDef={slotDef} {...adSlotProps} />)}
+                <p className="text-[10px] text-slate-400 uppercase tracking-widest text-center font-black">Sponsored</p>
+                {leftSlots.map((slotDef) => (
+                  <div key={slotDef.id} className="bg-white p-3 rounded-xl border border-indigo-100 shadow-xl shadow-indigo-500/5">
+                    <AdSlot slotDef={slotDef} {...adSlotProps} />
+                  </div>
+                ))}
               </div>
             )}
           </aside>
         )}
 
         {/* ── CENTER CONTENT ZONE ── */}
-        <main className="flex-1 flex flex-col min-w-0 gap-6">
+        <main className="flex-1 flex flex-col min-w-0 gap-10">
           
-          {/* Hero Banner (Promotional) */}
-          {contentSlots.length > 0 ? (
-             <div className="w-full flex flex-col items-center">
-               {contentSlots.map((slotDef) => <AdSlot key={slotDef.id} slotDef={slotDef} {...adSlotProps} />)}
-             </div>
-          ) : (
-            <div className="w-full aspect-[4/1] bg-gradient-to-r from-indigo-500 to-purple-600 rounded-2xl overflow-hidden relative shadow-md flex items-center px-8">
-              <div className="text-white z-10">
-                <h2 className="text-3xl font-black mb-2">{content.hero.headline}</h2>
-                <p className="text-indigo-100 mb-4">{content.hero.subtitle}</p>
-                <button className="bg-white text-indigo-600 font-bold px-6 py-2 rounded-full hover:bg-indigo-50 transition">Shop Now</button>
+          {/* Main Hero Promotion */}
+          <div className="w-full aspect-[21/7] bg-slate-900 rounded-[2rem] overflow-hidden relative shadow-2xl group">
+            <img src={content.hero.image} className="absolute inset-0 w-full h-full object-cover opacity-60 group-hover:scale-105 transition duration-[2s]" alt="Promo" />
+            <div className="absolute inset-0 bg-gradient-to-r from-slate-950 via-slate-950/40 to-transparent flex items-center px-12">
+              <div className="max-w-md">
+                <span className="bg-rose-600 text-white text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest mb-4 inline-block">Flash Sale</span>
+                <h2 className="text-4xl md:text-5xl font-black text-white mb-4 leading-tight tracking-tighter">{content.hero.headline}</h2>
+                <p className="text-slate-300 text-lg mb-8 leading-relaxed font-medium">{content.hero.subtitle}</p>
+                <button className="bg-white text-slate-950 font-black px-8 py-4 rounded-xl hover:bg-indigo-400 hover:text-white transition-all shadow-xl shadow-black/20 uppercase tracking-widest text-xs">
+                  Shop Now
+                </button>
               </div>
             </div>
-          )}
+          </div>
 
           {/* Product Grid */}
-          <div>
-            <h2 className="text-xl font-bold text-slate-900 mb-4">Featured Deals</h2>
-            <div className={`grid ${isMobile ? 'grid-cols-2 gap-3' : 'grid-cols-3 gap-6'}`}>
+          <section>
+            <div className="flex items-center justify-between mb-8 border-b border-slate-200 pb-4">
+              <h2 className="text-2xl font-black text-slate-900 tracking-tighter uppercase">Featured Inventory</h2>
+              <div className="flex gap-4 text-xs font-bold text-slate-500">
+                <span className="text-indigo-600 border-b-2 border-indigo-600 pb-4">Most Popular</span>
+                <span className="hover:text-indigo-600 cursor-pointer">New Arrivals</span>
+              </div>
+            </div>
+            
+            <div className={`grid ${isMobile ? 'grid-cols-2 gap-4' : 'grid-cols-3 gap-8'}`}>
               {content.products.map((item, idx) => (
                 <React.Fragment key={idx}>
-                  <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition relative group">
-                    <button className="absolute top-3 right-3 text-slate-300 hover:text-rose-500 transition z-10"><Heart size={20} /></button>
-                    <div className="aspect-square bg-slate-100 rounded-lg mb-4 flex items-center justify-center p-4">
-                      <img src={item.image} alt={item.name} className="object-contain w-full h-full mix-blend-multiply opacity-80" />
-                    </div>
-                    <h3 className="font-semibold text-slate-800 line-clamp-2 text-sm">{item.name}</h3>
-                    <div className="flex items-center gap-1 mt-2 text-amber-400">
-                      <Star size={14} fill="currentColor" />
-                      <Star size={14} fill="currentColor" />
-                      <Star size={14} fill="currentColor" />
-                      <Star size={14} fill="currentColor" />
-                      <Star size={14} className="text-slate-300" />
-                      <span className="text-xs text-slate-500 ml-1">({item.reviews})</span>
-                    </div>
-                    <div className="mt-3 flex items-center justify-between">
-                      <div>
-                        <span className="text-lg font-black text-slate-900">${item.price}</span>
-                        <span className="text-xs text-slate-400 line-through ml-2">${item.oldPrice}</span>
+                  {/* NATIVE AD CARD: Inject every 2nd product if we have slots */}
+                  {idx > 0 && idx % 2 === 0 && contentSlots[Math.floor(idx / 2) - 1] && (
+                    <div className="bg-white p-5 rounded-3xl border-2 border-indigo-100 shadow-xl shadow-indigo-500/5 relative group flex flex-col">
+                      <div className="absolute top-4 left-4 z-10">
+                        <span className="bg-indigo-600 text-white text-[9px] font-black px-2 py-0.5 rounded uppercase tracking-widest shadow-lg shadow-indigo-500/20">Sponsored</span>
+                      </div>
+                      <div className="aspect-square bg-slate-50 rounded-2xl mb-5 overflow-hidden border border-slate-100 flex items-center justify-center p-2">
+                        <AdSlot slotDef={contentSlots[Math.floor(idx / 2) - 1]} {...adSlotProps} />
+                      </div>
+                      <div className="flex-1 flex flex-col justify-between">
+                        <div>
+                          <h3 className="font-black text-slate-900 line-clamp-1 text-sm uppercase tracking-tight mb-1">Premium Partner</h3>
+                          <p className="text-[11px] text-slate-500 leading-tight mb-4">Discover specialized solutions designed for high-performance workflows.</p>
+                        </div>
+                        <button className="w-full bg-slate-900 text-white py-3 rounded-xl font-black text-[10px] hover:bg-indigo-600 transition-all uppercase tracking-widest shadow-lg shadow-slate-200 mt-2">
+                          View Details
+                        </button>
                       </div>
                     </div>
-                    <button className="w-full mt-4 bg-indigo-600 text-white font-bold text-sm py-2 rounded-lg hover:bg-indigo-700 transition opacity-0 group-hover:opacity-100">
-                      Add to Cart
+                  )}
+
+                  <div className="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm hover:shadow-2xl hover:border-indigo-200 transition-all duration-500 relative group flex flex-col">
+                    <button className="absolute top-4 right-4 text-slate-200 hover:text-rose-500 transition-all z-10 bg-white shadow-sm p-2 rounded-full"><Heart size={18} /></button>
+                    <div className="aspect-square bg-slate-50 rounded-2xl mb-5 flex items-center justify-center p-8 group-hover:scale-105 transition duration-700">
+                      <img src={item.image} alt={item.name} className="object-contain w-full h-full mix-blend-multiply drop-shadow-2xl" />
+                    </div>
+                    <div className="flex-1 flex flex-col">
+                      <h3 className="font-black text-slate-900 line-clamp-2 text-sm leading-snug mb-2 group-hover:text-indigo-600 transition">{item.name}</h3>
+                      <div className="flex items-center gap-1 text-amber-400 mb-4">
+                        {[...Array(4)].map((_, i) => <Star key={i} size={11} fill="currentColor" />)}
+                        <Star size={11} className="text-slate-200" />
+                        <span className="text-[10px] text-slate-400 font-black ml-1 uppercase tracking-tighter">{item.reviews} reviews</span>
+                      </div>
+                      <div className="flex items-baseline gap-2 mb-6">
+                        <span className="text-2xl font-black text-slate-900 tracking-tighter">${item.price}</span>
+                        <span className="text-xs text-slate-400 line-through">${item.oldPrice}</span>
+                        <span className="ml-auto text-[10px] text-green-600 font-black uppercase tracking-widest">In Stock</span>
+                      </div>
+                    </div>
+                    <button className="w-full bg-indigo-600 text-white py-4 rounded-xl font-black text-xs hover:bg-slate-950 transition-all uppercase tracking-widest shadow-xl shadow-indigo-100 active:scale-95">
+                      Buy Now
                     </button>
                   </div>
-
-                  {/* Inject Inline Ad every 3 products */}
-                  {(idx + 1) % 3 === 0 && contentSlots[Math.floor(idx / 3)] && (
-                    <div className="col-span-full w-full my-4 py-6 border-y border-slate-100 flex flex-col items-center bg-slate-50">
-                      <p className="text-[10px] text-slate-400 uppercase tracking-widest mb-2 font-semibold">Sponsored Advertisement</p>
-                      <AdSlot
-                        slotDef={contentSlots[Math.floor(idx / 3)]}
-                        activeSlotId={activeSlotId}
-                        slotCreativeMap={slotCreativeMap}
-                        showSlotLabels={showSlotLabels}
-                        isMobile={isMobile}
-                      />
-                    </div>
-                  )}
                 </React.Fragment>
               ))}
             </div>
-          </div>
-          
-          {/* Interleaved Mobile Ads */}
-          {isMobile && rightSlots.length > 0 && (
-            <div className="my-4 flex flex-col items-center">
-              <p className="text-[10px] text-slate-400 uppercase tracking-widest mb-2 font-semibold">Advertisement</p>
-              {rightSlots.map((slotDef) => <AdSlot key={slotDef.id} slotDef={slotDef} {...adSlotProps} />)}
-            </div>
-          )}
-
+          </section>
         </main>
 
         {/* ── RIGHT RAIL ZONE (Desktop Only) ── */}

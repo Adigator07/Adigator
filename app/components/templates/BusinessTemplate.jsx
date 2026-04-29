@@ -46,21 +46,23 @@ export default function BusinessTemplate({
           </div>
         </div>
         {/* Ticker Tape */}
-        <div className="bg-[#1e293b] py-2 overflow-hidden whitespace-nowrap border-b border-slate-800">
-          <div className="animate-pulse flex items-center gap-8 text-xs font-mono text-slate-300 px-4">
-            <span className="text-green-400">▲ S&P 500 5,204.30 (+0.8%)</span>
-            <span className="text-red-400">▼ NASDAQ 16,342.10 (-0.2%)</span>
-            <span className="text-green-400">▲ DOW 39,120.50 (+1.1%)</span>
-            <span className="text-green-400">▲ BTC $68,420 (+2.4%)</span>
-            <span className="text-red-400">▼ OIL $81.20 (-1.5%)</span>
+        <div className="bg-[#1e293b] py-2 overflow-hidden whitespace-nowrap border-b border-slate-800 shadow-inner">
+          <div className="animate-pulse flex items-center gap-10 text-[10px] font-black font-mono text-slate-300 px-6 tracking-widest">
+            <span className="flex items-center gap-1"><TrendingUp className="w-3 h-3 text-green-400"/> S&P 500 5,204.30 (+0.8%)</span>
+            <span className="flex items-center gap-1 text-red-400">▼ NASDAQ 16,342.10 (-0.2%)</span>
+            <span className="flex items-center gap-1"><TrendingUp className="w-3 h-3 text-green-400"/> DOW 39,120.50 (+1.1%)</span>
+            <span className="flex items-center gap-1 text-green-400">▲ BTC $68,420 (+2.4%)</span>
+            <span className="flex items-center gap-1 text-red-400">▼ OIL $81.20 (-1.5%)</span>
+            <span className="flex items-center gap-1 text-green-400">▲ GOLD $2,340 (+0.5%)</span>
           </div>
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 py-8">
+      <main className="max-w-7xl mx-auto px-6 py-12">
         {/* ── TOP BANNER ── */}
         {topSlots.length > 0 && (
-          <div className="w-full flex justify-center mb-8 border-b border-slate-200 pb-8">
+          <div className="w-full flex flex-col items-center mb-12 border-b border-slate-200 pb-10">
+            <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4">Institutional Partners</span>
             <AdSlot
               slotDef={topSlots[0]}
               activeSlotId={activeSlotId}
@@ -72,38 +74,42 @@ export default function BusinessTemplate({
         )}
 
         {/* ── HERO SECTION ── */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 mb-12">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 mb-16">
           {/* Main Hero */}
-          <div className="lg:col-span-8 group cursor-pointer relative overflow-hidden rounded-xl">
-            <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-slate-900/40 to-transparent z-10" />
+          <div className="lg:col-span-8 group cursor-pointer relative overflow-hidden rounded-2xl shadow-2xl border border-slate-200">
+            <div className="absolute inset-0 bg-gradient-to-t from-[#0f172a] via-[#0f172a]/60 to-transparent z-10" />
             <img
               src={content.hero.image}
               alt="Hero"
-              className="w-full h-[500px] object-cover group-hover:scale-105 transition duration-700"
+              className="w-full h-[550px] object-cover group-hover:scale-105 transition duration-[3s]"
             />
-            <div className="absolute bottom-0 left-0 p-8 z-20 w-full">
-              <div className="inline-flex items-center gap-2 px-3 py-1 bg-blue-600 text-white text-xs font-bold rounded mb-4">
-                <Globe className="w-3 h-3" /> EXCLUSIVE
+            <div className="absolute bottom-0 left-0 p-10 z-20 w-full">
+              <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-blue-600 text-white text-[10px] font-black rounded-full mb-6 tracking-widest uppercase shadow-lg shadow-blue-500/20">
+                <Briefcase className="w-3 h-3" /> Executive Briefing
               </div>
-              <h1 className="text-4xl md:text-5xl font-extrabold text-white leading-tight mb-4 group-hover:text-blue-400 transition">
+              <h1 className="text-4xl md:text-6xl font-black text-white leading-[1.05] mb-6 group-hover:text-blue-400 transition tracking-tighter">
                 {content.hero.headline}
               </h1>
-              <p className="text-lg text-slate-200 max-w-3xl line-clamp-2">
+              <p className="text-xl text-slate-300 max-w-2xl line-clamp-2 font-medium leading-relaxed">
                 {content.hero.subtitle}
               </p>
             </div>
           </div>
 
           {/* Right Hero Side - Ads or Trending */}
-          <div className="lg:col-span-4 flex flex-col gap-6">
-            <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
-              <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-4 flex items-center gap-2">
-                <BarChart2 className="w-4 h-4" /> Market Movers
+          <div className="lg:col-span-4 flex flex-col gap-8">
+            <div className="bg-white p-8 rounded-2xl border border-slate-200 shadow-sm relative overflow-hidden">
+              <div className="absolute top-0 right-0 p-4 opacity-5">
+                 <BarChart2 size={120} />
+              </div>
+              <h3 className="text-xs font-black text-slate-400 uppercase tracking-[0.2em] mb-6 flex items-center gap-2">
+                <TrendingUp className="w-4 h-4 text-blue-500" /> Market Intelligence
               </h3>
-              <div className="flex flex-col gap-4">
-                {content.trending.slice(0, 4).map((title, i) => (
-                  <div key={i} className="group cursor-pointer border-b border-slate-100 last:border-0 pb-4 last:pb-0">
-                    <h4 className="font-semibold text-slate-800 leading-snug group-hover:text-blue-600 transition">
+              <div className="flex flex-col gap-6 relative z-10">
+                {content.trending.slice(0, 3).map((title, i) => (
+                  <div key={i} className="group cursor-pointer border-b border-slate-100 last:border-0 pb-6 last:pb-0">
+                    <span className="text-[10px] font-black text-blue-600 uppercase tracking-widest mb-1 block">Analysis 0{i+1}</span>
+                    <h4 className="font-black text-slate-900 leading-snug group-hover:text-blue-600 transition tracking-tight">
                       {title}
                     </h4>
                   </div>
@@ -113,7 +119,8 @@ export default function BusinessTemplate({
             
             {/* Sidebar Ad */}
             {rightSlots.length > 0 && (
-              <div className="bg-slate-100 p-4 rounded-xl flex items-center justify-center min-h-[250px]">
+              <div className="bg-slate-900 p-6 rounded-2xl flex flex-col items-center justify-center min-h-[300px] border border-slate-800 shadow-xl">
+                 <span className="text-[9px] font-black text-slate-500 uppercase tracking-[0.2em] mb-4">Strategic Placement</span>
                 <AdSlot
                   slotDef={rightSlots[0]}
                   activeSlotId={activeSlotId}

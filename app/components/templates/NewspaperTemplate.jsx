@@ -90,11 +90,14 @@ export default function NewspaperTemplate({
         {/* ── CENTER CONTENT ZONE ── */}
         <main className="flex-1 flex flex-col min-w-0">
           <div className="space-y-4 mb-6">
-            <span className="text-blue-600 font-bold uppercase tracking-wider text-xs">World News</span>
-            <h1 className={`${isMobile ? 'text-3xl' : 'text-5xl'} font-extrabold text-slate-900 leading-tight tracking-tight`}>
+            <div className="flex items-center gap-2">
+              <span className="bg-red-600 text-white px-2 py-0.5 text-[10px] font-black uppercase rounded animate-pulse">Breaking News</span>
+              <span className="text-blue-600 font-bold uppercase tracking-wider text-xs">World News</span>
+            </div>
+            <h1 className={`${isMobile ? 'text-3xl' : 'text-5xl'} font-black text-slate-900 leading-[1.1] tracking-tight`}>
               {content.hero.headline}
             </h1>
-            <h2 className="text-lg md:text-xl text-slate-500 leading-relaxed font-medium">
+            <h2 className="text-lg md:text-xl text-slate-500 leading-relaxed font-medium border-l-4 border-slate-200 pl-4">
               {content.hero.subtitle}
             </h2>
             
@@ -104,8 +107,8 @@ export default function NewspaperTemplate({
                   <img src="https://i.pravatar.cc/100?img=68" alt="Author" className="w-full h-full object-cover" />
                 </div>
                 <div>
-                  <p className="text-sm font-bold text-slate-900">By Sarah Jenkins</p>
-                  <p className="text-xs text-slate-500">Updated 2 hours ago</p>
+                  <p className="text-sm font-bold text-slate-900">By Michael Foster</p>
+                  <p className="text-xs text-slate-500">Updated 4 min ago</p>
                 </div>
               </div>
               <div className="flex gap-2">
@@ -116,39 +119,38 @@ export default function NewspaperTemplate({
           </div>
 
           {/* Hero Image */}
-          <div className="w-full aspect-[16/9] mb-8 bg-slate-100 relative group overflow-hidden">
+          <div className="w-full aspect-[16/9] mb-8 bg-slate-100 relative group overflow-hidden rounded-lg shadow-inner">
             <img
               src={content.hero.image}
               alt="Hero"
               className="w-full h-full object-cover"
             />
-            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-4">
-              <p className="text-white text-xs opacity-80">Staff Photographer / The Daily Chronicle</p>
+            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-6">
+              <p className="text-white text-xs opacity-90 font-medium">LATEST: {content.hero.headline}</p>
             </div>
           </div>
 
           <article className={`prose ${isMobile ? 'prose-sm' : 'prose-base md:prose-lg'} text-slate-700 max-w-none`}>
-            <p className="text-xl font-medium leading-relaxed text-slate-800 mb-6 drop-cap">
-              The landscape of web development is undergoing a massive shift. With the introduction of advanced rendering patterns and Edge computing, the gap between desktop software and web applications is closing faster than ever.
+            <p className="text-xl font-bold leading-relaxed text-slate-800 mb-6 drop-cap">
+              The digital landscape is evolving at a breakneck pace. With the advent of multi-agentic AI systems, the way we interact with data is fundamentally changing.
             </p>
-            <p className="mb-6">
-              Developers have long struggled with the balance between client-side interactivity and server-side performance. For years, the industry bounced between pure Single Page Applications (SPAs) and heavy server-rendered monolithic apps. Neither approach was perfect, leading to compromised user experiences or bloated bundles.
-            </p>
-            
-            {/* Interleaved Mobile Ads */}
-            {isMobile && rightSlots.length > 0 && (
-              <div className="my-8 flex flex-col items-center bg-slate-50 border-y border-slate-200 py-6">
-                <p className="text-[10px] text-slate-400 uppercase tracking-widest mb-3 font-semibold">Advertisement</p>
-                {rightSlots.map((slotDef) => <AdSlot key={slotDef.id} slotDef={slotDef} {...adSlotProps} />)}
+
+            {/* In-article Ad Slot 1 */}
+            {contentSlots.length > 0 && (
+              <div className="my-10 flex flex-col items-center bg-slate-50 border-y border-slate-200 py-8 rounded-sm">
+                <p className="text-[10px] text-slate-400 uppercase tracking-widest mb-4 font-bold">Advertisement</p>
+                <AdSlot slotDef={contentSlots[0]} {...adSlotProps} />
               </div>
             )}
 
-            <h3 className="text-2xl font-bold text-slate-900 mt-8 mb-4">A New Paradigm Emerges</h3>
             <p className="mb-6">
-              Enter the era of dynamic layout engines and streaming architectures. By granularly loading components and streaming HTML as it generates, we can deliver rich, interactive experiences without the massive initial payload penalty.
+              Global markets have shown unprecedented resilience in the face of shifting geopolitical tides. Analysts point to the rapid adoption of renewable energy technologies as a key driver for long-term industrial growth across both emerging and established economies.
             </p>
-            <blockquote className="border-l-4 border-blue-600 pl-4 py-2 my-6 italic font-medium text-slate-800 bg-blue-50/50 rounded-r-lg">
-              "We are no longer building web pages. We are engineering highly distributed, reactive UI systems that execute globally."
+            <p className="mb-6">
+              Meanwhile, local communities are finding new ways to bridge the digital divide. Grassroots initiatives focusing on AI literacy are empowering a new generation of creators, ensuring that the benefits of technological progress are felt by all.
+            </p>
+            <blockquote className="border-l-4 border-red-600 pl-4 py-3 my-8 italic font-bold text-slate-900 bg-red-50/50 rounded-r-lg text-2xl leading-tight">
+              "The future of media isn't just about speed; it's about context, depth, and the ability to cut through the noise."
             </blockquote>
           </article>
 
