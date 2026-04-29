@@ -4,6 +4,9 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "Adigator — Creative Intelligence Platform",
   description: "Analyze and optimize your ad creatives with AI",
+  icons: {
+    icon: "/Screenshot_2026-04-29_134437-removebg-preview.png",
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
