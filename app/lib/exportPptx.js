@@ -184,128 +184,182 @@ function buildSingleSlide(prs, validCreatives, templateName) {
 }
 
 /**
- * Multiple-slides export: one slide per creative.
+ * Build a cover / executive summary slide
  */
-function buildMultipleSlides(prs, validCreatives, templateName) {
+function buildCoverSlide(prs, { templateName, goal, platform, audienceType, total }) {
+  const slide = prs.addSlide();
+  addSlideBackground(slide);
+
+  // Purple accent bar
+  slide.addShape(prs.ShapeType.rect, { x: 0, y: 0, w: SLIDE_W, h: 0.06, fill: { color: ACCENT_COLOR } });
+
+  // Adigator logo text
+  slide.addText("ADIGATOR", {
+    x: 0.5, y: 0.4, w: 4, h: 0.5,
+    fontSize: 28, bold: true, color: "7C3AED", fontFace: "Arial",
+  });
+  slide.addText("Creative Analysis Report", {
+    x: 0.5, y: 0.9, w: 6, h: 0.35,
+    fontSize: 14, color: "94A3B8", fontFace: "Arial",
+  });
+
+  // Divider
+  slide.addShape(prs.ShapeType.rect, { x: 0.5, y: 1.35, w: SLIDE_W - 1, h: 0.02, fill: { color: "334155" } });
+
+  // Campaign details
+  const details = [
+    ["Campaign Goal",  (goal || "—").charAt(0).toUpperCase() + (goal || "").slice(1)],
+    ["Platform",      (platform || "—").charAt(0).toUpperCase() + (platform || "").slice(1)],
+    ["Audience Type", (audienceType || "—").charAt(0).toUpperCase() + (audienceType || "").slice(1)],
+    ["Template",      templateName],
+    ["Creatives",     `${total} uploaded`],
+  ];
+
+  details.forEach(([label, value], i) => {
+    const y = 1.6 + i * 0.5;
+    slide.addText(label, { x: 0.5, y, w: 3, h: 0.35, fontSize: 11, color: "94A3B8", fontFace: "Arial" });
+    slide.addText(value, { x: 3.5, y, w: 5, h: 0.35, fontSize: 13, bold: true, color: TEXT_COLOR, fontFace: "Arial" });
+  });
+
+  // Generated date
+  slide.addText(`Generated: ${new Date().toLocaleDateString("en-US", { dateStyle: "long" })}`, {
+    x: 0.5, y: SLIDE_H - 0.6, w: SLIDE_W - 1, h: 0.3,
+    fontSize: 9, color: "475569", fontFace: "Arial",
+  });
+
+  addFooter(slide, 1, total + 2);
+}
+
+/**
+ * Multiple-slides export: cover + one insight slide per creative.
+ */
+function buildMultipleSlides(prs, validCreatives, templateName, meta = {}) {
   const total = validCreatives.length;
+
+  // Slide 1: Cover
+  buildCoverSlide(prs, { templateName, ...meta, total });
 
   validCreatives.forEach((creative, i) => {
     const slide = prs.addSlide();
     addSlideBackground(slide);
 
-    // Accent bar top-left
-    slide.addShape(prs.ShapeType.rect, {
-      x: 0,
-      y: 0,
-      w: 0.06,
-      h: SLIDE_H,
-      fill: { color: ACCENT_COLOR },
-      line: { color: ACCENT_COLOR },
-    });
+    const data = creative.analysisData || {};
 
-    // Creative name
+    // Accent bar
+    slide.addShape(prs.ShapeType.rect, { x: 0, y: 0, w: 0.06, h: SLIDE_H, fill: { color: ACCENT_COLOR }, line: { color: ACCENT_COLOR } });
+
+    // Creative name + size
     slide.addText(creative.name || `Creative ${i + 1}`, {
-      x: 0.4,
-      y: 0.2,
-      w: SLIDE_W - 2,
-      h: 0.5,
-      fontSize: 22,
-      bold: true,
-      color: TEXT_COLOR,
-      fontFace: "Arial",
+      x: 0.4, y: 0.2, w: SLIDE_W - 2, h: 0.5,
+      fontSize: 20, bold: true, color: TEXT_COLOR, fontFace: "Arial",
+    });
+    slide.addText(`${creative.size}  ·  ${templateName}`, {
+      x: 0.4, y: 0.68, w: SLIDE_W - 1, h: 0.3,
+      fontSize: 10, color: MUTED_COLOR, fontFace: "Arial",
     });
 
-    // Size + template badge
-    slide.addText(`${creative.size}  ·  ${templateName}`, {
-      x: 0.4,
-      y: 0.68,
-      w: SLIDE_W - 1,
-      h: 0.3,
-      fontSize: 10,
-      color: MUTED_COLOR,
-      fontFace: "Arial",
-    });
+    // BestFor badge text
+    const bestFor = data.bestFor;
+    if (bestFor) {
+      slide.addText(`Best for: ${bestFor}`, {
+        x: SLIDE_W - 3.5, y: 0.25, w: 3, h: 0.3,
+        fontSize: 10, bold: true, color: "A78BFA", fontFace: "Arial", align: "right",
+      });
+    }
 
     // Separator
-    slide.addShape(prs.ShapeType.rect, {
-      x: 0.4,
-      y: 1.05,
-      w: SLIDE_W - 0.8,
-      h: 0.02,
-      fill: { color: "334155" },
-      line: { color: "334155" },
-    });
+    slide.addShape(prs.ShapeType.rect, { x: 0.4, y: 1.0, w: SLIDE_W - 0.8, h: 0.02, fill: { color: "334155" } });
 
-    // Creative image centred
-    const maxW = SLIDE_W - 1.2;
-    const maxH = SLIDE_H - 2.0;
-
-    const [natW, natH] = creative.size.split("x").map(Number);
-    let imgW = maxW;
-    let imgH = (natH / natW) * imgW;
-    if (imgH > maxH) {
-      imgH = maxH;
-      imgW = (natW / natH) * imgH;
-    }
-    const imgX = (SLIDE_W - imgW) / 2;
-    const imgY = 1.2 + (maxH - imgH) / 2;
-
+    // Left side — creative image (60% width)
+    const imgAreaW = SLIDE_W * 0.55;
+    const imgAreaH = SLIDE_H - 2.0;
     if (creative.url) {
       try {
-        slide.addImage({
-          data: imgSrc(creative.url),
-          x: imgX,
-          y: imgY,
-          w: imgW,
-          h: imgH,
-          sizing: { type: "contain", w: imgW, h: imgH },
-        });
-      } catch {
-        slide.addShape(prs.ShapeType.rect, {
-          x: imgX,
-          y: imgY,
-          w: imgW,
-          h: imgH,
-          fill: { color: "1E293B" },
-          line: { color: "334155" },
-        });
-        slide.addText("Image unavailable", {
-          x: imgX,
-          y: imgY + imgH / 2 - 0.2,
-          w: imgW,
-          h: 0.4,
-          fontSize: 12,
-          color: MUTED_COLOR,
-          align: "center",
-        });
-      }
+        const [natW, natH] = creative.size.split("x").map(Number);
+        let imgW = imgAreaW;
+        let imgH = natH ? (natH / natW) * imgW : imgAreaH;
+        if (imgH > imgAreaH) { imgH = imgAreaH; imgW = natW ? (natW / natH) * imgH : imgAreaW; }
+        const imgX = 0.4 + (imgAreaW - imgW) / 2;
+        const imgY = 1.15 + (imgAreaH - imgH) / 2;
+        slide.addImage({ data: imgSrc(creative.url), x: imgX, y: imgY, w: imgW, h: imgH, sizing: { type: "contain", w: imgW, h: imgH } });
+      } catch {}
     }
 
-    addFooter(slide, i + 1, total);
+    // Right side — insights panel
+    const rx = SLIDE_W * 0.6;
+    const rw = SLIDE_W - rx - 0.3;
+    let ry = 1.15;
+
+    // Overall score
+    const score = data.overall_score ?? "—";
+    slide.addText("Overall Score", { x: rx, y: ry, w: rw, h: 0.22, fontSize: 9, color: MUTED_COLOR, fontFace: "Arial" });
+    slide.addText(`${score}/100`, { x: rx, y: ry + 0.2, w: rw, h: 0.38, fontSize: 26, bold: true, color: score >= 70 ? "34D399" : score >= 45 ? "FBBF24" : "F87171", fontFace: "Arial" });
+    ry += 0.7;
+
+    // Key metrics
+    const metrics = [
+      ["Goal Fit",       data.goal_fit],
+      ["Visibility",     data.adVisibilityScore],
+      ["Visual Quality", data.visual_quality],
+    ];
+    metrics.forEach(([label, val]) => {
+      if (val == null) return;
+      slide.addText(`${label}: ${val}/100`, { x: rx, y: ry, w: rw, h: 0.25, fontSize: 9, color: MUTED_COLOR, fontFace: "Arial" });
+      ry += 0.25;
+    });
+
+    ry += 0.15;
+
+    // AI Reasoning
+    if (data.funnelReasoning) {
+      slide.addText("AI Analysis", { x: rx, y: ry, w: rw, h: 0.2, fontSize: 9, bold: true, color: "7C3AED", fontFace: "Arial" });
+      ry += 0.22;
+      slide.addText(data.funnelReasoning.slice(0, 200), {
+        x: rx, y: ry, w: rw, h: 0.8,
+        fontSize: 8, color: "CBD5E1", fontFace: "Arial", wrap: true,
+      });
+      ry += 0.85;
+    }
+
+    // Improvement suggestions
+    const suggestions = data.improvement_suggestions || data.suggestions || [];
+    if (suggestions.length > 0) {
+      slide.addText("Key Recommendations", { x: rx, y: ry, w: rw, h: 0.2, fontSize: 9, bold: true, color: "FBBF24", fontFace: "Arial" });
+      ry += 0.22;
+      suggestions.slice(0, 3).forEach((s) => {
+        const safeText = typeof s === "string" ? s.slice(0, 120) : "";
+        slide.addText(`• ${safeText}`, {
+          x: rx, y: ry, w: rw, h: 0.3,
+          fontSize: 7.5, color: "94A3B8", fontFace: "Arial", wrap: true,
+        });
+        ry += 0.32;
+      });
+    }
+
+    addFooter(slide, i + 2, total + 2);
   });
 }
 
 /**
  * Main export function.
  *
- * @param {Object[]} validCreatives - array of creative objects { id, name, url, size }
+ * @param {Object[]} validCreatives - array of { id, name, url, size, analysisData? }
  * @param {"single"|"multiple"} viewMode
- * @param {string} templateName - human-readable template name (e.g. "Newspaper")
+ * @param {string} templateName
+ * @param {Object} meta - { goal, platform, audienceType }
  */
-export async function exportToPptx(validCreatives, viewMode = "multiple", templateName = "Template") {
+export async function exportToPptx(validCreatives, viewMode = "multiple", templateName = "Template", meta = {}) {
   const prs = new pptxgen();
-
-  // Presentation metadata
-  prs.layout = "LAYOUT_WIDE"; // 13.33 x 7.5 inches (16:9)
-  prs.author = "Adigator Creative Studio";
-  prs.company = "Adigator";
-  prs.subject = "Creative Preview";
-  prs.title = `Adigator — ${templateName} Preview`;
+  prs.layout   = "LAYOUT_WIDE";
+  prs.author   = "Adigator Creative Studio";
+  prs.company  = "Adigator";
+  prs.subject  = "Creative Analysis Report";
+  prs.title    = `Adigator — ${templateName} Report`;
 
   if (viewMode === "single") {
     buildSingleSlide(prs, validCreatives, templateName);
   } else {
-    buildMultipleSlides(prs, validCreatives, templateName);
+    buildMultipleSlides(prs, validCreatives, templateName, meta);
   }
 
   const filename = `Adigator_${templateName}_${viewMode === "single" ? "SingleSlide" : `${validCreatives.length}Slides`}.pptx`;

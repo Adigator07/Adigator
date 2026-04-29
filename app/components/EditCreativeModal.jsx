@@ -44,6 +44,8 @@ export default function EditCreativeModal({ creative, onApply, onClose }) {
   const [compareMode, setCompareMode] = useState(false);
   const [sliderPos, setSliderPos] = useState(50);
   const [isDraggingSlider, setIsDraggingSlider] = useState(false);
+  const [customW, setCustomW] = useState("");
+  const [customH, setCustomH] = useState("");
 
   // Parse creative's original dimensions
   const [origW, origH] = creative.size.split("x").map(Number);
@@ -187,6 +189,44 @@ export default function EditCreativeModal({ creative, onApply, onClose }) {
                     </motion.button>
                   ))}
                 </div>
+              </div>
+
+              {/* Custom Size */}
+              <div className="pt-2">
+                <p className="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-3">
+                  Custom Size
+                </p>
+                <div className="flex gap-2 mb-3">
+                  <input
+                    type="number"
+                    placeholder="W"
+                    value={customW}
+                    onChange={(e) => setCustomW(e.target.value)}
+                    className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-white text-sm outline-none focus:border-purple-500/50 focus:bg-purple-500/5 transition"
+                  />
+                  <span className="text-gray-500 self-center font-bold">×</span>
+                  <input
+                    type="number"
+                    placeholder="H"
+                    value={customH}
+                    onChange={(e) => setCustomH(e.target.value)}
+                    className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-white text-sm outline-none focus:border-purple-500/50 focus:bg-purple-500/5 transition"
+                  />
+                </div>
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  disabled={!customW || !customH || isProcessing}
+                  onClick={() => {
+                    const w = parseInt(customW);
+                    const h = parseInt(customH);
+                    setSelectedSize({ label: `${w}x${h}`, w, h, score: 100 });
+                    handleResize(creative.url, creative.size, w, h);
+                  }}
+                  className="w-full py-2.5 bg-white/5 border border-white/10 hover:border-white/20 hover:bg-white/10 rounded-xl text-xs font-bold text-white uppercase tracking-wider transition disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  Apply Custom Size
+                </motion.button>
               </div>
 
               {/* Action Buttons */}

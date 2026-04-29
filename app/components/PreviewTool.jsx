@@ -39,12 +39,9 @@ function Toast({ toasts }) {
 const TEMPLATES = [
   { id: "newspaper", name: "News website layout", icon: Newspaper, desc: "Awareness top funnel", slots: 7 },
   { id: "ecommerce", name: "E-commerce product page", icon: ShoppingCart, desc: "Conversion bottom funnel", slots: 7 },
-  { id: "food", name: "Blog / Article page", icon: Coffee, desc: "Awareness top funnel", slots: 6 },
   { id: "health", name: "Native ad placement", icon: Activity, desc: "Awareness top funnel", slots: 5 },
   { id: "technology", name: "Product landing page", icon: Laptop, desc: "Consideration mid funnel", slots: 7 },
   { id: "business", name: "Feature comparison layout", icon: Briefcase, desc: "Consideration mid funnel", slots: 6 },
-  { id: "education", name: "Review/testimonial page", icon: GraduationCap, desc: "Consideration mid funnel", slots: 5 },
-  { id: "gaming", name: "App install screen", icon: Gamepad2, desc: "Conversion bottom funnel", slots: 7 },
   { id: "entertainment", name: "Video platform preview", icon: Film, desc: "Awareness top funnel", slots: 6 },
 ];
 
@@ -313,6 +310,28 @@ export default function PreviewTool() {
       setAnalysisLoading(false);
     }
   }, [validCreatives, campaignGoal, platform, audienceType, addToast]);
+
+  const handleGoalChange = async (newGoal) => {
+    setCampaignGoal(newGoal);
+    if (validCreatives.length === 0) return;
+    setAnalysisLoading(true); setAnalysisResult(null);
+    try {
+      const results = [];
+      for (const creative of validCreatives) {
+        const data = await analyzeCreativeLocal(creative.url, newGoal, platform, audienceType, creative.size);
+        results.push({ creative, data });
+      }
+      setAnalysisResult(results);
+      if (results.length > 0 && results[0].data.recommendedTemplates?.length > 0) {
+        setSelectedTemplate(results[0].data.recommendedTemplates[0]);
+      }
+      addToast(`Re-analyzed for ${newGoal} ✨`, "success");
+    } catch (err) {
+      addToast(err.message || "Analysis failed.", "error");
+    } finally {
+      setAnalysisLoading(false);
+    }
+  };
 
   const handleDownloadReport = useCallback(async () => {
     if (!analysisResult) return;
@@ -693,6 +712,7 @@ export default function PreviewTool() {
                     platform={platform}
                     audienceType={audienceType}
                     onDownloadReport={handleDownloadReport}
+                    onGoalChange={handleGoalChange}
                   />
                 </>
               )}

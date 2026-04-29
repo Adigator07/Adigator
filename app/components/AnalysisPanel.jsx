@@ -48,6 +48,27 @@ function medalFor(rank) {
   return `#${rank + 1}`;
 }
 
+const BEST_FOR_COLOR = {
+  Awareness:     "bg-blue-500/15 border-blue-500/40 text-blue-300",
+  Consideration: "bg-purple-500/15 border-purple-500/40 text-purple-300",
+  Conversion:    "bg-green-500/15 border-green-500/40 text-green-300",
+};
+
+const BEST_FOR_ICON = {
+  Awareness:     "👁",
+  Consideration: "🔍",
+  Conversion:    "⚡",
+};
+
+function BestForBadge({ bestFor }) {
+  if (!bestFor) return null;
+  return (
+    <span className={`inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-bold rounded-full border ${BEST_FOR_COLOR[bestFor]}`}>
+      {BEST_FOR_ICON[bestFor]} Best for {bestFor}
+    </span>
+  );
+}
+
 function scoreColor(score) {
   if (score >= 70) return "text-green-400";
   if (score >= 45) return "text-yellow-400";
@@ -232,7 +253,10 @@ function RankingLeaderboard({ results }) {
             />
             <div className="flex-1 min-w-0">
               <p className="text-sm font-bold text-white truncate">{res.creative.name}</p>
-              <p className="text-[11px] text-gray-400 mt-0.5">{res.creative.size}</p>
+              <div className="flex items-center gap-2 mt-0.5">
+                <p className="text-[11px] text-gray-400">{res.creative.size}</p>
+                <BestForBadge bestFor={res.data?.bestFor} />
+              </div>
               <p className={`text-[11px] mt-1 leading-relaxed ${
                 score >= 65 ? "text-green-300/80" : score >= 45 ? "text-yellow-300/80" : "text-red-300/80"
               }`}>
@@ -261,6 +285,7 @@ export default function AnalysisPanel({
   platform,
   audienceType,
   onDownloadReport,
+  onGoalChange,
 }) {
   const [selectedId, setSelectedId] = useState(
     analysisResult?.[0]?.creative?.id || null
@@ -285,7 +310,6 @@ export default function AnalysisPanel({
   const TABS = [
     { id: "overview",  label: "Overview" },
     { id: "platform",  label: "Platform Checks" },
-    { id: "ranking",   label: "🏆 Ranking" },
   ];
 
   return (
@@ -326,7 +350,6 @@ export default function AnalysisPanel({
 
         {/* LEFT: Creative List */}
         <div className="space-y-2">
-          <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Creatives</p>
           {analysisResult.map((res) => {
             const score      = res.data.overall_score;
             const isSelected = selectedId === res.creative.id;
@@ -350,11 +373,7 @@ export default function AnalysisPanel({
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold text-white truncate">{res.creative.name}</p>
                   <p className="text-[10px] text-gray-500">{res.creative.size}</p>
-                  <p className={`text-xs font-bold ${scoreColor(score)}`}>
-                    {score}/100 — {scoreLabel(score)}
-                  </p>
                 </div>
-                <div className={`w-2.5 h-2.5 rounded-full shrink-0 ${scoreBg(score)}`} />
               </motion.button>
             );
           })}
@@ -433,6 +452,25 @@ export default function AnalysisPanel({
                     exit={{ opacity: 0 }}
                     className="space-y-5"
                   >
+                    {/* Goal Switcher */}
+                    {onGoalChange && (
+                      <div className="flex bg-black/40 p-1 rounded-xl border border-white/5 shadow-inner mb-4">
+                        {["awareness", "consideration", "conversion"].map((goalOption) => (
+                          <button
+                            key={goalOption}
+                            onClick={() => onGoalChange(goalOption)}
+                            className={`flex-1 py-2 px-3 text-xs font-bold rounded-lg capitalize transition ${
+                              campaignGoal === goalOption
+                                ? "bg-gradient-to-r from-fuchsia-600 to-purple-600 text-white shadow-md shadow-fuchsia-500/20"
+                                : "text-gray-400 hover:text-white hover:bg-white/5"
+                            }`}
+                          >
+                            {goalOption}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+
                     {/* AI Funnel Analysis */}
                     {selected.data.primary_stage && (
                       <div className="p-4 rounded-xl border border-blue-500/30 bg-blue-500/5 space-y-3">
@@ -448,22 +486,39 @@ export default function AnalysisPanel({
                           {selected.data.funnelReasoning}
                         </p>
                         
-                        <div className="grid grid-cols-3 gap-2 mt-2">
-                          <MetricBar label="Awareness" value={selected.data.stageScores?.awareness || 0} color="bg-cyan-400" />
-                          <MetricBar label="Consideration" value={selected.data.stageScores?.consideration || 0} color="bg-purple-400" />
-                          <MetricBar label="Conversion" value={selected.data.stageScores?.conversion || 0} color="bg-emerald-400" />
+                        {/* New Semantic Tags */}
+                        <div className="grid grid-cols-2 gap-2 mt-3">
+                          <div className="bg-white/5 border border-white/10 rounded-lg p-2 text-center">
+                            <p className="text-[10px] text-gray-400 uppercase tracking-wider mb-1">Intent</p>
+                            <p className="text-xs font-bold text-white">{selected.data.messaging_intent || "N/A"}</p>
+                          </div>
+                          <div className="bg-white/5 border border-white/10 rounded-lg p-2 text-center">
+                            <p className="text-[10px] text-gray-400 uppercase tracking-wider mb-1">Urgency</p>
+                            <p className="text-xs font-bold text-white">{selected.data.urgency_level || "N/A"}</p>
+                          </div>
+                          <div className="bg-white/5 border border-white/10 rounded-lg p-2 text-center">
+                            <p className="text-[10px] text-gray-400 uppercase tracking-wider mb-1">Audience</p>
+                            <p className="text-xs font-bold text-white">{selected.data.audience_type || "N/A"}</p>
+                          </div>
+                          <div className="bg-white/5 border border-white/10 rounded-lg p-2 text-center">
+                            <p className="text-[10px] text-gray-400 uppercase tracking-wider mb-1">CTA Strength</p>
+                            <p className="text-xs font-bold text-white">{selected.data.ai_cta_strength || "N/A"}</p>
+                          </div>
                         </div>
 
-                        {selected.data.funnelSignals?.length > 0 && (
-                          <div className="pt-2 border-t border-white/10 mt-1">
-                            <p className="text-[10px] font-bold text-gray-400 uppercase mb-1.5">Detected Signals</p>
-                            <div className="flex flex-wrap gap-1.5">
-                              {selected.data.funnelSignals.map((sig, i) => (
-                                <span key={i} className="text-[10px] px-2 py-0.5 bg-white/10 text-gray-300 rounded-full border border-white/5">
-                                  {sig}
-                                </span>
-                              ))}
-                            </div>
+                        <div className="mt-3">
+                          <MetricBar label="Confidence Score" value={selected.data.goalMatchScore || 0} color="bg-cyan-400" />
+                        </div>
+
+                        {selected.data.improvement_suggestions?.length > 0 && (
+                          <div className="pt-3 border-t border-white/10 mt-2 space-y-1.5">
+                            <p className="text-[10px] font-bold text-yellow-400 uppercase mb-1">💡 Improvement Suggestions</p>
+                            {selected.data.improvement_suggestions.map((sug, i) => (
+                              <div key={i} className="flex gap-2 items-start text-xs text-gray-300">
+                                <span className="text-yellow-500/80 mt-0.5">•</span>
+                                <p>{sug}</p>
+                              </div>
+                            ))}
                           </div>
                         )}
                       </div>
