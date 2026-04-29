@@ -166,6 +166,8 @@ export default function SlidePreview({
   validCreatives,
   showSlotLabels,
   selectedTemplate,
+  setSelectedTemplate,
+  TEMPLATES,
   viewMode: externalViewMode,
   onViewModeChange,
 }) {
@@ -341,6 +343,26 @@ export default function SlidePreview({
           </div>
         </div>
       </div>
+
+      {/* ── Template Selector ───────────────────────────────── */}
+      {TEMPLATES && TEMPLATES.length > 0 && (
+        <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-white/10">
+          {TEMPLATES.map((tpl) => (
+            <button
+              key={tpl.id}
+              onClick={() => setSelectedTemplate?.(tpl.id)}
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold whitespace-nowrap transition-all border-2 ${
+                selectedTemplate === tpl.id
+                  ? "bg-gradient-to-r from-blue-600 to-purple-600 border-transparent text-white shadow-lg"
+                  : "bg-white/5 border-white/10 text-gray-400 hover:text-white hover:border-white/30"
+              }`}
+            >
+              <tpl.icon size={16} />
+              {tpl.name}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* ── Empty State ─────────────────────────────────────── */}
       {validCreatives.length === 0 && (

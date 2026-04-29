@@ -48,8 +48,8 @@ const TEMPLATES = [
   { id: "entertainment", name: "Entertainment", icon: Film, desc: "Movie & media portal", slots: 6 },
 ];
 
-const TOTAL_STEPS = 5;
-const STEP_LABELS = ["Setup", "Upload", "Analysis", "Template", "Preview"];
+const TOTAL_STEPS = 4;
+const STEP_LABELS = ["Setup", "Upload", "Analysis", "Preview Studio"];
 
 const PLATFORMS = [
   {
@@ -696,75 +696,18 @@ export default function PreviewTool() {
 
               <div className="flex gap-4 pt-6">
                 <NavBtn variant="back" onClick={goBack}>← Back</NavBtn>
-                {analysisResult && <NavBtn onClick={goNext}>Next: Select Template →</NavBtn>}
+                {analysisResult && <NavBtn onClick={goNext}>Next: Preview Studio →</NavBtn>}
               </div>
             </motion.div>
           )}
 
-          {/* STEP 4: SELECT TEMPLATE */}
+          {/* STEP 4: PREVIEW STUDIO */}
           {step === 4 && (
             <motion.div key="step-4" variants={itemVariants} initial="hidden" animate="visible" exit="hidden" className="space-y-8">
-              <div>
-                <h2 className="text-4xl font-bold text-white mb-2">Step 4: Select Template</h2>
-                <p className="text-gray-400">Choose a layout context and view mode.</p>
-              </div>
-
-              <div className="space-y-3">
-                <h3 className="text-lg font-semibold text-white">View Mode</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {[
-                    { id: "multiple", icon: Square, title: "Multiple Slides", desc: "Each creative gets its own slide." },
-                    { id: "single", icon: LayoutGrid, title: "Single Slide (All)", desc: "All creatives displayed inside one slide." },
-                  ].map((m) => (
-                    <motion.div key={m.id} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={() => setViewMode(m.id)}
-                      className={`cursor-pointer rounded-2xl p-5 border-2 transition-all flex gap-4 items-start ${viewMode === m.id ? "border-purple-500 bg-purple-900/30 shadow-lg" : "border-white/10 bg-white/5 hover:border-white/30"
-                        }`}>
-                      <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${viewMode === m.id ? "bg-purple-500 text-white" : "bg-white/10 text-gray-400"}`}>
-                        <m.icon size={22} />
-                      </div>
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                          <h4 className="font-bold text-white">{m.title}</h4>
-                          {viewMode === m.id && <CheckSquare size={16} className="text-purple-400" />}
-                        </div>
-                        <p className="text-sm text-gray-400">{m.desc}</p>
-                      </div>
-                    </motion.div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="space-y-3">
-                <h3 className="text-lg font-semibold text-white">Website Template</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {TEMPLATES.map((tpl) => (
-                    <SelectionCard key={tpl.id} selected={selectedTemplate === tpl.id} onClick={() => setSelectedTemplate(tpl.id)} activeClasses="border-blue-500 bg-gradient-to-br from-blue-900/40 to-purple-900/40">
-                      {selectedTemplate === tpl.id && <div className="absolute top-4 right-4 text-blue-400"><CheckCircle2 size={24} /></div>}
-                      <div className={`w-14 h-14 rounded-xl flex items-center justify-center mb-4 ${selectedTemplate === tpl.id ? "bg-blue-500 text-white shadow-lg" : "bg-white/10 text-gray-300"}`}>
-                        <tpl.icon size={28} />
-                      </div>
-                      <h3 className={`text-xl font-bold mb-1 ${selectedTemplate === tpl.id ? "text-white" : "text-gray-200"}`}>{tpl.name}</h3>
-                      <p className="text-sm text-gray-400 mb-4">{tpl.desc}</p>
-                      <div className="text-xs font-semibold uppercase tracking-wider text-purple-400 bg-purple-500/10 w-fit px-3 py-1 rounded-full">{tpl.slots} Ad Zones</div>
-                    </SelectionCard>
-                  ))}
-                </div>
-              </div>
-
-              <div className="flex gap-4 pt-4">
-                <NavBtn variant="back" onClick={goBack}>← Back</NavBtn>
-                <NavBtn onClick={goNext}>Generate Preview Engine →</NavBtn>
-              </div>
-            </motion.div>
-          )}
-
-          {/* STEP 5: PREVIEW */}
-          {step === 5 && (
-            <motion.div key="step-5" variants={itemVariants} initial="hidden" animate="visible" exit="hidden" className="space-y-8">
               <div className="flex items-center justify-between">
                 <div>
-                  <h2 className="text-4xl font-bold text-white mb-2">Step 5: Preview & Export</h2>
-                  <p className="text-gray-400">See your creatives in realistic website contexts.</p>
+                  <h2 className="text-4xl font-bold text-white mb-2">Step 4: Preview Studio</h2>
+                  <p className="text-gray-400">See your creatives in realistic interactive website contexts.</p>
                 </div>
                 <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} onClick={handleExportPptx} disabled={isExporting}
                   className="px-8 py-3 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-xl font-semibold flex items-center gap-2 disabled:opacity-60">
@@ -782,6 +725,8 @@ export default function PreviewTool() {
                   validCreatives={validCreatives}
                   showSlotLabels={showSlotLabels}
                   selectedTemplate={selectedTemplate}
+                  setSelectedTemplate={setSelectedTemplate}
+                  TEMPLATES={TEMPLATES}
                   viewMode={viewMode}
                   onViewModeChange={setViewMode}
                 />
