@@ -2,198 +2,400 @@
 
 import Link from "next/link";
 import { motion } from "framer-motion";
+import Header from "@/app/components/Header";
 
-const steps = [
-	{
-		title: "Step 1 - Setup Campaign",
-		description: "Select platform, campaign goal, and audience.",
-	},
-	{
-		title: "Step 2 - Upload Creatives",
-		description: "Validate formats, sizes, and fix issues.",
-	},
-	{
-		title: "Step 3 - Analyze Performance",
-		description: "Get insights on visibility, CTA strength, and device compatibility.",
-	},
-	{
-		title: "Step 4 - Preview Ads",
-		description: "See creatives inside real website environments.",
-	},
-	{
-		title: "Step 5 - Export Results",
-		description: "Download PPT/PDF for client presentation.",
-	},
-];
-
-const features = [
-	"IAB Banner Size Validation",
-	"Mobile & Desktop Optimization",
-	"Real Website Preview",
-	"Creative Comparison",
-	"Smart Recommendations",
-	"PPT / PDF Export",
-];
-
-const outcomes = [
-	"Reduce wasted ad spend",
-	"Improve campaign performance",
-	"Save time for teams",
-	"Make confident decisions",
-];
 
 export default function ProductPage() {
-	return (
-		<main className="relative min-h-screen bg-[#020617] text-white">
-			<div className="pointer-events-none absolute inset-0">
-				<div className="absolute -top-24 left-[-200px] h-[520px] w-[520px] rounded-full bg-purple-500/20 blur-[70px] md:blur-[150px]" />
-				<div className="absolute right-[-140px] top-[20%] h-[420px] w-[420px] rounded-full bg-blue-500/20 blur-[70px] md:blur-[120px]" />
-				<div className="absolute bottom-[-180px] left-1/2 hidden h-[420px] w-[420px] -translate-x-1/2 rounded-full bg-pink-500/15 blur-[80px] md:block md:blur-[140px]" />
-			</div>
+  const features = [
+    {
+      icon: "⚡",
+      title: "Instant Validation",
+      subtitle: "Platform-Ready in Seconds",
+      description: "Upload creatives and get instant checks against all Google Ads and programmatic platform standards.",
+      roi: "Save 1–3 hours per campaign on manual validation",
+      details: [
+        "Automatic size & format compliance checks",
+        "File compression optimization",
+        "Platform specification verification",
+        "Instant compliance reports",
+      ],
+    },
+    {
+      icon: "🎯",
+      title: "Real Environment Preview",
+      subtitle: "See Your Ads Where They Live",
+      description: "Preview creatives in real website environments across mobile and desktop layouts before launch.",
+      roi: "Eliminate screenshot workflows and manual previews",
+      details: [
+        "Mobile & desktop responsive preview",
+        "Real ad placements (300x250, 728x90, etc.)",
+        "Device-specific rendering",
+        "Interactive preview controls",
+      ],
+    },
+    {
+      icon: "📊",
+      title: "Actionable Insights",
+      subtitle: "Data-Driven Decision Making",
+      description: "Get visual quality scores, CTA visibility analysis, and creative performance predictions.",
+      roi: "Reduce revisions by 40–60% with clear, actionable feedback",
+      details: [
+        "CTA visibility & readability scoring",
+        "Design composition analysis",
+        "Performance predictions",
+        "Detailed improvement recommendations",
+      ],
+    },
+    {
+      icon: "⚖️",
+      title: "Creative Comparison",
+      subtitle: "Identify Winners Instantly",
+      description: "Compare multiple creative variations side-by-side and identify top performers before launch.",
+      roi: "Launch best-performing creatives first, reducing underperformer spend",
+      details: [
+        "Multi-creative side-by-side comparison",
+        "Performance scoring per variant",
+        "Instant winner identification",
+        "Batch analysis support",
+      ],
+    },
+    {
+      icon: "🔄",
+      title: "Streamlined Approvals",
+      subtitle: "Faster Sign-Offs",
+      description: "Share detailed reports and previews with stakeholders instantly. No more email chains or unclear feedback.",
+      roi: "Reduce approval cycles from days to hours",
+      details: [
+        "Shareable preview links",
+        "Exportable reports",
+        "Team collaboration features",
+        "Quick stakeholder sharing",
+      ],
+    },
+    {
+      icon: "✅",
+      title: "Launch-Ready Reports",
+      subtitle: "Everything in One Place",
+      description: "Export comprehensive pre-flight reports with validation, previews, and performance insights.",
+      roi: "Document compliance and quality for audit trails",
+      details: [
+        "PDF export with full analysis",
+        "Compliance documentation",
+        "Performance predictions",
+        "Team sign-off tracking",
+      ],
+    },
+  ];
 
-			<header className="relative z-20 border-b border-white/10 bg-[#020617]/80 backdrop-blur-xl">
-				<div className="mx-auto flex w-full max-w-6xl items-center justify-between px-6 py-6 md:px-10">
-					<Link href="/" className="text-lg font-semibold uppercase tracking-[0.22em]">Adigator</Link>
-					<nav className="hidden items-center gap-7 text-sm text-gray-400 md:flex">
-						<Link href="/product" className="text-white">Product</Link>
-						<Link href="/about" className="transition hover:text-white">About</Link>
-						<Link href="/login" className="transition hover:text-white">Login</Link>
-					</nav>
-				</div>
-			</header>
+  const workflow = [
+    {
+      number: "01",
+      title: "Upload Creatives",
+      description: "Drop your ads in any format. Support for PNG, JPEG, GIF, and more.",
+      icon: "📤",
+    },
+    {
+      number: "02",
+      title: "Select Platform",
+      description: "Choose your target: Google Ads, Programmatic, or Both.",
+      icon: "🎯",
+    },
+    {
+      number: "03",
+      title: "Get Insights",
+      description: "Instant validation, quality scoring, and performance predictions.",
+      icon: "💡",
+    },
+    {
+      number: "04",
+      title: "Preview & Share",
+      description: "Real environment previews and instant team collaboration.",
+      icon: "👥",
+    },
+    {
+      number: "05",
+      title: "Launch Confident",
+      description: "Export reports and launch with full compliance confidence.",
+      icon: "🚀",
+    },
+  ];
 
-			<section className="relative z-10 px-6 py-24 md:px-10">
-				<div className="mx-auto max-w-6xl">
-					<motion.h1
-						initial={{ opacity: 0, y: 24 }}
-						animate={{ opacity: 1, y: 0 }}
-						transition={{ duration: 0.55, ease: "easeOut" }}
-						className="max-w-4xl text-4xl font-semibold leading-tight sm:text-5xl md:text-6xl"
-					>
-						Preview and validate your ads before they go live
-					</motion.h1>
+  return (
+    <main className="relative min-h-screen bg-[#020617] text-white">
+      {/* Background Gradients */}
+      <div className="pointer-events-none absolute inset-0">
+        <div className="absolute -top-24 left-[-200px] h-[520px] w-[520px] rounded-full bg-purple-500/20 blur-[70px] md:blur-[150px]" />
+        <div className="absolute right-[-140px] top-[20%] h-[420px] w-[420px] rounded-full bg-blue-500/20 blur-[70px] md:blur-[120px]" />
+      </div>
 
-					<motion.p
-						initial={{ opacity: 0, y: 18 }}
-						animate={{ opacity: 1, y: 0 }}
-						transition={{ duration: 0.55, delay: 0.12, ease: "easeOut" }}
-						className="mt-6 max-w-3xl text-base leading-relaxed text-gray-400 md:text-lg"
-					>
-						Adigator helps you upload, analyze, and preview display creatives across Google Ads and programmatic platforms before spending your budget.
-					</motion.p>
+      {/* Header */}
+      <Header />
 
-					<motion.div
-						initial={{ opacity: 0, y: 16 }}
-						animate={{ opacity: 1, y: 0 }}
-						transition={{ duration: 0.5, delay: 0.2, ease: "easeOut" }}
-						className="mt-10"
-					>
-						<Link
-							href="/preview-tool"
-							className="inline-flex w-full justify-center rounded-xl bg-gradient-to-r from-purple-500 to-pink-500 px-8 py-3 text-sm font-semibold text-white shadow-lg shadow-purple-500/30 transition-all duration-300 hover:scale-105 sm:w-auto"
-						>
-							Start Free Preview
-						</Link>
-					</motion.div>
-				</div>
-			</section>
+      {/* HERO SECTION */}
+      <section className="landing-section relative z-10">
+        <div className="landing-container w-full">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, ease: "easeOut" }}
+            className="max-w-3xl"
+          >
+            <p className="rounded-full border border-white/15 bg-white/5 px-4 py-1 w-fit text-xs font-semibold uppercase tracking-[0.18em] text-gray-400 backdrop-blur-lg">
+              Product Overview
+            </p>
+            <h1 className="mt-6 text-5xl md:text-6xl font-semibold leading-tight">
+              Built to accelerate approvals
+              <span className="block bg-gradient-to-r from-purple-400 to-pink-500 bg-clip-text text-transparent">
+                and launch faster
+              </span>
+            </h1>
+            <p className="mt-6 text-lg text-gray-400 max-w-2xl">
+              Every feature is designed to eliminate workflow friction, reduce approval cycles, and get campaigns live on time.
+            </p>
+          </motion.div>
+        </div>
+      </section>
 
-			<section className="relative z-10 px-6 py-20 md:px-10">
-				<div className="mx-auto max-w-6xl">
-					<h2 className="text-3xl font-semibold md:text-4xl">How it works</h2>
-					<div className="mt-10 grid gap-5 md:grid-cols-2 xl:grid-cols-5">
-						{steps.map((step, index) => (
-							<motion.div
-								key={step.title}
-								initial={{ opacity: 0, y: 20 }}
-								whileInView={{ opacity: 1, y: 0 }}
-								viewport={{ once: true, amount: 0.3 }}
-								transition={{ duration: 0.45, delay: index * 0.06, ease: "easeOut" }}
-								className="rounded-2xl border border-white/10 bg-white/5 p-5 backdrop-blur-lg transition-all duration-300 hover:scale-[1.02] hover:border-purple-500"
-							>
-								<p className="text-xs uppercase tracking-[0.12em] text-gray-500">{step.title}</p>
-								<p className="mt-3 text-sm leading-relaxed text-gray-400">{step.description}</p>
-							</motion.div>
-						))}
-					</div>
-				</div>
-			</section>
+      {/* FEATURES GRID */}
+      <section className="landing-section relative z-10">
+        <div className="landing-container w-full">
+          <motion.h2
+            initial={{ opacity: 0, y: 16 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, amount: 0.4 }}
+            transition={{ duration: 0.55, ease: "easeOut" }}
+            className="text-4xl font-semibold text-center mb-16"
+          >
+            Core Capabilities
+          </motion.h2>
 
-			<section className="relative z-10 px-6 py-20 md:px-10">
-				<div className="mx-auto max-w-6xl">
-					<h2 className="text-3xl font-semibold md:text-4xl">Features built for campaign teams</h2>
-					<div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-						{features.map((feature, index) => (
-							<motion.div
-								key={feature}
-								initial={{ opacity: 0, y: 18 }}
-								whileInView={{ opacity: 1, y: 0 }}
-								viewport={{ once: true, amount: 0.35 }}
-								transition={{ duration: 0.4, delay: index * 0.05, ease: "easeOut" }}
-								className="rounded-2xl border border-white/10 bg-[#0b1224]/80 p-5 text-sm text-gray-300 backdrop-blur-lg transition-all duration-300 hover:scale-[1.02] hover:border-purple-500"
-							>
-								{feature}
-							</motion.div>
-						))}
-					</div>
-				</div>
-			</section>
+          <div className="grid md:grid-cols-2 gap-8">
+            {features.map((feature, i) => (
+              <motion.div
+                key={feature.title}
+                initial={{ opacity: 0, y: 24 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, amount: 0.4 }}
+                transition={{ duration: 0.55, delay: i * 0.08, ease: "easeOut" }}
+                className="rounded-2xl border border-white/10 bg-gradient-to-br from-white/5 to-white/[0.02] p-8 backdrop-blur-lg hover:border-purple-500 transition-all duration-300 group"
+              >
+                <div className="flex items-start justify-between mb-4">
+                  <div>
+                    <span className="text-4xl mb-3 block">{feature.icon}</span>
+                    <h3 className="text-2xl font-semibold text-white">{feature.title}</h3>
+                    <p className="text-sm text-purple-300/80 mt-1">{feature.subtitle}</p>
+                  </div>
+                </div>
 
-			<section className="relative z-10 px-6 py-20 md:px-10">
-				<div className="mx-auto max-w-6xl rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur-lg md:p-8">
-					<h2 className="text-3xl font-semibold md:text-4xl">See your ads before your audience does</h2>
-					<div className="mt-8 grid gap-6 lg:grid-cols-2">
-						<div className="rounded-2xl border border-white/10 bg-[#0b1224]/80 p-4">
-							<div className="flex h-[250px] items-center justify-center rounded-xl border border-dashed border-white/20 bg-gradient-to-br from-purple-500/10 to-blue-500/10 text-sm text-gray-400">
-								Preview tool screenshot placeholder
-							</div>
-						</div>
-						<div className="rounded-2xl border border-white/10 bg-[#0b1224]/80 p-4">
-							<div className="flex h-[250px] items-center justify-center rounded-xl border border-dashed border-white/20 bg-gradient-to-br from-pink-500/10 to-purple-500/10 text-sm text-gray-400">
-								Analysis UI placeholder
-							</div>
-						</div>
-					</div>
-				</div>
-			</section>
+                <p className="text-gray-400 text-sm mb-6">{feature.description}</p>
 
-			<section className="relative z-10 px-6 py-20 md:px-10">
-				<div className="mx-auto max-w-6xl rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur-lg md:p-8">
-					<h2 className="text-3xl font-semibold md:text-4xl">Why it matters</h2>
-					<p className="mt-5 max-w-3xl text-base leading-relaxed text-gray-400 md:text-lg">
-						Most campaigns fail due to weak creatives before launch.
-					</p>
+                <div className="rounded-lg border border-purple-500/30 bg-purple-500/10 px-4 py-3 mb-6">
+                  <p className="text-sm font-semibold text-purple-300">{feature.roi}</p>
+                </div>
 
-					<div className="mt-8 grid gap-4 sm:grid-cols-2">
-						{outcomes.map((item, index) => (
-							<motion.div
-								key={item}
-								initial={{ opacity: 0, x: -16 }}
-								whileInView={{ opacity: 1, x: 0 }}
-								viewport={{ once: true, amount: 0.35 }}
-								transition={{ duration: 0.4, delay: index * 0.06, ease: "easeOut" }}
-								className="rounded-xl border border-white/10 bg-[#0b1224]/80 px-5 py-4 text-sm text-gray-300"
-							>
-								{item}
-							</motion.div>
-						))}
-					</div>
-				</div>
-			</section>
+                <div className="space-y-2">
+                  {feature.details.map((detail) => (
+                    <div key={detail} className="flex items-start gap-2 text-sm text-gray-300">
+                      <span className="text-purple-400 mt-0.5">✓</span>
+                      <span>{detail}</span>
+                    </div>
+                  ))}
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </section>
 
-			<section className="relative z-10 border-y border-white/10 px-6 py-24 text-center md:px-10">
-				<div className="mx-auto max-w-6xl">
-					<h2 className="mx-auto max-w-3xl text-3xl font-semibold leading-tight md:text-5xl">
-						Your next campaign deserves a smarter start
-					</h2>
-					<Link
-						href="/preview-tool"
-						className="mt-10 inline-flex w-full justify-center rounded-xl bg-gradient-to-r from-purple-500 to-pink-500 px-8 py-3 text-sm font-semibold text-white shadow-lg shadow-purple-500/30 transition-all duration-300 hover:scale-105 sm:w-auto"
-					>
-						Start Free Preview
-					</Link>
-				</div>
-			</section>
-		</main>
-	);
+      {/* WORKFLOW SECTION */}
+      <section className="landing-section relative z-10">
+        <div className="landing-container w-full">
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, amount: 0.4 }}
+            transition={{ duration: 0.55, ease: "easeOut" }}
+            className="text-center mb-16"
+          >
+            <h2 className="text-4xl font-semibold">The Adigator Workflow</h2>
+            <p className="mt-4 text-gray-400 max-w-2xl mx-auto">
+              Five simple steps from creative to confident launch
+            </p>
+          </motion.div>
+
+          <div className="grid md:grid-cols-5 gap-4">
+            {workflow.map((step, i) => (
+              <motion.div
+                key={step.number}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, amount: 0.4 }}
+                transition={{ duration: 0.55, delay: i * 0.1, ease: "easeOut" }}
+                className="relative"
+              >
+                <div className="rounded-xl border border-white/10 bg-white/5 p-6 backdrop-blur-lg">
+                  <div className="text-3xl mb-4">{step.icon}</div>
+                  <p className="text-sm font-semibold text-purple-400 mb-2">{step.number}</p>
+                  <h4 className="font-semibold text-white mb-2">{step.title}</h4>
+                  <p className="text-xs text-gray-400">{step.description}</p>
+                </div>
+
+                {i < workflow.length - 1 && (
+                  <div className="hidden md:block absolute -right-2 top-1/2 -translate-y-1/2 text-gray-600 text-2xl">
+                    →
+                  </div>
+                )}
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ROI SECTION */}
+      <section className="landing-section relative z-10">
+        <div className="landing-container w-full">
+          <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-purple-500/10 to-pink-500/10 p-8 md:p-12 backdrop-blur-lg">
+            <motion.div
+              initial={{ opacity: 0, y: 16 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, amount: 0.4 }}
+              transition={{ duration: 0.55, ease: "easeOut" }}
+              className="max-w-3xl"
+            >
+              <h2 className="text-4xl font-semibold mb-8">Measurable Impact</h2>
+
+              <div className="grid md:grid-cols-3 gap-8">
+                {[
+                  {
+                    metric: "6–20 hours",
+                    description: "Time saved per campaign",
+                  },
+                  {
+                    metric: "40–60%",
+                    description: "Fewer revision cycles",
+                  },
+                  {
+                    metric: "Days → Hours",
+                    description: "Approval cycle reduction",
+                  },
+                ].map((item) => (
+                  <div key={item.metric} className="border-l-2 border-purple-400 pl-6">
+                    <p className="text-3xl md:text-4xl font-bold text-purple-300 mb-2">{item.metric}</p>
+                    <p className="text-gray-400">{item.description}</p>
+                  </div>
+                ))}
+              </div>
+
+              <div className="mt-10 p-6 rounded-lg border border-white/10 bg-white/5">
+                <p className="text-sm text-gray-300">
+                  For an agency running 50 campaigns/month: <span className="font-semibold text-white">Save 300–1000 hours annually</span>. That's 7–25 full-time FTE weeks freed up for strategy, creative optimization, or client work.
+                </p>
+              </div>
+            </motion.div>
+          </div>
+        </div>
+      </section>
+
+      {/* IDEAL FOR SECTION */}
+      <section className="landing-section relative z-10">
+        <div className="landing-container w-full">
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, amount: 0.4 }}
+            transition={{ duration: 0.55, ease: "easeOut" }}
+            className="text-center mb-12"
+          >
+            <h2 className="text-4xl font-semibold mb-4">Built for Your Team</h2>
+            <p className="text-gray-400 max-w-2xl mx-auto">
+              Whether you're an agency, in-house team, or freelancer, Adigator scales to your workflow.
+            </p>
+          </motion.div>
+
+          <div className="grid md:grid-cols-3 gap-8">
+            {[
+              {
+                title: "Agencies",
+                use: "Multiple clients, high volume",
+                benefits: [
+                  "Batch process creatives",
+                  "Share instant previews with clients",
+                  "Reduce manual QA overhead",
+                  "Scale creative review",
+                ],
+              },
+              {
+                title: "In-House Teams",
+                use: "Single brand, consistent quality",
+                benefits: [
+                  "Streamline internal approvals",
+                  "Reduce back-and-forth with stakeholders",
+                  "Maintain brand compliance",
+                  "Launch on schedule",
+                ],
+              },
+              {
+                title: "Freelancers",
+                use: "Multiple projects, fast turnaround",
+                benefits: [
+                  "Deliver professional previews",
+                  "Client-ready reports",
+                  "Reduce revision requests",
+                  "Faster project completion",
+                ],
+              },
+            ].map((segment, i) => (
+              <motion.div
+                key={segment.title}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, amount: 0.4 }}
+                transition={{ duration: 0.55, delay: i * 0.1, ease: "easeOut" }}
+                className="rounded-2xl border border-white/10 bg-white/5 p-8 backdrop-blur-lg hover:border-purple-500 transition-all duration-300"
+              >
+                <h3 className="text-2xl font-semibold mb-2">{segment.title}</h3>
+                <p className="text-sm text-gray-400 mb-6">{segment.use}</p>
+                <ul className="space-y-3">
+                  {segment.benefits.map((benefit) => (
+                    <li key={benefit} className="flex items-start gap-2 text-sm text-gray-300">
+                      <span className="text-purple-400 mt-0.5">✓</span>
+                      <span>{benefit}</span>
+                    </li>
+                  ))}
+                </ul>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* CTA SECTION */}
+      <section className="landing-section relative z-10 border-y border-white/10">
+        <div className="landing-container w-full text-center">
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, amount: 0.5 }}
+            transition={{ duration: 0.55, ease: "easeOut" }}
+          >
+            <h2 className="text-4xl font-semibold mb-4">See It In Action</h2>
+            <p className="text-gray-400 max-w-2xl mx-auto mb-8">
+              Try Adigator free for 7 days. No credit card required.
+            </p>
+            <Link
+              href="/preview-tool"
+              className="inline-flex rounded-xl bg-gradient-to-r from-purple-500 to-pink-500 px-8 py-3 font-semibold text-white shadow-lg shadow-purple-500/30 transition-all duration-300 hover:scale-105"
+            >
+              Start Free Preview
+            </Link>
+          </motion.div>
+        </div>
+      </section>
+
+      {/* Footer */}
+      <footer className="relative z-10 px-6 py-6 text-center text-xs uppercase tracking-[0.14em] text-gray-500 md:px-10">
+        © 2026 Adigator. Ad intelligence for modern teams.
+      </footer>
+    </main>
+  );
 }
