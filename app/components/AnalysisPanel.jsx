@@ -318,6 +318,7 @@ export default function AnalysisPanel({
     { id: "overview",  label: "Overview" },
     { id: "cta",      label: "CTA Analysis" },
     { id: "platform",  label: "Platform" },
+    { id: "agent",     label: "🤖 AI Agent" },
   ];
 
   return (
@@ -734,6 +735,129 @@ export default function AnalysisPanel({
                       Platform-specific performance for <span className="text-white font-semibold capitalize">{platform}</span> ads
                     </p>
                     <PlatformCheckGrid platformChecks={selected.data.platformChecks} />
+                  </motion.div>
+                )}
+
+                {tab === "agent" && (
+                  <motion.div
+                    key="agent"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="space-y-5"
+                  >
+                    {!selected.data.agentSummary ? (
+                      // Loading / No Agent State
+                      <div className="flex flex-col items-center justify-center py-10 gap-3">
+                        <div className="w-12 h-12 rounded-2xl bg-violet-500/20 flex items-center justify-center text-2xl animate-pulse">🤖</div>
+                        <p className="text-sm text-gray-400">AI Agent analysis not available for this creative.</p>
+                        <p className="text-xs text-gray-600">Ensure ADIGATOR_GROQ_API_KEY is set in .env.local</p>
+                      </div>
+                    ) : (
+                      <>
+                        {/* Agent Header */}
+                        <div className="flex items-center gap-3 p-4 rounded-xl bg-violet-500/10 border border-violet-500/30">
+                          <div className="w-10 h-10 rounded-xl bg-violet-500/20 flex items-center justify-center text-xl shrink-0">🤖</div>
+                          <div>
+                            <p className="text-xs font-bold text-violet-400 uppercase tracking-wider">Senior Performance Marketing Analyst</p>
+                            <p className="text-sm text-white font-semibold mt-0.5">{selected.data.agentSummary}</p>
+                          </div>
+                        </div>
+
+                        {/* Funnel Analysis */}
+                        {selected.data.agentFunnelAnalysis && (
+                          <div className="p-4 rounded-xl bg-blue-500/5 border border-blue-500/25 space-y-2">
+                            <p className="text-[10px] font-bold text-blue-400 uppercase tracking-wider flex items-center gap-1.5">🎯 Funnel-Specific Analysis ({selected.data.goal?.toUpperCase()} GOAL)</p>
+                            <p className="text-sm text-gray-300 leading-relaxed">{selected.data.agentFunnelAnalysis}</p>
+                          </div>
+                        )}
+
+                        {/* Score Dashboard */}
+                        <div className="space-y-3">
+                          <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">📊 Expert Scorecard</p>
+                          <div className="grid grid-cols-2 gap-3">
+                            {[
+                              { label: "CTA",           value: selected.data.agentScores?.cta,           color: "bg-green-400",   icon: "🎯" },
+                              { label: "Text Clarity",  value: selected.data.agentScores?.clarity,       color: "bg-sky-400",     icon: "📝" },
+                              { label: "Brand",         value: selected.data.agentScores?.brand,          color: "bg-blue-400",    icon: "🏷️" },
+                              { label: "Visual Quality",value: selected.data.agentScores?.visual_quality, color: "bg-yellow-400",  icon: "🎨" },
+                              { label: "Visibility",    value: selected.data.agentScores?.visibility,    color: "bg-orange-400",  icon: "👁" },
+                              { label: "Goal Align",    value: selected.data.agentScores?.goal_alignment, color: "bg-fuchsia-400", icon: "⚡" },
+                            ].map(({ label, value, color, icon }) => {
+                              const score = value ?? 0;
+                              const pct = score / 10;
+                              return (
+                                <div key={label} className="p-3 rounded-xl bg-white/5 border border-white/10 space-y-2">
+                                  <div className="flex items-center justify-between">
+                                    <span className="text-xs text-gray-400 font-medium">{icon} {label}</span>
+                                    <span className={`text-lg font-black ${
+                                      score >= 7 ? "text-green-400" : score >= 5 ? "text-yellow-400" : "text-red-400"
+                                    }`}>{score}<span className="text-xs text-gray-500">/10</span></span>
+                                  </div>
+                                  <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
+                                    <motion.div
+                                      initial={{ scaleX: 0 }}
+                                      animate={{ scaleX: pct }}
+                                      transition={{ duration: 0.6, ease: "easeOut" }}
+                                      className={`h-full origin-left rounded-full ${color}`}
+                                    />
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                          {/* Overall Score */}
+                          <div className="flex items-center justify-between p-4 rounded-xl bg-gradient-to-r from-violet-900/40 to-fuchsia-900/40 border border-fuchsia-500/30">
+                            <div>
+                              <p className="text-xs text-gray-400 uppercase tracking-wider">Overall AI Score</p>
+                              <p className="text-xs text-gray-500 mt-0.5">Weighted toward Goal Alignment</p>
+                            </div>
+                            <span className={`text-4xl font-black ${
+                              (selected.data.agentScores?.overall ?? 0) >= 7 ? "text-green-400"
+                              : (selected.data.agentScores?.overall ?? 0) >= 5 ? "text-yellow-400"
+                              : "text-red-400"
+                            }`}>{selected.data.agentScores?.overall ?? 0}<span className="text-base text-gray-500">/10</span></span>
+                          </div>
+                        </div>
+
+                        {/* Detailed Breakdown */}
+                        {selected.data.agentBreakdown && (
+                          <div className="space-y-3">
+                            <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">🔍 Detailed Breakdown</p>
+                            {[
+                              { label: "CTA",                icon: "🎯", key: "cta" },
+                              { label: "Text Clarity",       icon: "📝", key: "text_clarity" },
+                              { label: "Brand Presence",     icon: "🏷️", key: "brand_presence" },
+                              { label: "Brightness & Contrast", icon: "🎨", key: "brightness_contrast" },
+                              { label: "Ad Visibility",      icon: "👁", key: "ad_visibility" },
+                              { label: "Goal Alignment",     icon: "⚡", key: "goal_alignment" },
+                            ].map(({ label, icon, key }) => {
+                              const text = selected.data.agentBreakdown?.[key];
+                              if (!text) return null;
+                              return (
+                                <div key={key} className="p-3 rounded-xl bg-white/5 border border-white/8">
+                                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">{icon} {label}</p>
+                                  <p className="text-xs text-gray-300 leading-relaxed">{text}</p>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+
+                        {/* Actionable Suggestions */}
+                        {selected.data.agentSuggestions?.length > 0 && (
+                          <div className="space-y-3">
+                            <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">💡 Actionable Improvements</p>
+                            {selected.data.agentSuggestions.map((sug, i) => (
+                              <div key={i} className="flex items-start gap-3 p-3 rounded-xl bg-amber-500/5 border border-amber-500/20">
+                                <span className="w-5 h-5 rounded-full bg-amber-500/20 text-amber-300 text-[10px] font-black flex items-center justify-center shrink-0 mt-0.5">{i + 1}</span>
+                                <p className="text-sm text-gray-300 leading-relaxed">{sug}</p>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </>
+                    )}
                   </motion.div>
                 )}
               </AnimatePresence>

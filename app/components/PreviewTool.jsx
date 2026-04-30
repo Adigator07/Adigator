@@ -240,7 +240,9 @@ export default function PreviewTool() {
 
   useEffect(() => {
     try {
-      localStorage.setItem("adigator_state", JSON.stringify({ step, platform, goal: campaignGoal, audience: audienceType }));
+      localStorage.setItem("adigator_state", JSON.stringify({ 
+        step, platform, goal: campaignGoal, audience: audienceType 
+      }));
     } catch { /* ignore storage errors */ }
   }, [step, platform, campaignGoal, audienceType]);
 
