@@ -2,7 +2,7 @@ import Tesseract from "tesseract.js";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
-export type Platform = "google" | "programmatic";
+export type Platform = "programmatic";
 export type CampaignGoal = "awareness" | "consideration" | "conversion";
 export type AudienceType = "broad" | "intent" | "remarketing";
 
@@ -99,10 +99,6 @@ export interface LocalAnalysisResult {
 // ── Constants ──────────────────────────────────────────────────────────────────
 
 export const PLATFORM_SIZES: Record<Platform, { desktop: string[]; mobile: string[] }> = {
-  google: {
-    desktop: ["300x250", "728x90", "300x600", "970x250", "160x600"],
-    mobile:  ["320x50", "320x100", "300x250", "200x100"],
-  },
   programmatic: {
     desktop: ["300x250", "728x90", "970x250", "300x600", "160x600"],
     mobile:  ["320x50", "300x250", "320x100"],
