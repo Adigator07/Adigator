@@ -106,7 +106,7 @@ async function analyzeAllCreatives(creatives, goal, platform, audienceType) {
 export default function PreviewTool() {
   const router = useRouter();
   const [step, setStep] = useState(1);
-  const [platform, setPlatform] = useState("programmatic"); // fixed to programmatic
+  const [platform, setPlatform] = useState(null); // 'programmatic'
   const [campaignGoal, setCampaignGoal] = useState(null);
   const [audienceType, setAudienceType] = useState(null);
 
@@ -496,17 +496,43 @@ export default function PreviewTool() {
             <motion.div key="step-1" variants={containerVariants} initial="hidden" animate="visible" exit="hidden" className="space-y-12 pb-28">
               <div>
                 <h2 className="text-4xl font-bold text-white mb-2">Step 1: Setup Campaign</h2>
-                <p className="text-gray-400">Configure your campaign goal and audience before uploading creatives.</p>
+                <p className="text-gray-400">Configure platform, goal, and audience before uploading creatives.</p>
               </div>
 
               <motion.div variants={itemVariants} className="rounded-2xl border border-white/10 bg-white/5 p-5 backdrop-blur-lg">
                 <p className="text-xs uppercase tracking-[0.14em] text-gray-500">Selected Setup</p>
-                <div className="mt-3 grid gap-2 text-sm md:grid-cols-2">
+                <div className="mt-3 grid gap-2 text-sm md:grid-cols-3">
+                  <p className="text-gray-300">Platform: <span className="text-white font-semibold">{selectedPlatform}</span></p>
                   <p className="text-gray-300">Goal: <span className="text-white font-semibold">{selectedGoal}</span></p>
                   <p className="text-gray-300">Audience: <span className="text-white font-semibold">{selectedAudience}</span></p>
                 </div>
               </motion.div>
 
+
+              <motion.section variants={itemVariants} className="space-y-5">
+                <div>
+                  <h3 className="text-2xl font-bold text-white">Choose Platform</h3>
+                  <p className="mt-1 text-gray-400">Where will these ads run? This determines size validation and best practices.</p>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {PLATFORMS.map((p) => (
+                    <SelectionCard key={p.id} selected={platform === p.id} onClick={() => handlePlatformSelect(p.id)} activeClasses={`${p.color} ${p.border}`}>
+                      <div className="text-5xl mb-4">{p.icon}</div>
+                      <h3 className={`text-2xl font-extrabold mb-2 ${platform === p.id ? "text-white" : "text-gray-200"}`}>{p.title}</h3>
+                      <p className="text-sm text-gray-400 leading-relaxed mb-4">{p.desc}</p>
+                      <div className="space-y-2">
+                        <p className="text-xs font-bold text-white/70 uppercase">Supported Sizes:</p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {[...p.desktop, ...p.mobile].slice(0, 6).map(s => (
+                            <span key={s} className="px-2 py-1 bg-white/10 rounded text-[10px] text-gray-300">{s}</span>
+                          ))}
+                          {([...p.desktop, ...p.mobile].length > 6) && <span className="px-2 py-1 bg-white/10 rounded text-[10px] text-gray-300">+{([...p.desktop, ...p.mobile].length - 6)} more</span>}
+                        </div>
+                      </div>
+                    </SelectionCard>
+                  ))}
+                </div>
+              </motion.section>
 
               <motion.section ref={goalSectionRef} variants={itemVariants} className="space-y-5">
                 <div>
