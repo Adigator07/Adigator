@@ -100,8 +100,8 @@ export interface LocalAnalysisResult {
 
 export const PLATFORM_SIZES: Record<Platform, { desktop: string[]; mobile: string[] }> = {
   programmatic: {
-    desktop: ["300x250", "728x90", "970x250", "300x600", "160x600"],
-    mobile:  ["320x50", "300x250", "320x100"],
+    desktop: ["300x250", "336x280", "728x90", "970x90", "970x250", "160x600", "300x600", "300x1050", "468x60", "234x60", "120x600", "120x240", "250x250", "200x200", "180x150"],
+    mobile:  ["320x50", "320x100", "300x250", "320x480", "480x320", "360x640", "375x667", "414x736"],
   },
 };
 
@@ -138,7 +138,7 @@ export const WEAK_CTA_KEYWORDS = [
 ];
 
 const ALL_MOBILE_SIZES = new Set([
-  "320x50", "320x100", "300x250", "200x100",
+  "320x50", "320x100", "300x250", "320x480", "480x320", "360x640", "375x667", "414x736",
 ]);
 
 // ── 1. IMAGE PIXEL ANALYSIS ────────────────────────────────────────────────────

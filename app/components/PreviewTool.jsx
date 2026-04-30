@@ -9,6 +9,7 @@ import CreativeCard from "./CreativeCard";
 import AnalysisPanel from "./AnalysisPanel";
 import { supabase } from "../lib/supabase";
 import { analyzeCreativeLocal, PLATFORM_SIZES, GOAL_CTA } from "../lib/localAnalyzer";
+import { validateCreativeAsset, buildValidationSummary } from "../lib/creativeValidation";
 import {
   UploadCloud, CheckCircle2, XCircle, AlertCircle,
   Download, LayoutGrid, Square, CheckSquare,
@@ -48,12 +49,19 @@ const TEMPLATES = [
 const TOTAL_STEPS = 4;
 const STEP_LABELS = ["Setup", "Upload", "Analysis", "Preview Studio"];
 
+const LOW_AVAILABILITY_SIZES = new Set([
+  "234x60",
+  "120x240",
+  "180x150",
+  "300x1050",
+]);
+
 const PLATFORMS = [
   {
     id: "programmatic", icon: "📡", title: "Programmatic Ads", desc: "Real-time bidding across premium publisher inventory",
     color: "from-violet-600/30 to-violet-800/20", border: "border-violet-500/50",
-    desktop: ["300x250", "728x90", "970x250", "300x600", "160x600"],
-    mobile: ["320x50", "300x250", "320x100"],
+    desktop: ["300x250", "336x280", "728x90", "970x90", "970x250", "160x600", "300x600", "300x1050", "468x60", "234x60", "120x600", "120x240", "250x250", "200x200", "180x150"],
+    mobile: ["320x50", "320x100", "300x250", "320x480", "480x320", "360x640", "375x667", "414x736"],
   },
 ];
 
@@ -103,10 +111,34 @@ async function analyzeAllCreatives(creatives, goal, platform, audienceType) {
   return results;
 }
 
+function readFileAsDataURL(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => resolve(e.target?.result);
+    reader.onerror = () => reject(new Error(`Could not read ${file.name}`));
+    reader.readAsDataURL(file);
+  });
+}
+
+function loadImageFromDataURL(dataUrl) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = () => reject(new Error("Could not parse image dimensions"));
+    img.src = dataUrl;
+  });
+}
+
+function deriveStatusFromIssues(issues) {
+  if (issues.some((issue) => issue.severity === "high")) return "CRITICAL";
+  if (issues.some((issue) => issue.severity === "medium")) return "WARNING";
+  return "PASS";
+}
+
 export default function PreviewTool() {
   const router = useRouter();
   const [step, setStep] = useState(1);
-  const [platform, setPlatform] = useState(null); // 'programmatic'
+  const [platform, setPlatform] = useState("programmatic");
   const [campaignGoal, setCampaignGoal] = useState(null);
   const [audienceType, setAudienceType] = useState(null);
 
@@ -170,6 +202,10 @@ export default function PreviewTool() {
   const validCreatives = creatives.filter((c) => c && c.valid && (c.url || c.text || c.image || c.title));
   const invalidCreatives = creatives.filter((c) => c && (!c.valid || !(c.url || c.text || c.image || c.title)));
   const uploadedCreatives = validCreatives;
+  const validationResults = creatives.map((c) => c?.validation).filter(Boolean);
+  const validationSummary = validationResults.length
+    ? buildValidationSummary(validationResults)
+    : { totalIssues: 0, criticalCount: 0, warningCount: 0, inventoryImpactScore: 100 };
 
   const goNext = useCallback(() => {
     if (step === 1 && (!platform || !campaignGoal || !audienceType)) return;
@@ -237,34 +273,71 @@ export default function PreviewTool() {
     } catch (e) { console.error("saveToSupabase error:", e); }
   };
 
-  const handleFiles = (files) => {
+  const handleFiles = async (files) => {
     if (!platform) { addToast("Please select a platform first.", "error"); return; }
+    const fileList = Array.from(files || []);
+    if (fileList.length === 0) return;
+
     setIsLoading(true);
-    let processed = 0;
-    const total = files.length;
-    Array.from(files).forEach((file) => {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const img = new Image();
-        img.onload = () => {
-          const size = `${img.width}x${img.height}`;
-          const creative = {
-            id: `${Date.now()}-${Math.random()}`,
-            name: file.name.replace(/\.[^/.]+$/, ""),
-            url: e.target.result,
-            size,
-            valid: allowedSizes.includes(size),
-            originalFile: file.name,
-          };
-          setCreatives((prev) => [...prev, creative]);
-          saveToSupabase(creative);
-          processed++;
-          if (processed === total) setIsLoading(false);
+    try {
+      const preparedCreatives = await Promise.all(fileList.map(async (file) => {
+        const dataUrl = await readFileAsDataURL(file);
+        const img = await loadImageFromDataURL(dataUrl);
+        const size = `${img.width}x${img.height}`;
+        const validation = await validateCreativeAsset({
+          file,
+          image: img,
+          platform,
+          imageDataUrl: dataUrl,
+        });
+
+        const lowAvailabilityIssue = LOW_AVAILABILITY_SIZES.has(size)
+          ? {
+            type: "technical",
+            severity: "medium",
+            message: `${size} is valid but often has lower fill in open programmatic inventory.`,
+            recommendation: "Keep this size if required, but prioritize 300x250, 336x280, 728x90, 970x250, or 300x600 for broader scale.",
+            scorePenalty: 5,
+          }
+          : null;
+
+        const mergedIssues = lowAvailabilityIssue
+          ? [...validation.issues, lowAvailabilityIssue]
+          : validation.issues;
+
+        const normalizedValidation = {
+          ...validation,
+          issues: mergedIssues,
+          status: deriveStatusFromIssues(mergedIssues),
         };
-        img.src = e.target.result;
-      };
-      reader.readAsDataURL(file);
-    });
+
+        return {
+          id: `${Date.now()}-${Math.random()}`,
+          name: file.name.replace(/\.[^/.]+$/, ""),
+          url: dataUrl,
+          size,
+          valid: allowedSizes.includes(size) && normalizedValidation.status !== "CRITICAL",
+          originalFile: file.name,
+          validation: normalizedValidation,
+        };
+      }));
+
+      setCreatives((prev) => [...prev, ...preparedCreatives]);
+      preparedCreatives.forEach((creative) => saveToSupabase(creative));
+
+      const uploadSummary = buildValidationSummary(preparedCreatives.map((c) => c.validation));
+      if (uploadSummary.criticalCount > 0) {
+        addToast(`Uploaded ${preparedCreatives.length} creatives: ${uploadSummary.warningCount} warning(s), ${uploadSummary.criticalCount} critical.`, "error");
+      } else if (uploadSummary.warningCount > 0) {
+        addToast(`Uploaded ${preparedCreatives.length} creatives with ${uploadSummary.warningCount} warning(s).`, "info");
+      } else {
+        addToast(`Uploaded ${preparedCreatives.length} creatives. All checks passed.`, "success");
+      }
+    } catch (err) {
+      addToast(err?.message || "Failed to validate uploaded files.", "error");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const downloadCreative = useCallback((creative) => {
@@ -622,18 +695,35 @@ export default function PreviewTool() {
 
               {/* Validation Summary Stats */}
               {creatives.length > 0 && (
-                <div className="grid grid-cols-3 gap-4">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   <div className="bg-gradient-to-br from-blue-500/20 to-blue-600/20 border border-blue-500/30 rounded-xl p-4 text-center">
                     <p className="text-3xl font-bold text-blue-400">{creatives.length}</p>
                     <p className="text-sm text-gray-400 mt-1">Total</p>
                   </div>
                   <div className="bg-gradient-to-br from-green-500/20 to-green-600/20 border border-green-500/30 rounded-xl p-4 text-center">
                     <p className="text-3xl font-bold text-green-400">{validCreatives.length}</p>
-                    <p className="text-sm text-gray-400 mt-1">Valid</p>
+                    <p className="text-sm text-gray-400 mt-1">Ready</p>
+                  </div>
+                  <div className="bg-gradient-to-br from-amber-500/20 to-amber-600/20 border border-amber-500/30 rounded-xl p-4 text-center">
+                    <p className="text-3xl font-bold text-amber-400">{validationSummary.warningCount}</p>
+                    <p className="text-sm text-gray-400 mt-1">Warnings</p>
                   </div>
                   <div className="bg-gradient-to-br from-red-500/20 to-red-600/20 border border-red-500/30 rounded-xl p-4 text-center">
-                    <p className="text-3xl font-bold text-red-400">{invalidCreatives.length}</p>
-                    <p className="text-sm text-gray-400 mt-1">Invalid</p>
+                    <p className="text-3xl font-bold text-red-400">{validationSummary.criticalCount}</p>
+                    <p className="text-sm text-gray-400 mt-1">Critical</p>
+                  </div>
+                </div>
+              )}
+
+              {validationResults.length > 0 && (
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="bg-white/5 border border-white/10 rounded-xl p-4 text-center">
+                    <p className="text-2xl font-bold text-white">{validationSummary.totalIssues}</p>
+                    <p className="text-sm text-gray-400 mt-1">Total Issues</p>
+                  </div>
+                  <div className="bg-white/5 border border-white/10 rounded-xl p-4 text-center md:col-span-3">
+                    <p className="text-2xl font-bold text-cyan-300">{validationSummary.inventoryImpactScore}/100</p>
+                    <p className="text-sm text-gray-400 mt-1">Inventory Impact Score</p>
                   </div>
                 </div>
               )}
@@ -663,6 +753,27 @@ export default function PreviewTool() {
                         <button onClick={() => downloadCreative(creative)} className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-green-400 transition bg-white/5 hover:bg-white/10 rounded-lg px-2 py-1.5 mt-1">
                           <Download size={12} /> Download
                         </button>
+                        {creative.validation?.issues?.length > 0 && (
+                          <div className="mt-2 rounded-lg border border-amber-500/25 bg-amber-500/10 p-2">
+                            <p className="text-[11px] font-semibold text-amber-300">
+                              {creative.validation.status} • {creative.validation.issues.length} issue{creative.validation.issues.length > 1 ? "s" : ""}
+                            </p>
+                            <div className="mt-2 space-y-1.5">
+                              {creative.validation.issues.slice(0, 3).map((issue, idx) => (
+                                <div key={`${creative.id}-issue-${idx}`} className="rounded-md border border-white/10 bg-black/15 p-1.5">
+                                  <p className="text-[10px] text-amber-100 font-semibold uppercase tracking-wide">
+                                    {issue.severity} • {issue.type}
+                                  </p>
+                                  <p className="text-[10px] text-amber-100/90 mt-0.5 leading-snug">{issue.message}</p>
+                                  <p className="text-[10px] text-amber-200/80 mt-0.5 leading-snug">Fix: {issue.recommendation}</p>
+                                </div>
+                              ))}
+                              {creative.validation.issues.length > 3 && (
+                                <p className="text-[10px] text-amber-200/80">+{creative.validation.issues.length - 3} more issue(s)</p>
+                              )}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -672,12 +783,38 @@ export default function PreviewTool() {
               {/* Invalid List */}
               {invalidCreatives.length > 0 && (
                 <div className="space-y-4">
-                  <h3 className="text-xl font-semibold text-white flex items-center gap-2"><XCircle className="text-red-500" /> Invalid Creatives</h3>
+                  <h3 className="text-xl font-semibold text-white flex items-center gap-2"><XCircle className="text-red-500" /> Critical Creatives (Fix Before Analysis)</h3>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    {invalidCreatives.map((creative) => (
-                      <CreativeCard key={creative.id} creative={creative} onEdit={(c) => setEditModalCreative(c)} onRemove={removeCreative} />
-                    ))}
+                    {invalidCreatives.map((creative) => {
+                      return (
+                        <div key={creative.id} className="space-y-2">
+                          <CreativeCard creative={creative} onEdit={(c) => setEditModalCreative(c)} onRemove={removeCreative} />
+                          {creative.validation?.issues?.length > 0 && (
+                            <div className="rounded-lg border border-red-500/25 bg-red-500/10 p-2">
+                              {creative.validation.issues.slice(0, 3).map((issue, idx) => (
+                                <div key={`${creative.id}-critical-issue-${idx}`} className="mb-1.5 last:mb-0 rounded-md border border-white/10 bg-black/15 p-1.5">
+                                  <p className="text-[10px] text-red-200 font-semibold uppercase tracking-wide">
+                                    {issue.severity} • {issue.type}
+                                  </p>
+                                  <p className="text-[10px] text-red-100 mt-0.5 leading-snug">{issue.message}</p>
+                                  <p className="text-[10px] text-red-200/80 mt-0.5 leading-snug">Fix: {issue.recommendation}</p>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
+                </div>
+              )}
+
+              {validationSummary.warningCount > 0 && (
+                <div className="rounded-2xl border border-amber-500/25 bg-amber-500/10 px-4 py-3 flex items-start gap-3">
+                  <AlertCircle className="text-amber-300 mt-0.5" size={18} />
+                  <p className="text-sm text-amber-100">
+                    {validationSummary.warningCount} creative{validationSummary.warningCount > 1 ? "s have" : " has"} non-blocking warning{validationSummary.warningCount > 1 ? "s" : ""}. You can continue to analysis.
+                  </p>
                 </div>
               )}
 
