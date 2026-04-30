@@ -44,7 +44,6 @@ export interface LocalAnalysisResult {
   // CTA
   cta_presence:   boolean;
   cta_strength:   "none" | "weak" | "medium" | "strong";
-  cta_detected:   string;
   cta_recommendations: string[];
 
   // 6 Core Checks
