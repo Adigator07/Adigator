@@ -16,6 +16,13 @@ const GOAL_CTA = {
   conversion:    ["Buy Now", "Sign Up", "Get Started", "Download", "Claim Offer"],
 };
 
+const CTA_SCORE_MAP = {
+  none:   0,
+  weak:   25,
+  medium: 60,
+  strong: 100,
+};
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function rankVerdict(name, score, data) {
@@ -574,7 +581,7 @@ export default function AnalysisPanel({
                         <MetricBar label="Contrast"         value={selected.data.contrast}                color="bg-blue-400" />
                         <MetricBar label="Text Clarity"     value={selected.data.text_clarity}            color="bg-sky-400" />
                         <MetricBar label="CTA Strength"     value={
-                          { none: 0, soft: 33, weak: 33, medium: 66, strong: 100 }[selected.data.cta_strength?.toLowerCase()] ?? 0
+                          CTA_SCORE_MAP[selected.data.cta_strength?.toLowerCase()] ?? 0
                         } color="bg-green-400" />
                       </div>
                     </div>
@@ -727,17 +734,6 @@ export default function AnalysisPanel({
                       Platform-specific performance for <span className="text-white font-semibold capitalize">{platform}</span> ads
                     </p>
                     <PlatformCheckGrid platformChecks={selected.data.platformChecks} />
-                  </motion.div>
-                )}
-
-                {tab === "ranking" && (
-                  <motion.div
-                    key="ranking"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                  >
-                    <RankingLeaderboard results={analysisResult} />
                   </motion.div>
                 )}
               </AnimatePresence>

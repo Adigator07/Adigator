@@ -99,6 +99,16 @@ const AUDIENCES = [
 const containerVariants = { hidden: { opacity: 0 }, visible: { opacity: 1, transition: { staggerChildren: 0.1 } } };
 const itemVariants = { hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } };
 
+// ── Shared analysis helper ─────────────────────────────────────────────────────
+async function analyzeAllCreatives(creatives, goal, platform, audienceType) {
+  const results = [];
+  for (const creative of creatives) {
+    const data = await analyzeCreativeLocal(creative.url, goal, platform, audienceType, creative.size);
+    results.push({ creative, data });
+  }
+  return results;
+}
+
 export default function PreviewTool() {
   const router = useRouter();
   const [step, setStep] = useState(1);
@@ -182,16 +192,27 @@ export default function PreviewTool() {
   }, [step, router]);
 
   useEffect(() => {
-    const savedStep = localStorage.getItem("adigator_step");
-    if (savedStep) {
-      const parsed = parseInt(savedStep);
-      setStep(Number.isNaN(parsed) ? 1 : Math.min(Math.max(parsed, 1), TOTAL_STEPS));
-    }
+    try {
+      const saved = localStorage.getItem("adigator_state");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        const savedStep = parseInt(parsed.step);
+        const hasSetup = parsed.platform && parsed.goal && parsed.audience;
+        if (!Number.isNaN(savedStep) && hasSetup) {
+          setStep(Math.min(Math.max(savedStep, 1), TOTAL_STEPS));
+          setPlatform(parsed.platform);
+          setCampaignGoal(parsed.goal);
+          setAudienceType(parsed.audience);
+        }
+      }
+    } catch { /* ignore malformed data */ }
   }, []);
 
   useEffect(() => {
-    localStorage.setItem("adigator_step", step.toString());
-  }, [step]);
+    try {
+      localStorage.setItem("adigator_state", JSON.stringify({ step, platform, goal: campaignGoal, audience: audienceType }));
+    } catch { /* ignore storage errors */ }
+  }, [step, platform, campaignGoal, audienceType]);
 
   useEffect(() => {
     if (step === 3 && uploadedCreatives.length === 0) {
@@ -298,11 +319,7 @@ export default function PreviewTool() {
 
     setAnalysisLoading(true); setAnalysisResult(null);
     try {
-      const results = [];
-      for (const creative of validCreatives) {
-        const data = await analyzeCreativeLocal(creative.url, campaignGoal, platform, audienceType, creative.size);
-        results.push({ creative, data });
-      }
+      const results = await analyzeAllCreatives(validCreatives, campaignGoal, platform, audienceType);
       setAnalysisResult(results);
       if (results.length > 0 && results[0].data.recommendedTemplates?.length > 0) {
         setSelectedTemplate(results[0].data.recommendedTemplates[0]);
@@ -320,11 +337,7 @@ export default function PreviewTool() {
     if (validCreatives.length === 0) return;
     setAnalysisLoading(true); setAnalysisResult(null);
     try {
-      const results = [];
-      for (const creative of validCreatives) {
-        const data = await analyzeCreativeLocal(creative.url, newGoal, platform, audienceType, creative.size);
-        results.push({ creative, data });
-      }
+      const results = await analyzeAllCreatives(validCreatives, newGoal, platform, audienceType);
       setAnalysisResult(results);
       if (results.length > 0 && results[0].data.recommendedTemplates?.length > 0) {
         setSelectedTemplate(results[0].data.recommendedTemplates[0]);
