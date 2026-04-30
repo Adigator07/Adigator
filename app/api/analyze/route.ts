@@ -83,7 +83,7 @@ function getMockResponse(targetGoal: string, ctaWord: string) {
     cta_scores: hasCTA
       ? { clarity: 6, urgency: 4, value: 5, visibility: 7, overall: 5.5 }
       : { clarity: null, urgency: null, value: null, visibility: null, overall: null },
-    cta_strength: hasCTA ? (hasConversionCTA ? "Strong" : "Medium") : "Soft",
+    cta_strength: hasCTA ? (hasConversionCTA ? "Strong" : "Medium") : "None",
     analysis: "",
     impact: "",
     improved_ctas: [] as string[],
