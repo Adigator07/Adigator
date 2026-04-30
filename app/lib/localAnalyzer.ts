@@ -587,7 +587,7 @@ function buildSuggestions(params: {
 export async function analyzeCreativeLocal(
   imageUrl:    string,
   goal:        CampaignGoal,
-  platform:    Platform     = "google",
+  platform:    Platform     = "programmatic",
   audienceType: AudienceType = "broad",
   imageSize:   string       = ""
 ): Promise<LocalAnalysisResult> {
