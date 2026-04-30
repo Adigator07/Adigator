@@ -122,6 +122,25 @@ export const CTA_SCORE_MAP: Record<string, number> = {
   strong: 100,
 };
 
+// ── Tiered CTA keyword lists ───────────────────────────────────────────────────
+export const STRONG_CTA_KEYWORDS = [
+  "buy now", "shop now", "get started", "order now", "sign up", "download",
+  "claim offer", "claim now", "get offer", "start free trial", "try free",
+  "get yours", "add to cart", "subscribe now", "install now",
+  "start now", "book now", "register now", "apply now", "get access",
+];
+
+export const MEDIUM_CTA_KEYWORDS = [
+  "learn more", "explore", "discover", "see pricing", "compare", "book demo",
+  "try it", "view details", "see features", "request demo", "get quote",
+  "find out more", "watch now", "view offer", "see plans", "get demo",
+];
+
+export const WEAK_CTA_KEYWORDS = [
+  "click here", "click", "see", "visit", "check", "read",
+  "more info", "info", "know more",
+];
+
 const ALL_MOBILE_SIZES = new Set([
   "320x50", "320x100", "300x250", "200x100",
 ]);
@@ -280,59 +299,48 @@ function detectCTA(
   goal: CampaignGoal,
   visualButtonPresent = false
 ): { found: boolean; word: string; strength: "none" | "weak" | "medium" | "strong"; goalMatch: boolean } {
-  // Single-pass normalisation: expand CamelCase → strip punctuation → collapse whitespace → lowercase
-  const lower = text
-    .replace(/([a-z])([A-Z])/g, "$1 $2")   // CamelCase → Camel Case
-    .replace(/\b([A-Z])\s(?=[A-Z]\b)/g, "$1") // "S H O P" → "SHOP"
-    .replace(/[^a-zA-Z0-9\s]/g, " ")          // strip punctuation
+  const normalised = text
+    .replace(/([a-z])([A-Z])/g, "$1 $2")
+    .replace(/[^a-zA-Z0-9\s]/g, " ")
     .replace(/\s+/g, " ")
     .trim()
     .toLowerCase();
 
-  const goalWords = GOAL_CTA[goal];
+  const re = (w: string) =>
+    new RegExp(
+      `\\b${w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/\s+/g, "\\s+")}\\b`,
+      "i"
+    );
 
-  // 1. Check goal-specific strong CTAs
-  for (const w of goalWords) {
-    const re = new RegExp(`\\b${w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i");
-    if (re.test(lower)) return { found: true, word: w, strength: "strong", goalMatch: true };
+  // 1. Goal-specific CTA → strong + goalMatch (highest priority)
+  for (const w of GOAL_CTA[goal]) {
+    if (re(w).test(normalised)) return { found: true, word: w, strength: "strong", goalMatch: true };
   }
 
-  // 2. Check all goal CTAs (cross-goal strong match)
-  const allGoalCTAs = [
-    ...GOAL_CTA.awareness,
-    ...GOAL_CTA.consideration,
-    ...GOAL_CTA.conversion,
-  ];
+  // 2. Universal strong CTA keywords → strong, no goalMatch
+  for (const w of STRONG_CTA_KEYWORDS) {
+    if (re(w).test(normalised)) return { found: true, word: w, strength: "strong", goalMatch: false };
+  }
+
+  // 3. Cross-goal CTAs from GOAL_CTA → medium
+  const allGoalCTAs = [...GOAL_CTA.awareness, ...GOAL_CTA.consideration, ...GOAL_CTA.conversion];
   for (const w of allGoalCTAs) {
-    const re = new RegExp(`\\b${w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i");
-    if (re.test(lower)) return { found: true, word: w, strength: "medium", goalMatch: false };
+    if (re(w).test(normalised)) return { found: true, word: w, strength: "medium", goalMatch: false };
   }
 
-  // 3. Expanded generic action words (medium strength)
-  const genericCTA = [
-    "buy", "shop", "click", "order", "try", "sign up", "signup", "learn", "get",
-    "start", "join", "subscribe", "register", "watch", "view", "see",
-    "explore", "discover", "download", "claim", "book", "apply", "access",
-    "unlock", "request", "activate", "install", "open",
-  ];
-  for (const w of genericCTA) {
-    const re = new RegExp(`\\b${w.replace(/\s+/g, "\\s*")}\\b`, "i");
-    if (re.test(lower)) return { found: true, word: w, strength: "medium", goalMatch: false };
+  // 4. Medium CTA keywords
+  for (const w of MEDIUM_CTA_KEYWORDS) {
+    if (re(w).test(normalised)) return { found: true, word: w, strength: "medium", goalMatch: false };
   }
 
-  // 4. Weak informational words
-  const weakCTA = [
-    "more", "details", "info", "visit", "check", "read", "see more",
-    "find out", "more info", "read more",
-  ];
-  for (const w of weakCTA) {
-    const re = new RegExp(`\\b${w.replace(/\s+/g, "\\s*")}\\b`, "i");
-    if (re.test(lower)) return { found: true, word: w, strength: "weak", goalMatch: false };
+  // 5. Weak keywords
+  for (const w of WEAK_CTA_KEYWORDS) {
+    if (re(w).test(normalised)) return { found: true, word: w, strength: "weak", goalMatch: false };
   }
 
-  // 5. Visual button heuristic — treat as weak
+  // 6. Visual button in bottom 30% → weak signal
   if (visualButtonPresent) {
-    return { found: true, word: "Button detected", strength: "weak", goalMatch: false };
+    return { found: true, word: "Visual button", strength: "weak", goalMatch: false };
   }
 
   return { found: false, word: "", strength: "none", goalMatch: false };
@@ -462,7 +470,9 @@ function buildSuggestions(params: {
   ctaFound:     boolean;
   ctaGoalMatch: boolean;
   ctaStrength:  string;
+  ctaWord:      string;
   goal:         CampaignGoal;
+  audience:     AudienceType;
   claritySc:    number;
   brightness:   number;
   contrast:     number;
@@ -470,60 +480,107 @@ function buildSuggestions(params: {
   fitPass:      boolean;
   platform:     Platform;
   imageSize:    string;
+  isBlurry:     boolean;
 }): string[] {
-  const { ctaFound, ctaGoalMatch, ctaStrength, goal, claritySc, brightness, contrast,
-          crowdSc, fitPass, platform, imageSize } = params;
-  const recs = GOAL_CTA[goal].map((w) => `"${w.charAt(0).toUpperCase() + w.slice(1)}"`).join(", ");
+  const { ctaFound, ctaGoalMatch, ctaStrength, ctaWord, goal, audience,
+          claritySc, brightness, contrast, crowdSc, fitPass, platform, imageSize, isBlurry } = params;
   const suggestions: string[] = [];
 
-  // CTA suggestions
+  const ctaExamples: Record<CampaignGoal, string> = {
+    conversion:    `"Shop Now", "Buy Today", or "Claim Your Offer"`,
+    consideration: `"See Pricing", "Book a Free Demo", or "Compare Plans"`,
+    awareness:     `"Discover More", "See How It Works", or "Learn Our Story"`,
+  };
+
+  // 1. Blur / sharpness
+  if (isBlurry) {
+    suggestions.push(
+      `Image appears blurry or lacks sharp edges — this directly hurts Quality Score on ${platform}. ` +
+      `Export the creative at 2× resolution and ensure text and logo edges are crisp before uploading.`
+    );
+  }
+
+  // 2. CTA
   if (!ctaFound) {
-    if (goal === "conversion") {
-      suggestions.push(`No CTA detected — conversion campaigns live and die by their call-to-action. Place a high-contrast button in the bottom-right area with a direct phrase like ${recs}.`);
-    } else if (goal === "consideration") {
-      suggestions.push(`No CTA found — mid-funnel audiences need a clear next step to deepen engagement. Try adding ${recs} to guide viewers without pressuring them.`);
-    } else {
-      suggestions.push(`No CTA is present, which is acceptable for awareness, but adding a soft directive like ${recs} can significantly increase brand recall and top-of-funnel traffic.`);
-    }
+    suggestions.push(
+      `No CTA detected — ${audience} audiences have no clear next step and will scroll past. ` +
+      `Add a high-contrast button in the bottom third with a direct phrase like ${ctaExamples[goal]}.`
+    );
   } else if (!ctaGoalMatch) {
-    if (goal === "awareness" && (ctaStrength === "strong" || ctaStrength === "medium")) {
-      suggestions.push(`The CTA feels too aggressive for an Awareness campaign — hard-sell language on cold audiences raises ad fatigue. Soften it to something like ${recs} to reduce friction.`);
+    if (goal === "awareness" && ctaStrength === "strong") {
+      suggestions.push(
+        `"${ctaWord}" is too aggressive for an Awareness campaign — hard-sell CTAs on ${audience} audiences increase ad fatigue. ` +
+        `Swap to a softer phrase like ${ctaExamples.awareness} to build brand familiarity without friction.`
+      );
+    } else if (goal === "conversion" && (ctaStrength === "weak" || ctaStrength === "none")) {
+      suggestions.push(
+        `"${ctaWord}" is too passive for a Conversion goal — ${audience} audiences need urgency and a clear benefit. ` +
+        `Replace with a power phrase like ${ctaExamples.conversion} to trigger immediate action.`
+      );
     } else {
-      suggestions.push(`The current CTA doesn't align with your ${goal} objective. Replace it with a goal-matched option like ${recs} to improve click-through relevance.`);
+      suggestions.push(
+        `CTA "${ctaWord}" doesn't fully align with your ${goal} objective. ` +
+        `Replace with ${ctaExamples[goal]} to improve goal-click relevance and reduce wasted impressions.`
+      );
     }
   }
 
-  // Message clarity
+  // 3. Text clarity / overcrowding
   if (claritySc < 60) {
-    suggestions.push("The creative contains too much text — viewers scan banner ads in under 0.3 seconds and absorb only 7 words on average. Cut copy to a single punchy headline and let visuals do the rest.");
+    suggestions.push(
+      `Too much text detected — viewers absorb banner ads in under 0.3 seconds and retain only ~7 words. ` +
+      `Strip copy down to one punchy headline and one supporting line, then let visuals carry the rest.`
+    );
   }
 
-  // Brightness
+  // 4. Brightness
   if (brightness < 30) {
-    suggestions.push(`The creative is very dark (brightness: ${brightness}/100), causing it to disappear in both light-mode and dark-mode feeds. Increase the overall exposure or switch to a lighter background palette to improve visibility.`);
+    suggestions.push(
+      `Very dark creative (brightness: ${brightness}/100) — will disappear in light-mode feeds and on mobile in sunlight. ` +
+      `Increase background exposure by 20–30% or switch to a lighter palette to improve ad visibility.`
+    );
   } else if (brightness > 85) {
-    suggestions.push(`The creative is overly bright (brightness: ${brightness}/100), which can cause glare and visual fatigue. Tone down the background slightly and use contrast-rich foreground elements to keep the eye engaged.`);
+    suggestions.push(
+      `Overly bright creative (brightness: ${brightness}/100) causes visual fatigue and blends with white-background ad slots. ` +
+      `Reduce background brightness by ~15% and use contrast-rich text to keep the eye anchored.`
+    );
   }
 
-  // Contrast
+  // 5. Contrast
   if (contrast < 30) {
-    suggestions.push(`Low visual contrast (${contrast}/100) means key elements — especially the CTA button and headline — blend into the background. Increase the difference in brightness between text and background to improve legibility and ensure the ad stands out in busy feed environments.`);
+    suggestions.push(
+      `Low contrast (${contrast}/100) — CTA button and headline are blending into the background. ` +
+      `Increase the brightness gap between text and background by at least 50% to ensure legibility at small banner sizes.`
+    );
+  } else if (contrast < 50 && goal === "awareness") {
+    suggestions.push(
+      `Awareness ads compete with organic content in the same feed. ` +
+      `Push contrast above 50 with bold colour choices to create a visual pattern-interrupt — highest-ROI change at the top of the funnel.`
+    );
   }
 
-  // Layout crowding
+  // 6. Layout crowding
   if (crowdSc < 50) {
-    suggestions.push(`The layout appears overcrowded — too many elements compete for attention and reduce the viewer's ability to focus on the primary message. Remove at least one visual element and increase whitespace around the CTA.`);
+    suggestions.push(
+      `Layout is overcrowded for ${platform} — too many elements split viewer attention and reduce focus. ` +
+      `Remove at least one secondary visual element and increase whitespace around the CTA button.`
+    );
   }
 
-  // Format fit
+  // 7. Format / size fit
   if (!fitPass) {
     const valid = [...PLATFORM_SIZES[platform].desktop, ...PLATFORM_SIZES[platform].mobile];
-    suggestions.push(`The ad size (${imageSize}) is non-standard for ${platform}. Upload a correctly sized version — supported sizes are: ${valid.join(", ")}. Non-standard sizes risk being cropped, rejected, or penalised by the ad server.`);
+    suggestions.push(
+      `Ad size "${imageSize}" is non-standard for ${platform}. ` +
+      `Use one of the supported sizes: ${valid.join(", ")}. Non-standard dimensions risk cropping, rejection, or reduced delivery.`
+    );
   }
 
-  // Awareness-specific contrast
-  if (goal === "awareness" && contrast < 50) {
-    suggestions.push("Awareness ads compete in crowded feeds against organic content. Boost colour saturation and contrast to create a visual pattern-interrupt — this is the single highest-impact change you can make at the top of the funnel.");
+  if (suggestions.length === 0) {
+    suggestions.push(
+      `This creative passes all core quality checks — strong contrast, clear CTA, and correct format for ${platform}. ` +
+      `Well-positioned for launch on this ${goal} campaign targeting ${audience} audiences.`
+    );
   }
 
   return suggestions.slice(0, 5);
@@ -657,19 +714,45 @@ export async function analyzeCreativeLocal(
           (coreChecks.messageClarity.score) * 0.2
         );
 
-        const ctaNumeric = CTA_SCORE_MAP[cta.strength] ?? 0;
-        const weights = goal === "awareness"
-          ? { visual: 0.50, cta: 0.05, clarity: 0.30, layout: 0.10, goalFit: 0.05 }
-          : goal === "consideration"
-          ? { visual: 0.30, cta: 0.25, clarity: 0.25, layout: 0.10, goalFit: 0.10 }
-          : { visual: 0.20, cta: 0.45, clarity: 0.15, layout: 0.05, goalFit: 0.15 };
-        const overall = Math.round(
-          visualQual   * weights.visual  +
-          ctaNumeric   * weights.cta     +
-          clarity      * weights.clarity +
-          layoutSc     * weights.layout  +
-          goalFit      * weights.goalFit
+        // ── Weighted Scoring ─────────────────────────────────────────────────
+        const visibilityScore   = Math.round(px.contrast * 0.6 + Math.min(100, Math.abs(px.brightness - 50) * 2) * 0.4);
+        const ctaStrengthScore  = cta.goalMatch ? 100 : (CTA_SCORE_MAP[cta.strength] ?? 0);
+        const brandScore        = Math.min(100, Math.round(px.cornerBrightDiff * 1.5));
+        const layoutEdgeScore   = Math.round(Math.max(0, 100 - px.edgeDensity * 400));
+        const platformSizeList  = [...PLATFORM_SIZES[platform].desktop, ...PLATFORM_SIZES[platform].mobile];
+        const formatFitScore    = platformSizeList.includes(size) ? 100 : 50;
+
+        const weightedBase = Math.round(
+          visibilityScore  * 0.25 +
+          clarity          * 0.20 +
+          ctaStrengthScore * 0.25 +
+          brandScore       * 0.15 +
+          layoutEdgeScore  * 0.10 +
+          formatFitScore   * 0.05
         );
+
+        // ── Hard Penalties ───────────────────────────────────────────────────
+        const isBlurry = px.edgeDensity < 0.05;
+        let penaltyTotal = 0;
+        if (isBlurry)         penaltyTotal += 30;
+        if (!cta.found)       penaltyTotal += 25;
+        if (px.contrast < 20) penaltyTotal += 20;
+        if (clarity < 40)     penaltyTotal += 15;
+
+        const penalised = Math.max(0, weightedBase - penaltyTotal);
+
+        // ── Score Variation ±3 ──────────────────────────────────────────────
+        const variation = Math.floor(Math.random() * 7) - 3;
+        const overall   = Math.max(0, Math.min(100, penalised + variation));
+
+        // ── Dynamic Confidence ───────────────────────────────────────────────
+        let confScore = 0;
+        if (px.contrast >= 45)      confScore += 30; else if (px.contrast >= 22) confScore += 15;
+        if (ocrConfidence >= 60)    confScore += 25; else if (ocrConfidence >= 30) confScore += 12;
+        if (cta.found)              confScore += 25;
+        if (clarity >= 60)          confScore += 20;
+        const dynamicConfidence: "low" | "medium" | "high" =
+          confScore >= 60 ? "high" : confScore >= 35 ? "medium" : "low";
 
         // bestFor: recalculate goal-match independently per funnel stage
         const ctaAwareness     = detectCTA(text, "awareness", visualButtonPresent);
@@ -694,7 +777,9 @@ export async function analyzeCreativeLocal(
           ctaFound:     cta.found,
           ctaGoalMatch: cta.goalMatch,
           ctaStrength:  cta.strength,
+          ctaWord:      cta.word,
           goal,
+          audience:     audienceType,
           claritySc:    coreChecks.messageClarity.score,
           brightness:   px.brightness,
           contrast:     px.contrast,
@@ -702,6 +787,7 @@ export async function analyzeCreativeLocal(
           fitPass:      coreChecks.formatFit.pass,
           platform,
           imageSize:    size,
+          isBlurry,
         });
 
         if (suggestions.length === 0) {
@@ -789,7 +875,7 @@ export async function analyzeCreativeLocal(
           analysis: aiResult.analysis,
           impact: aiResult.impact,
           improved_ctas: aiResult.improved_ctas,
-          confidence: qg.confidence,
+          confidence: dynamicConfidence,
         });
       } catch (err) {
         reject(err);
