@@ -78,7 +78,8 @@ export interface LocalAnalysisResult {
   audience_type: "Cold" | "Warm" | "Hot";
   ai_cta_strength: "Soft" | "Medium" | "Strong";
   improvement_suggestions: string[];
-  cta_text?: string;
+  cta_detected?: boolean;
+  cta_text?: string | null;
   cta_type?: string;
   cta_goal_fit?: string;
   cta_scores?: {

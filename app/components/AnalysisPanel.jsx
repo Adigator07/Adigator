@@ -559,7 +559,7 @@ export default function AnalysisPanel({
                     {/* CTA Recommendations */}
                     <CTARecommendationStrip
                       goal={selected.data.goal || campaignGoal}
-                      detected={selected.data.cta_detected}
+                      detected={selected.data.cta_text || null}
                     />
 
                     {/* Metric Bars */}
