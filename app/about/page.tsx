@@ -266,7 +266,7 @@ export default function AboutPage() {
             transition={{ duration: 0.55, delay: 0.1, ease: "easeOut" }}
           >
             <Link
-              href="/preview-tool"
+              href="/preview"
               className="mt-8 inline-flex rounded-xl bg-gradient-to-r from-purple-500 to-pink-500 px-8 py-3 font-semibold text-white shadow-lg shadow-purple-500/30 transition-all duration-300 hover:scale-105"
             >
               Start Free Preview

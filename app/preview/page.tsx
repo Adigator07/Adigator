@@ -1,8 +1,6 @@
 "use client";
 import dynamic from "next/dynamic";
 
-// Disable SSR entirely for PreviewTool — it uses browser-only APIs
-// (pptxgenjs, ResizeObserver) that crash during static prerender.
 const PreviewTool = dynamic(() => import("../components/PreviewTool"), {
   ssr: false,
   loading: () => (
@@ -15,7 +13,7 @@ const PreviewTool = dynamic(() => import("../components/PreviewTool"), {
   ),
 });
 
-export default function PreviewPage() {
+export default function PreviewToolPage() {
   return (
     <div className="min-h-screen bg-[#0B1220] text-white">
       <PreviewTool />

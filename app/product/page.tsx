@@ -383,7 +383,7 @@ export default function ProductPage() {
               Try Adigator free for 7 days. No credit card required.
             </p>
             <Link
-              href="/preview-tool"
+              href="/preview"
               className="inline-flex rounded-xl bg-gradient-to-r from-purple-500 to-pink-500 px-8 py-3 font-semibold text-white shadow-lg shadow-purple-500/30 transition-all duration-300 hover:scale-105"
             >
               Start Free Preview

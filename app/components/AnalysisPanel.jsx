@@ -1,124 +1,636 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Download, CheckCircle2, XCircle, AlertCircle, Monitor, Smartphone,
-  Trophy, Star, TrendingUp, Eye, MessageSquare, MousePointer,
-  Shield, LayoutDashboard, Maximize2
+  Trophy, TrendingUp, Eye, MessageSquare, MousePointer,
+  Shield, LayoutDashboard, Maximize2, Zap, Brain, BarChart3,
+  Flame, Target, Activity, Database, Layers, ChevronRight,
+  Palette, Hierarchy, FlaskConical, Cpu, Gauge, ArrowUpRight,
+  AlertTriangle, Info, Sparkles, RefreshCw,
 } from "lucide-react";
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 
 const GOAL_CTA = {
-  awareness:     ["Learn More", "Discover", "Explore", "Watch Now", "See Now"],
+  awareness: ["Learn More", "Discover", "Explore", "Watch Now", "See Now"],
   consideration: ["View Details", "Compare Now", "Check Features", "See Pricing", "Try Demo"],
-  conversion:    ["Buy Now", "Sign Up", "Get Started", "Download", "Claim Offer"],
-};
-
-const CTA_SCORE_MAP = {
-  none:   0,
-  weak:   25,
-  medium: 60,
-  strong: 100,
+  conversion: ["Buy Now", "Sign Up", "Get Started", "Download", "Claim Offer"],
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function rankVerdict(name, score, data) {
-  if (score >= 80) {
-    return `"${name}" is perfect and strongly aligned with all standards and campaign goals.`;
-  }
-  if (score >= 65) {
+  if (score >= 82) return `"${name}" is peak performance — ready to scale aggressively.`;
+  if (score >= 68) {
     const weak = [];
-    if (!data.cta_presence)           weak.push("CTA is missing");
-    if (!data.coreChecks?.formatFit?.pass) weak.push("format needs checking");
-    if (data.coreChecks?.crowding?.score < 50) weak.push("layout is overcrowded");
-    const hint = weak.length > 0 ? ` — ${weak.join(" and ")}` : "";
-    return `"${name}" meets most standards${hint}. Minor improvements suggested.`;
+    if (!data.cta_presence) weak.push("CTA needs work");
+    if ((data.coreChecks?.crowding?.score ?? 100) < 50) weak.push("overcrowded layout");
+    return `"${name}" is launch-ready${weak.length ? ` — ${weak.join(", ")}` : ""}. Minor fixes unlock peak scaling.`;
   }
   if (score >= 45) {
     const issues = [];
-    if (!data.cta_presence) issues.push("CTA not aligned with goal");
-    if (data.coreChecks?.messageClarity?.score < 55) issues.push("message clarity needs work");
-    if (data.adVisibilityScore < 40) issues.push("low ad visibility");
-    const hint = issues.length > 0 ? ` — ${issues.join(", ")}` : "";
-    return `"${name}" needs work${hint}. Review suggestions below.`;
+    if (!data.cta_presence) issues.push("CTA misaligned");
+    if ((data.coreChecks?.messageClarity?.score ?? 100) < 55) issues.push("message clarity");
+    return `"${name}" needs revision — ${issues.join(", ") || "multiple issues"}. Review fix blocks.`;
   }
-  return `"${name}" has critical issues and is not recommended for launch without revisions.`;
+  return `"${name}" has critical issues. Do not run without full redesign.`;
 }
 
 function medalFor(rank) {
-  if (rank === 0) return "🥇";
-  if (rank === 1) return "🥈";
-  if (rank === 2) return "🥉";
-  return `#${rank + 1}`;
+  return rank === 0 ? "🥇" : rank === 1 ? "🥈" : rank === 2 ? "🥉" : `#${rank + 1}`;
 }
 
-const BEST_FOR_COLOR = {
-  Awareness:     "bg-blue-500/15 border-blue-500/40 text-blue-300",
+const FUNNEL_COLOR = {
+  Awareness: "bg-blue-500/15 border-blue-500/40 text-blue-300",
   Consideration: "bg-purple-500/15 border-purple-500/40 text-purple-300",
-  Conversion:    "bg-green-500/15 border-green-500/40 text-green-300",
+  Conversion: "bg-emerald-500/15 border-emerald-500/40 text-emerald-300",
 };
-
-const BEST_FOR_ICON = {
-  Awareness:     "👁",
-  Consideration: "🔍",
-  Conversion:    "⚡",
-};
+const FUNNEL_ICON = { Awareness: "👁", Consideration: "🔍", Conversion: "⚡" };
 
 function BestForBadge({ bestFor }) {
   if (!bestFor) return null;
   return (
-    <span className={`inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-bold rounded-full border ${BEST_FOR_COLOR[bestFor]}`}>
-      {BEST_FOR_ICON[bestFor]} Best for {bestFor}
+    <span className={`inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-bold rounded-full border ${FUNNEL_COLOR[bestFor] || "bg-white/10 border-white/20 text-gray-300"}`}>
+      {FUNNEL_ICON[bestFor]} Best for {bestFor}
     </span>
   );
 }
 
-function scoreColor(score) {
-  if (score >= 70) return "text-green-400";
-  if (score >= 45) return "text-yellow-400";
-  return "text-red-400";
+function sc(score) {
+  return score >= 72 ? "text-emerald-400" : score >= 48 ? "text-amber-400" : "text-red-400";
 }
-
-function scoreBg(score) {
-  if (score >= 70) return "bg-green-400";
-  if (score >= 45) return "bg-yellow-400";
-  return "bg-red-400";
+function scBg(score) {
+  return score >= 72 ? "bg-emerald-400" : score >= 48 ? "bg-amber-400" : "bg-red-400";
 }
-
 function scoreLabel(score) {
-  if (score >= 80) return "Excellent ✨";
-  if (score >= 70) return "Good ✓";
-  if (score >= 55) return "Fair ⚠";
-  if (score >= 45) return "Needs Work 🛠";
-  return "Poor ✗";
+  if (score >= 85) return "Peak ✨";
+  if (score >= 72) return "Good ✓";
+  if (score >= 58) return "Fair ⚠";
+  if (score >= 42) return "Needs Work 🛠";
+  return "Critical ✗";
 }
 
-// ── Sub-Components ─────────────────────────────────────────────────────────────
+const SEVERITY_CONFIG = {
+  CRITICAL: { color: "border-red-500/50 bg-red-500/8", badge: "bg-red-500/20 text-red-300", icon: <XCircle size={12} /> },
+  HIGH: { color: "border-orange-500/40 bg-orange-500/6", badge: "bg-orange-500/20 text-orange-300", icon: <AlertTriangle size={12} /> },
+  MEDIUM: { color: "border-yellow-500/30 bg-yellow-500/5", badge: "bg-yellow-500/20 text-yellow-300", icon: <AlertCircle size={12} /> },
+  LOW: { color: "border-white/15 bg-white/3", badge: "bg-white/10 text-gray-400", icon: <Info size={12} /> },
+};
+
+// ── Reusable Animated Bar ────────────────────────────────────────────────────
+
+function AnimBar({ value, color, delay = 0, height = "h-1.5" }) {
+  return (
+    <div className={`${height} bg-white/10 rounded-full overflow-hidden`}>
+      <motion.div
+        initial={{ scaleX: 0 }}
+        animate={{ scaleX: Math.max(0, Math.min(1, value / 100)) }}
+        transition={{ duration: 0.7, ease: "easeOut", delay }}
+        className={`h-full origin-left rounded-full ${color}`}
+      />
+    </div>
+  );
+}
+
+// ── Confidence Ring ────────────────────────────────────────────────────────────
+
+function ConfidenceRing({ score, size = 80, label = "" }) {
+  const r = (size - 12) / 2;
+  const circ = 2 * Math.PI * r;
+  const offset = circ * (1 - score / 100);
+  const color = score >= 72 ? "#34d399" : score >= 48 ? "#fbbf24" : "#f87171";
+
+  return (
+    <div className="relative flex items-center justify-center" style={{ width: size, height: size }}>
+      <svg width={size} height={size} className="-rotate-90">
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth={6} />
+        <motion.circle
+          cx={size / 2} cy={size / 2} r={r}
+          fill="none" stroke={color} strokeWidth={6}
+          strokeLinecap="round"
+          strokeDasharray={circ}
+          initial={{ strokeDashoffset: circ }}
+          animate={{ strokeDashoffset: offset }}
+          transition={{ duration: 1.1, ease: "easeOut" }}
+        />
+      </svg>
+      <div className="absolute text-center">
+        <p className="text-xs font-black" style={{ color }}>{score}</p>
+        {label && <p className="text-[9px] text-gray-500 leading-none mt-0.5">{label}</p>}
+      </div>
+    </div>
+  );
+}
+
+// ── 9-Dimension Score Radar ────────────────────────────────────────────────────
+
+function NineDimRadar({ data }) {
+  const dims = [
+    { key: "dim_cta", label: "CTA", weight: "20%", icon: MousePointer, bar: "bg-fuchsia-400", glow: "shadow-fuchsia-500/30" },
+    { key: "dim_goal", label: "Goal Fit", weight: "20%", icon: Target, bar: "bg-emerald-400", glow: "shadow-emerald-500/30" },
+    { key: "dim_text", label: "Text", weight: "13%", icon: MessageSquare, bar: "bg-sky-400", glow: "shadow-sky-500/30" },
+    { key: "dim_pixel", label: "Pixel Quality", weight: "10%", icon: Eye, bar: "bg-cyan-400", glow: "shadow-cyan-500/30" },
+    { key: "dim_brand", label: "Brand", weight: "10%", icon: Shield, bar: "bg-blue-400", glow: "shadow-blue-500/30" },
+    { key: "dim_brightness", label: "Brightness", weight: "8%", icon: Activity, bar: "bg-yellow-400", glow: "shadow-yellow-500/30" },
+    { key: "dim_color_harmony", label: "Color Harmony", weight: "7%", icon: Palette, bar: "bg-pink-400", glow: "shadow-pink-500/30" },
+    { key: "dim_filesize", label: "File Size", weight: "7%", icon: Layers, bar: "bg-orange-400", glow: "shadow-orange-500/30" },
+    { key: "dim_visual_hierarchy", label: "Hierarchy", weight: "5%", icon: LayoutDashboard, bar: "bg-violet-400", glow: "shadow-violet-500/30" },
+  ];
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between mb-3">
+        <p className="text-[11px] font-bold text-gray-400 uppercase tracking-widest">9-Dimension Engine</p>
+        <span className="text-[10px] text-gray-600">weights sum to 100%</span>
+      </div>
+      {dims.map(({ key, label, weight, icon: Icon, bar }, idx) => {
+        const score = data[key] ?? 0;
+        const detail = data.dim_details?.[key] ?? "";
+        return (
+          <div key={key} className="group">
+            <div className="flex items-center gap-2.5">
+              <div className={`w-6 h-6 rounded-md flex items-center justify-center shrink-0 bg-white/5`}>
+                <Icon size={11} className={score >= 72 ? "text-emerald-400" : score >= 48 ? "text-amber-400" : "text-red-400"} />
+              </div>
+              <div className="flex-1">
+                <div className="flex justify-between text-[11px] mb-1">
+                  <span className="text-gray-300 font-semibold">
+                    {label} <span className="text-gray-600 font-normal">({weight})</span>
+                  </span>
+                  <span className={`font-black tabular-nums ${sc(score)}`}>{score}</span>
+                </div>
+                <AnimBar value={score} color={bar} delay={idx * 0.05} />
+              </div>
+            </div>
+            {detail && (
+              <p className="text-[10px] text-gray-600 mt-0.5 ml-8 truncate group-hover:text-gray-400 transition-colors">
+                {detail}
+              </p>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ── Color Palette Viewer ──────────────────────────────────────────────────────
+
+function ColorPaletteStrip({ palette, harmony, warmth, hue }) {
+  const harmonyColors = {
+    HARMONIOUS: "bg-emerald-500/20 text-emerald-300 border-emerald-500/30",
+    ACCEPTABLE: "bg-yellow-500/20 text-yellow-300 border-yellow-500/30",
+    DISCORDANT: "bg-red-500/20 text-red-300 border-red-500/30",
+  };
+
+  return (
+    <div className="p-3.5 rounded-xl bg-white/4 border border-white/10 space-y-3">
+      <div className="flex items-center justify-between">
+        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Color Intelligence</p>
+        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${harmonyColors[harmony] || harmonyColors.ACCEPTABLE}`}>
+          {harmony}
+        </span>
+      </div>
+      {palette?.length > 0 && (
+        <div className="flex gap-2 items-center">
+          {palette.map((hex, i) => (
+            <div key={i} className="flex flex-col items-center gap-1">
+              <div
+                className="w-8 h-8 rounded-lg border border-white/20 shadow-lg"
+                style={{ backgroundColor: hex }}
+                title={hex}
+              />
+              <span className="text-[9px] text-gray-600 font-mono">{hex}</span>
+            </div>
+          ))}
+          <div className="ml-auto text-right space-y-1">
+            <p className="text-[10px] text-gray-500">Warmth <span className="text-white font-bold">{warmth ?? 50}%</span></p>
+            <p className="text-[10px] text-gray-500">Dom. Hue <span className="text-white font-bold">{hue ?? 0}°</span></p>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── WCAG Badge ────────────────────────────────────────────────────────────────
+
+function WcagBadge({ level, ratio }) {
+  const config = {
+    AAA: { color: "bg-emerald-500/20 text-emerald-300 border-emerald-500/30", icon: "✓✓" },
+    AA: { color: "bg-blue-500/20 text-blue-300 border-blue-500/30", icon: "✓" },
+    FAIL: { color: "bg-red-500/20 text-red-300 border-red-500/30", icon: "✗" },
+  };
+  const cfg = config[level] || config.FAIL;
+  return (
+    <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-[11px] font-bold ${cfg.color}`}>
+      <span>{cfg.icon}</span>
+      WCAG {level}
+      {ratio && <span className="font-normal text-[10px] opacity-70">{ratio}:1</span>}
+    </div>
+  );
+}
+
+// ── Cognitive Load Meter ──────────────────────────────────────────────────────
+
+function CognitiveLoadMeter({ score }) {
+  // lower = better
+  const display = score ?? 50;
+  const label = display < 25 ? "EFFORTLESS" : display < 45 ? "EASY" : display < 65 ? "MODERATE" : display < 80 ? "HEAVY" : "OVERLOADED";
+  const color = display < 35 ? "bg-emerald-400" : display < 55 ? "bg-yellow-400" : display < 75 ? "bg-orange-400" : "bg-red-500";
+  const textColor = display < 35 ? "text-emerald-300" : display < 55 ? "text-yellow-300" : display < 75 ? "text-orange-300" : "text-red-300";
+
+  return (
+    <div className="p-3.5 rounded-xl bg-white/4 border border-white/10 space-y-2.5">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Cpu size={12} className="text-gray-400" />
+          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Cognitive Load</p>
+        </div>
+        <span className={`text-[10px] font-black ${textColor}`}>{label}</span>
+      </div>
+      <div className="flex items-center gap-3">
+        <div className="flex-1">
+          <AnimBar value={display} color={color} height="h-2" />
+        </div>
+        <span className={`text-sm font-black tabular-nums ${textColor}`}>{display}</span>
+      </div>
+      <p className="text-[10px] text-gray-600">
+        {display < 35 ? "Message is instantly digestible — ideal for all placements." :
+          display < 55 ? "Moderate processing required — works well for desktop." :
+            display < 75 ? "High cognitive demand — mobile audiences will disengage." :
+              "Critical overload — viewer cannot extract any message."}
+      </p>
+    </div>
+  );
+}
+
+// ── Stop Rate Chip ─────────────────────────────────────────────────────────────
+
+function StopRateChip({ estimate }) {
+  if (!estimate) return null;
+  return (
+    <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-fuchsia-500/10 border border-fuchsia-500/30">
+      <Gauge size={11} className="text-fuchsia-400" />
+      <span className="text-[11px] font-bold text-fuchsia-300">Est. Stop Rate: {estimate}</span>
+    </div>
+  );
+}
+
+// ── Intelligence Panel (upgraded v4) ─────────────────────────────────────────
+
+const APPEAL_CONFIG = {
+  HIGH: { color: "bg-emerald-500/10 border-emerald-500/30", badge: "bg-emerald-500/20 text-emerald-300", icon: "🔥" },
+  MEDIUM: { color: "bg-yellow-500/10 border-yellow-500/30", badge: "bg-yellow-500/20 text-yellow-300", icon: "⚡" },
+  LOW: { color: "bg-slate-500/10 border-slate-500/30", badge: "bg-slate-500/20 text-gray-400", icon: "📊" },
+};
+
+const FORECAST_CONFIG = {
+  PEAK: { color: "bg-yellow-500/10 border-yellow-500/40", text: "text-yellow-300", icon: "⭐", label: "PEAK PERFORMANCE" },
+  HIGH: { color: "bg-emerald-500/10 border-emerald-500/40", text: "text-emerald-300", icon: "🟢", label: "HIGH ENGAGEMENT" },
+  MEDIUM: { color: "bg-yellow-500/10 border-yellow-500/30", text: "text-yellow-300", icon: "🟡", label: "MEDIUM ENGAGEMENT" },
+  LOW: { color: "bg-red-500/10 border-red-500/30", text: "text-red-300", icon: "🔴", label: "LOW ENGAGEMENT" },
+};
+
+function ClutterMeter({ index, label }) {
+  const colors = ["bg-emerald-400", "bg-emerald-400", "bg-emerald-400", "bg-yellow-400", "bg-yellow-400", "bg-yellow-400", "bg-orange-400", "bg-orange-400", "bg-red-400", "bg-red-500"];
+  return (
+    <div className="p-3.5 rounded-xl bg-white/4 border border-white/10 space-y-3">
+      <div className="flex items-center justify-between">
+        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Clutter Index</p>
+        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${label === "CLEAN" ? "bg-emerald-500/20 text-emerald-300" :
+          label === "MODERATE" ? "bg-yellow-500/20 text-yellow-300" :
+            label === "CLUTTERED" ? "bg-orange-500/20 text-orange-300" :
+              "bg-red-500/20 text-red-300"
+          }`}>{index}/10 — {label}</span>
+      </div>
+      <div className="flex items-end gap-1">
+        {Array.from({ length: 10 }, (_, i) => (
+          <motion.div
+            key={i}
+            initial={{ scaleY: 0 }}
+            animate={{ scaleY: 1 }}
+            transition={{ delay: i * 0.04, duration: 0.3 }}
+            className={`flex-1 rounded-sm origin-bottom ${i < index ? colors[i] : "bg-white/8"}`}
+            style={{ height: `${12 + i * 2}px` }}
+          />
+        ))}
+      </div>
+      <p className="text-[10px] text-gray-500">
+        {label === "CLEAN" ? "Clean, mobile-friendly layout with strong stop-rate potential." :
+          label === "MODERATE" ? "Some complexity — slight attention dilution on mobile feeds." :
+            label === "CLUTTERED" ? "Too many elements competing — mobile readability is poor." :
+              "Impossible visual hierarchy — viewer cannot identify the main message."}
+      </p>
+    </div>
+  );
+}
+
+function IntelligencePanel({ data }) {
+  const emotionCfg = APPEAL_CONFIG[data.emotional_appeal] || APPEAL_CONFIG.MEDIUM;
+  const forecastCfg = FORECAST_CONFIG[data.engagement_forecast] || FORECAST_CONFIG.MEDIUM;
+  const clutterIndex = data.clutter_index ?? 5;
+  const clutterLabel = data.clutter_label ?? "MODERATE";
+  const confidence = data.engagement_forecast_confidence ?? 65;
+
+  return (
+    <div className="space-y-4">
+
+      {/* Engagement Forecast */}
+      <div className={`p-4 rounded-xl border ${forecastCfg.color}`}>
+        <div className="flex items-start justify-between mb-3">
+          <div>
+            <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1">Engagement Forecast</p>
+            <span className={`text-lg font-black ${forecastCfg.text}`}>{forecastCfg.icon} {forecastCfg.label}</span>
+          </div>
+          <div className="text-right">
+            <ConfidenceRing score={confidence} size={56} label="conf." />
+          </div>
+        </div>
+        {data.stop_rate_estimate && (
+          <div className="mb-3">
+            <StopRateChip estimate={data.stop_rate_estimate} />
+          </div>
+        )}
+        {data.engagement_drivers?.length > 0 && (
+          <ul className="space-y-1.5">
+            {data.engagement_drivers.map((driver, i) => (
+              <li key={i} className="flex items-start gap-2 text-xs text-gray-300">
+                <ChevronRight size={12} className={`shrink-0 mt-0.5 ${forecastCfg.text}`} />
+                {driver}
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
+      {/* Emotional Appeal + Archetype */}
+      <div className="grid grid-cols-2 gap-3">
+        <div className={`p-3 rounded-xl border ${emotionCfg.color}`}>
+          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">Emotional Appeal</p>
+          <span className={`inline-block px-2.5 py-1 rounded-full text-xs font-black ${emotionCfg.badge}`}>
+            {emotionCfg.icon} {data.emotional_appeal || "MEDIUM"}
+          </span>
+          <p className="text-[11px] text-gray-400 mt-2 leading-relaxed">
+            {data.emotional_appeal === "HIGH" ? "Strong scroll-stop potential. Triggers emotion in < 2 seconds." :
+              data.emotional_appeal === "MEDIUM" ? "Informative and credible. Works for consideration audiences." :
+                "Purely functional. Only effective for high-intent retargeting."}
+          </p>
+        </div>
+        <div className="p-3 rounded-xl border border-fuchsia-500/20 bg-fuchsia-500/5">
+          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">Creative Archetype</p>
+          <span className="inline-block px-2.5 py-1 rounded-full text-xs font-black bg-fuchsia-500/20 text-fuchsia-300">
+            🎯 {data.creative_archetype || "Feature Showcase"}
+          </span>
+          {data.emotion_signature && (
+            <p className="text-[11px] text-gray-400 mt-2">
+              Emotion mix: <span className="text-white font-semibold">{data.emotion_signature}</span>
+            </p>
+          )}
+        </div>
+      </div>
+
+      {/* Visual Hierarchy */}
+      <div className="p-3.5 rounded-xl bg-white/4 border border-white/10">
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-2">
+            <LayoutDashboard size={12} className="text-violet-400" />
+            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Visual Hierarchy</p>
+          </div>
+          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${data.visual_hierarchy === "STRONG" ? "bg-emerald-500/20 text-emerald-300" :
+            data.visual_hierarchy === "MODERATE" ? "bg-yellow-500/20 text-yellow-300" :
+              "bg-red-500/20 text-red-300"
+            }`}>{data.visual_hierarchy || "MODERATE"}</span>
+        </div>
+        <div className="grid grid-cols-3 gap-2 mt-2">
+          {[
+            { label: "Headline", value: data.headlineDetected },
+            { label: "Linear Flow", value: data.readingFlow === "LINEAR" },
+            { label: "Focal Point", value: (data.focalPointStrength ?? 0) > 40 },
+          ].map(({ label, value }) => (
+            <div key={label} className={`p-2 rounded-lg text-center text-[10px] font-semibold ${value ? "bg-emerald-500/10 text-emerald-300" : "bg-red-500/10 text-red-300"}`}>
+              {value ? "✓" : "✗"} {label}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Color Intelligence */}
+      <ColorPaletteStrip
+        palette={data.colorPalette}
+        harmony={data.colorHarmony}
+        warmth={data.warmthScore}
+        hue={data.dominantHue}
+      />
+
+      {/* Cognitive Load + WCAG */}
+      <CognitiveLoadMeter score={data.cognitive_load_score} />
+
+      <div className="flex items-center gap-3 flex-wrap">
+        {data.wcagLevel && <WcagBadge level={data.wcagLevel} ratio={data.textContrast} />}
+        {data.hasCurrency && (
+          <span className="text-[11px] px-2 py-0.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 font-semibold">
+            💰 Price Detected
+          </span>
+        )}
+        {data.hasPercentage && (
+          <span className="text-[11px] px-2 py-0.5 rounded-lg bg-blue-500/10 border border-blue-500/20 text-blue-300 font-semibold">
+            % Offer Detected
+          </span>
+        )}
+      </div>
+
+      {/* Clutter Meter */}
+      <ClutterMeter index={clutterIndex} label={clutterLabel} />
+
+      {/* Dataset */}
+      {data.dataset_matches?.length > 0 ? (
+        <div className="p-4 rounded-xl bg-white/3 border border-white/10 space-y-3">
+          <div className="flex items-center gap-2">
+            <Database size={12} className="text-blue-400" />
+            <p className="text-xs font-bold text-blue-300 uppercase tracking-wider">Dataset Pattern Matches</p>
+            <span className={`ml-auto text-[10px] font-bold px-2 py-0.5 rounded-full ${data.dataset_confidence === "HIGH" ? "bg-emerald-500/20 text-emerald-300" :
+              data.dataset_confidence === "MODERATE" ? "bg-yellow-500/20 text-yellow-300" :
+                "bg-gray-500/20 text-gray-400"
+              }`}>{data.dataset_confidence || "MODERATE"}</span>
+          </div>
+          {data.dataset_matches.map((match, i) => (
+            <div key={i} className="flex items-start gap-3 p-2.5 rounded-lg bg-white/5 border border-white/8">
+              <span className={`shrink-0 mt-0.5 text-[10px] font-black px-1.5 py-0.5 rounded ${match.result_label === "HIGH_PERFORMER" ? "bg-emerald-500/20 text-emerald-300" :
+                match.result_label === "LOW_PERFORMER" ? "bg-red-500/20 text-red-300" :
+                  "bg-gray-500/20 text-gray-400"
+                }`}>{match.result_label}</span>
+              <div className="flex-1 min-w-0">
+                <p className="text-[11px] text-white font-semibold">{match.creative_id}{match.ctr ? ` — CTR: ${match.ctr}` : ""}</p>
+                <p className="text-[11px] text-gray-400 mt-0.5">{match.learning}</p>
+              </div>
+              <span className="text-[10px] text-gray-500 shrink-0">{match.similarity}</span>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="p-3 rounded-xl bg-blue-500/5 border border-blue-500/20 flex items-center gap-3">
+          <Database size={14} className="text-blue-400 shrink-0" />
+          <p className="text-xs text-gray-400">
+            Connect your historical dataset to unlock pattern matching signals.
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── A/B Hypothesis Cards ──────────────────────────────────────────────────────
+
+function ABHypothesisCard({ hyp, index }) {
+  const priorityColor = hyp.priority === "HIGH"
+    ? "border-red-500/30 bg-red-500/5"
+    : hyp.priority === "MEDIUM"
+      ? "border-yellow-500/25 bg-yellow-500/4"
+      : "border-white/10 bg-white/3";
+
+  const priorityBadge = hyp.priority === "HIGH"
+    ? "bg-red-500/20 text-red-300"
+    : hyp.priority === "MEDIUM"
+      ? "bg-yellow-500/20 text-yellow-300"
+      : "bg-gray-500/20 text-gray-400";
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: index * 0.07 }}
+      className={`p-3.5 rounded-xl border ${priorityColor}`}
+    >
+      <div className="flex items-center justify-between mb-2.5">
+        <div className="flex items-center gap-2">
+          <FlaskConical size={12} className="text-fuchsia-400" />
+          <p className="text-xs font-bold text-white">{hyp.dimension}</p>
+        </div>
+        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${priorityBadge}`}>
+          {hyp.priority} PRIORITY
+        </span>
+      </div>
+      <div className="grid grid-cols-2 gap-2 mb-2.5">
+        <div className="p-2 rounded-lg bg-white/5 border border-white/8">
+          <p className="text-[9px] font-bold text-gray-500 uppercase mb-1">Variant A (Control)</p>
+          <p className="text-[11px] text-gray-300">{hyp.variant_a}</p>
+        </div>
+        <div className="p-2 rounded-lg bg-fuchsia-500/8 border border-fuchsia-500/20">
+          <p className="text-[9px] font-bold text-fuchsia-500 uppercase mb-1">Variant B (Test)</p>
+          <p className="text-[11px] text-white">{hyp.variant_b}</p>
+        </div>
+      </div>
+      <div className="flex items-center gap-2">
+        <ArrowUpRight size={11} className="text-emerald-400 shrink-0" />
+        <p className="text-[11px] text-emerald-300 font-semibold">{hyp.expected_lift}</p>
+      </div>
+    </motion.div>
+  );
+}
+
+// ── Fix Blocks Panel (v4) ─────────────────────────────────────────────────────
+
+function FixBlockCard({ fix, index }) {
+  const [open, setOpen] = useState(false);
+  const sev = SEVERITY_CONFIG[fix.severity] || SEVERITY_CONFIG.MEDIUM;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: index * 0.06 }}
+      className={`rounded-xl border overflow-hidden ${sev.color}`}
+    >
+      <button onClick={() => setOpen(o => !o)} className="w-full flex items-center gap-3 p-3 text-left">
+        <div className={`w-11 h-11 rounded-xl flex flex-col items-center justify-center shrink-0 ${fix.score < 40 ? "bg-red-500/20" : fix.score < 60 ? "bg-orange-500/15" : "bg-yellow-500/12"
+          }`}>
+          <span className={`text-sm font-black leading-none ${sc(fix.score)}`}>{fix.score}</span>
+          <span className="text-[9px] text-gray-500">/100</span>
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 mb-0.5">
+            <p className="text-xs font-bold text-white">{fix.dimension}</p>
+            <span className={`inline-flex items-center gap-1 text-[9px] font-bold px-1.5 py-0.5 rounded-full ${sev.badge}`}>
+              {sev.icon} {fix.severity}
+            </span>
+          </div>
+          <p className="text-[11px] text-gray-400 truncate">{fix.problem}</p>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          <span className="text-[10px] text-gray-600 hidden sm:block">{fix.timeEstimate}</span>
+          <motion.div animate={{ rotate: open ? 90 : 0 }}>
+            <ChevronRight size={14} className="text-gray-500" />
+          </motion.div>
+        </div>
+      </button>
+
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className="overflow-hidden"
+          >
+            <div className="px-3.5 pb-3.5 space-y-2.5 border-t border-white/8 pt-3">
+              <div className="p-2.5 rounded-lg bg-red-500/5 border border-red-500/15">
+                <p className="text-[10px] font-bold text-red-400 uppercase mb-1">Problem</p>
+                <p className="text-xs text-gray-300 leading-relaxed">{fix.problem}</p>
+              </div>
+              <div className="p-2.5 rounded-lg bg-amber-500/5 border border-amber-500/15">
+                <p className="text-[10px] font-bold text-amber-400 uppercase mb-1">Performance Impact</p>
+                <p className="text-xs text-gray-300 leading-relaxed">{fix.impact}</p>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="p-2.5 rounded-lg bg-blue-500/5 border border-blue-500/15">
+                  <p className="text-[10px] font-bold text-blue-400 uppercase mb-1">⚡ Fix Now ({fix.timeEstimate})</p>
+                  <p className="text-xs text-gray-300 leading-relaxed">{fix.fixNow}</p>
+                </div>
+                <div className="p-2.5 rounded-lg bg-fuchsia-500/5 border border-fuchsia-500/15">
+                  <p className="text-[10px] font-bold text-fuchsia-400 uppercase mb-1">🔬 Fix Deep</p>
+                  <p className="text-xs text-gray-300 leading-relaxed">{fix.fixDeep}</p>
+                </div>
+              </div>
+              {fix.abTestIdea && (
+                <div className="p-2.5 rounded-lg bg-fuchsia-500/4 border border-fuchsia-500/15">
+                  <p className="text-[10px] font-bold text-fuchsia-500 uppercase mb-1">
+                    <FlaskConical size={9} className="inline mr-1" />A/B Test Idea
+                  </p>
+                  <p className="text-[11px] text-gray-300">{fix.abTestIdea}</p>
+                </div>
+              )}
+              {fix.datasetNote && (
+                <div className="p-2 rounded-lg bg-white/3 border border-white/8">
+                  <p className="text-[10px] font-bold text-gray-500 uppercase mb-1">📊 Dataset Note</p>
+                  <p className="text-[11px] text-gray-400">{fix.datasetNote}</p>
+                </div>
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.div>
+  );
+}
+
+// ── Core Check Row ─────────────────────────────────────────────────────────────
 
 function CoreCheckRow({ icon: Icon, label, data }) {
   return (
-    <div className={`flex items-center gap-3 p-3 rounded-xl border ${
-      data.pass
-        ? "bg-green-500/5 border-green-500/20"
-        : "bg-red-500/5 border-red-500/20"
-    }`}>
-      <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
-        data.pass ? "bg-green-500/15 text-green-400" : "bg-red-500/15 text-red-400"
+    <div className={`flex items-center gap-3 p-3 rounded-xl border ${data.pass ? "bg-emerald-500/5 border-emerald-500/20" : "bg-red-500/5 border-red-500/20"
       }`}>
-        <Icon size={15} />
+      <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${data.pass ? "bg-emerald-500/15 text-emerald-400" : "bg-red-500/15 text-red-400"
+        }`}>
+        <Icon size={14} />
       </div>
       <div className="flex-1 min-w-0">
         <p className="text-xs font-bold text-white">{label}</p>
-        <p className={`text-[11px] truncate ${data.pass ? "text-green-300/70" : "text-red-300/70"}`}>
-          {data.label}
-        </p>
+        <p className={`text-[11px] truncate ${data.pass ? "text-emerald-300/70" : "text-red-300/70"}`}>{data.label}</p>
       </div>
-      <div className={`text-xs font-bold shrink-0 ${data.pass ? "text-green-400" : "text-red-400"}`}>
-        {data.score}
-      </div>
+      <div className={`text-sm font-black shrink-0 tabular-nums ${data.pass ? "text-emerald-400" : "text-red-400"}`}>{data.score}</div>
     </div>
   );
 }
@@ -127,67 +639,10 @@ function MetricBar({ label, value, color }) {
   return (
     <div>
       <div className="flex justify-between text-xs mb-1">
-        <span className="text-gray-400">{label}</span>
-        <span className="text-white font-bold">{value}</span>
+        <span className="text-gray-500">{label}</span>
+        <span className="text-white font-bold tabular-nums">{value}</span>
       </div>
-      <div className="h-2 bg-white/10 rounded-full overflow-hidden">
-        <motion.div
-          initial={{ scaleX: 0 }}
-          animate={{ scaleX: value / 100 }}
-          transition={{ duration: 0.5, ease: "easeOut" }}
-          className={`h-full origin-left rounded-full ${color}`}
-        />
-      </div>
-    </div>
-  );
-}
-
-function PlatformCheckGrid({ platformChecks }) {
-  if (!platformChecks) return null;
-  const desktopItems = [
-    { key: "layoutBalance",    label: "Layout Balance" },
-    { key: "visualHierarchy",  label: "Visual Hierarchy" },
-    { key: "contentStructure", label: "Content Structure" },
-    { key: "placementBlend",   label: "Placement Blend" },
-  ];
-  const mobileItems = [
-    { key: "readability",   label: "Readability" },
-    { key: "textDensity",   label: "Text Density" },
-    { key: "ctaSize",       label: "CTA Size" },
-    { key: "attentionGrab", label: "Attention Grab" },
-  ];
-
-  const Pill = ({ label, data }) => (
-    <div className={`flex items-center justify-between px-3 py-2 rounded-lg text-xs border ${
-      data?.pass
-        ? "bg-emerald-500/8 border-emerald-500/25 text-emerald-300"
-        : "bg-red-500/8 border-red-500/25 text-red-300"
-    }`}>
-      <span className="font-medium">{label}</span>
-      <span className="font-bold ml-2">{data?.score ?? 0}</span>
-    </div>
-  );
-
-  return (
-    <div className="grid grid-cols-2 gap-4">
-      <div className="space-y-2">
-        <div className="flex items-center gap-2 mb-2">
-          <Monitor size={13} className="text-blue-400" />
-          <p className="text-xs font-bold text-blue-300 uppercase tracking-wider">Desktop Checks</p>
-        </div>
-        {desktopItems.map(({ key, label }) => (
-          <Pill key={key} label={label} data={platformChecks.desktop?.[key]} />
-        ))}
-      </div>
-      <div className="space-y-2">
-        <div className="flex items-center gap-2 mb-2">
-          <Smartphone size={13} className="text-purple-400" />
-          <p className="text-xs font-bold text-purple-300 uppercase tracking-wider">Mobile Checks</p>
-        </div>
-        {mobileItems.map(({ key, label }) => (
-          <Pill key={key} label={label} data={platformChecks.mobile?.[key]} />
-        ))}
-      </div>
+      <AnimBar value={value} color={color} />
     </div>
   );
 }
@@ -196,21 +651,13 @@ function CTARecommendationStrip({ goal, detected }) {
   const recs = GOAL_CTA[goal] || [];
   return (
     <div className="space-y-2">
-      <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">
-        Recommended CTAs for {goal}
-      </p>
-      <div className="flex flex-wrap gap-2">
+      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Recommended CTAs for {goal}</p>
+      <div className="flex flex-wrap gap-1.5">
         {recs.map((cta) => {
           const isDetected = detected && detected.toLowerCase().includes(cta.toLowerCase());
           return (
-            <span
-              key={cta}
-              className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition ${
-                isDetected
-                  ? "bg-green-500/20 border-green-500/50 text-green-300"
-                  : "bg-white/5 border-white/15 text-gray-400"
-              }`}
-            >
+            <span key={cta} className={`px-2.5 py-1.5 rounded-full text-xs font-semibold border transition ${isDetected ? "bg-emerald-500/20 border-emerald-500/50 text-emerald-300" : "bg-white/5 border-white/12 text-gray-400"
+              }`}>
               {isDetected ? "✓ " : ""}{cta}
             </span>
           );
@@ -218,64 +665,103 @@ function CTARecommendationStrip({ goal, detected }) {
       </div>
       {detected && (
         <p className="text-[11px] text-gray-500">
-          Detected in creative: <span className="text-white font-semibold">"{detected}"</span>
+          Detected: <span className="text-white font-semibold">"{detected}"</span>
         </p>
       )}
     </div>
   );
 }
 
+function PlatformCheckGrid({ platformChecks }) {
+  if (!platformChecks) return null;
+  const desktopItems = [
+    { key: "layoutBalance", label: "Layout Balance" },
+    { key: "visualHierarchy", label: "Visual Hierarchy" },
+    { key: "contentStructure", label: "Content Structure" },
+    { key: "placementBlend", label: "Placement Blend" },
+  ];
+  const mobileItems = [
+    { key: "readability", label: "Readability" },
+    { key: "textDensity", label: "Text Density" },
+    { key: "ctaSize", label: "CTA Size" },
+    { key: "attentionGrab", label: "Attention Grab" },
+  ];
+  const Pill = ({ label, data }) => (
+    <div className={`flex items-center justify-between px-3 py-2 rounded-lg text-xs border ${data?.pass ? "bg-emerald-500/8 border-emerald-500/25 text-emerald-300" : "bg-red-500/8 border-red-500/25 text-red-300"
+      }`}>
+      <span className="font-medium">{label}</span>
+      <span className="font-bold ml-2">{data?.score ?? 0}</span>
+    </div>
+  );
+  return (
+    <div className="grid grid-cols-2 gap-4">
+      <div className="space-y-2">
+        <div className="flex items-center gap-2 mb-2">
+          <Monitor size={12} className="text-blue-400" />
+          <p className="text-[10px] font-bold text-blue-300 uppercase tracking-wider">Desktop</p>
+        </div>
+        {desktopItems.map(({ key, label }) => <Pill key={key} label={label} data={platformChecks.desktop?.[key]} />)}
+      </div>
+      <div className="space-y-2">
+        <div className="flex items-center gap-2 mb-2">
+          <Smartphone size={12} className="text-purple-400" />
+          <p className="text-[10px] font-bold text-purple-300 uppercase tracking-wider">Mobile</p>
+        </div>
+        {mobileItems.map(({ key, label }) => <Pill key={key} label={label} data={platformChecks.mobile?.[key]} />)}
+      </div>
+    </div>
+  );
+}
+
 function RankingLeaderboard({ results }) {
   const sorted = [...results].sort((a, b) => b.data.overall_score - a.data.overall_score);
-
   return (
     <div className="space-y-3">
       <div className="flex items-center gap-2 mb-4">
-        <Trophy size={16} className="text-yellow-400" />
+        <Trophy size={15} className="text-yellow-400" />
         <h4 className="text-sm font-bold text-white uppercase tracking-wider">Creative Ranking</h4>
+        <span className="ml-auto text-[10px] text-gray-500">Sorted by ACIE v4 Weighted Score</span>
       </div>
       {sorted.map((res, rank) => {
         const score = res.data.overall_score;
+        const forecast = res.data.engagement_forecast;
         return (
           <motion.div
             key={res.creative.id}
             initial={{ opacity: 0, x: -12 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: rank * 0.07 }}
-            className={`flex items-center gap-4 p-4 rounded-xl border-2 ${
-              rank === 0
-                ? "border-yellow-500/40 bg-yellow-500/5"
-                : rank === 1
-                ? "border-gray-400/30 bg-gray-400/5"
-                : rank === 2
-                ? "border-orange-600/30 bg-orange-600/5"
-                : "border-white/8 bg-white/3"
-            }`}
+            className={`flex items-center gap-4 p-4 rounded-xl border-2 ${rank === 0 ? "border-yellow-500/40 bg-yellow-500/5" :
+              rank === 1 ? "border-gray-400/30 bg-gray-400/5" :
+                rank === 2 ? "border-orange-600/30 bg-orange-600/5" :
+                  "border-white/8 bg-white/3"
+              }`}
           >
             <div className="text-2xl shrink-0 w-8 text-center">{medalFor(rank)}</div>
-            <img
-              src={res.creative.url}
-              className="w-14 h-10 rounded-lg object-cover shrink-0 border border-white/15"
-              alt={res.creative.name}
-            />
+            <img src={res.creative.url} className="w-14 h-10 rounded-lg object-cover shrink-0 border border-white/15" alt={res.creative.name} />
             <div className="flex-1 min-w-0">
               <p className="text-sm font-bold text-white truncate">{res.creative.name}</p>
-              <div className="flex items-center gap-2 mt-0.5">
+              <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                 <p className="text-[11px] text-gray-400">{res.creative.size}</p>
                 <BestForBadge bestFor={res.data?.bestFor} />
+                {forecast && (
+                  <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${forecast === "PEAK" ? "bg-yellow-500/20 text-yellow-300" :
+                    forecast === "HIGH" ? "bg-emerald-500/20 text-emerald-300" :
+                      forecast === "MEDIUM" ? "bg-yellow-500/20 text-yellow-300" :
+                        "bg-red-500/20 text-red-300"
+                    }`}>
+                    {forecast === "PEAK" ? "⭐" : forecast === "HIGH" ? "🟢" : forecast === "MEDIUM" ? "🟡" : "🔴"} {forecast}
+                  </span>
+                )}
+                {res.data.engagement_forecast_confidence !== undefined && (
+                  <span className="text-[10px] text-gray-600">{res.data.engagement_forecast_confidence}% confidence</span>
+                )}
               </div>
-              <p className={`text-[11px] mt-1 leading-relaxed ${
-                score >= 65 ? "text-green-300/80" : score >= 45 ? "text-yellow-300/80" : "text-red-300/80"
-              }`}>
-                {rankVerdict(res.creative.name, score, res.data)}
-              </p>
+              <p className={`text-[11px] mt-1 leading-relaxed ${score >= 65 ? "text-emerald-300/80" : score >= 45 ? "text-yellow-300/80" : "text-red-300/80"
+                }`}>{rankVerdict(res.creative.name, score, res.data)}</p>
             </div>
-            <div className="shrink-0 text-right">
-              <p className={`text-xl font-extrabold ${scoreColor(score)}`}>{score}</p>
-              <p className="text-[10px] text-gray-500 mt-0.5">/100</p>
-              <p className={`text-[10px] font-semibold mt-1 ${scoreColor(score)}`}>
-                {scoreLabel(score)}
-              </p>
+            <div className="shrink-0">
+              <ConfidenceRing score={score} size={54} label="/100" />
             </div>
           </motion.div>
         );
@@ -294,95 +780,106 @@ export default function AnalysisPanel({
   onDownloadReport,
   onGoalChange,
 }) {
-  const [selectedId, setSelectedId] = useState(
-    analysisResult?.[0]?.creative?.id || null
-  );
-  const [tab, setTab] = useState("overview"); // 'overview' | 'platform' | 'ranking'
+  const [selectedId, setSelectedId] = useState(analysisResult?.[0]?.creative?.id || null);
+  const [tab, setTab] = useState("overview");
 
   if (!analysisResult || analysisResult.length === 0) return null;
 
-  const perfect    = analysisResult.filter((r) => r.data.overall_score >= 70);
-  const needsWork  = analysisResult.filter((r) => r.data.overall_score < 70);
-  const selected   = analysisResult.find((r) => r.creative.id === selectedId);
+  const perfect = analysisResult.filter((r) => r.data.overall_score >= 70);
+  const needsWork = analysisResult.filter((r) => r.data.overall_score < 70);
+  const selected = analysisResult.find((r) => r.creative.id === selectedId);
 
   const CORE_CHECK_CONFIG = [
-    { key: "noticeability",  icon: Eye,             label: "Noticeable in Environment" },
-    { key: "messageClarity", icon: MessageSquare,   label: "Message Clarity (1-2 sec)" },
-    { key: "ctaStrength",    icon: MousePointer,    label: "CTA Strength" },
-    { key: "brandPresence",  icon: Shield,          label: "Brand Presence" },
-    { key: "crowding",       icon: LayoutDashboard, label: "Crowding / Layout" },
-    { key: "formatFit",      icon: Maximize2,       label: "Format Fit" },
+    { key: "noticeability", icon: Eye, label: "Noticeable in Environment" },
+    { key: "messageClarity", icon: MessageSquare, label: "Message Clarity (3-sec)" },
+    { key: "ctaStrength", icon: MousePointer, label: "CTA Strength" },
+    { key: "brandPresence", icon: Shield, label: "Brand Presence" },
+    { key: "crowding", icon: LayoutDashboard, label: "Crowding / Clutter" },
+    { key: "formatFit", icon: Maximize2, label: "Format Fit" },
   ];
 
   const TABS = [
-    { id: "overview",  label: "Overview" },
-    { id: "cta",      label: "CTA Analysis" },
-    { id: "platform",  label: "Platform" },
-    { id: "agent",     label: "🤖 AI Agent" },
+    { id: "overview", label: "Overview", icon: BarChart3 },
+    { id: "intelligence", label: "Intelligence", icon: Brain },
+    { id: "fixes", label: "Fix Blocks", icon: Zap, badge: selected?.data?.fix_blocks?.length },
+    { id: "abtests", label: "A/B Tests", icon: FlaskConical, badge: selected?.data?.ab_hypotheses?.length },
+    { id: "cta", label: "CTA", icon: MousePointer },
+    { id: "platform", label: "Platform", icon: Monitor },
   ];
 
   return (
     <div className="space-y-6">
+
       {/* ── Summary Banner ─────────────────────────────────────────── */}
-      <div className="p-5 rounded-2xl bg-gradient-to-br from-slate-800/60 to-slate-900/60 border border-white/10 space-y-2">
-        <h3 className="text-base font-bold text-white mb-3">📊 Analysis Summary</h3>
-        <div className="grid grid-cols-3 gap-3">
-          <div className="text-center p-3 rounded-xl bg-blue-500/10 border border-blue-500/20">
-            <p className="text-2xl font-bold text-blue-400">{analysisResult.length}</p>
-            <p className="text-xs text-gray-400 mt-1">Analyzed</p>
-          </div>
-          <div className="text-center p-3 rounded-xl bg-green-500/10 border border-green-500/20">
-            <p className="text-2xl font-bold text-green-400">{perfect.length}</p>
-            <p className="text-xs text-gray-400 mt-1">Ready</p>
-          </div>
-          <div className="text-center p-3 rounded-xl bg-yellow-500/10 border border-yellow-500/20">
-            <p className="text-2xl font-bold text-yellow-400">{needsWork.length}</p>
-            <p className="text-xs text-gray-400 mt-1">Needs Work</p>
-          </div>
+      <div className="p-5 rounded-2xl bg-gradient-to-br from-slate-800/60 to-slate-900/60 border border-white/10 space-y-4">
+        <div className="flex items-center gap-2">
+          <Sparkles size={15} className="text-fuchsia-400" />
+          <h3 className="text-sm font-bold text-white">ACIE v4.0 — Advanced Creative Intelligence Engine</h3>
+          <span className="ml-auto text-[10px] font-bold px-2 py-0.5 rounded-full bg-fuchsia-500/15 text-fuchsia-300 border border-fuchsia-500/30">
+            9-Dimension · Logic Only
+          </span>
         </div>
-        {perfect.length > 0 && (
-          <p className="text-sm text-green-300">
-            ✅ <strong>{perfect.map((r) => r.creative.name).join(", ")}</strong>{" "}
-            {perfect.length === 1 ? "is" : "are"} ready for launch.
-          </p>
-        )}
-        {needsWork.length > 0 && (
-          <p className="text-sm text-yellow-300">
-            ⚠️ <strong>{needsWork.map((r) => r.creative.name).join(", ")}</strong>{" "}
-            {needsWork.length === 1 ? "needs" : "need"} improvements.
-          </p>
-        )}
+
+        <div className="grid grid-cols-5 gap-2">
+          {[
+            { label: "Analyzed", value: analysisResult.length, color: "bg-blue-500/10 border-blue-500/20 text-blue-400" },
+            { label: "Launch Ready", value: perfect.length, color: "bg-emerald-500/10 border-emerald-500/20 text-emerald-400" },
+            { label: "Needs Work", value: needsWork.length, color: "bg-yellow-500/10 border-yellow-500/20 text-yellow-400" },
+            { label: "High Forecast", value: analysisResult.filter(r => ["PEAK", "HIGH"].includes(r.data.engagement_forecast)).length, color: "bg-fuchsia-500/10 border-fuchsia-500/20 text-fuchsia-400" },
+            { label: "Fix Blocks", value: analysisResult.reduce((sum, r) => sum + (r.data.fix_blocks?.length || 0), 0), color: "bg-orange-500/10 border-orange-500/20 text-orange-400" },
+          ].map(({ label, value, color }) => (
+            <div key={label} className={`text-center p-2.5 rounded-xl border ${color}`}>
+              <p className="text-xl font-black">{value}</p>
+              <p className="text-[10px] text-gray-400 mt-0.5">{label}</p>
+            </div>
+          ))}
+        </div>
+
+        <div className="space-y-1">
+          {perfect.length > 0 && (
+            <p className="text-xs text-emerald-300">
+              ✅ <strong>{perfect.map(r => r.creative.name).join(", ")}</strong> {perfect.length === 1 ? "is" : "are"} ready to launch.
+            </p>
+          )}
+          {needsWork.length > 0 && (
+            <p className="text-xs text-yellow-300">
+              ⚠️ <strong>{needsWork.map(r => r.creative.name).join(", ")}</strong> {needsWork.length === 1 ? "needs" : "need"} improvements before going live.
+            </p>
+          )}
+        </div>
       </div>
 
       {/* ── Two-panel layout ───────────────────────────────────────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
 
         {/* LEFT: Creative List */}
         <div className="space-y-2">
           {analysisResult.map((res) => {
-            const score      = res.data.overall_score;
+            const score = res.data.overall_score;
             const isSelected = selectedId === res.creative.id;
+            const forecast = res.data.engagement_forecast;
+            const criticalFixes = res.data.fix_blocks?.filter(f => f.severity === "CRITICAL").length || 0;
             return (
               <motion.button
                 key={res.creative.id}
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                onClick={() => setSelectedId(res.creative.id)}
-                className={`w-full flex items-center gap-3 p-3 rounded-xl border-2 text-left transition-all ${
-                  isSelected
-                    ? "border-fuchsia-500 bg-fuchsia-900/30"
-                    : "border-white/10 bg-white/5 hover:border-white/25"
-                }`}
+                whileHover={{ scale: 1.015 }}
+                whileTap={{ scale: 0.985 }}
+                onClick={() => { setSelectedId(res.creative.id); setTab("overview"); }}
+                className={`w-full flex items-center gap-3 p-3 rounded-xl border-2 text-left transition-all ${isSelected ? "border-fuchsia-500 bg-fuchsia-900/25" : "border-white/10 bg-white/4 hover:border-white/22"
+                  }`}
               >
-                <img
-                  src={res.creative.url}
-                  className="w-12 h-10 rounded-lg object-cover shrink-0 border border-white/20"
-                  alt={res.creative.name}
-                />
+                <img src={res.creative.url} className="w-12 h-10 rounded-lg object-cover shrink-0 border border-white/20" alt={res.creative.name} />
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-white truncate">{res.creative.name}</p>
-                  <p className="text-[10px] text-gray-500">{res.creative.size}</p>
+                  <p className="text-xs font-semibold text-white truncate">{res.creative.name}</p>
+                  <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                    <p className="text-[10px] text-gray-500">{res.creative.size}</p>
+                    {forecast && <span className="text-[9px]">{forecast === "PEAK" ? "⭐" : forecast === "HIGH" ? "🟢" : forecast === "MEDIUM" ? "🟡" : "🔴"}</span>}
+                    {criticalFixes > 0 && (
+                      <span className="text-[9px] font-bold text-red-400">⚠ {criticalFixes} critical</span>
+                    )}
+                  </div>
                 </div>
+                <ConfidenceRing score={score} size={40} />
               </motion.button>
             );
           })}
@@ -393,492 +890,295 @@ export default function AnalysisPanel({
           {selected && (
             <motion.div
               key={selected.creative.id}
-              initial={{ opacity: 0, x: 12 }}
+              initial={{ opacity: 0, x: 14 }}
               animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -12 }}
-              className="lg:col-span-2 rounded-2xl border border-fuchsia-500/30 bg-gradient-to-br from-fuchsia-900/20 to-purple-900/20 p-6 space-y-5"
+              exit={{ opacity: 0, x: -14 }}
+              className="lg:col-span-2 rounded-2xl border border-fuchsia-500/25 bg-gradient-to-br from-fuchsia-900/15 to-purple-900/15 p-5 space-y-5"
             >
               {/* Header */}
               <div className="flex items-center gap-4">
-                <img
-                  src={selected.creative.url}
-                  className="w-20 h-16 rounded-xl object-cover border border-white/20"
-                  alt={selected.creative.name}
-                />
-                <div className="flex-1">
-                  <h4 className="text-lg font-bold text-white">{selected.creative.name}</h4>
-                  <p className={`text-sm font-semibold ${scoreColor(selected.data.overall_score)}`}>
+                <img src={selected.creative.url} className="w-20 h-16 rounded-xl object-cover border border-white/20 shrink-0" alt={selected.creative.name} />
+                <div className="flex-1 min-w-0">
+                  <h4 className="text-base font-bold text-white truncate">{selected.creative.name}</h4>
+                  <p className={`text-sm font-semibold ${sc(selected.data.overall_score)}`}>
                     {scoreLabel(selected.data.overall_score)} ({selected.data.overall_score}/100)
                   </p>
                   <div className="flex flex-wrap gap-1.5 mt-2">
-                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${
-                      selected.data.cta_presence
-                        ? "bg-green-500/15 border-green-500/40 text-green-300"
-                        : "bg-red-500/15 border-red-500/40 text-red-300"
-                    }`}>
-                      {selected.data.cta_presence ? "✅ CTA Present" : "❌ No CTA"}
+                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${selected.data.cta_presence ? "bg-emerald-500/15 border-emerald-500/40 text-emerald-300" : "bg-red-500/15 border-red-500/40 text-red-300"
+                      }`}>
+                      {selected.data.cta_presence ? "✅ CTA" : "❌ No CTA"}
                     </span>
+                    {selected.data.engagement_forecast && (
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${selected.data.engagement_forecast === "PEAK" ? "bg-yellow-500/15 border-yellow-500/40 text-yellow-300" :
+                        selected.data.engagement_forecast === "HIGH" ? "bg-emerald-500/15 border-emerald-500/40 text-emerald-300" :
+                          selected.data.engagement_forecast === "MEDIUM" ? "bg-yellow-500/15 border-yellow-500/40 text-yellow-300" :
+                            "bg-red-500/15 border-red-500/40 text-red-300"
+                        }`}>
+                        {selected.data.engagement_forecast}
+                        {selected.data.engagement_forecast_confidence !== undefined && ` · ${selected.data.engagement_forecast_confidence}%`}
+                      </span>
+                    )}
                     <span className="px-2 py-0.5 rounded-full text-[10px] font-bold border border-white/15 bg-white/5 text-gray-300">
-                      Visibility: {selected.data.adVisibilityScore}
+                      Clutter {selected.data.clutter_index ?? "?"}/10
                     </span>
-                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold border border-white/15 bg-white/5 text-gray-300">
-                      Goal Align: {selected.data.goalAlignmentIndicator}
-                    </span>
-                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${
-                      selected.data.coreChecks?.formatFit?.pass
-                        ? "bg-blue-500/15 border-blue-500/40 text-blue-300"
-                        : "bg-orange-500/15 border-orange-500/40 text-orange-300"
-                    }`}>
-                      {selected.data.coreChecks?.formatFit?.pass ? "✓ Valid Size" : "⚠ Invalid Size"}
-                    </span>
+                    {selected.data.wcagLevel && (
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${selected.data.wcagLevel === "AAA" ? "bg-emerald-500/15 border-emerald-500/40 text-emerald-300" :
+                        selected.data.wcagLevel === "AA" ? "bg-blue-500/15 border-blue-500/40 text-blue-300" :
+                          "bg-red-500/15 border-red-500/40 text-red-300"
+                        }`}>WCAG {selected.data.wcagLevel}</span>
+                    )}
+                    {selected.data.stop_rate_estimate && (
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold border border-fuchsia-500/30 bg-fuchsia-500/10 text-fuchsia-300">
+                        Stop Rate {selected.data.stop_rate_estimate}
+                      </span>
+                    )}
                   </div>
                 </div>
               </div>
 
               {/* Tab Bar */}
-              <div className="flex gap-1 p-1 rounded-xl bg-white/5 border border-white/10">
+              <div className="flex gap-1 p-1 rounded-xl bg-white/5 border border-white/10 overflow-x-auto">
                 {TABS.map((t) => (
                   <button
                     key={t.id}
                     onClick={() => setTab(t.id)}
-                    className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-semibold transition-all ${
-                      tab === t.id
-                        ? "bg-fuchsia-600 text-white shadow-lg"
-                        : "text-gray-400 hover:text-white"
-                    }`}
+                    className={`relative flex items-center gap-1 shrink-0 py-1.5 px-2.5 rounded-lg text-[11px] font-semibold transition-all ${tab === t.id ? "bg-fuchsia-600 text-white shadow-lg" : "text-gray-400 hover:text-white"
+                      }`}
                   >
+                    <t.icon size={11} />
                     {t.label}
+                    {t.badge > 0 && (
+                      <span className={`ml-0.5 text-[9px] font-black px-1 py-0.5 rounded-full leading-none ${tab === t.id ? "bg-white/25 text-white" : "bg-white/10 text-gray-400"
+                        }`}>{t.badge}</span>
+                    )}
                   </button>
                 ))}
               </div>
 
               <AnimatePresence mode="wait">
+
+                {/* ── OVERVIEW TAB ─────────────────────────────── */}
                 {tab === "overview" && (
-                  <motion.div
-                    key="overview"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    className="space-y-5"
-                  >
-                    {/* Goal Switcher */}
+                  <motion.div key="overview" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-5">
+
                     {onGoalChange && (
-                      <div className="flex bg-black/40 p-1 rounded-xl border border-white/5 shadow-inner mb-4">
-                        {["awareness", "consideration", "conversion"].map((goalOption) => (
-                          <button
-                            key={goalOption}
-                            onClick={() => onGoalChange(goalOption)}
-                            className={`flex-1 py-2 px-3 text-xs font-bold rounded-lg capitalize transition ${
-                              campaignGoal === goalOption
-                                ? "bg-gradient-to-r from-fuchsia-600 to-purple-600 text-white shadow-md shadow-fuchsia-500/20"
-                                : "text-gray-400 hover:text-white hover:bg-white/5"
-                            }`}
-                          >
-                            {goalOption}
-                          </button>
+                      <div className="flex bg-black/40 p-1 rounded-xl border border-white/5">
+                        {["awareness", "consideration", "conversion"].map((g) => (
+                          <button key={g} onClick={() => onGoalChange(g)} className={`flex-1 py-2 px-3 text-xs font-bold rounded-lg capitalize transition ${campaignGoal === g ? "bg-gradient-to-r from-fuchsia-600 to-purple-600 text-white shadow-md" : "text-gray-400 hover:text-white hover:bg-white/5"
+                            }`}>{g}</button>
                         ))}
                       </div>
                     )}
 
-                    {/* AI Funnel Analysis */}
-                    {selected.data.primary_stage && (
-                      <div className="p-4 rounded-xl border border-blue-500/30 bg-blue-500/5 space-y-3">
-                        <div className="flex items-center justify-between">
-                          <p className="text-sm font-bold text-blue-300 uppercase tracking-wider flex items-center gap-2">
-                            <span>🧠</span> AI Funnel Classification
-                          </p>
-                          <span className="px-2 py-1 bg-blue-500/20 text-blue-300 text-xs font-bold rounded-lg border border-blue-500/30">
-                            {selected.data.primary_stage} Stage
-                          </span>
-                        </div>
-                        <p className="text-sm text-gray-300 leading-relaxed">
-                          {selected.data.funnelReasoning}
-                        </p>
-                        
-                        {/* New Semantic Tags */}
-                        <div className="grid grid-cols-2 gap-2 mt-3">
-                          <div className="bg-white/5 border border-white/10 rounded-lg p-2 text-center">
-                            <p className="text-[10px] text-gray-400 uppercase tracking-wider mb-1">Intent</p>
-                            <p className="text-xs font-bold text-white">{selected.data.messaging_intent || "N/A"}</p>
-                          </div>
-                          <div className="bg-white/5 border border-white/10 rounded-lg p-2 text-center">
-                            <p className="text-[10px] text-gray-400 uppercase tracking-wider mb-1">Urgency</p>
-                            <p className="text-xs font-bold text-white">{selected.data.urgency_level || "N/A"}</p>
-                          </div>
-                          <div className="bg-white/5 border border-white/10 rounded-lg p-2 text-center">
-                            <p className="text-[10px] text-gray-400 uppercase tracking-wider mb-1">Audience</p>
-                            <p className="text-xs font-bold text-white">{selected.data.audience_type || "N/A"}</p>
-                          </div>
-                          <div className="bg-white/5 border border-white/10 rounded-lg p-2 text-center">
-                            <p className="text-[10px] text-gray-400 uppercase tracking-wider mb-1">CTA Strength</p>
-                            <p className="text-xs font-bold text-white">{selected.data.ai_cta_strength || "N/A"}</p>
-                          </div>
-                        </div>
+                    <div className="p-4 rounded-xl bg-white/3 border border-white/10">
+                      <NineDimRadar data={selected.data} />
+                    </div>
 
-                        <div className="mt-3">
-                          <MetricBar label="Confidence Score" value={selected.data.goalMatchScore || 0} color="bg-cyan-400" />
-                        </div>
-
-                        {selected.data.improvement_suggestions?.length > 0 && (
-                          <div className="pt-3 border-t border-white/10 mt-2 space-y-1.5">
-                            <p className="text-[10px] font-bold text-yellow-400 uppercase mb-1">💡 Improvement Suggestions</p>
-                            {selected.data.improvement_suggestions.map((sug, i) => (
-                              <div key={i} className="flex gap-2 items-start text-xs text-gray-300">
-                                <span className="text-yellow-500/80 mt-0.5">•</span>
-                                <p>{sug}</p>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-
-                        {/* Improved CTAs from AI */}
-                        {selected.data.improved_ctas?.length > 0 && (
-                          <div className="pt-3 border-t border-white/10 mt-2">
-                            <p className="text-[10px] font-bold text-blue-400 uppercase mb-2">🚀 AI-Suggested CTAs</p>
-                            <div className="flex flex-wrap gap-2">
-                              {selected.data.improved_ctas.map((cta, i) => (
-                                <span key={i} className="px-3 py-1.5 rounded-full text-[10px] font-bold bg-blue-500/10 border border-blue-500/30 text-blue-300">
-                                  {cta}
-                                </span>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    )}
-
-                    {/* 6 Core Checks */}
                     <div>
-                      <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">
-                        6 Core Creative Checks
-                      </p>
+                      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">6 Core Creative Checks</p>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                         {CORE_CHECK_CONFIG.map(({ key, icon, label }) => (
-                          <CoreCheckRow
-                            key={key}
-                            icon={icon}
-                            label={label}
-                            data={selected.data.coreChecks?.[key] || { score: 0, label: "—", pass: false }}
-                          />
+                          <CoreCheckRow key={key} icon={icon} label={label} data={selected.data.coreChecks?.[key] || { score: 0, label: "—", pass: false }} />
                         ))}
                       </div>
                     </div>
 
-                    {/* CTA Recommendations */}
-                    <CTARecommendationStrip
-                      goal={selected.data.goal || campaignGoal}
-                      detected={selected.data.cta_text || null}
-                    />
+                    <CTARecommendationStrip goal={selected.data.goal || campaignGoal} detected={selected.data.cta_text || null} />
 
-                    {/* Metric Bars */}
                     <div>
-                      <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">
-                        Performance Metrics
-                      </p>
+                      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Performance Metrics</p>
                       <div className="grid grid-cols-2 gap-3">
-                        <MetricBar label="Ad Visibility"    value={selected.data.adVisibilityScore}       color="bg-cyan-400" />
-                        <MetricBar label="Goal Alignment"   value={selected.data.goalAlignmentIndicator}  color="bg-fuchsia-400" />
-                        <MetricBar label="Brightness"       value={selected.data.brightness}              color="bg-yellow-400" />
-                        <MetricBar label="Contrast"         value={selected.data.contrast}                color="bg-blue-400" />
-                        <MetricBar label="Text Clarity"     value={selected.data.text_clarity}            color="bg-sky-400" />
-                        <MetricBar label="CTA Strength"     value={
-                          CTA_SCORE_MAP[selected.data.cta_strength?.toLowerCase()] ?? 0
-                        } color="bg-green-400" />
+                        <MetricBar label="Ad Visibility" value={selected.data.adVisibilityScore} color="bg-cyan-400" />
+                        <MetricBar label="Goal Alignment" value={selected.data.goalAlignmentIndicator} color="bg-fuchsia-400" />
+                        <MetricBar label="Brightness" value={selected.data.brightness} color="bg-yellow-400" />
+                        <MetricBar label="Contrast" value={selected.data.contrast} color="bg-blue-400" />
+                        <MetricBar label="Saturation" value={selected.data.saturation ?? 50} color="bg-pink-400" />
+                        <MetricBar label="Focal Strength" value={selected.data.focalPointStrength ?? 50} color="bg-violet-400" />
                       </div>
                     </div>
 
-                    {/* Suggestions */}
-                    <div>
-                      <p className="text-sm font-bold text-white mb-2">💡 Suggestions</p>
-                      {selected.data.suggestions?.length > 0
-                        ? selected.data.suggestions.map((s, i) => (
-                            <div
-                              key={i}
-                              className="flex items-start gap-2 p-2.5 rounded-lg bg-white/5 border border-white/8 text-sm text-gray-300 mb-1.5"
-                            >
-                              <span className="text-fuchsia-400 shrink-0">→</span>
-                              {s}
-                            </div>
-                          ))
-                        : (
-                          <p className="text-sm text-green-400">
-                            No improvements needed — this creative is ready! 🚀
-                          </p>
+                    {selected.data.suggestions?.length > 0 && (
+                      <div>
+                        <p className="text-xs font-bold text-white mb-2">💡 Quick Suggestions</p>
+                        {selected.data.suggestions.slice(0, 4).map((s, i) => (
+                          <div key={i} className="flex items-start gap-2 p-2.5 rounded-lg bg-white/5 border border-white/8 text-xs text-gray-300 mb-1.5">
+                            <span className="text-fuchsia-400 shrink-0 mt-0.5">→</span>
+                            {s}
+                          </div>
+                        ))}
+                        {selected.data.fix_blocks?.length > 0 && (
+                          <button onClick={() => setTab("fixes")} className="text-xs text-fuchsia-400 hover:text-fuchsia-300 flex items-center gap-1 mt-1 transition">
+                            <Zap size={10} /> View {selected.data.fix_blocks.length} detailed Fix Blocks →
+                          </button>
                         )}
-                    </div>
+                      </div>
+                    )}
                   </motion.div>
                 )}
 
+                {/* ── INTELLIGENCE TAB ─────────────────────────── */}
+                {tab === "intelligence" && (
+                  <motion.div key="intelligence" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+                    <IntelligencePanel data={selected.data} />
+                  </motion.div>
+                )}
+
+                {/* ── FIX BLOCKS TAB ───────────────────────────── */}
+                {tab === "fixes" && (
+                  <motion.div key="fixes" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <p className="text-[10px] text-gray-500">Click any card to expand. Sorted by severity.</p>
+                      {selected.data.fix_blocks?.length > 0 && (
+                        <div className="flex gap-1.5">
+                          {["CRITICAL", "HIGH", "MEDIUM"].map(sev => {
+                            const count = selected.data.fix_blocks.filter(f => f.severity === sev).length;
+                            if (!count) return null;
+                            const sevCfg = SEVERITY_CONFIG[sev];
+                            return (
+                              <span key={sev} className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${sevCfg.badge}`}>
+                                {count} {sev}
+                              </span>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                    {selected.data.fix_blocks?.length > 0
+                      ? [...selected.data.fix_blocks]
+                        .sort((a, b) => {
+                          const order = { CRITICAL: 0, HIGH: 1, MEDIUM: 2, LOW: 3 };
+                          return order[a.severity] - order[b.severity];
+                        })
+                        .map((fix, i) => <FixBlockCard key={fix.dimension} fix={fix} index={i} />)
+                      : (
+                        <div className="p-6 rounded-xl bg-emerald-500/5 border border-emerald-500/20 text-center">
+                          <p className="text-emerald-400 font-bold text-sm">🚀 No fixes needed!</p>
+                          <p className="text-xs text-gray-400 mt-1">All dimensions scored above 75. Ready to scale.</p>
+                        </div>
+                      )
+                    }
+                  </motion.div>
+                )}
+
+                {/* ── A/B TESTS TAB ────────────────────────────── */}
+                {tab === "abtests" && (
+                  <motion.div key="abtests" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-3">
+                    <p className="text-[10px] text-gray-500">Auto-generated split test hypotheses based on scoring gaps.</p>
+                    {selected.data.ab_hypotheses?.length > 0
+                      ? selected.data.ab_hypotheses.map((hyp, i) => <ABHypothesisCard key={hyp.dimension} hyp={hyp} index={i} />)
+                      : (
+                        <div className="p-6 rounded-xl bg-fuchsia-500/5 border border-fuchsia-500/20 text-center">
+                          <FlaskConical size={20} className="text-fuchsia-400 mx-auto mb-2" />
+                          <p className="text-fuchsia-400 font-bold text-sm">No A/B tests needed</p>
+                          <p className="text-xs text-gray-400 mt-1">All major dimensions are scoring well. Focus on scaling.</p>
+                        </div>
+                      )
+                    }
+                  </motion.div>
+                )}
+
+                {/* ── CTA TAB ──────────────────────────────────── */}
                 {tab === "cta" && (
-                  <motion.div
-                    key="cta"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    className="space-y-4"
-                  >
-                    {/* CTA Detected Badge */}
-                    <div className="flex items-center gap-3 flex-wrap">
-                      <span className={`px-3 py-1.5 rounded-full text-xs font-bold border ${
-                        selected.data.cta_detected
-                          ? "bg-green-500/15 border-green-500/40 text-green-300"
-                          : "bg-red-500/15 border-red-500/40 text-red-300"
-                      }`}>
-                        {selected.data.cta_detected ? "✅ CTA Detected" : "❌ No CTA Found"}
-                      </span>
+                  <motion.div key="cta" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-4">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className={`px-3 py-1.5 rounded-full text-xs font-bold border ${selected.data.cta_detected ? "bg-emerald-500/15 border-emerald-500/40 text-emerald-300" : "bg-red-500/15 border-red-500/40 text-red-300"
+                        }`}>{selected.data.cta_detected ? "✅ CTA Detected" : "❌ No CTA Found"}</span>
                       {selected.data.cta_text && (
-                        <span className="px-3 py-1.5 rounded-full text-xs font-bold bg-white/10 border border-white/20 text-white">
-                          "{selected.data.cta_text}"
-                        </span>
+                        <span className="px-3 py-1.5 rounded-full text-xs font-bold bg-white/10 border border-white/20 text-white">"{selected.data.cta_text}"</span>
                       )}
                       {selected.data.cta_type && selected.data.cta_type !== "None" && (
-                        <span className={`px-3 py-1.5 rounded-full text-xs font-bold border ${
-                          selected.data.cta_type === "Hard" ? "bg-orange-500/15 border-orange-500/40 text-orange-300"
-                          : selected.data.cta_type === "Medium" ? "bg-purple-500/15 border-purple-500/40 text-purple-300"
-                          : "bg-blue-500/15 border-blue-500/40 text-blue-300"
-                        }`}>
-                          {selected.data.cta_type} CTA
-                        </span>
+                        <span className={`px-3 py-1.5 rounded-full text-xs font-bold border ${selected.data.cta_type === "Hard" ? "bg-orange-500/15 border-orange-500/40 text-orange-300" :
+                          selected.data.cta_type === "Medium" ? "bg-purple-500/15 border-purple-500/40 text-purple-300" :
+                            "bg-blue-500/15 border-blue-500/40 text-blue-300"
+                          }`}>{selected.data.cta_type} CTA</span>
                       )}
                       {selected.data.cta_goal_fit && selected.data.cta_goal_fit !== "None" && (
-                        <span className={`px-3 py-1.5 rounded-full text-xs font-bold border ${
-                          selected.data.cta_goal_fit === "Perfect Match" ? "bg-green-500/15 border-green-500/40 text-green-300"
-                          : selected.data.cta_goal_fit === "Acceptable" ? "bg-yellow-500/15 border-yellow-500/40 text-yellow-300"
-                          : "bg-red-500/15 border-red-500/40 text-red-300"
-                        }`}>
+                        <span className={`px-3 py-1.5 rounded-full text-xs font-bold border ${selected.data.cta_goal_fit === "Perfect Match" ? "bg-emerald-500/15 border-emerald-500/40 text-emerald-300" :
+                          selected.data.cta_goal_fit === "Acceptable" ? "bg-yellow-500/15 border-yellow-500/40 text-yellow-300" :
+                            "bg-red-500/15 border-red-500/40 text-red-300"
+                          }`}>
                           {selected.data.cta_goal_fit === "Perfect Match" ? "✓" : selected.data.cta_goal_fit === "Mismatch" ? "⚠" : "~"} {selected.data.cta_goal_fit}
                         </span>
                       )}
                     </div>
 
-                    {/* CTA Quality Scores */}
-                    {selected.data.cta_detected && selected.data.cta_scores?.overall !== null ? (
+                    {selected.data.cta_detected && (
                       <div className="p-4 rounded-xl bg-white/5 border border-white/10 space-y-3">
-                        <p className="text-xs font-bold text-gray-300 uppercase tracking-wider">CTA Quality Scores</p>
+                        <p className="text-[10px] font-bold text-gray-300 uppercase tracking-wider">CTA Quality Breakdown</p>
                         {[
-                          { label: "Clarity",    value: selected.data.cta_scores?.clarity,    color: "bg-sky-400",     desc: "Is the action obvious?" },
-                          { label: "Urgency",    value: selected.data.cta_scores?.urgency,    color: "bg-orange-400",  desc: "Time pressure implied?" },
-                          { label: "Value",      value: selected.data.cta_scores?.value,      color: "bg-emerald-400", desc: "Benefit to user?" },
-                          { label: "Visibility", value: selected.data.cta_scores?.visibility, color: "bg-purple-400",  desc: "Easy to notice?" },
+                          { label: "Clarity", value: selected.data.cta_scores?.clarity, color: "bg-sky-400", desc: "Is the action obvious?" },
+                          { label: "Urgency", value: selected.data.cta_scores?.urgency, color: "bg-orange-400", desc: "Time pressure implied?" },
+                          { label: "Value", value: selected.data.cta_scores?.value, color: "bg-emerald-400", desc: "Benefit to user?" },
+                          { label: "Visibility", value: selected.data.cta_scores?.visibility, color: "bg-purple-400", desc: "Easy to notice?" },
                         ].map(({ label, value, color, desc }) => (
                           <div key={label}>
                             <div className="flex justify-between text-xs mb-1">
                               <span className="text-gray-400">{label} <span className="text-gray-600 text-[10px]">— {desc}</span></span>
-                              <span className="text-white font-bold">{value ?? 0}/10</span>
+                              <span className="text-white font-bold tabular-nums">{value ?? 0}/10</span>
                             </div>
-                            <div className="h-2 bg-white/10 rounded-full overflow-hidden">
-                              <motion.div
-                                initial={{ scaleX: 0 }}
-                                animate={{ scaleX: (value ?? 0) / 10 }}
-                                transition={{ duration: 0.5, ease: "easeOut" }}
-                                className={`h-full origin-left rounded-full ${color}`}
-                              />
-                            </div>
+                            <AnimBar value={(value ?? 0) * 10} color={color} />
                           </div>
                         ))}
                         <div className="mt-3 pt-3 border-t border-white/10 flex items-center justify-between">
                           <p className="text-xs font-bold text-white">Overall CTA Strength</p>
-                          <span className={`text-2xl font-black ${
-                            (selected.data.cta_scores?.overall ?? 0) >= 7 ? "text-green-400"
-                            : (selected.data.cta_scores?.overall ?? 0) >= 4.5 ? "text-yellow-400"
-                            : "text-red-400"
-                          }`}>{selected.data.cta_scores?.overall ?? 0}/10</span>
+                          <span className={`text-2xl font-black ${(selected.data.cta_scores?.overall ?? 0) >= 7 ? "text-emerald-400" : (selected.data.cta_scores?.overall ?? 0) >= 4.5 ? "text-yellow-400" : "text-red-400"}`}>
+                            {selected.data.cta_scores?.overall ?? 0}/10
+                          </span>
                         </div>
                       </div>
-                    ) : !selected.data.cta_detected && (
+                    )}
+
+                    {!selected.data.cta_detected && (
                       <div className="p-4 rounded-xl bg-red-500/5 border border-red-500/20">
-                        <p className="text-sm text-red-300 font-medium">No CTA detected — scores are not applicable.</p>
-                        <p className="text-xs text-gray-400 mt-1">{selected.data.impact || "A missing CTA significantly reduces user direction and click-through potential."}</p>
+                        <p className="text-sm text-red-300 font-medium">No CTA — scores not applicable.</p>
+                        <p className="text-xs text-gray-400 mt-1">A missing CTA significantly reduces click-through potential.</p>
                       </div>
                     )}
 
-                    {/* Human-like Analysis */}
-                    {selected.data.analysis && (
-                      <div className="p-4 rounded-xl bg-fuchsia-500/5 border border-fuchsia-500/20">
-                        <p className="text-[10px] font-bold text-fuchsia-400 uppercase tracking-wider mb-2">📣 Marketer Analysis</p>
-                        <p className="text-sm text-gray-300 leading-relaxed">{selected.data.analysis}</p>
-                      </div>
-                    )}
-
-                    {/* Performance Impact */}
-                    {selected.data.impact && (
-                      <div className="p-4 rounded-xl bg-amber-500/5 border border-amber-500/20">
-                        <p className="text-[10px] font-bold text-amber-400 uppercase tracking-wider mb-2">📊 Performance Impact</p>
-                        <p className="text-sm text-gray-300 leading-relaxed">{selected.data.impact}</p>
-                      </div>
-                    )}
-
-                    {/* Improved CTAs */}
                     {selected.data.improved_ctas?.length > 0 && (
-                      <div className="p-4 rounded-xl bg-green-500/5 border border-green-500/20 space-y-3">
-                        <p className="text-[10px] font-bold text-green-400 uppercase tracking-wider">🚀 Improved CTAs — Action + Benefit + Urgency</p>
-                        {selected.data.improved_ctas.map((cta, i) => (
-                          <div key={i} className="flex items-center gap-3 p-2 rounded-lg bg-white/5">
-                            <span className="w-5 h-5 rounded-full bg-green-500/20 text-green-300 text-[10px] font-black flex items-center justify-center shrink-0">{i+1}</span>
-                            <p className="text-sm text-white font-semibold">{cta}</p>
-                          </div>
-                        ))}
+                      <div className="p-4 rounded-xl bg-emerald-500/5 border border-emerald-500/20 space-y-2">
+                        <p className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider">🚀 Suggested CTAs for {selected.data.goal}</p>
+                        <div className="flex flex-wrap gap-2">
+                          {selected.data.improved_ctas.map((cta, i) => (
+                            <span key={i} className="px-3 py-1.5 rounded-full text-xs font-bold bg-emerald-500/15 border border-emerald-500/30 text-emerald-300">
+                              {cta}
+                            </span>
+                          ))}
+                        </div>
                       </div>
                     )}
                   </motion.div>
                 )}
 
+                {/* ── PLATFORM TAB ─────────────────────────────── */}
                 {tab === "platform" && (
-                  <motion.div
-                    key="platform"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    className="space-y-4"
-                  >
-                    <p className="text-xs text-gray-500">
-                      Platform-specific performance for <span className="text-white font-semibold capitalize">{platform}</span> ads
+                  <motion.div key="platform" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-4">
+                    <p className="text-[10px] text-gray-500">
+                      Platform checks for <span className="text-white font-semibold capitalize">{platform}</span>
                     </p>
                     <PlatformCheckGrid platformChecks={selected.data.platformChecks} />
                   </motion.div>
                 )}
 
-                {tab === "agent" && (
-                  <motion.div
-                    key="agent"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    className="space-y-5"
-                  >
-                    {!selected.data.agentSummary ? (
-                      // Loading / No Agent State
-                      <div className="flex flex-col items-center justify-center py-10 gap-3">
-                        <div className="w-12 h-12 rounded-2xl bg-violet-500/20 flex items-center justify-center text-2xl animate-pulse">🤖</div>
-                        <p className="text-sm text-gray-400">AI Agent analysis not available for this creative.</p>
-                        <p className="text-xs text-gray-600">Ensure ADIGATOR_GROQ_API_KEY is set in .env.local</p>
-                      </div>
-                    ) : (
-                      <>
-                        {/* Agent Header */}
-                        <div className="flex items-center gap-3 p-4 rounded-xl bg-violet-500/10 border border-violet-500/30">
-                          <div className="w-10 h-10 rounded-xl bg-violet-500/20 flex items-center justify-center text-xl shrink-0">🤖</div>
-                          <div>
-                            <p className="text-xs font-bold text-violet-400 uppercase tracking-wider">Senior Performance Marketing Analyst</p>
-                            <p className="text-sm text-white font-semibold mt-0.5">{selected.data.agentSummary}</p>
-                          </div>
-                        </div>
-
-                        {/* Funnel Analysis */}
-                        {selected.data.agentFunnelAnalysis && (
-                          <div className="p-4 rounded-xl bg-blue-500/5 border border-blue-500/25 space-y-2">
-                            <p className="text-[10px] font-bold text-blue-400 uppercase tracking-wider flex items-center gap-1.5">🎯 Funnel-Specific Analysis ({selected.data.goal?.toUpperCase()} GOAL)</p>
-                            <p className="text-sm text-gray-300 leading-relaxed">{selected.data.agentFunnelAnalysis}</p>
-                          </div>
-                        )}
-
-                        {/* Score Dashboard */}
-                        <div className="space-y-3">
-                          <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">📊 Expert Scorecard</p>
-                          <div className="grid grid-cols-2 gap-3">
-                            {[
-                              { label: "CTA",           value: selected.data.agentScores?.cta,           color: "bg-green-400",   icon: "🎯" },
-                              { label: "Text Clarity",  value: selected.data.agentScores?.clarity,       color: "bg-sky-400",     icon: "📝" },
-                              { label: "Brand",         value: selected.data.agentScores?.brand,          color: "bg-blue-400",    icon: "🏷️" },
-                              { label: "Visual Quality",value: selected.data.agentScores?.visual_quality, color: "bg-yellow-400",  icon: "🎨" },
-                              { label: "Visibility",    value: selected.data.agentScores?.visibility,    color: "bg-orange-400",  icon: "👁" },
-                              { label: "Goal Align",    value: selected.data.agentScores?.goal_alignment, color: "bg-fuchsia-400", icon: "⚡" },
-                            ].map(({ label, value, color, icon }) => {
-                              const score = value ?? 0;
-                              const pct = score / 10;
-                              return (
-                                <div key={label} className="p-3 rounded-xl bg-white/5 border border-white/10 space-y-2">
-                                  <div className="flex items-center justify-between">
-                                    <span className="text-xs text-gray-400 font-medium">{icon} {label}</span>
-                                    <span className={`text-lg font-black ${
-                                      score >= 7 ? "text-green-400" : score >= 5 ? "text-yellow-400" : "text-red-400"
-                                    }`}>{score}<span className="text-xs text-gray-500">/10</span></span>
-                                  </div>
-                                  <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
-                                    <motion.div
-                                      initial={{ scaleX: 0 }}
-                                      animate={{ scaleX: pct }}
-                                      transition={{ duration: 0.6, ease: "easeOut" }}
-                                      className={`h-full origin-left rounded-full ${color}`}
-                                    />
-                                  </div>
-                                </div>
-                              );
-                            })}
-                          </div>
-                          {/* Overall Score */}
-                          <div className="flex items-center justify-between p-4 rounded-xl bg-gradient-to-r from-violet-900/40 to-fuchsia-900/40 border border-fuchsia-500/30">
-                            <div>
-                              <p className="text-xs text-gray-400 uppercase tracking-wider">Overall AI Score</p>
-                              <p className="text-xs text-gray-500 mt-0.5">Weighted toward Goal Alignment</p>
-                            </div>
-                            <span className={`text-4xl font-black ${
-                              (selected.data.agentScores?.overall ?? 0) >= 7 ? "text-green-400"
-                              : (selected.data.agentScores?.overall ?? 0) >= 5 ? "text-yellow-400"
-                              : "text-red-400"
-                            }`}>{selected.data.agentScores?.overall ?? 0}<span className="text-base text-gray-500">/10</span></span>
-                          </div>
-                        </div>
-
-                        {/* Detailed Breakdown */}
-                        {selected.data.agentBreakdown && (
-                          <div className="space-y-3">
-                            <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">🔍 Detailed Breakdown</p>
-                            {[
-                              { label: "CTA",                icon: "🎯", key: "cta" },
-                              { label: "Text Clarity",       icon: "📝", key: "text_clarity" },
-                              { label: "Brand Presence",     icon: "🏷️", key: "brand_presence" },
-                              { label: "Brightness & Contrast", icon: "🎨", key: "brightness_contrast" },
-                              { label: "Ad Visibility",      icon: "👁", key: "ad_visibility" },
-                              { label: "Goal Alignment",     icon: "⚡", key: "goal_alignment" },
-                            ].map(({ label, icon, key }) => {
-                              const text = selected.data.agentBreakdown?.[key];
-                              if (!text) return null;
-                              return (
-                                <div key={key} className="p-3 rounded-xl bg-white/5 border border-white/8">
-                                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">{icon} {label}</p>
-                                  <p className="text-xs text-gray-300 leading-relaxed">{text}</p>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        )}
-
-                        {/* Actionable Suggestions */}
-                        {selected.data.agentSuggestions?.length > 0 && (
-                          <div className="space-y-3">
-                            <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">💡 Actionable Improvements</p>
-                            {selected.data.agentSuggestions.map((sug, i) => (
-                              <div key={i} className="flex items-start gap-3 p-3 rounded-xl bg-amber-500/5 border border-amber-500/20">
-                                <span className="w-5 h-5 rounded-full bg-amber-500/20 text-amber-300 text-[10px] font-black flex items-center justify-center shrink-0 mt-0.5">{i + 1}</span>
-                                <p className="text-sm text-gray-300 leading-relaxed">{sug}</p>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </>
-                    )}
-                  </motion.div>
-                )}
               </AnimatePresence>
             </motion.div>
           )}
         </AnimatePresence>
       </div>
 
-      {/* ── Standalone Ranking (full width below panels) ───────────── */}
-      <div className="rounded-2xl border border-yellow-500/20 bg-gradient-to-br from-yellow-900/10 to-orange-900/10 p-6">
+      {/* ── Ranking Leaderboard ───────────────────────────────────── */}
+      <div className="rounded-2xl border border-yellow-500/20 bg-gradient-to-br from-yellow-900/8 to-orange-900/8 p-6">
         <RankingLeaderboard results={analysisResult} />
       </div>
 
       {/* ── Download Report ───────────────────────────────────────── */}
       <motion.button
-        whileHover={{ scale: 1.02 }}
-        whileTap={{ scale: 0.98 }}
+        whileHover={{ scale: 1.015 }}
+        whileTap={{ scale: 0.985 }}
         onClick={onDownloadReport}
-        className="flex items-center justify-center gap-2 w-full py-3 bg-white/10 hover:bg-white/20 border border-fuchsia-500/40 text-fuchsia-200 rounded-xl font-bold transition"
+        className="flex items-center justify-center gap-2 w-full py-3.5 bg-white/8 hover:bg-white/14 border border-fuchsia-500/35 text-fuchsia-200 rounded-xl font-bold text-sm transition"
       >
-        <Download size={18} /> Download Full Analysis Report (PDF)
+        <Download size={16} /> Download Full ACIE v4.0 Analysis Report
       </motion.button>
     </div>
   );

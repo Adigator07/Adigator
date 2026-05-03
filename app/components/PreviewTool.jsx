@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import SlidePreview from "./SlidePreview";
 import EditCreativeModal from "./EditCreativeModal";
@@ -105,7 +105,14 @@ const itemVariants = { hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 
 async function analyzeAllCreatives(creatives, goal, platform, audienceType) {
   const results = [];
   for (const creative of creatives) {
-    const data = await analyzeCreativeLocal(creative.url, goal, platform, audienceType, creative.size);
+    const data = await analyzeCreativeLocal(
+      creative.url, 
+      goal, 
+      platform, 
+      audienceType, 
+      creative.size, 
+      creative.fileSizeKB || 0
+    );
     results.push({ creative, data });
   }
   return results;
@@ -137,10 +144,49 @@ function deriveStatusFromIssues(issues) {
 
 export default function PreviewTool() {
   const router = useRouter();
-  const [step, setStep] = useState(1);
+  const searchParams = useSearchParams();
+  const pathname = usePathname();
+
+  // Initialize step from URL instead of local storage
+  const urlStep = parseInt(searchParams.get("step") || "1", 10);
+  const [toasts, setToasts] = useState([]);
+  const addToast = useCallback((message, type = "info") => {
+    const id = Date.now();
+    setToasts((prev) => [...prev, { id, message, type }]);
+    setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), 3500);
+  }, []);
+
+  // Initialize state with basic defaults, then hydrate from localStorage
+  const [step, setStep] = useState(urlStep);
   const [platform, setPlatform] = useState("programmatic");
   const [campaignGoal, setCampaignGoal] = useState(null);
   const [audienceType, setAudienceType] = useState(null);
+
+  // 1. Persistence: Hydrate from localStorage on mount
+  useEffect(() => {
+    const savedPlatform = localStorage.getItem("adigator_platform");
+    const savedGoal = localStorage.getItem("adigator_goal");
+    const savedAudience = localStorage.getItem("adigator_audience");
+    
+    if (savedPlatform) setPlatform(savedPlatform);
+    if (savedGoal && savedGoal !== "null") setCampaignGoal(savedGoal);
+    if (savedAudience && savedAudience !== "null") setAudienceType(savedAudience);
+  }, []);
+
+  // 2. Persistence: Save to localStorage when state changes
+  useEffect(() => {
+    localStorage.setItem("adigator_platform", platform);
+    if (campaignGoal) localStorage.setItem("adigator_goal", campaignGoal);
+    if (audienceType) localStorage.setItem("adigator_audience", audienceType);
+  }, [platform, campaignGoal, audienceType]);
+
+  // 3. Robust Config Guard: If on Step 2+, but config is missing, force back to Step 1
+  useEffect(() => {
+    if (step > 1 && (!platform || !campaignGoal || !audienceType)) {
+      addToast("Configuration required. Please complete Step 1.", "error");
+      router.push(`${pathname}?step=1`, { scroll: true });
+    }
+  }, [step, platform, campaignGoal, audienceType, pathname, router, addToast]);
 
   const [creatives, setCreatives] = useState([]);
   const [drag, setDrag] = useState(false);
@@ -158,7 +204,6 @@ export default function PreviewTool() {
   const [showSlotLabels, setShowSlotLabels] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
 
-  const [toasts, setToasts] = useState([]);
   const fileRef = useRef(null);
   const userRef = useRef(null);
   const goalSectionRef = useRef(null);
@@ -167,12 +212,6 @@ export default function PreviewTool() {
   const selectedPlatform = PLATFORMS.find((p) => p.id === platform)?.title || "Not selected";
   const selectedGoal = GOALS.find((g) => g.id === campaignGoal)?.title || "Not selected";
   const selectedAudience = AUDIENCES.find((a) => a.id === audienceType)?.title || "Not selected";
-
-  const addToast = useCallback((message, type = "info") => {
-    const id = Date.now();
-    setToasts((prev) => [...prev, { id, message, type }]);
-    setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), 3500);
-  }, []);
 
   const scrollToSection = useCallback((ref) => {
     if (!ref?.current) return;
@@ -210,47 +249,43 @@ export default function PreviewTool() {
   const goNext = useCallback(() => {
     if (step === 1 && (!platform || !campaignGoal || !audienceType)) return;
     if (step === 2 && uploadedCreatives.length === 0) return;
-    setStep((prev) => Math.min(prev + 1, TOTAL_STEPS));
-  }, [step, platform, campaignGoal, audienceType, uploadedCreatives.length]);
+    const nextStep = Math.min(step + 1, TOTAL_STEPS);
+    router.push(`${pathname}?step=${nextStep}`, { scroll: true });
+  }, [step, platform, campaignGoal, audienceType, uploadedCreatives.length, pathname, router]);
 
   const goBack = useCallback(() => {
     if (step === 1) {
       router.push("/");
       return;
     }
-    setStep((prev) => Math.max(prev - 1, 1));
-  }, [step, router]);
+    const prevStep = Math.max(step - 1, 1);
+    router.push(`${pathname}?step=${prevStep}`, { scroll: true });
+  }, [step, router, pathname]);
 
+  // Sync state when URL parameter changes (e.g., via browser Back button)
   useEffect(() => {
-    try {
-      const saved = localStorage.getItem("adigator_state");
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        const savedStep = parseInt(parsed.step);
-        const hasSetup = parsed.platform && parsed.goal && parsed.audience;
-        if (!Number.isNaN(savedStep) && hasSetup) {
-          setStep(Math.min(Math.max(savedStep, 1), TOTAL_STEPS));
-          setPlatform(parsed.platform);
-          setCampaignGoal(parsed.goal);
-          setAudienceType(parsed.audience);
-        }
+    const newStep = parseInt(searchParams.get("step") || "1", 10);
+    setStep(Math.min(Math.max(newStep, 1), TOTAL_STEPS));
+  }, [searchParams]);
+
+  // Warn user before they leave with unsaved progress
+  useEffect(() => {
+    const handleBeforeUnload = (e) => {
+      if (creatives.length > 0 || step > 1) {
+        e.preventDefault();
+        e.returnValue = "";
       }
-    } catch { /* ignore malformed data */ }
-  }, []);
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [creatives.length, step]);
 
-  useEffect(() => {
-    try {
-      localStorage.setItem("adigator_state", JSON.stringify({ 
-        step, platform, goal: campaignGoal, audience: audienceType 
-      }));
-    } catch { /* ignore storage errors */ }
-  }, [step, platform, campaignGoal, audienceType]);
-
+  // Guard against entering analysis without creatives
   useEffect(() => {
     if (step === 3 && uploadedCreatives.length === 0) {
-      setStep(2);
+      router.push(`${pathname}?step=2`, { scroll: true });
     }
-  }, [step, uploadedCreatives.length]);
+  }, [step, uploadedCreatives.length, pathname, router]);
 
   const getUser = useCallback(async () => {
     if (userRef.current) return userRef.current;
@@ -320,6 +355,7 @@ export default function PreviewTool() {
           size,
           valid: allowedSizes.includes(size) && normalizedValidation.status !== "CRITICAL",
           originalFile: file.name,
+          fileSizeKB: Math.round(file.size / 1024),
           validation: normalizedValidation,
         };
       }));

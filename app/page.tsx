@@ -180,7 +180,7 @@ export default function Home() {
 
             <div className="mt-8 flex flex-wrap items-center gap-4">
               <Link
-                href="/preview-tool"
+                href="/preview"
                 className="w-full rounded-xl bg-gradient-to-r from-purple-500 to-pink-500 px-7 py-3 text-center text-sm font-semibold text-white shadow-lg shadow-purple-500/30 transition-all duration-300 hover:scale-105 sm:w-auto"
               >
                 Start Free Preview
@@ -587,7 +587,7 @@ export default function Home() {
             transition={{ duration: 0.55, delay: 0.2, ease: "easeOut" }}
           >
             <Link
-              href="/preview-tool"
+              href="/preview"
               className="mt-10 inline-flex rounded-xl bg-gradient-to-r from-purple-500 to-pink-500 px-8 py-3 text-sm font-semibold text-white shadow-lg shadow-purple-500/30 transition-all duration-300 hover:scale-105"
             >
               Start Free Preview
