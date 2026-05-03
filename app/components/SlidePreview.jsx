@@ -5,8 +5,9 @@ import { motion, AnimatePresence } from "framer-motion";
 import TemplateRenderer from "./TemplateRenderer";
 import { universalSlots } from "../templates/universalSlots";
 import {
-  ChevronLeft, ChevronRight, Shuffle, Layers, Monitor, Smartphone,
-  CheckCircle2, LayoutGrid, Square, Sparkles, PanelRight, X
+  ChevronLeft, ChevronRight, Layers, Monitor, Smartphone,
+  CheckCircle2, LayoutGrid, Square, Sparkles, PanelRight, X,
+  Sun, Sunset, Zap, Camera
 } from "lucide-react";
 
 // ─────────────────────────────────────────────────────────────
@@ -17,63 +18,458 @@ const SIZE_PRIORITY = {
   "300x250": 7, "160x600": 6, "320x50": 5, "300x1050": 4,
 };
 
-// Slide canvas aspect ratio (16:9)
 const ASPECT_W = 16;
 const ASPECT_H = 9;
 
-// ─────────────────────────────────────────────────────────────
-// HELPERS
-// ─────────────────────────────────────────────────────────────
-function generateDynamicTemplate(validCreatives, baseSlots) {
-  const bySize = {};
-  validCreatives.forEach((c) => { bySize[c.size] = (bySize[c.size] || 0) + 1; });
-  const slotsBySize = {};
-  baseSlots.forEach((slot) => {
-    if (!slotsBySize[slot.size]) slotsBySize[slot.size] = [];
-    slotsBySize[slot.size].push(slot);
-  });
-  const availableSizes = Object.keys(bySize).sort(
-    (a, b) => (SIZE_PRIORITY[b] || 0) - (SIZE_PRIORITY[a] || 0)
-  );
-  const dynamicSlots = [];
-  availableSizes.forEach((size) => {
-    const count = bySize[size];
-    const matchingBaseSlots = slotsBySize[size];
-    if (matchingBaseSlots && matchingBaseSlots.length > 0) {
-      for (let i = 0; i < count; i++) {
-        if (i < matchingBaseSlots.length) {
-          dynamicSlots.push({ ...matchingBaseSlots[i], id: `${matchingBaseSlots[i].id}-gen-${i}` });
-        } else {
-          const templateSlot = matchingBaseSlots[matchingBaseSlots.length - 1];
-          dynamicSlots.push({ ...templateSlot, id: `${templateSlot.id}-dup-${i}`, slot: { ...templateSlot.slot } });
-        }
-      }
-    }
-  });
-  return dynamicSlots;
-}
+// Scene environments for photorealistic context
+const DESKTOP_SCENES = [
+  {
+    id: "studio_desk",
+    label: "Studio Desk",
+    bg: "linear-gradient(135deg, #1a1a2e 0%, #16213e 40%, #0f3460 100%)",
+    deskColor: "#2d2416",
+    ambientColor: "rgba(99,179,237,0.08)",
+    lightPos: "top-right",
+    grain: true,
+  },
+  {
+    id: "bright_office",
+    label: "Bright Office",
+    bg: "linear-gradient(160deg, #e8f4fd 0%, #d1ecf9 50%, #b8e0f7 100%)",
+    deskColor: "#f0ede8",
+    ambientColor: "rgba(255,220,150,0.12)",
+    lightPos: "top-left",
+    grain: false,
+  },
+  {
+    id: "evening_warm",
+    label: "Evening Warm",
+    bg: "linear-gradient(145deg, #1c0a00 0%, #3d1a00 50%, #6b3000 100%)",
+    deskColor: "#2a1506",
+    ambientColor: "rgba(255,140,0,0.15)",
+    lightPos: "top-right",
+    grain: true,
+  },
+];
 
-function buildSlotCreativeMap(slotsToMap, validCreatives) {
-  // We simply map the slot's matching creative id if it was injected
-  const map = {};
-  slotsToMap.forEach((slot) => {
-    // We embedded creativeId in the slot when we generated it below
-    if (slot.creativeId) {
-      const creative = validCreatives.find(c => c.id === slot.creativeId);
-      if (creative) map[slot.id] = creative;
-    }
-  });
-  return map;
-}
+const MOBILE_SCENES = [
+  {
+    id: "hand_hold",
+    label: "Hand Hold",
+    bg: "linear-gradient(160deg, #0f0c29 0%, #302b63 50%, #24243e 100%)",
+    ambientColor: "rgba(120,100,255,0.12)",
+    grain: true,
+  },
+  {
+    id: "coffee_table",
+    label: "Coffee Table",
+    bg: "linear-gradient(135deg, #f5f0e8 0%, #ede8dc 100%)",
+    ambientColor: "rgba(200,160,100,0.15)",
+    grain: false,
+  },
+  {
+    id: "outdoor",
+    label: "Outdoor",
+    bg: "linear-gradient(180deg, #87ceeb 0%, #98d8f0 60%, #b8e8d4 100%)",
+    ambientColor: "rgba(255,255,200,0.2)",
+    grain: false,
+  },
+];
 
 // ─────────────────────────────────────────────────────────────
-// SLIDE VARIANTS (framer-motion)
+// SLIDE VARIANTS
 // ─────────────────────────────────────────────────────────────
 const slideVariants = {
-  enter: (dir) => ({ x: dir > 0 ? "8%" : "-8%", opacity: 0, scale: 0.97 }),
+  enter: (dir) => ({ x: dir > 0 ? "6%" : "-6%", opacity: 0, scale: 0.96 }),
   center: { x: 0, opacity: 1, scale: 1 },
-  exit: (dir) => ({ x: dir < 0 ? "8%" : "-8%", opacity: 0, scale: 0.97 }),
+  exit: (dir) => ({ x: dir < 0 ? "6%" : "-6%", opacity: 0, scale: 0.96 }),
 };
+
+// ─────────────────────────────────────────────────────────────
+// GRAIN OVERLAY SVG
+// ─────────────────────────────────────────────────────────────
+function GrainOverlay({ opacity = 0.04 }) {
+  return (
+    <svg
+      style={{
+        position: "absolute", inset: 0, width: "100%", height: "100%",
+        pointerEvents: "none", zIndex: 50, opacity,
+      }}
+    >
+      <filter id="grain-filter">
+        <feTurbulence type="fractalNoise" baseFrequency="0.75" numOctaves="4" stitchTiles="stitch" />
+        <feColorMatrix type="saturate" values="0" />
+      </filter>
+      <rect width="100%" height="100%" filter="url(#grain-filter)" />
+    </svg>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// MACBOOK FRAME — photorealistic desktop mockup
+// ─────────────────────────────────────────────────────────────
+function MacBookFrame({ children, scene, tilt = true }) {
+  const lidAngle = tilt ? "perspective(1200px) rotateX(2deg) rotateY(-1.5deg)" : "none";
+
+  return (
+    <div
+      className="relative w-full flex flex-col items-center"
+      style={{ transform: lidAngle, transformOrigin: "center bottom", transition: "transform 0.6s ease" }}
+    >
+      {/* Screen bezel */}
+      <div
+        className="relative w-full rounded-t-2xl overflow-hidden"
+        style={{
+          background: "linear-gradient(180deg, #1a1a1a 0%, #111 100%)",
+          padding: "18px 20px 0 20px",
+          boxShadow: "inset 0 2px 4px rgba(255,255,255,0.06), 0 -2px 0 #333",
+        }}
+      >
+        {/* Camera dot */}
+        <div
+          className="absolute top-2 left-1/2 -translate-x-1/2 w-2 h-2 rounded-full"
+          style={{ background: "#222", boxShadow: "0 0 0 1px #333, inset 0 1px 2px #000" }}
+        />
+
+        {/* Screen */}
+        <div
+          className="relative rounded-lg overflow-hidden"
+          style={{
+            aspectRatio: "16/9",
+            background: "#000",
+            boxShadow: "inset 0 0 30px rgba(0,0,0,0.8), 0 0 1px rgba(255,255,255,0.1)",
+          }}
+        >
+          {/* Screen glare */}
+          <div
+            className="absolute inset-0 pointer-events-none z-20"
+            style={{
+              background: scene?.lightPos === "top-right"
+                ? "linear-gradient(135deg, rgba(255,255,255,0.06) 0%, transparent 40%)"
+                : "linear-gradient(225deg, rgba(255,255,255,0.06) 0%, transparent 40%)",
+            }}
+          />
+          {/* Screen content */}
+          <div className="absolute inset-0">{children}</div>
+        </div>
+      </div>
+
+      {/* Hinge + base */}
+      <div
+        className="w-[105%] relative"
+        style={{
+          height: "16px",
+          background: "linear-gradient(180deg, #2a2a2a 0%, #1a1a1a 100%)",
+          borderRadius: "0 0 4px 4px",
+          boxShadow: "0 4px 20px rgba(0,0,0,0.5)",
+        }}
+      >
+        {/* Hinge center indent */}
+        <div
+          className="absolute top-0 left-1/2 -translate-x-1/2"
+          style={{
+            width: "60px", height: "6px",
+            background: "linear-gradient(180deg, #333 0%, #222 100%)",
+            borderRadius: "0 0 6px 6px",
+          }}
+        />
+      </div>
+
+      {/* Base / palm rest */}
+      <div
+        className="w-[112%] relative"
+        style={{
+          height: "28px",
+          background: "linear-gradient(180deg, #1d1d1d 0%, #141414 100%)",
+          borderRadius: "0 0 14px 14px",
+          boxShadow: "0 8px 32px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.04)",
+        }}
+      >
+        {/* Trackpad hint */}
+        <div
+          className="absolute bottom-4 left-1/2 -translate-x-1/2"
+          style={{
+            width: "80px", height: "8px",
+            background: "rgba(255,255,255,0.04)",
+            borderRadius: "4px",
+            border: "1px solid rgba(255,255,255,0.06)",
+          }}
+        />
+      </div>
+
+      {/* Table reflection */}
+      <div
+        className="w-[120%] mt-0.5 opacity-20"
+        style={{
+          height: "24px",
+          background: "linear-gradient(180deg, rgba(200,200,220,0.3) 0%, transparent 100%)",
+          borderRadius: "0 0 8px 8px",
+          filter: "blur(4px)",
+          transform: "scaleY(-1) translateY(-4px)",
+        }}
+      />
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// iPHONE FRAME — photorealistic mobile mockup
+// ─────────────────────────────────────────────────────────────
+function IPhoneFrame({ children, scene, tilt = true }) {
+  const tiltTransform = tilt
+    ? "perspective(900px) rotateX(3deg) rotateY(2deg) rotateZ(-1deg)"
+    : "none";
+
+  return (
+    <div
+      className="relative inline-block"
+      style={{
+        transform: tiltTransform,
+        transformOrigin: "center center",
+        transition: "transform 0.6s ease",
+      }}
+    >
+      {/* Outer shell */}
+      <div
+        className="relative rounded-[44px] overflow-hidden"
+        style={{
+          width: "280px",
+          background: "linear-gradient(145deg, #2a2a2a 0%, #1a1a1a 40%, #222 100%)",
+          padding: "14px 10px",
+          boxShadow: `
+            0 0 0 1px rgba(255,255,255,0.08),
+            0 0 0 2px rgba(0,0,0,0.6),
+            inset 0 0 30px rgba(0,0,0,0.4),
+            4px 20px 60px rgba(0,0,0,0.7),
+            -2px -4px 20px rgba(255,255,255,0.04)
+          `,
+        }}
+      >
+        {/* Side buttons */}
+        <div
+          className="absolute left-[-3px] top-[90px]"
+          style={{
+            width: "3px", height: "28px",
+            background: "linear-gradient(180deg, #2a2a2a, #1a1a1a)",
+            borderRadius: "2px 0 0 2px",
+          }}
+        />
+        <div
+          className="absolute left-[-3px] top-[128px]"
+          style={{
+            width: "3px", height: "44px",
+            background: "linear-gradient(180deg, #2a2a2a, #1a1a1a)",
+            borderRadius: "2px 0 0 2px",
+          }}
+        />
+        <div
+          className="absolute left-[-3px] top-[182px]"
+          style={{
+            width: "3px", height: "44px",
+            background: "linear-gradient(180deg, #2a2a2a, #1a1a1a)",
+            borderRadius: "2px 0 0 2px",
+          }}
+        />
+        {/* Power button */}
+        <div
+          className="absolute right-[-3px] top-[148px]"
+          style={{
+            width: "3px", height: "64px",
+            background: "linear-gradient(180deg, #2a2a2a, #1a1a1a)",
+            borderRadius: "0 2px 2px 0",
+          }}
+        />
+
+        {/* Screen area */}
+        <div
+          className="relative rounded-[34px] overflow-hidden"
+          style={{
+            background: "#000",
+            boxShadow: "inset 0 0 20px rgba(0,0,0,0.5)",
+          }}
+        >
+          {/* Dynamic Island */}
+          <div
+            className="absolute top-3 left-1/2 -translate-x-1/2 z-30"
+            style={{
+              width: "90px", height: "26px",
+              background: "#000",
+              borderRadius: "14px",
+            }}
+          />
+
+          {/* Status bar */}
+          <div
+            className="flex items-center justify-between px-6 pt-3 pb-1 z-20 relative"
+            style={{
+              background: "rgba(0,0,0,0.85)",
+              fontSize: "11px",
+              color: "#fff",
+              fontFamily: "'SF Pro Display', system-ui, sans-serif",
+              fontWeight: 600,
+            }}
+          >
+            <span style={{ paddingTop: "20px" }}>9:41</span>
+            <div style={{ width: "90px" }} /> {/* Dynamic Island space */}
+            <div style={{ paddingTop: "20px", display: "flex", gap: "5px", alignItems: "center" }}>
+              <span>●●●●</span>
+              <span>WiFi</span>
+              <span>⚡</span>
+            </div>
+          </div>
+
+          {/* Screen content */}
+          <div style={{ height: "460px", overflow: "hidden" }}>
+            {children}
+          </div>
+
+          {/* Home indicator */}
+          <div
+            className="flex items-center justify-center py-2"
+            style={{ background: "rgba(0,0,0,0.9)" }}
+          >
+            <div
+              style={{
+                width: "120px", height: "5px",
+                background: "rgba(255,255,255,0.35)",
+                borderRadius: "3px",
+              }}
+            />
+          </div>
+
+          {/* Screen glare */}
+          <div
+            className="absolute inset-0 pointer-events-none z-20"
+            style={{
+              background: "linear-gradient(145deg, rgba(255,255,255,0.08) 0%, transparent 35%)",
+            }}
+          />
+        </div>
+      </div>
+
+      {/* Phone reflection on surface */}
+      <div
+        className="absolute bottom-[-20px] left-1/2 -translate-x-1/2 w-[80%] opacity-20"
+        style={{
+          height: "20px",
+          background: "linear-gradient(180deg, rgba(150,150,200,0.5), transparent)",
+          filter: "blur(8px)",
+          transform: "translateX(-50%) scaleY(-1)",
+        }}
+      />
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// SCENE WRAPPER — puts device in environment
+// ─────────────────────────────────────────────────────────────
+function SceneWrapper({ scene, isMobile, children }) {
+  return (
+    <div
+      className="relative w-full h-full flex items-center justify-center overflow-hidden"
+      style={{ background: scene.bg }}
+    >
+      {/* Grain */}
+      {scene.grain && <GrainOverlay opacity={0.035} />}
+
+      {/* Ambient light blob */}
+      <div
+        className="absolute pointer-events-none"
+        style={{
+          width: "60%", height: "60%",
+          background: scene.ambientColor,
+          borderRadius: "50%",
+          filter: "blur(80px)",
+          top: scene.lightPos === "top-right" ? "0" : "0",
+          right: scene.lightPos === "top-right" ? "0" : "auto",
+          left: scene.lightPos === "top-left" ? "0" : "auto",
+        }}
+      />
+
+      {/* Desk surface (desktop only) */}
+      {!isMobile && (
+        <div
+          className="absolute bottom-0 left-0 right-0"
+          style={{
+            height: "35%",
+            background: `linear-gradient(180deg, ${scene.deskColor || "#1a1a1a"} 0%, rgba(0,0,0,0.3) 100%)`,
+            boxShadow: "inset 0 2px 20px rgba(0,0,0,0.3)",
+          }}
+        />
+      )}
+
+      {/* Subtle desk objects (desktop) */}
+      {!isMobile && (
+        <>
+          {/* Coffee cup silhouette */}
+          <div
+            className="absolute bottom-[28%] right-[8%] opacity-20"
+            style={{
+              width: "28px", height: "38px",
+              background: "rgba(255,255,255,0.15)",
+              borderRadius: "4px 4px 6px 6px",
+              border: "1px solid rgba(255,255,255,0.1)",
+            }}
+          />
+          {/* Notebook */}
+          <div
+            className="absolute bottom-[28%] left-[6%] opacity-15"
+            style={{
+              width: "60px", height: "44px",
+              background: "rgba(200,200,220,0.2)",
+              borderRadius: "2px",
+              transform: "rotate(-3deg)",
+            }}
+          />
+        </>
+      )}
+
+      {/* Device + content */}
+      <div className="relative z-10">
+        {children}
+      </div>
+
+      {/* Depth of field — bottom blur */}
+      <div
+        className="absolute bottom-0 left-0 right-0 pointer-events-none"
+        style={{
+          height: "30%",
+          background: "linear-gradient(0deg, rgba(0,0,0,0.4) 0%, transparent 100%)",
+          backdropFilter: "blur(2px)",
+          WebkitMaskImage: "linear-gradient(0deg, black 0%, transparent 100%)",
+        }}
+      />
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// SCENE SELECTOR
+// ─────────────────────────────────────────────────────────────
+function SceneSelector({ scenes, activeId, onSelect }) {
+  return (
+    <div className="flex items-center gap-2">
+      <Camera size={13} className="text-gray-500" />
+      {scenes.map((s) => (
+        <button
+          key={s.id}
+          onClick={() => onSelect(s.id)}
+          title={s.label}
+          className={`w-5 h-5 rounded-full border-2 transition-all ${activeId === s.id
+            ? "border-blue-400 scale-110"
+            : "border-white/20 hover:border-white/50"
+            }`}
+          style={{
+            background: typeof s.bg === "string"
+              ? s.bg.includes("gradient") ? s.bg : s.bg
+              : "#333",
+          }}
+        />
+      ))}
+    </div>
+  );
+}
 
 // ─────────────────────────────────────────────────────────────
 // VIEW MODE TOGGLE
@@ -83,21 +479,19 @@ function ViewModeToggle({ viewMode, setViewMode }) {
     <div className="flex items-center bg-black/40 p-1.5 rounded-xl border border-white/10">
       <button
         onClick={() => setViewMode("multiple")}
-        className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
-          viewMode === "multiple"
-            ? "bg-gradient-to-r from-purple-600 to-blue-600 text-white shadow-lg"
-            : "text-gray-400 hover:text-white"
-        }`}
+        className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all ${viewMode === "multiple"
+          ? "bg-gradient-to-r from-purple-600 to-blue-600 text-white shadow-lg"
+          : "text-gray-400 hover:text-white"
+          }`}
       >
         <Square size={15} /> Multiple Slides
       </button>
       <button
         onClick={() => setViewMode("single")}
-        className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
-          viewMode === "single"
-            ? "bg-gradient-to-r from-purple-600 to-blue-600 text-white shadow-lg"
-            : "text-gray-400 hover:text-white"
-        }`}
+        className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all ${viewMode === "single"
+          ? "bg-gradient-to-r from-purple-600 to-blue-600 text-white shadow-lg"
+          : "text-gray-400 hover:text-white"
+          }`}
       >
         <LayoutGrid size={15} /> Single Slide
       </button>
@@ -117,27 +511,22 @@ function ThumbnailSidebar({ slides, activeIndex, onSelect, onClose }) {
       transition={{ duration: 0.2 }}
       className="w-44 shrink-0 bg-slate-900/80 backdrop-blur-xl border border-white/10 rounded-2xl overflow-hidden flex flex-col"
     >
-      {/* Header */}
       <div className="flex items-center justify-between px-3 py-2 border-b border-white/10">
         <span className="text-xs font-bold text-white uppercase tracking-widest">Slides</span>
         <button onClick={onClose} className="text-gray-500 hover:text-white transition">
           <X size={14} />
         </button>
       </div>
-
-      {/* Thumbnails */}
       <div className="flex-1 overflow-y-auto p-2 space-y-2 scrollbar-thin scrollbar-thumb-white/10">
         {slides.map((slide, idx) => (
           <button
             key={slide.key}
             onClick={() => onSelect(idx)}
-            className={`w-full group relative rounded-lg overflow-hidden border-2 transition-all ${
-              idx === activeIndex
-                ? "border-blue-500 shadow-[0_0_12px_rgba(59,130,246,0.4)]"
-                : "border-transparent hover:border-white/30"
-            }`}
+            className={`w-full group relative rounded-lg overflow-hidden border-2 transition-all ${idx === activeIndex
+              ? "border-blue-500 shadow-[0_0_12px_rgba(59,130,246,0.4)]"
+              : "border-transparent hover:border-white/30"
+              }`}
           >
-            {/* 16:9 mini thumbnail */}
             <div
               className="w-full bg-slate-800 flex items-center justify-center text-[8px] text-gray-500"
               style={{ aspectRatio: "16/9" }}
@@ -148,7 +537,6 @@ function ThumbnailSidebar({ slides, activeIndex, onSelect, onClose }) {
                 <span className="text-center px-1">{slide.label}</span>
               )}
             </div>
-            {/* Index badge */}
             <div className="absolute top-1 left-1 text-[9px] bg-black/70 text-white rounded px-1 font-bold">
               {idx + 1}
             </div>
@@ -179,49 +567,55 @@ export default function SlidePreview({
   const [direction, setDirection] = useState(0);
   const [isMobile, setIsMobile] = useState(false);
   const [showSidebar, setShowSidebar] = useState(true);
+  const [realisticMode, setRealisticMode] = useState(true);
+  const [activeSceneId, setActiveSceneId] = useState(DESKTOP_SCENES[0].id);
+  const [tiltEnabled, setTiltEnabled] = useState(true);
 
-  // Touch swipe
   const touchStartX = useRef(null);
   const containerRef = useRef(null);
+
+  // Switch to a sensible default scene when device changes
+  useEffect(() => {
+    setActiveSceneId(isMobile ? MOBILE_SCENES[0].id : DESKTOP_SCENES[0].id);
+  }, [isMobile]);
+
+  const scenes = isMobile ? MOBILE_SCENES : DESKTOP_SCENES;
+  const activeScene = scenes.find((s) => s.id === activeSceneId) || scenes[0];
 
   const creativesToUse = useMemo(() => {
     return validCreatives.filter(c => c && (c.url || c.text || c.image || c.title));
   }, [validCreatives]);
 
-  // ── Build exactly 1 slot per valid creative ──────────────────
   const { displayedSlots, slotCreativeMap } = useMemo(() => {
     const slots = [];
     const map = {};
     const usedBaseSlots = {};
-    
+
     creativesToUse.forEach((c, i) => {
-      // Find base slots for this size
       const matchingBaseSlots = universalSlots.filter(s => s.size === c.size);
-      let baseSlot = matchingBaseSlots[0] || universalSlots[0]; // fallback to first slot if none match
-      
+      let baseSlot = matchingBaseSlots[0] || universalSlots[0];
+
       if (matchingBaseSlots.length > 0) {
         const usedCount = usedBaseSlots[c.size] || 0;
-        baseSlot = usedCount < matchingBaseSlots.length 
-          ? matchingBaseSlots[usedCount] 
+        baseSlot = usedCount < matchingBaseSlots.length
+          ? matchingBaseSlots[usedCount]
           : matchingBaseSlots[matchingBaseSlots.length - 1];
         usedBaseSlots[c.size] = usedCount + 1;
       }
-      
+
       const slotId = `${baseSlot.id}-gen-${c.id}-${i}`;
       const newSlot = { ...baseSlot, id: slotId, creativeId: c.id };
       slots.push(newSlot);
       map[slotId] = c;
     });
-    
+
     return { displayedSlots: slots, slotCreativeMap: map };
   }, [creativesToUse]);
 
-  // ── Slides array depends on viewMode ─────────────────────────
   const slides = useMemo(() => {
     if (viewMode === "single") {
       return [{ key: "single-slide", label: "All Creatives", thumbnail: null }];
     }
-    // Multiple: ONE slide per VALID creative exactly
     return creativesToUse.map((c, i) => ({
       key: c.id || `creative-${i}`,
       label: `${c.name || "Untitled"}\n${c.size}`,
@@ -234,10 +628,8 @@ export default function SlidePreview({
   const totalSlides = slides.length;
   const safeActiveIndex = Math.min(activeIndex, Math.max(0, totalSlides - 1));
 
-  // Reset active index when slide count changes
   useEffect(() => { setActiveIndex(0); }, [viewMode, totalSlides]);
 
-  // ── Keyboard navigation ───────────────────────────────────────
   useEffect(() => {
     const onKey = (e) => {
       if (e.key === "ArrowLeft") navigate(-1);
@@ -260,7 +652,6 @@ export default function SlidePreview({
     [totalSlides]
   );
 
-  // ── Touch swipe ───────────────────────────────────────────────
   const onTouchStart = (e) => { touchStartX.current = e.touches[0].clientX; };
   const onTouchEnd = (e) => {
     if (touchStartX.current === null) return;
@@ -269,20 +660,28 @@ export default function SlidePreview({
     touchStartX.current = null;
   };
 
-  // ── Active slide content ──────────────────────────────────────
   const activeSlide = slides[safeActiveIndex];
-
-  // For multiple mode: which slot and creative to highlight in the template
   const activeSlot = viewMode === "multiple"
     ? (displayedSlots[safeActiveIndex] || displayedSlots[0])
     : null;
 
-  // Stats
   const filledSlots = displayedSlots.filter((s) => slotCreativeMap[s.id]).length;
+
+  // ── The template content to render ───────────────────────────
+  const templateContent = (
+    <TemplateRenderer
+      allSlots={displayedSlots}
+      activeSlotId={viewMode === "multiple" ? activeSlot?.id : null}
+      slotCreativeMap={slotCreativeMap}
+      showSlotLabels={showSlotLabels}
+      isMobile={isMobile}
+      selectedTemplate={selectedTemplate}
+    />
+  );
 
   return (
     <div className="space-y-4">
-      {/* ── Preview Engine Header ───────────────────────────── */}
+      {/* ── Preview Engine Header ─────────────────────────── */}
       <div className="bg-slate-900/80 backdrop-blur-xl border border-white/10 rounded-2xl p-5">
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
           <div>
@@ -296,7 +695,7 @@ export default function SlidePreview({
                 <CheckCircle2 size={13} className="text-green-400" /> Multi-platform preview
               </span>
               <span className="flex items-center gap-1.5 text-xs text-gray-400">
-                <CheckCircle2 size={13} className="text-green-400" /> 16:9 slide canvas
+                <CheckCircle2 size={13} className="text-green-400" /> Photorealistic device frames
               </span>
               <span className="flex items-center gap-1.5 text-xs text-gray-400">
                 <CheckCircle2 size={13} className="text-green-400" /> Real ad formats
@@ -304,23 +703,21 @@ export default function SlidePreview({
             </div>
           </div>
 
-          {/* Controls row */}
+          {/* Controls */}
           <div className="flex flex-wrap items-center gap-3">
             {/* Desktop / Mobile toggle */}
             <div className="flex items-center bg-black/40 p-1 rounded-xl border border-white/10">
               <button
                 onClick={() => setIsMobile(false)}
-                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-semibold transition ${
-                  !isMobile ? "bg-white/10 text-white shadow-md" : "text-gray-500 hover:text-gray-300"
-                }`}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-semibold transition ${!isMobile ? "bg-white/10 text-white shadow-md" : "text-gray-500 hover:text-gray-300"
+                  }`}
               >
                 <Monitor size={15} /> Desktop
               </button>
               <button
                 onClick={() => setIsMobile(true)}
-                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-semibold transition ${
-                  isMobile ? "bg-white/10 text-white shadow-md" : "text-gray-500 hover:text-gray-300"
-                }`}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-semibold transition ${isMobile ? "bg-white/10 text-white shadow-md" : "text-gray-500 hover:text-gray-300"
+                  }`}
               >
                 <Smartphone size={15} /> Mobile
               </button>
@@ -329,33 +726,60 @@ export default function SlidePreview({
             {/* View Mode */}
             <ViewModeToggle viewMode={viewMode} setViewMode={setViewMode} />
 
+            {/* Realistic toggle */}
+            <button
+              onClick={() => setRealisticMode((v) => !v)}
+              className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-sm font-semibold transition ${realisticMode
+                ? "bg-amber-500/20 border-amber-500/40 text-amber-300"
+                : "bg-white/5 border-white/10 text-gray-400 hover:text-white"
+                }`}
+            >
+              <Zap size={15} /> {realisticMode ? "Realistic" : "Flat"}
+            </button>
+
             {/* Sidebar toggle */}
             <button
               onClick={() => setShowSidebar((v) => !v)}
-              className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-sm font-semibold transition ${
-                showSidebar
-                  ? "bg-blue-600/20 border-blue-500/40 text-blue-300"
-                  : "bg-white/5 border-white/10 text-gray-400 hover:text-white"
-              }`}
+              className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-sm font-semibold transition ${showSidebar
+                ? "bg-blue-600/20 border-blue-500/40 text-blue-300"
+                : "bg-white/5 border-white/10 text-gray-400 hover:text-white"
+                }`}
             >
               <PanelRight size={15} /> Thumbnails
             </button>
           </div>
         </div>
+
+        {/* Scene selector row (only in realistic mode) */}
+        {realisticMode && (
+          <div className="flex items-center gap-4 mt-4 pt-4 border-t border-white/10">
+            <span className="text-xs text-gray-500 font-semibold uppercase tracking-wider">Scene</span>
+            <SceneSelector scenes={scenes} activeId={activeSceneId} onSelect={setActiveSceneId} />
+            <span className="text-xs text-gray-600">·</span>
+            <button
+              onClick={() => setTiltEnabled((v) => !v)}
+              className={`text-xs font-semibold px-2 py-1 rounded-lg transition ${tiltEnabled
+                ? "text-blue-400 bg-blue-500/10"
+                : "text-gray-500 hover:text-gray-300"
+                }`}
+            >
+              {tiltEnabled ? "3D Tilt ✦" : "Flat View"}
+            </button>
+          </div>
+        )}
       </div>
 
-      {/* ── Template Selector ───────────────────────────────── */}
+      {/* ── Template Selector ─────────────────────────────── */}
       {TEMPLATES && TEMPLATES.length > 0 && (
         <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-white/10">
           {TEMPLATES.map((tpl) => (
             <button
               key={tpl.id}
               onClick={() => setSelectedTemplate?.(tpl.id)}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold whitespace-nowrap transition-all border-2 ${
-                selectedTemplate === tpl.id
-                  ? "bg-gradient-to-r from-blue-600 to-purple-600 border-transparent text-white shadow-lg"
-                  : "bg-white/5 border-white/10 text-gray-400 hover:text-white hover:border-white/30"
-              }`}
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold whitespace-nowrap transition-all border-2 ${selectedTemplate === tpl.id
+                ? "bg-gradient-to-r from-blue-600 to-purple-600 border-transparent text-white shadow-lg"
+                : "bg-white/5 border-white/10 text-gray-400 hover:text-white hover:border-white/30"
+                }`}
             >
               <tpl.icon size={16} />
               {tpl.name}
@@ -364,7 +788,7 @@ export default function SlidePreview({
         </div>
       )}
 
-      {/* ── Empty State ─────────────────────────────────────── */}
+      {/* ── Empty State ───────────────────────────────────── */}
       {validCreatives.length === 0 && (
         <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-8 text-center">
           <p className="text-red-400 font-bold mb-2">No Valid Creatives Found</p>
@@ -376,7 +800,6 @@ export default function SlidePreview({
         <>
           {/* ── Navigation bar ──────────────────────────────── */}
           <div className="flex items-center justify-between gap-4">
-            {/* Prev / Counter / Next */}
             <div className="flex items-center gap-3">
               <motion.button
                 whileHover={{ scale: 1.1 }}
@@ -416,12 +839,14 @@ export default function SlidePreview({
               {slides.map((slide, idx) => (
                 <button
                   key={slide.key}
-                  onClick={() => { setDirection(idx > safeActiveIndex ? 1 : -1); setActiveIndex(idx); }}
-                  className={`rounded-full transition-all ${
-                    idx === safeActiveIndex
-                      ? "w-8 h-2.5 bg-gradient-to-r from-purple-500 to-blue-500 shadow-lg shadow-purple-500/30"
-                      : "w-2.5 h-2.5 bg-white/20 hover:bg-white/40"
-                  }`}
+                  onClick={() => {
+                    setDirection(idx > safeActiveIndex ? 1 : -1);
+                    setActiveIndex(idx);
+                  }}
+                  className={`rounded-full transition-all ${idx === safeActiveIndex
+                    ? "w-8 h-2.5 bg-gradient-to-r from-purple-500 to-blue-500 shadow-lg shadow-purple-500/30"
+                    : "w-2.5 h-2.5 bg-white/20 hover:bg-white/40"
+                    }`}
                   title={`Slide ${idx + 1}`}
                 />
               ))}
@@ -430,11 +855,10 @@ export default function SlidePreview({
 
           {/* ── Main canvas + sidebar ───────────────────────── */}
           <div className="flex gap-4 items-start" ref={containerRef}>
-            {/* 16:9 Canvas */}
             <div className="flex-1 min-w-0">
               <div
-                className="relative w-full rounded-2xl overflow-hidden border border-white/10 bg-slate-950 shadow-[0_0_60px_rgba(0,0,0,0.5)]"
-                style={{ aspectRatio: `${ASPECT_W}/${ASPECT_H}` }}
+                className="relative w-full rounded-2xl overflow-hidden border border-white/10 shadow-[0_0_60px_rgba(0,0,0,0.5)]"
+                style={{ aspectRatio: `${ASPECT_W}/${ASPECT_H}`, background: "#0a0a0f" }}
                 onTouchStart={onTouchStart}
                 onTouchEnd={onTouchEnd}
               >
@@ -446,47 +870,51 @@ export default function SlidePreview({
                     initial="enter"
                     animate="center"
                     exit="exit"
-                    transition={{ duration: 0.35, ease: [0.32, 0.72, 0, 1] }}
+                    transition={{ duration: 0.4, ease: [0.32, 0.72, 0, 1] }}
                     className="absolute inset-0 w-full h-full"
                   >
-                    {viewMode === "single" ? (
-                      /* Single slide: ALL creatives integrated perfectly into ONE template */
-                      <div className="absolute inset-0 flex items-center justify-center overflow-hidden bg-slate-950">
-                        <TemplateScaler isMobile={isMobile}>
-                          <TemplateRenderer
-                            allSlots={displayedSlots}
-                            activeSlotId={null} // null makes ALL slots active simultaneously
-                            slotCreativeMap={slotCreativeMap}
-                            showSlotLabels={showSlotLabels}
-                            isMobile={isMobile}
-                            selectedTemplate={selectedTemplate}
-                          />
-                        </TemplateScaler>
-                      </div>
+                    {realisticMode ? (
+                      /* ── PHOTOREALISTIC MODE ── */
+                      <SceneWrapper scene={activeScene} isMobile={isMobile}>
+                        {isMobile ? (
+                          <IPhoneFrame scene={activeScene} tilt={tiltEnabled}>
+                            <div style={{ transform: "scale(0.75)", transformOrigin: "top center", width: "133%", marginLeft: "-16.5%" }}>
+                              {templateContent}
+                            </div>
+                          </IPhoneFrame>
+                        ) : (
+                          <div className="w-full px-8 pb-4">
+                            <MacBookFrame scene={activeScene} tilt={tiltEnabled}>
+                              <TemplateScaler isMobile={false}>
+                                {templateContent}
+                              </TemplateScaler>
+                            </MacBookFrame>
+                          </div>
+                        )}
+                      </SceneWrapper>
                     ) : (
-                      /* Multiple slides: full template scaled perfectly highlighting ONE slot */
+                      /* ── FLAT MODE (original) ── */
                       <div className="absolute inset-0 flex items-center justify-center overflow-hidden bg-slate-950">
                         <TemplateScaler isMobile={isMobile}>
-                          <TemplateRenderer
-                            allSlots={displayedSlots}
-                            activeSlotId={activeSlot?.id}
-                            slotCreativeMap={slotCreativeMap}
-                            showSlotLabels={showSlotLabels}
-                            isMobile={isMobile}
-                            selectedTemplate={selectedTemplate}
-                          />
+                          {templateContent}
                         </TemplateScaler>
                       </div>
                     )}
                   </motion.div>
                 </AnimatePresence>
 
-                {/* Slide number badge */}
-                <div className="absolute bottom-3 left-1/2 -translate-x-1/2 bg-black/70 backdrop-blur-sm text-white text-xs font-bold px-3 py-1 rounded-full border border-white/10">
+                {/* Badge */}
+                <div className="absolute bottom-3 left-1/2 -translate-x-1/2 bg-black/70 backdrop-blur-sm text-white text-xs font-bold px-3 py-1 rounded-full border border-white/10 z-30">
                   {safeActiveIndex + 1} / {totalSlides}
                 </div>
 
-                {/* Keyboard hint */}
+                {/* Realistic badge */}
+                {realisticMode && (
+                  <div className="absolute top-3 left-3 bg-amber-500/20 border border-amber-500/30 backdrop-blur-sm text-amber-300 text-[10px] font-bold px-2 py-1 rounded-lg z-30 flex items-center gap-1">
+                    <Zap size={10} /> Photorealistic
+                  </div>
+                )}
+
                 <div className="absolute bottom-3 right-3 text-[10px] text-gray-600 hidden md:block">
                   ← → keys to navigate
                 </div>
@@ -509,7 +937,7 @@ export default function SlidePreview({
             </AnimatePresence>
           </div>
 
-          {/* ── Stats row ───────────────────────────────────── */}
+          {/* ── Stats row ─────────────────────────────────── */}
           <div className="grid grid-cols-3 gap-3">
             <div className="bg-gradient-to-br from-blue-500/15 to-blue-600/15 border border-blue-500/25 rounded-xl p-3 text-center">
               <p className="text-2xl font-bold text-blue-400">{totalSlides}</p>
@@ -537,7 +965,7 @@ export default function SlidePreview({
 }
 
 // ─────────────────────────────────────────────────────────────
-// TEMPLATE SCALER — CSS-scales the full template to fit 16:9
+// TEMPLATE SCALER
 // ─────────────────────────────────────────────────────────────
 function TemplateScaler({ children, isMobile }) {
   const ref = useRef(null);
@@ -545,25 +973,17 @@ function TemplateScaler({ children, isMobile }) {
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
-    const container = el.parentElement; // The 16:9 absolute inset-0 wrapper
+    const container = el.parentElement;
     if (!container) return;
 
     const update = () => {
-      // 16:9 canvas dimensions
       const parentW = container.offsetWidth;
       const parentH = container.offsetHeight;
-
-      // Natural dimensions of the template content
-      // Width is fixed per device type, height is dynamic to the template's content
       const contentW = isMobile ? 375 : 1200;
       const contentH = el.offsetHeight || (isMobile ? 812 : 900);
-
-      // Fit ENTIRE template within the canvas bounds to prevent overflow
       const scaleW = parentW / contentW;
       const scaleH = parentH / contentH;
       const scale = Math.min(scaleW, scaleH, 1);
-
-      el.style.setProperty("--slide-scale", scale.toString());
       el.style.transform = `scale(${scale})`;
     };
 
@@ -575,12 +995,12 @@ function TemplateScaler({ children, isMobile }) {
   }, [isMobile]);
 
   return (
-    <div 
-      ref={ref} 
-      style={{ 
+    <div
+      ref={ref}
+      style={{
         transformOrigin: "center center",
         width: isMobile ? "375px" : "1200px",
-        height: "fit-content", // Allow natural height
+        height: "fit-content",
       }}
     >
       {children}
