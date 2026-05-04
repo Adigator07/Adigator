@@ -26,7 +26,7 @@ import {
   ctaTypeToStrength,
   getDatasetStats,
   lookupCTAFromDataset,
-  CTAtype,
+  CTAType,
   CampaignGoal,
   Platform
 } from "./datasetIntelligence";
@@ -41,6 +41,26 @@ export type ColorHarmony = "HARMONIOUS" | "ACCEPTABLE" | "DISCORDANT";
 export type VisualHierarchy = "STRONG" | "MODERATE" | "WEAK";
 export type ReadingFlow = "LINEAR" | "SCATTERED" | "NONE";
 export type WCAGLevel = "AAA" | "AA" | "FAIL";
+
+interface ClutterData {
+  index: number;
+  label: ClutterLabel;
+}
+
+interface CtaAnalysis {
+  found: boolean;
+  word: string;
+  strength: string;
+  goalMatch: boolean;
+  valid: boolean;
+  goal: string;
+  confidence: string;
+  reason: string;
+  ctaType: CTAType;
+  goalFit: CTAGoalFit;
+  urgencySignal: boolean;
+  valueSignal: boolean;
+}
 
 interface PixelData {
   brightness: number;       // 0–100
@@ -742,7 +762,7 @@ function extractCTAPhrase(text: string): { phrase: string; type: CTAType } {
   return { phrase: "", type: "None" };
 }
 
-function analyzeCTA(fullText: string, campaignGoal: CampaignGoal) {
+function analyzeCTA(fullText: string, campaignGoal: CampaignGoal): CtaAnalysis {
   const { phrase: ctaText, type: detectedType } = extractCTAPhrase(fullText);
 
   if (!ctaText || detectedType === "None" || isFakeCTA(ctaText)) {
@@ -825,7 +845,7 @@ function detectEmotionalAppeal(text: string, px: PixelData): EmotionalAppeal {
   return "LOW";
 }
 
-function calculateClutterIndex(ocr: OcrData, px: PixelData): { index: number; label: ClutterLabel } {
+function calculateClutterIndex(ocr: OcrData, px: PixelData): ClutterData {
   let score = 0;
 
   if (ocr.wordCount > 30) score += 3;
@@ -1553,6 +1573,7 @@ function computePlatformChecks(
   clutter: ClutterData,
   visualHierarchy: string,
   cta: CtaAnalysis,
+  ctaScore: number,
   emotionalAppeal: string,
   cognitiveLoad: number
 ): Record<string, any> {
@@ -1572,7 +1593,7 @@ function computePlatformChecks(
   const mobile = {
     readability: { score: ocr.minTextHeightPx >= 14 ? 100 : ocr.minTextHeightPx >= 10 ? 60 : 30, pass: ocr.minTextHeightPx >= 12 },
     textDensity: { score: clamp(100 - ocr.textAreaPercent * 2), pass: ocr.textAreaPercent <= 30 },
-    ctaSize: { score: cta.strength >= 70 ? 100 : cta.strength >= 40 ? 70 : 40, pass: cta.found },
+    ctaSize: { score: ctaScore >= 70 ? 100 : ctaScore >= 40 ? 70 : 40, pass: cta.found },
     attentionGrab: { score: emotionalAppeal === "HIGH" ? 100 : emotionalAppeal === "MEDIUM" ? 70 : 40, pass: emotionalAppeal !== "LOW" },
   };
 
@@ -1759,7 +1780,7 @@ export async function analyzeCreativeLocal(
             crowding: { score: 100 - clutter.index * 10, label: `Clutter ${clutter.index}/10 — ${clutter.label}`, pass: clutter.index <= 5 },
             formatFit: { score: 100, label: tier, pass: true },
           },
-          platformChecks: computePlatformChecks(platform, fileSizeKB, ocr, size, px, clutter, visualHierarchy, cta, emotionalAppeal, cognitiveLoad),
+          platformChecks: computePlatformChecks(platform, fileSizeKB, ocr, size, px, clutter, visualHierarchy, cta, dims.cta.raw, emotionalAppeal, cognitiveLoad),
           adVisibilityScore: dims.pixel.raw,
           goalAlignmentIndicator: goalAlignScore,
           // Suggestions & Fixes
