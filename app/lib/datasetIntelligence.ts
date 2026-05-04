@@ -24,7 +24,6 @@ export type FunnelStage = "Awareness" | "Consideration" | "Conversion";
 export type CTAType = "Soft" | "Medium" | "Hard" | "Implicit" | "None";
 export type CampaignGoal = "awareness" | "consideration" | "conversion";
 export type Platform = "programmatic";
-export type AudienceType = "broad" | "intent" | "remarketing";
 export type UrgencyLevel = "none" | "low" | "medium" | "high";
 export type EmotionType = "neutral" | "trust" | "fear" | "joy" | "aspiration" | "curiosity" | "excitement";
 export type ValueProp = "savings" | "wellness" | "growth" | "productivity" | "skill_growth" | "achievement" | "aesthetics" | "efficiency" | "self_improvement" | "none";
@@ -54,7 +53,6 @@ interface DatasetEntry {
   value_proposition: ValueProp;
   persuasion_technique: PersuasionTechnique;
   headline_type: HeadlineType;
-  target_audience: string;
   power_words_found: string[];
   has_power_word: boolean;
   word_count: number;
@@ -122,7 +120,6 @@ export interface FullAnalysis {
   value_prop: ValuePropResult;
   persuasion: PersuasionResult;
   headline: HeadlineResult;
-  audience_signal: string;
   funnel_stage_hint: FunnelStage;
 }
 
@@ -400,27 +397,7 @@ export function analyzeHeadline(ocrText: string): HeadlineResult {
   return { type, has_power_word: power_words.length > 0, power_words, word_count };
 }
 
-// ── 8. Audience Signal Detection ─────────────────────────────────────────────
 
-const AUDIENCE_SIGNALS: Record<string, string[]> = {
-  "bargain-hunter": ["save money", "off", "deal", "discount", "cheap", "budget", "affordable"],
-  "professional": ["skills", "work", "career", "productivity", "efficiency", "workflow", "smarter"],
-  "health-conscious": ["health", "fit", "diet", "wellness", "nutrition", "energy", "body"],
-  "entrepreneur": ["grow", "scale", "business", "revenue", "faster", "results"],
-  "ambitious": ["achieve", "goal", "success", "more", "better", "level up"],
-  "lifestyle": ["look", "style", "feel", "confidence", "fashion", "premium", "design"],
-  "busy-professional": ["save time", "quick", "instant", "fast", "easy", "simple"],
-  "broad": [],
-};
-
-export function detectAudienceSignal(ocrText: string): string {
-  const norm = ocrText.toLowerCase();
-  for (const [audience, signals] of Object.entries(AUDIENCE_SIGNALS)) {
-    if (audience === "broad") continue;
-    if (signals.some(s => norm.includes(s))) return audience;
-  }
-  return "broad";
-}
 
 // ── 9. Full Analysis Pipeline ─────────────────────────────────────────────────
 
@@ -434,7 +411,6 @@ export function analyzeAdCreative(ocrText: string): FullAnalysis {
   const emotion = detectEmotion(ocrText);
   const value_prop = detectValueProp(ocrText);
   const persuasion = detectPersuasion(ocrText);
-  const audience = detectAudienceSignal(ocrText);
   const headline = analyzeHeadline(ocrText);
 
   // Infer funnel stage from signals if no explicit goal is given
@@ -452,7 +428,6 @@ export function analyzeAdCreative(ocrText: string): FullAnalysis {
     value_prop,
     persuasion,
     headline,
-    audience_signal: audience,
     funnel_stage_hint,
   };
 }

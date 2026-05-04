@@ -186,7 +186,7 @@ function buildSingleSlide(prs, validCreatives, templateName) {
 /**
  * Build a cover / executive summary slide
  */
-function buildCoverSlide(prs, { templateName, goal, platform, audienceType, total }) {
+function buildCoverSlide(prs, { templateName, goal, platform, total }) {
   const slide = prs.addSlide();
   addSlideBackground(slide);
 
@@ -210,7 +210,6 @@ function buildCoverSlide(prs, { templateName, goal, platform, audienceType, tota
   const details = [
     ["Campaign Goal",  (goal || "—").charAt(0).toUpperCase() + (goal || "").slice(1)],
     ["Platform",      (platform || "—").charAt(0).toUpperCase() + (platform || "").slice(1)],
-    ["Audience Type", (audienceType || "—").charAt(0).toUpperCase() + (audienceType || "").slice(1)],
     ["Template",      templateName],
     ["Creatives",     `${total} uploaded`],
   ];
@@ -346,7 +345,7 @@ function buildMultipleSlides(prs, validCreatives, templateName, meta = {}) {
  * @param {Object[]} validCreatives - array of { id, name, url, size, analysisData? }
  * @param {"single"|"multiple"} viewMode
  * @param {string} templateName
- * @param {Object} meta - { goal, platform, audienceType }
+ * @param {Object} meta - { goal, platform }
  */
 export async function exportToPptx(validCreatives, viewMode = "multiple", templateName = "Template", meta = {}) {
   const prs = new pptxgen();

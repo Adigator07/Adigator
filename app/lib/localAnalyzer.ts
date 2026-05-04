@@ -29,7 +29,7 @@ import {
   CTAType,
   CampaignGoal,
   Platform,
-  AudienceType
+  Platform
 } from "./datasetIntelligence";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -199,7 +199,6 @@ export interface LocalAnalysisResult {
   // ── Meta ────────────────────────────────────────────────────
   goal: CampaignGoal;
   platform: Platform;
-  audienceType: AudienceType;
   imageSize: string;
   analyzed_at: string;
   source: string;
@@ -216,7 +215,6 @@ export interface LocalAnalysisResult {
   recommendedTemplates: string[];
   messaging_intent: string;
   urgency_level: string;
-  audience_type: string;
   ai_cta_strength: string;
   // ── Analysis Text ────────────────────────────────────────────
   analysis: string;
@@ -1547,23 +1545,39 @@ function matchDataset(
   }
 }
 
-function computePlatformChecks(platform: Platform, fileSizeKB: number, ocr: OcrData, size: string): Record<string, any> {
-  const checks: Record<string, any> = {};
-  const isProgrammaticSize = ["300x250", "728x90", "160x600", "320x50", "300x600"].includes(size);
+function computePlatformChecks(
+  platform: Platform, 
+  fileSizeKB: number, 
+  ocr: OcrData, 
+  size: string,
+  px: PixelData,
+  clutter: ClutterData,
+  visualHierarchy: string,
+  cta: CtaAnalysis,
+  emotionalAppeal: string,
+  cognitiveLoad: number
+): Record<string, any> {
+  const standardProgrammatic = [
+    "300x250", "336x280", "728x90", "970x90", "970x250", "160x600", "300x600", "300x1050", "468x60", "234x60", "120x600", "120x240", "250x250", "200x200", "180x150",
+    "320x50", "320x100", "320x480", "480x320", "360x640", "375x667", "414x736"
+  ];
+  const isProgrammaticSize = standardProgrammatic.includes(size);
 
-  if (platform === "programmatic") {
-    checks.file_weight = { label: "File Weight (< 150KB)", pass: fileSizeKB <= 150, score: fileSizeKB <= 150 ? 100 : 40 };
-    checks.standard_dims = { label: "Standard Format", pass: isProgrammaticSize, score: isProgrammaticSize ? 100 : 50 };
-    checks.text_safe = { label: "Safe Text Density", pass: ocr.textAreaPercent < 40, score: clamp(100 - ocr.textAreaPercent) };
-  } else if (platform === "google_display") {
-    checks.file_weight = { label: "Google Policy (< 150KB)", pass: fileSizeKB <= 150, score: fileSizeKB <= 150 ? 100 : 20 };
-    checks.animation = { label: "Static Check", pass: true, score: 100 };
-  } else if (platform === "meta_social" || platform === "instagram") {
-    checks.text_rule = { label: "Text Overlay (< 20%)", pass: ocr.textAreaPercent < 20, score: ocr.textAreaPercent < 20 ? 100 : 60 };
-    checks.aspect_ratio = { label: "Mobile Friendly", pass: true, score: 100 };
-  }
+  const desktop = {
+    layoutBalance: { score: clamp(100 - clutter.index * 10), pass: clutter.index <= 5 },
+    visualHierarchy: { score: visualHierarchy === "STRONG" ? 100 : visualHierarchy === "MODERATE" ? 70 : 40, pass: visualHierarchy !== "WEAK" },
+    contentStructure: { score: clamp(100 - (ocr.wordCount > 15 ? 30 : 0) - (ocr.textAreaPercent > 40 ? 40 : 0)), pass: ocr.textAreaPercent <= 40 },
+    placementBlend: { score: clamp(px.contrast > 40 ? 100 : 50), pass: px.contrast > 30 },
+  };
 
-  return checks;
+  const mobile = {
+    readability: { score: ocr.minTextHeightPx >= 14 ? 100 : ocr.minTextHeightPx >= 10 ? 60 : 30, pass: ocr.minTextHeightPx >= 12 },
+    textDensity: { score: clamp(100 - ocr.textAreaPercent * 2), pass: ocr.textAreaPercent <= 30 },
+    ctaSize: { score: cta.strength >= 70 ? 100 : cta.strength >= 40 ? 70 : 40, pass: cta.found },
+    attentionGrab: { score: emotionalAppeal === "HIGH" ? 100 : emotionalAppeal === "MEDIUM" ? 70 : 40, pass: emotionalAppeal !== "LOW" },
+  };
+
+  return { desktop, mobile, isProgrammaticSize, fileSizeKB };
 }
 
 // ── 13. Main Analysis Engine ───────────────────────────────────────────────────
@@ -1572,7 +1586,6 @@ export async function analyzeCreativeLocal(
   imageUrl: string,
   goal: CampaignGoal,
   platform: Platform = "programmatic",
-  audienceType: AudienceType = "broad",
   imageSize: string = "",
   fileSizeKB: number = 0,
 ): Promise<LocalAnalysisResult> {
@@ -1747,7 +1760,7 @@ export async function analyzeCreativeLocal(
             crowding: { score: 100 - clutter.index * 10, label: `Clutter ${clutter.index}/10 — ${clutter.label}`, pass: clutter.index <= 5 },
             formatFit: { score: 100, label: tier, pass: true },
           },
-          platformChecks: computePlatformChecks(platform, fileSizeKB, ocr, size),
+          platformChecks: computePlatformChecks(platform, fileSizeKB, ocr, size, px, clutter, visualHierarchy, cta, emotionalAppeal, cognitiveLoad),
           adVisibilityScore: dims.pixel.raw,
           goalAlignmentIndicator: goalAlignScore,
           // Suggestions & Fixes
@@ -1771,7 +1784,7 @@ export async function analyzeCreativeLocal(
           dataset_matches: datasetMatches,
           dataset_confidence: datasetConfidence,
           // Meta
-          goal, platform, audienceType, imageSize: size,
+          goal, platform, imageSize: size,
           analyzed_at: new Date().toISOString(),
           source, sizeTier: tier, fileSizeKB,
           deterministicIssues: issues,
@@ -1785,7 +1798,6 @@ export async function analyzeCreativeLocal(
           recommendedTemplates: ["newspaper", "health"],
           messaging_intent: tone === "urgent" ? "High Urgency" : tone === "helpful" ? "Informative" : "Persuasive",
           urgency_level: cta.urgencySignal ? "High" : tone === "urgent" ? "High" : tone === "helpful" ? "Medium" : "Low",
-          audience_type: audienceType,
           ai_cta_strength: cta.strength,
           // Analysis Text
           analysis: summary,

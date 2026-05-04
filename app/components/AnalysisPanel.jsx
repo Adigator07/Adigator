@@ -776,10 +776,12 @@ export default function AnalysisPanel({
   analysisResult,
   campaignGoal,
   platform,
-  audienceType,
   onDownloadReport,
   onGoalChange,
 }) {
+  const sortedResult = [...analysisResult].sort((a, b) => b.data.overall_score - a.data.overall_score);
+  const getRank = (id) => sortedResult.findIndex(r => r.creative.id === id);
+
   const [selectedId, setSelectedId] = useState(analysisResult?.[0]?.creative?.id || null);
   const [tab, setTab] = useState("overview");
 
@@ -788,6 +790,7 @@ export default function AnalysisPanel({
   const perfect = analysisResult.filter((r) => r.data.overall_score >= 70);
   const needsWork = analysisResult.filter((r) => r.data.overall_score < 70);
   const selected = analysisResult.find((r) => r.creative.id === selectedId);
+  const selectedRank = selected ? getRank(selected.creative.id) : -1;
 
   const CORE_CHECK_CONFIG = [
     { key: "noticeability", icon: Eye, label: "Noticeable in Environment" },
@@ -799,8 +802,7 @@ export default function AnalysisPanel({
   ];
 
   const TABS = [
-    { id: "overview", label: "Overview", icon: BarChart3 },
-    { id: "intelligence", label: "Intelligence", icon: Brain },
+    { id: "overview", label: "Intelligence", icon: Brain },
     { id: "fixes", label: "Fix Blocks", icon: Zap, badge: selected?.data?.fix_blocks?.length },
     { id: "abtests", label: "A/B Tests", icon: FlaskConical, badge: selected?.data?.ab_hypotheses?.length },
     { id: "cta", label: "CTA", icon: MousePointer },
@@ -854,7 +856,7 @@ export default function AnalysisPanel({
 
         {/* LEFT: Creative List */}
         <div className="space-y-2">
-          {analysisResult.map((res) => {
+          {sortedResult.map((res) => {
             const score = res.data.overall_score;
             const isSelected = selectedId === res.creative.id;
             const forecast = res.data.engagement_forecast;
@@ -868,6 +870,9 @@ export default function AnalysisPanel({
                 className={`w-full flex items-center gap-3 p-3 rounded-xl border-2 text-left transition-all ${isSelected ? "border-fuchsia-500 bg-fuchsia-900/25" : "border-white/10 bg-white/4 hover:border-white/22"
                   }`}
               >
+                <div className="text-sm shrink-0 w-6 text-center font-bold text-yellow-500">
+                  {medalFor(getRank(res.creative.id))}
+                </div>
                 <img src={res.creative.url} className="w-12 h-10 rounded-lg object-cover shrink-0 border border-white/20" alt={res.creative.name} />
                 <div className="flex-1 min-w-0">
                   <p className="text-xs font-semibold text-white truncate">{res.creative.name}</p>
@@ -900,9 +905,12 @@ export default function AnalysisPanel({
                 <img src={selected.creative.url} className="w-20 h-16 rounded-xl object-cover border border-white/20 shrink-0" alt={selected.creative.name} />
                 <div className="flex-1 min-w-0">
                   <h4 className="text-base font-bold text-white truncate">{selected.creative.name}</h4>
-                  <p className={`text-sm font-semibold ${sc(selected.data.overall_score)}`}>
-                    {scoreLabel(selected.data.overall_score)} ({selected.data.overall_score}/100)
-                  </p>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xl">{medalFor(selectedRank)}</span>
+                    <p className={`text-sm font-semibold ${sc(selected.data.overall_score)}`}>
+                      {scoreLabel(selected.data.overall_score)} ({selected.data.overall_score}/100)
+                    </p>
+                  </div>
                   <div className="flex flex-wrap gap-1.5 mt-2">
                     <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${selected.data.cta_presence ? "bg-emerald-500/15 border-emerald-500/40 text-emerald-300" : "bg-red-500/15 border-red-500/40 text-red-300"
                       }`}>
@@ -970,8 +978,8 @@ export default function AnalysisPanel({
                       </div>
                     )}
 
-                    <div className="p-4 rounded-xl bg-white/3 border border-white/10">
-                      <NineDimRadar data={selected.data} />
+                    <div className="space-y-4">
+                      <IntelligencePanel data={selected.data} />
                     </div>
 
                     <div>
@@ -1016,12 +1024,6 @@ export default function AnalysisPanel({
                   </motion.div>
                 )}
 
-                {/* ── INTELLIGENCE TAB ─────────────────────────── */}
-                {tab === "intelligence" && (
-                  <motion.div key="intelligence" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-                    <IntelligencePanel data={selected.data} />
-                  </motion.div>
-                )}
 
                 {/* ── FIX BLOCKS TAB ───────────────────────────── */}
                 {tab === "fixes" && (
@@ -1166,10 +1168,6 @@ export default function AnalysisPanel({
         </AnimatePresence>
       </div>
 
-      {/* ── Ranking Leaderboard ───────────────────────────────────── */}
-      <div className="rounded-2xl border border-yellow-500/20 bg-gradient-to-br from-yellow-900/8 to-orange-900/8 p-6">
-        <RankingLeaderboard results={analysisResult} />
-      </div>
 
       {/* ── Download Report ───────────────────────────────────────── */}
       <motion.button

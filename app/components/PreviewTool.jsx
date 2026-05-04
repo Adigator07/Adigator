@@ -83,33 +83,18 @@ const GOALS = [
   },
 ];
 
-const AUDIENCES = [
-  {
-    id: "broad", emoji: "🌐", title: "Broad Reach", desc: "Maximum exposure across all demographics.",
-    color: "from-cyan-600/30 to-cyan-800/20", border: "border-cyan-500/50",
-  },
-  {
-    id: "intent", emoji: "🎯", title: "In-Market / Custom Intent", desc: "Users actively researching your product category.",
-    color: "from-green-600/30 to-green-800/20", border: "border-green-500/50",
-  },
-  {
-    id: "remarketing", emoji: "🔄", title: "Remarketing / Customer Match", desc: "Re-engage past visitors or existing customers.",
-    color: "from-pink-600/30 to-pink-800/20", border: "border-pink-500/50",
-  },
-];
 
 const containerVariants = { hidden: { opacity: 0 }, visible: { opacity: 1, transition: { staggerChildren: 0.1 } } };
 const itemVariants = { hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } };
 
 // ── Shared analysis helper ─────────────────────────────────────────────────────
-async function analyzeAllCreatives(creatives, goal, platform, audienceType) {
+async function analyzeAllCreatives(creatives, goal, platform) {
   const results = [];
   for (const creative of creatives) {
     const data = await analyzeCreativeLocal(
       creative.url, 
       goal, 
       platform, 
-      audienceType, 
       creative.size, 
       creative.fileSizeKB || 0
     );
@@ -160,33 +145,29 @@ export default function PreviewTool() {
   const [step, setStep] = useState(urlStep);
   const [platform, setPlatform] = useState("programmatic");
   const [campaignGoal, setCampaignGoal] = useState(null);
-  const [audienceType, setAudienceType] = useState(null);
 
   // 1. Persistence: Hydrate from localStorage on mount
   useEffect(() => {
     const savedPlatform = localStorage.getItem("adigator_platform");
     const savedGoal = localStorage.getItem("adigator_goal");
-    const savedAudience = localStorage.getItem("adigator_audience");
     
     if (savedPlatform) setPlatform(savedPlatform);
     if (savedGoal && savedGoal !== "null") setCampaignGoal(savedGoal);
-    if (savedAudience && savedAudience !== "null") setAudienceType(savedAudience);
   }, []);
 
   // 2. Persistence: Save to localStorage when state changes
   useEffect(() => {
     localStorage.setItem("adigator_platform", platform);
     if (campaignGoal) localStorage.setItem("adigator_goal", campaignGoal);
-    if (audienceType) localStorage.setItem("adigator_audience", audienceType);
-  }, [platform, campaignGoal, audienceType]);
+  }, [platform, campaignGoal]);
 
   // 3. Robust Config Guard: If on Step 2+, but config is missing, force back to Step 1
   useEffect(() => {
-    if (step > 1 && (!platform || !campaignGoal || !audienceType)) {
+    if (step > 1 && (!platform || !campaignGoal)) {
       addToast("Configuration required. Please complete Step 1.", "error");
       router.push(`${pathname}?step=1`, { scroll: true });
     }
-  }, [step, platform, campaignGoal, audienceType, pathname, router, addToast]);
+  }, [step, platform, campaignGoal, pathname, router, addToast]);
 
   const [creatives, setCreatives] = useState([]);
   const [drag, setDrag] = useState(false);
@@ -207,11 +188,9 @@ export default function PreviewTool() {
   const fileRef = useRef(null);
   const userRef = useRef(null);
   const goalSectionRef = useRef(null);
-  const audienceSectionRef = useRef(null);
 
   const selectedPlatform = PLATFORMS.find((p) => p.id === platform)?.title || "Not selected";
   const selectedGoal = GOALS.find((g) => g.id === campaignGoal)?.title || "Not selected";
-  const selectedAudience = AUDIENCES.find((a) => a.id === audienceType)?.title || "Not selected";
 
   const scrollToSection = useCallback((ref) => {
     if (!ref?.current) return;
@@ -227,12 +206,9 @@ export default function PreviewTool() {
 
   const handleGoalSelect = useCallback((id) => {
     setCampaignGoal(id);
-    scrollToSection(audienceSectionRef);
-  }, [scrollToSection]);
-
-  const handleAudienceSelect = useCallback((id) => {
-    setAudienceType(id);
   }, []);
+
+
 
   const allowedSizes = platform
     ? [...(PLATFORM_SIZES[platform]?.desktop || []), ...(PLATFORM_SIZES[platform]?.mobile || [])]
@@ -247,11 +223,11 @@ export default function PreviewTool() {
     : { totalIssues: 0, criticalCount: 0, warningCount: 0, inventoryImpactScore: 100 };
 
   const goNext = useCallback(() => {
-    if (step === 1 && (!platform || !campaignGoal || !audienceType)) return;
+    if (step === 1 && (!platform || !campaignGoal)) return;
     if (step === 2 && uploadedCreatives.length === 0) return;
     const nextStep = Math.min(step + 1, TOTAL_STEPS);
     router.push(`${pathname}?step=${nextStep}`, { scroll: true });
-  }, [step, platform, campaignGoal, audienceType, uploadedCreatives.length, pathname, router]);
+  }, [step, platform, campaignGoal, uploadedCreatives.length, pathname, router]);
 
   const goBack = useCallback(() => {
     if (step === 1) {
@@ -420,11 +396,11 @@ export default function PreviewTool() {
 
   const runAnalysis = useCallback(async () => {
     if (validCreatives.length === 0) { addToast("No valid creatives to analyze.", "error"); return; }
-    if (!campaignGoal || !platform || !audienceType) { addToast("Missing configuration.", "error"); return; }
+    if (!campaignGoal || !platform) { addToast("Missing configuration.", "error"); return; }
 
     setAnalysisLoading(true); setAnalysisResult(null);
     try {
-      const results = await analyzeAllCreatives(validCreatives, campaignGoal, platform, audienceType);
+      const results = await analyzeAllCreatives(validCreatives, campaignGoal, platform);
       setAnalysisResult(results);
       if (results.length > 0 && results[0].data.recommendedTemplates?.length > 0) {
         setSelectedTemplate(results[0].data.recommendedTemplates[0]);
@@ -435,14 +411,14 @@ export default function PreviewTool() {
     } finally {
       setAnalysisLoading(false);
     }
-  }, [validCreatives, campaignGoal, platform, audienceType, addToast]);
+  }, [validCreatives, campaignGoal, platform, addToast]);
 
   const handleGoalChange = async (newGoal) => {
     setCampaignGoal(newGoal);
     if (validCreatives.length === 0) return;
     setAnalysisLoading(true); setAnalysisResult(null);
     try {
-      const results = await analyzeAllCreatives(validCreatives, newGoal, platform, audienceType);
+      const results = await analyzeAllCreatives(validCreatives, newGoal, platform);
       setAnalysisResult(results);
       if (results.length > 0 && results[0].data.recommendedTemplates?.length > 0) {
         setSelectedTemplate(results[0].data.recommendedTemplates[0]);
@@ -467,7 +443,7 @@ export default function PreviewTool() {
       doc.setTextColor(255, 255, 255); doc.setFontSize(22); doc.text("Adigator Creative Analysis Report", 40, 55);
 
       doc.setFontSize(12); doc.setTextColor(203, 213, 225);
-      doc.text(`Platform: ${(platform || '').toUpperCase()} | Goal: ${(campaignGoal || '').toUpperCase()} | Audience: ${(audienceType || '').toUpperCase()}`, 40, 80);
+      doc.text(`Platform: ${(platform || '').toUpperCase()} | Goal: ${(campaignGoal || '').toUpperCase()}`, 40, 80);
       doc.text(`Date: ${new Date().toLocaleString()}`, 40, 98);
 
       const sorted = [...analysisResult].sort((a, b) => b.data.overall_score - a.data.overall_score);
@@ -527,7 +503,7 @@ export default function PreviewTool() {
 
       doc.save("Campaign_Analysis_Report.pdf");
     } catch (err) { console.error(err); addToast("Failed to generate PDF", "error"); }
-  }, [analysisResult, campaignGoal, platform, audienceType, addToast]);
+  }, [analysisResult, campaignGoal, platform, addToast]);
 
   const handleExportPptx = useCallback(async () => {
     if (isExporting) return;
@@ -535,7 +511,12 @@ export default function PreviewTool() {
     try {
       const { exportToPptx } = await import("../lib/exportPptx");
       const templateName = TEMPLATES.find((t) => t.id === selectedTemplate)?.name || "Template";
-      const filename = await exportToPptx(creatives.filter((c) => c.valid), viewMode, templateName);
+      const filename = await exportToPptx(
+        creatives.filter((c) => c.valid), 
+        viewMode, 
+        templateName,
+        { goal: campaignGoal, platform }
+      );
       addToast(`Downloaded: ${filename}`, "success");
     } catch (err) { addToast("Export failed.", "error"); }
     finally { setIsExporting(false); }
@@ -615,7 +596,6 @@ export default function PreviewTool() {
                 <div className="mt-3 grid gap-2 text-sm md:grid-cols-3">
                   <p className="text-gray-300">Platform: <span className="text-white font-semibold">{selectedPlatform}</span></p>
                   <p className="text-gray-300">Goal: <span className="text-white font-semibold">{selectedGoal}</span></p>
-                  <p className="text-gray-300">Audience: <span className="text-white font-semibold">{selectedAudience}</span></p>
                 </div>
               </motion.div>
 
@@ -672,21 +652,7 @@ export default function PreviewTool() {
                 </div>
               </motion.section>
 
-              <motion.section ref={audienceSectionRef} variants={itemVariants} className="space-y-5">
-                <div>
-                  <h3 className="text-2xl font-bold text-white">Audience Type</h3>
-                  <p className="mt-1 text-gray-400">Who is seeing this ad? This affects text density and visual scoring.</p>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  {AUDIENCES.map((a) => (
-                    <SelectionCard key={a.id} selected={audienceType === a.id} onClick={() => handleAudienceSelect(a.id)} activeClasses={`${a.color} ${a.border}`}>
-                      <div className="text-5xl mb-4">{a.emoji}</div>
-                      <h3 className={`text-xl font-extrabold mb-2 ${audienceType === a.id ? "text-white" : "text-gray-200"}`}>{a.title}</h3>
-                      <p className="text-sm text-gray-400 leading-relaxed">{a.desc}</p>
-                    </SelectionCard>
-                  ))}
-                </div>
-              </motion.section>
+
 
               <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-white/10 bg-slate-950/85 backdrop-blur-xl">
                 <div className="mx-auto flex w-full max-w-7xl gap-4 px-6 py-4 md:px-10">
@@ -695,7 +661,7 @@ export default function PreviewTool() {
                   </NavBtn>
                   <NavBtn
                     onClick={goNext}
-                    disabled={!platform || !campaignGoal || !audienceType}
+                    disabled={!platform || !campaignGoal}
                   >
                     Upload Creatives →
                   </NavBtn>
@@ -897,7 +863,6 @@ export default function PreviewTool() {
                     analysisResult={analysisResult}
                     campaignGoal={campaignGoal}
                     platform={platform}
-                    audienceType={audienceType}
                     onDownloadReport={handleDownloadReport}
                     onGoalChange={handleGoalChange}
                   />
