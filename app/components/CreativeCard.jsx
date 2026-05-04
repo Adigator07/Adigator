@@ -106,8 +106,16 @@ export default function CreativeCard({
             {creative.size}
           </span>
         </div>
-
+        <p className="text-[10px] text-gray-400 mt-1 font-medium">
+          File Size: {formatFileSize(creative.fileSizeKB)}
+        </p>
       </div>
     </motion.div>
   );
 }
+
+const formatFileSize = (kb) => {
+  if (!kb || kb <= 0) return "0 KB";
+  if (kb < 1024) return `${kb} KB`;
+  return `${(kb / 1024).toFixed(2)} MB`;
+};
