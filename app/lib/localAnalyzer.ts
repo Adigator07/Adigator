@@ -26,7 +26,7 @@ import {
   ctaTypeToStrength,
   getDatasetStats,
   lookupCTAFromDataset,
-  CTAType,
+  CTAtype,
   CampaignGoal,
   Platform
 } from "./datasetIntelligence";
@@ -1545,9 +1545,9 @@ function matchDataset(
 }
 
 function computePlatformChecks(
-  platform: Platform, 
-  fileSizeKB: number, 
-  ocr: OcrData, 
+  platform: Platform,
+  fileSizeKB: number,
+  ocr: OcrData,
   size: string,
   px: PixelData,
   clutter: ClutterData,
