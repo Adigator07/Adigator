@@ -98,6 +98,39 @@ async function analyzeAllCreatives(creatives, goal, platform) {
       creative.size, 
       creative.fileSizeKB || 0
     );
+
+    // Optional AI layer: enrich insights, never override deterministic scores.
+    try {
+      const aiRes = await fetch("/api/creative-insights", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          goal,
+          extractedText: data.cta?.text || "",
+          signals: {
+            eligibilityScore: data.eligibility?.score ?? 0,
+            attentionScore: data.attention?.score ?? 0,
+            performanceScore: data.performance?.score ?? 0,
+            finalScore: data.finalScore ?? data.score,
+            ctaDetected: data.cta?.detected ?? false,
+            ctaStrength: data.cta?.strength ?? "low",
+            isBlurry: data.isBlurry ?? false,
+            contrast: data.contrast ?? 0,
+            clarity: data.text_clarity ?? 0,
+            goalAlignment: data.goalAlignmentIndicator ?? 0,
+            emotionalAppeal: data.emotional_appeal ?? "MEDIUM",
+          },
+        }),
+      });
+
+      if (aiRes.ok) {
+        const aiJson = await aiRes.json();
+        data.aiInsights = aiJson?.aiInsights ?? null;
+      }
+    } catch {
+      data.aiInsights = null;
+    }
+
     results.push({ creative, data });
   }
   return results;
@@ -325,7 +358,7 @@ export default function PreviewTool() {
         };
 
         return {
-          id: `${Date.now()}-${Math.random()}`,
+          id: `${Date.now()}-${file.name}-${size}`,
           name: file.name.replace(/\.[^/.]+$/, ""),
           url: dataUrl,
           size,
@@ -851,9 +884,23 @@ export default function PreviewTool() {
               )}
 
               {analysisLoading && (
-                <div className="text-center py-16 space-y-6">
-                  <div className="w-16 h-16 border-4 border-fuchsia-500 border-t-transparent rounded-full animate-spin mx-auto" />
-                  <p className="text-gray-400 text-lg">AI is analyzing {validCreatives.length} creatives...</p>
+                <div className="py-10 space-y-4">
+                  <p className="text-gray-300 text-sm">Analyzing {validCreatives.length} creatives with deterministic engine...</p>
+                  <div className="rounded-2xl border border-white/10 bg-white/5 p-4 animate-pulse">
+                    <div className="h-5 w-40 bg-white/10 rounded mb-4" />
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+                      <div className="h-20 bg-white/10 rounded-xl" />
+                      <div className="h-20 bg-white/10 rounded-xl" />
+                      <div className="h-20 bg-white/10 rounded-xl" />
+                      <div className="h-20 bg-white/10 rounded-xl" />
+                    </div>
+                    <div className="h-32 bg-white/10 rounded-xl mb-3" />
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                      <div className="h-28 bg-white/10 rounded-xl" />
+                      <div className="h-28 bg-white/10 rounded-xl" />
+                      <div className="h-28 bg-white/10 rounded-xl" />
+                    </div>
+                  </div>
                 </div>
               )}
 

@@ -1,11 +1,12 @@
-// Random utility function
-function getRandomElements(arr: any[], num: number) {
-  const shuffled = [...arr].sort(() => 0.5 - Math.random());
-  return shuffled.slice(0, num);
+// Deterministic selection utilities — no randomness
+function getRandomElements(arr: any[], num: number, offset = 0) {
+  const result: any[] = [];
+  for (let i = 0; i < num; i++) result.push(arr[(offset + i) % arr.length]);
+  return result;
 }
 
-function getRandomElement(arr: any[]) {
-  return arr[Math.floor(Math.random() * arr.length)];
+function getRandomElement(arr: any[], offset = 0) {
+  return arr[offset % arr.length];
 }
 
 const CONTENT_BANKS = {
@@ -347,13 +348,18 @@ export function generateTemplateContent(type: string) {
   const bankType = type as keyof typeof CONTENT_BANKS;
   const bank = (CONTENT_BANKS as any)[bankType] || (CONTENT_BANKS as any).newspaper;
   
+  // Fixed price/review tables — deterministic, no Math.random()
+  const PRICES = ["49.99","79.99","99.99","129.99","59.99","89.99","119.99","149.99","39.99","69.99","109.99","199.99"];
+  const OLD_PRICES = ["149.99","199.99","249.99","299.99","179.99","219.99","299.99","349.99","129.99","169.99","259.99","399.99"];
+  const REVIEW_COUNTS = [247,892,1204,456,78,1567,334,988,1102,643,219,1876];
+
   if (type === "ecommerce") {
-    const products = getRandomElements(bank.productNames, 12).map((name) => ({
+    const products = getRandomElements(bank.productNames, 12).map((name, i) => ({
       name,
-      price: (Math.random() * 200 + 49).toFixed(2),
-      oldPrice: (Math.random() * 100 + 300).toFixed(2),
-      reviews: Math.floor(Math.random() * 1500) + 20,
-      image: getRandomElement(bank.productImages)
+      price: PRICES[i % PRICES.length],
+      oldPrice: OLD_PRICES[i % OLD_PRICES.length],
+      reviews: REVIEW_COUNTS[i % REVIEW_COUNTS.length],
+      image: getRandomElement(bank.productImages, i)
     }));
     
     return {
@@ -365,11 +371,13 @@ export function generateTemplateContent(type: string) {
     };
   }
   
+  const VIEWER_COUNTS = ["12K","45K","28K","73K","19K","56K"];
+
   if (type === "gaming") {
-    const games = getRandomElements(bank.gameNames, 6).map((title) => ({
+    const games = getRandomElements(bank.gameNames, 6).map((title, i) => ({
       title,
-      image: getRandomElement(bank.gameImages),
-      viewers: Math.floor(Math.random() * 90) + 10 + "K"
+      image: getRandomElement(bank.gameImages, i),
+      viewers: VIEWER_COUNTS[i % VIEWER_COUNTS.length]
     }));
     
     return {
@@ -383,12 +391,15 @@ export function generateTemplateContent(type: string) {
     };
   }
 
+  const COOK_TIMES = ["20 min","35 min","15 min","45 min","25 min","30 min","40 min","18 min"];
+  const RATINGS = ["4.8","4.5","4.9","4.3","4.7","4.6","4.4","4.8"];
+
   if (type === "food") {
-    const recipes = getRandomElements(bank.recipeNames, 8).map((title) => ({
+    const recipes = getRandomElements(bank.recipeNames, 8).map((title, i) => ({
       title,
-      image: getRandomElement(bank.recipeImages),
-      time: Math.floor(Math.random() * 45) + 15 + " min",
-      rating: (Math.random() * 1 + 4).toFixed(1)
+      image: getRandomElement(bank.recipeImages, i),
+      time: COOK_TIMES[i % COOK_TIMES.length],
+      rating: RATINGS[i % RATINGS.length]
     }));
     return {
       hero: {
@@ -400,12 +411,15 @@ export function generateTemplateContent(type: string) {
     };
   }
 
+  const INSTRUCTORS = ["Sarah Jenkins","Dr. Alan Turing","Michael Chen","Elena Rodriguez"];
+  const STUDENT_COUNTS = [4250,1820,9740,3105,6480,2310];
+
   if (type === "education") {
-    const courses = getRandomElements(bank.courseNames, 6).map((title) => ({
+    const courses = getRandomElements(bank.courseNames, 6).map((title, i) => ({
       title,
-      image: getRandomElement(bank.courseImages),
-      instructor: ["Sarah Jenkins", "Dr. Alan Turing", "Michael Chen", "Elena Rodriguez"][Math.floor(Math.random() * 4)],
-      students: Math.floor(Math.random() * 15000) + 1000
+      image: getRandomElement(bank.courseImages, i),
+      instructor: INSTRUCTORS[i % INSTRUCTORS.length],
+      students: STUDENT_COUNTS[i % STUDENT_COUNTS.length]
     }));
     return {
       hero: {
@@ -417,11 +431,13 @@ export function generateTemplateContent(type: string) {
     };
   }
 
+  const MATCH_SCORES = ["98% Match","94% Match","91% Match","88% Match","96% Match","87% Match","93% Match","89% Match"];
+
   if (type === "entertainment") {
-    const movies = getRandomElements(bank.movieNames, 8).map((title) => ({
+    const movies = getRandomElements(bank.movieNames, 8).map((title, i) => ({
       title,
-      image: getRandomElement(bank.movieImages),
-      match: Math.floor(Math.random() * 15) + 85 + "% Match"
+      image: getRandomElement(bank.movieImages, i),
+      match: MATCH_SCORES[i % MATCH_SCORES.length]
     }));
     return {
       hero: {
@@ -433,12 +449,15 @@ export function generateTemplateContent(type: string) {
     };
   }
 
+  const CATEGORIES = ["Tech","World","Business","Health","Science"];
+  const TIME_LABELS = ["1h ago","3h ago","5h ago","2h ago","4h ago","6h ago","8h ago","10h ago"];
+
   // Default structure (Newspaper, Health, Technology, Business, etc)
-  const articles = getRandomElements(bank.articleHeadlines || CONTENT_BANKS.newspaper.articleHeadlines, 8).map((title) => ({
+  const articles = getRandomElements(bank.articleHeadlines || CONTENT_BANKS.newspaper.articleHeadlines, 8).map((title, i) => ({
     title,
-    image: getRandomElement(bank.articleImages || CONTENT_BANKS.newspaper.articleImages),
-    category: ["Tech", "World", "Business", "Health", "Science"][Math.floor(Math.random() * 5)],
-    timeAgo: Math.floor(Math.random() * 12) + 1 + "h ago"
+    image: getRandomElement(bank.articleImages || CONTENT_BANKS.newspaper.articleImages, i),
+    category: CATEGORIES[i % CATEGORIES.length],
+    timeAgo: TIME_LABELS[i % TIME_LABELS.length]
   }));
 
   return {

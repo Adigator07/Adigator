@@ -15,7 +15,7 @@
  *                               Goal 20%, Pixel 10%, FileSize 7%,
  *                               ColorHarmony 7%, VisualHierarchy 5%
  *   6. Fix Block Generator    → actionable per-dimension fixes for scores < 75
- *   7. Engagement Forecast    → LOW / MEDIUM / HIGH / PEAK with confidence %
+ *   7. Engagement Forecast    → LOW / MEDIUM / HIGH from deterministic signal scoring
  *   8. A/B Hypothesis         → auto-generated split-test suggestions
  *   9. Final Assembly         → merge all signals into LocalAnalysisResult
  */
@@ -30,12 +30,26 @@ import {
   CampaignGoal,
   Platform
 } from "./datasetIntelligence";
+import { analyzeTextSignals } from "./analyzer/textAnalyzer";
+import { detectCTA, type CTACandidate, type CTADetectionResult } from "./analyzer/ctaDetector";
+import { analyzeImageSignals } from "./analyzer/imageAnalyzer";
+import {
+  computeAuctionEligibility,
+  computeAttentionCapture,
+  computeCTADetail,
+  computePerformanceSignals,
+  computeFinalCreativeScore,
+  computeEngagement,
+} from "./analyzer/scoringEngine";
+import { computeSignalConfidence } from "./analyzer/confidenceEngine";
+import { buildValidationAlerts } from "./analyzer/validator";
+import { analyzeGoalAlignment } from "./analyzer/goalAlignment";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 export type Tier = "XS" | "S" | "M" | "L" | "XL" | "Unknown";
 export type EmotionalAppeal = "HIGH" | "MEDIUM" | "LOW";
 export type ClutterLabel = "CLEAN" | "MODERATE" | "CLUTTERED" | "CHAOTIC";
-export type EngagementForecast = "LOW" | "MEDIUM" | "HIGH" | "PEAK";
+export type EngagementForecast = "LOW" | "MEDIUM" | "HIGH";
 export type CTAGoalFit = "Perfect Match" | "Acceptable" | "Mismatch" | "None";
 export type ColorHarmony = "HARMONIOUS" | "ACCEPTABLE" | "DISCORDANT";
 export type VisualHierarchy = "STRONG" | "MODERATE" | "WEAK";
@@ -78,8 +92,11 @@ interface PixelData {
   colorHarmony: ColorHarmony;
   colorPalette: string[];   // top 3 hex colors
   isBlurry: boolean;
+  isLowDefinition: boolean;
   hasCompressionArtifacts: boolean;
+  blockinessRatio: number;
   laplacianVariance: number; // sharp > 100, blur < 100
+  qualityMessage: string;
 }
 
 interface OcrData {
@@ -102,6 +119,7 @@ interface OcrData {
   cornerTextDetected: boolean;
   hasTextCrowding: boolean;
   hasIllegibleText: boolean;
+  ctaCandidates: CTACandidate[];
 }
 
 interface DimensionScore {
@@ -133,7 +151,50 @@ export interface ABHypothesis {
   priority: "HIGH" | "MEDIUM" | "LOW";
 }
 
+export interface PerformanceImpactInsight {
+  issue: string;
+  impact: string;
+  estimatedEffect: string;
+  fix: string;
+  expectedOutcome: string;
+  severity: "low" | "medium" | "high";
+  priority: "High" | "Medium" | "Low";
+}
+
 export interface LocalAnalysisResult {
+  score: number;
+  finalScore: number;
+  cta: {
+    detected: boolean;
+    text: string;
+    strength: "low" | "medium" | "high";
+    confidence: number;
+    visibilityScore: number;
+    contrastScore: number;
+    positionScore: number;
+    urgencyScore: number;
+  };
+  metrics: {
+    clarity: number;
+    contrast: number;
+    visibility: number;
+    brand: number;
+  };
+  eligibility: {
+    score: number;
+    issues: string[];
+    breakdown: Record<string, number>;
+  };
+  attention: {
+    score: number;
+    breakdown: Record<string, number>;
+  };
+  performance: {
+    score: number;
+    breakdown: Record<string, number>;
+    ctaGoalFit: "good" | "too strong" | "missing" | "weak";
+  };
+  issues: Array<{ type: "warning" | "error"; message: string }>;
   // ── Pixel ──────────────────────────────────────────────────
   brightness: number;
   contrast: number;
@@ -200,6 +261,7 @@ export interface LocalAnalysisResult {
   improvement_suggestions: string[];
   fix_blocks: FixBlock[];
   ab_hypotheses: ABHypothesis[];
+  performanceImpact: PerformanceImpactInsight[];
   // ── ACIE v4.0 Intelligence Signals ─────────────────────────
   creative_archetype: string;
   emotion_signature: string;
@@ -209,6 +271,17 @@ export interface LocalAnalysisResult {
   engagement_forecast: EngagementForecast;
   engagement_forecast_confidence: number;  // 0–100
   engagement_drivers: string[];
+  engagement: {
+    engagementScore: number;
+    level: "LOW" | "MEDIUM" | "HIGH";
+    reasons: string[];
+  };
+  aiInsights: {
+    contextSummary: string;
+    emotion: string;
+    insights: string[];
+    improvements: string[];
+  } | null;
   visual_hierarchy: VisualHierarchy;
   cognitive_load_score: number;   // 0–100 (lower = easier to process)
   stop_rate_estimate: string;     // e.g. "2–3%"
@@ -407,13 +480,9 @@ function analyzeColorHarmony(hues: number[]): ColorHarmony {
 function analyzePixels(image: HTMLImageElement): PixelData {
   const canvas = document.createElement("canvas");
   const ctx = canvas.getContext("2d");
-  if (!ctx) return {
-    brightness: 50, contrast: 50, edgeDensity: 0.1, clipHigh: 0, clipLow: 0,
-    saturation: 50, dominantHue: 200, warmthScore: 50, colorVariance: 50,
-    textContrast: 4.5, wcagLevel: "AA", focalPointStrength: 50,
-    colorHarmony: "ACCEPTABLE", colorPalette: ["#888888"],
-    isBlurry: false, hasCompressionArtifacts: false, laplacianVariance: 250,
-  };
+  if (!ctx) {
+    throw new Error("Canvas 2D context unavailable; cannot extract real pixel signals.");
+  }
 
   const W = Math.min(image.width, 400);
   const H = Math.min(image.height, 400);
@@ -426,6 +495,10 @@ function analyzePixels(image: HTMLImageElement): PixelData {
   let clipHigh = 0, clipLow = 0, sumSat = 0;
   let sumWarm = 0;
   const pixels = W * H;
+  let boundaryDeltaSum = 0;
+  let boundaryDeltaCount = 0;
+  let interiorDeltaSum = 0;
+  let interiorDeltaCount = 0;
 
   // Hue zone buckets (36 buckets of 10° each)
   const hueBuckets = new Array(36).fill(0);
@@ -465,18 +538,40 @@ function analyzePixels(image: HTMLImageElement): PixelData {
 
     // Edge detection + focal point (top vs bottom half)
     const pixelRow = Math.floor((i / 4) / W);
-    if (i % (W * 4) !== 0 && i >= W * 4) {
+    const pixelIdx = Math.floor(i / 4);
+    const pixelCol = pixelIdx % W;
+
+    if (pixelCol > 0) {
       const lL = 0.299 * data[i - 4] + 0.587 * data[i - 3] + 0.114 * data[i - 2];
-      const tL = 0.299 * data[i - W * 4] + 0.587 * data[i - W * 4 + 1] + 0.114 * data[i - W * 4 + 2];
-      if (Math.abs(l - lL) > 20 || Math.abs(l - tL) > 20) {
-        edges++;
-        if (pixelRow < H / 2) edgesTopHalf++;
-        else edgesBottomHalf++;
+      const leftDelta = Math.abs(l - lL);
+      if (pixelCol % 8 === 0) {
+        boundaryDeltaSum += leftDelta;
+        boundaryDeltaCount++;
+      } else {
+        interiorDeltaSum += leftDelta;
+        interiorDeltaCount++;
+      }
+
+      if (pixelRow > 0) {
+        const tL = 0.299 * data[i - W * 4] + 0.587 * data[i - W * 4 + 1] + 0.114 * data[i - W * 4 + 2];
+        const topDelta = Math.abs(l - tL);
+        if (pixelRow % 8 === 0) {
+          boundaryDeltaSum += topDelta;
+          boundaryDeltaCount++;
+        } else {
+          interiorDeltaSum += topDelta;
+          interiorDeltaCount++;
+        }
+
+        if (leftDelta > 20 || topDelta > 20) {
+          edges++;
+          if (pixelRow < H / 2) edgesTopHalf++;
+          else edgesBottomHalf++;
+        }
       }
     }
 
     // Sample colors for palette
-    const pixelIdx = Math.floor(i / 4);
     if (pixelIdx % (sampleStep * sampleStep) === 0) {
       sampleColors.push([r, g, b]);
     }
@@ -499,12 +594,31 @@ function analyzePixels(image: HTMLImageElement): PixelData {
   const laplacianVariance = validLaplacianPixels > 0
     ? (laplacianSqSum / validLaplacianPixels) - (laplacianMean * laplacianMean)
     : 0;
-  // Sharp image: variance > 100. Blurry: < 100. Very blurry: < 30.
-  const isBlurry = laplacianVariance > 0 && laplacianVariance < 100;
-
-  // Artifact detection: high edge density + low global contrast often indicates blocky JPEG compression
   const contrastScore = ((maxL - minL) / 255) * 100;
-  const hasCompressionArtifacts = !isBlurry && edges / pixels > 0.35 && contrastScore < 40;
+  const edgeDensity = edges / pixels;
+  const boundaryDeltaAvg = boundaryDeltaCount > 0 ? boundaryDeltaSum / boundaryDeltaCount : 0;
+  const interiorDeltaAvg = interiorDeltaCount > 0 ? interiorDeltaSum / interiorDeltaCount : 1;
+  const blockinessRatio = boundaryDeltaAvg / Math.max(1, interiorDeltaAvg);
+  const blurThreshold = edgeDensity < 0.025 ? 220 : edgeDensity < 0.06 ? 165 : 115;
+  const isSoftBlur = laplacianVariance > 0 && laplacianVariance < blurThreshold;
+  const isLowDefinition = !isSoftBlur && (
+    (blockinessRatio > 1.45 && laplacianVariance < 260) ||
+    (laplacianVariance < 150 && contrastScore < 45 && edgeDensity < 0.04)
+  );
+  const isBlurry = isSoftBlur || isLowDefinition;
+
+  // Artifact detection: block-boundary jumps + weak contrast often indicates JPEG re-compression.
+  const hasCompressionArtifacts = !isBlurry && (
+    (blockinessRatio > 1.32 && contrastScore < 60) ||
+    (edgeDensity > 0.35 && contrastScore < 40)
+  );
+  const qualityMessage = isLowDefinition
+    ? "Low-definition or pixelated image detected"
+    : isSoftBlur
+      ? "Blur detected"
+      : hasCompressionArtifacts
+        ? "Compression artifacts detected"
+        : "Image quality stable";
 
   // Dominant hue
   const maxBucket = hueBuckets.indexOf(Math.max(...hueBuckets));
@@ -551,7 +665,7 @@ function analyzePixels(image: HTMLImageElement): PixelData {
   return {
     brightness: Math.round((sumL / pixels / 255) * 100),
     contrast: Math.round(((maxL - minL) / 255) * 100),
-    edgeDensity: edges / pixels,
+    edgeDensity,
     clipHigh: clipHigh / pixels,
     clipLow: clipLow / pixels,
     saturation: Math.round((sumSat / pixels) * 100),
@@ -564,8 +678,11 @@ function analyzePixels(image: HTMLImageElement): PixelData {
     colorHarmony: harmony,
     colorPalette: palette.length > 0 ? palette : ["#888888"],
     isBlurry,
+    isLowDefinition,
     hasCompressionArtifacts,
+    blockinessRatio: Number(blockinessRatio.toFixed(2)),
     laplacianVariance: Math.round(laplacianVariance),
+    qualityMessage,
   };
 }
 
@@ -582,6 +699,188 @@ function preprocessForOCR(img: HTMLImageElement): string {
   ctx.filter = "grayscale(100%) contrast(160%) brightness(105%)";
   ctx.drawImage(img, 0, 0, W, H);
   return canvas.toDataURL("image/png");
+}
+
+function normalizeOCRCandidateText(input: string): string {
+  return input
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function sampleRectStats(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+): { mean: number; variance: number; saturation: number; pixels: number } {
+  const left = Math.max(0, Math.floor(x));
+  const top = Math.max(0, Math.floor(y));
+  const safeWidth = Math.max(0, Math.min(ctx.canvas.width - left, Math.floor(width)));
+  const safeHeight = Math.max(0, Math.min(ctx.canvas.height - top, Math.floor(height)));
+
+  if (safeWidth <= 0 || safeHeight <= 0) {
+    return { mean: 0, variance: 0, saturation: 0, pixels: 0 };
+  }
+
+  const data = ctx.getImageData(left, top, safeWidth, safeHeight).data;
+  let luminanceSum = 0;
+  let luminanceSqSum = 0;
+  let saturationSum = 0;
+  let pixels = 0;
+
+  for (let i = 0; i < data.length; i += 4) {
+    const r = data[i];
+    const g = data[i + 1];
+    const b = data[i + 2];
+    const luminance = 0.299 * r + 0.587 * g + 0.114 * b;
+    const max = Math.max(r, g, b) / 255;
+    const min = Math.min(r, g, b) / 255;
+    const delta = max - min;
+    const lightness = (max + min) / 2;
+    const saturation = lightness > 0 && lightness < 1 ? delta / (1 - Math.abs(2 * lightness - 1)) : 0;
+    luminanceSum += luminance;
+    luminanceSqSum += luminance * luminance;
+    saturationSum += saturation;
+    pixels++;
+  }
+
+  const mean = pixels > 0 ? luminanceSum / pixels : 0;
+  return {
+    mean,
+    variance: pixels > 0 ? luminanceSqSum / pixels - mean * mean : 0,
+    saturation: pixels > 0 ? saturationSum / pixels : 0,
+    pixels,
+  };
+}
+
+function combineRectStats(stats: Array<{ mean: number; variance: number; saturation: number; pixels: number }>) {
+  const totalPixels = stats.reduce((sum, stat) => sum + stat.pixels, 0);
+  if (totalPixels <= 0) {
+    return { mean: 0, variance: 0, saturation: 0 };
+  }
+
+  return {
+    mean: stats.reduce((sum, stat) => sum + stat.mean * stat.pixels, 0) / totalPixels,
+    variance: stats.reduce((sum, stat) => sum + stat.variance * stat.pixels, 0) / totalPixels,
+    saturation: stats.reduce((sum, stat) => sum + stat.saturation * stat.pixels, 0) / totalPixels,
+  };
+}
+
+function scoreButtonRegion(
+  ctx: CanvasRenderingContext2D,
+  bbox: { x0: number; y0: number; x1: number; y1: number },
+): { buttonScore: number; visibilityScore: number } {
+  const width = bbox.x1 - bbox.x0;
+  const height = bbox.y1 - bbox.y0;
+  if (width <= 0 || height <= 0) {
+    return { buttonScore: 0, visibilityScore: 0.25 };
+  }
+
+  const padX = Math.max(4, Math.round(width * 0.08));
+  const padY = Math.max(4, Math.round(height * 0.35));
+  const inside = sampleRectStats(ctx, bbox.x0 - padX, bbox.y0 - padY, width + padX * 2, height + padY * 2);
+  const outside = combineRectStats([
+    sampleRectStats(ctx, bbox.x0 - padX, bbox.y0 - padY * 2, width + padX * 2, padY),
+    sampleRectStats(ctx, bbox.x0 - padX, bbox.y1 + padY, width + padX * 2, padY),
+    sampleRectStats(ctx, bbox.x0 - padX * 2, bbox.y0, padX, height),
+    sampleRectStats(ctx, bbox.x1 + padX, bbox.y0, padX, height),
+  ]);
+
+  const contrastDelta = Math.abs(inside.mean - outside.mean);
+  const aspectRatio = width / Math.max(height, 1);
+  const uniformityScore = inside.variance < 850 ? 1 : inside.variance < 1700 ? 0.7 : inside.variance < 2600 ? 0.45 : 0.15;
+  const contrastScore = contrastDelta > 28 ? 1 : contrastDelta > 18 ? 0.75 : contrastDelta > 12 ? 0.5 : 0.2;
+  const saturationScore = inside.saturation > outside.saturation + 0.08 ? 0.9 : inside.saturation > 0.18 ? 0.65 : 0.35;
+  const shapeScore = aspectRatio > 1.8 ? 1 : aspectRatio > 1.35 ? 0.7 : 0.3;
+  const buttonScore = Math.max(0, Math.min(1, uniformityScore * 0.35 + contrastScore * 0.3 + saturationScore * 0.15 + shapeScore * 0.2));
+
+  const textSizeScore = height < 10 ? 0.25 : height < 14 ? 0.45 : height < 18 ? 0.65 : 0.85;
+  const visibilityScore = Math.max(0, Math.min(1, textSizeScore * 0.75 + buttonScore * 0.25));
+
+  return { buttonScore, visibilityScore };
+}
+
+function buildCTACandidates(
+  ctx: CanvasRenderingContext2D,
+  words: any[],
+  width: number,
+  height: number,
+): CTACandidate[] {
+  const mappedWords = words
+    .map((word) => {
+      const text = String(word.text ?? "").trim();
+      const bbox = word.bbox;
+      if (!text || !bbox) return null;
+
+      return {
+        text,
+        x0: bbox.x0,
+        y0: bbox.y0,
+        x1: bbox.x1,
+        y1: bbox.y1,
+        centerY: (bbox.y0 + bbox.y1) / 2,
+        height: bbox.y1 - bbox.y0,
+      };
+    })
+    .filter(Boolean)
+    .sort((left, right) => left!.centerY - right!.centerY || left!.x0 - right!.x0) as Array<{
+      text: string;
+      x0: number;
+      y0: number;
+      x1: number;
+      y1: number;
+      centerY: number;
+      height: number;
+    }>;
+
+  if (mappedWords.length === 0) {
+    return [];
+  }
+
+  const groups: typeof mappedWords[] = [];
+  for (const word of mappedWords) {
+    const lastGroup = groups[groups.length - 1];
+    if (!lastGroup) {
+      groups.push([word]);
+      continue;
+    }
+
+    const avgCenterY = lastGroup.reduce((sum, item) => sum + item.centerY, 0) / lastGroup.length;
+    const avgHeight = lastGroup.reduce((sum, item) => sum + item.height, 0) / lastGroup.length;
+    if (Math.abs(word.centerY - avgCenterY) <= Math.max(10, avgHeight * 0.75)) {
+      lastGroup.push(word);
+    } else {
+      groups.push([word]);
+    }
+  }
+
+  return groups
+    .map((group) => group.sort((left, right) => left.x0 - right.x0))
+    .map((group) => {
+      const rawText = group.map((word) => word.text).join(" ").trim();
+      const x0 = Math.min(...group.map((word) => word.x0));
+      const y0 = Math.min(...group.map((word) => word.y0));
+      const x1 = Math.max(...group.map((word) => word.x1));
+      const y1 = Math.max(...group.map((word) => word.y1));
+      const textHeight = group.reduce((sum, word) => sum + word.height, 0) / Math.max(group.length, 1);
+      const { buttonScore, visibilityScore } = scoreButtonRegion(ctx, { x0, y0, x1, y1 });
+
+      return {
+        rawText,
+        normalizedText: normalizeOCRCandidateText(rawText),
+        centerX: (x0 + x1) / 2,
+        centerY: (y0 + y1) / 2,
+        relativeCenterX: width > 0 ? ((x0 + x1) / 2) / width : 0.5,
+        relativeCenterY: height > 0 ? ((y0 + y1) / 2) / height : 0.5,
+        textHeight,
+        visibilityScore,
+        buttonScore,
+      } satisfies CTACandidate;
+    })
+    .filter((candidate) => candidate.rawText.length > 1);
 }
 
 async function detectText(imageUrl: string, img: HTMLImageElement, w: number, h: number): Promise<OcrData> {
@@ -604,6 +903,9 @@ async function detectText(imageUrl: string, img: HTMLImageElement, w: number, h:
 
     await worker.terminate();
 
+    // Compute lineCount from raw OCR text BEFORE whitespace collapse
+    const rawLineCount = (best.text ?? "").split(/\n/).filter(l => l.trim().length > 0).length;
+
     const text = (best.text ?? "")
       .replace(/[^\w\s%.,!?'"\-$€£#@]/g, " ")
       .replace(/\s+/g, " ")
@@ -611,10 +913,20 @@ async function detectText(imageUrl: string, img: HTMLImageElement, w: number, h:
 
     console.log(`[ACIE v4 OCR] "${text}"`);
 
+    const previewCanvas = document.createElement("canvas");
+    previewCanvas.width = w;
+    previewCanvas.height = h;
+    const previewCtx = previewCanvas.getContext("2d");
+    if (!previewCtx) {
+      throw new Error("Canvas 2D context unavailable for CTA candidate analysis.");
+    }
+    previewCtx.drawImage(img, 0, 0, w, h);
+
     let totalArea = 0, minH = 9999, maxH = 0;
     const wordBboxes: Array<{ top: number; left: number }> = [];
+    const ocrWords = ((best as any).words || []) as any[];
 
-    ((best as any).words || []).forEach((word: any) => {
+    ocrWords.forEach((word: any) => {
       const bw = word.bbox.x1 - word.bbox.x0;
       const bh = word.bbox.y1 - word.bbox.y0;
       totalArea += bw * bh;
@@ -624,7 +936,8 @@ async function detectText(imageUrl: string, img: HTMLImageElement, w: number, h:
     });
 
     const wordCount = text.split(/\s+/).filter(Boolean).length;
-    const lineCount = text.split(/\n/).filter(l => l.trim().length > 0).length;
+    // Use rawLineCount (from raw OCR text before collapse) for accurate line detection
+    const lineCount = rawLineCount > 0 ? rawLineCount : Math.max(1, Math.ceil(wordCount / 6));
     const sentences = text.split(/[.!?]+/).filter(s => s.trim().length > 3);
     const allWords = text.split(/\s+/).filter(Boolean);
     const avgWordLen = allWords.length > 0
@@ -634,12 +947,15 @@ async function detectText(imageUrl: string, img: HTMLImageElement, w: number, h:
     // Headline detection: max text height > 2.5× min text height
     const headlineDetected = maxH > minH * 2.5 && maxH > 20;
 
-    // Reading flow: are words distributed top-to-bottom linearly?
+    // Reading flow: check horizontal spread of word positions.
+    // High left-position variance relative to image width indicates scattered layout.
     const readingFlow: ReadingFlow = wordBboxes.length < 3 ? "NONE" :
       (() => {
-        const sortedByTop = [...wordBboxes].sort((a, b) => a.top - b.top);
-        const isLinear = sortedByTop.every((w, i) => i === 0 || w.left >= 0);
-        return isLinear ? "LINEAR" : "SCATTERED";
+        const lefts = wordBboxes.map(wx => wx.left);
+        const meanLeft = lefts.reduce((s, v) => s + v, 0) / lefts.length;
+        const stdev = Math.sqrt(lefts.reduce((s, v) => s + Math.pow(v - meanLeft, 2), 0) / lefts.length);
+        // Scattered if standard deviation of left positions exceeds 25% of image width
+        return stdev > w * 0.25 ? "SCATTERED" : "LINEAR";
       })();
 
     // Text Crowding: check if bounding boxes overlap or are extremely close
@@ -668,6 +984,8 @@ async function detectText(imageUrl: string, img: HTMLImageElement, w: number, h:
       }
     }
 
+    const ctaCandidates = buildCTACandidates(previewCtx, ocrWords, w, h);
+
     return {
       text,
       textLength: text.length,
@@ -688,6 +1006,7 @@ async function detectText(imageUrl: string, img: HTMLImageElement, w: number, h:
       cornerTextDetected,
       hasTextCrowding,
       hasIllegibleText,
+      ctaCandidates,
     };
   } catch (err) {
     console.error("[ACIE v4 OCR] Failed:", err);
@@ -696,7 +1015,7 @@ async function detectText(imageUrl: string, img: HTMLImageElement, w: number, h:
       maxTextHeightPx: 0, ocrConfidence: 0, wordCount: 0, lineCount: 0,
       headlineDetected: false, readingFlow: "NONE", sentenceCount: 0,
       avgWordLength: 0, hasNumbers: false, hasCurrency: false, hasPercentage: false,
-      hasTrademark: false, cornerTextDetected: false, hasTextCrowding: false, hasIllegibleText: false,
+      hasTrademark: false, cornerTextDetected: false, hasTextCrowding: false, hasIllegibleText: false, ctaCandidates: [],
     };
   }
 }
@@ -762,8 +1081,17 @@ function extractCTAPhrase(text: string): { phrase: string; type: CTAType } {
   return { phrase: "", type: "None" };
 }
 
-function analyzeCTA(fullText: string, campaignGoal: CampaignGoal): CtaAnalysis {
-  const { phrase: ctaText, type: detectedType } = extractCTAPhrase(fullText);
+function analyzeCTA(fullText: string, campaignGoal: CampaignGoal, detectedCTA?: CTADetectionResult): CtaAnalysis {
+  const detectedTypeFromSignals: CTAType = detectedCTA?.detected
+    ? detectedCTA.strength === "high"
+      ? "Hard"
+      : detectedCTA.strength === "medium"
+        ? "Medium"
+        : "Soft"
+    : "None";
+  const { phrase: extractedPhrase, type: extractedType } = extractCTAPhrase(fullText);
+  const ctaText = detectedCTA?.detected ? detectedCTA.text : extractedPhrase;
+  const detectedType = detectedCTA?.detected ? detectedTypeFromSignals : extractedType;
 
   if (!ctaText || detectedType === "None" || isFakeCTA(ctaText)) {
     return {
@@ -928,12 +1256,129 @@ function calculateCognitiveLoad(ocr: OcrData, px: PixelData, clutter: { index: n
   return clamp(Math.round(load));
 }
 
-function estimateStopRate(forecast: EngagementForecast, emotionalAppeal: EmotionalAppeal, clutter: { label: ClutterLabel }): string {
-  if (forecast === "PEAK" && emotionalAppeal === "HIGH") return "3.5–5%";
-  if (forecast === "PEAK" || (forecast === "HIGH" && emotionalAppeal === "HIGH")) return "2.5–4%";
-  if (forecast === "HIGH") return "1.8–3%";
-  if (forecast === "MEDIUM") return "1–2%";
-  return "0.3–1%";
+function estimateStopRate(level: EngagementForecast): string {
+  if (level === "HIGH") return "1–2%";
+  if (level === "MEDIUM") return "2–4%";
+  return "4–8%";
+}
+
+function buildPerformanceImpactInsights(input: {
+  contrast: number;
+  isBlurry: boolean;
+  qualityMessage?: string;
+  ctaDetected: boolean;
+  ctaGoalFit: "good" | "too strong" | "missing" | "weak";
+  goalAlignmentScore: number;
+  goal: CampaignGoal;
+}): PerformanceImpactInsight[] {
+  const impacts: Array<{
+    issue: string;
+    impact: string;
+    fix: string;
+    expectedOutcome: string;
+    severity: "low" | "medium" | "high";
+    baseCtr: [number, number];
+    baseEng: [number, number];
+  }> = [];
+
+  const goalWeight = input.goal === "conversion" ? 1.15 : input.goal === "consideration" ? 1 : 0.85;
+
+  if (input.contrast < 40) {
+    const severity: "low" | "medium" | "high" = input.contrast < 30 ? "high" : input.contrast < 35 ? "medium" : "low";
+    impacts.push({
+      issue: `Low contrast (${Math.round(input.contrast)}/100)`,
+      impact: "Ad readability is weak in auction environments, reducing scroll-stop and click intent.",
+      fix: "Increase foreground/background contrast and apply a controlled overlay behind copy.",
+      expectedOutcome: "Higher first-glance readability and stronger top-of-funnel engagement quality.",
+      severity,
+      baseCtr: severity === "high" ? [20, 34] : severity === "medium" ? [14, 24] : [10, 16],
+      baseEng: severity === "high" ? [16, 28] : severity === "medium" ? [12, 20] : [10, 14],
+    });
+  }
+
+  if (input.isBlurry) {
+    const severity: "low" | "medium" | "high" = "high";
+    const lowDefinition = input.qualityMessage?.toLowerCase().includes("pixelated") || input.qualityMessage?.toLowerCase().includes("low-definition");
+    impacts.push({
+      issue: lowDefinition ? "Low-definition asset detected" : "Blur detected",
+      impact: lowDefinition
+        ? "Visual quality looks under-resolved, reducing trust and making the creative feel cheap in-feed."
+        : "Visual trust and product credibility drop, suppressing click-through behavior.",
+      fix: lowDefinition
+        ? "Replace the source with a higher-resolution asset and avoid scaling up undersized imagery in the final creative."
+        : "Swap to a sharper master asset and export with higher effective resolution.",
+      expectedOutcome: lowDefinition
+        ? "Cleaner rendering, better perceived production quality, and stronger stop-rate on premium placements."
+        : "Stronger brand trust signal and improved click propensity on quality-sensitive placements.",
+      severity,
+      baseCtr: [18, 30],
+      baseEng: [14, 24],
+    });
+  }
+
+  if (!input.ctaDetected || input.ctaGoalFit === "weak") {
+    const severity: "low" | "medium" | "high" = input.goal === "conversion" ? "high" : "medium";
+    impacts.push({
+      issue: !input.ctaDetected ? "CTA missing" : "CTA weak for campaign goal",
+      impact: "Action intent is under-communicated, causing conversion funnel leakage.",
+      fix: input.goal === "conversion"
+        ? "Use a clear high-intent CTA with strong urgency and visual prominence."
+        : "Strengthen CTA copy and placement to reduce decision friction.",
+      expectedOutcome: "Clearer user next-step behavior and improved downstream conversion efficiency.",
+      severity,
+      baseCtr: severity === "high" ? [22, 40] : [12, 24],
+      baseEng: severity === "high" ? [12, 22] : [10, 16],
+    });
+  }
+
+  if (input.goalAlignmentScore < 60) {
+    const severity: "low" | "medium" | "high" = input.goalAlignmentScore < 45 ? "high" : input.goalAlignmentScore < 52 ? "medium" : "low";
+    impacts.push({
+      issue: `Goal misalignment (${Math.round(input.goalAlignmentScore)}/100)`,
+      impact: "Media spend reaches users with mismatched stage messaging, reducing impression efficiency.",
+      fix: `Rebuild headline, offer, and CTA for ${input.goal} intent before scaling budget.`,
+      expectedOutcome: "Better stage-message fit and higher effective value from paid impressions.",
+      severity,
+      baseCtr: severity === "high" ? [18, 30] : severity === "medium" ? [12, 20] : [10, 14],
+      baseEng: severity === "high" ? [12, 22] : severity === "medium" ? [10, 16] : [10, 12],
+    });
+  }
+
+  // Prevent overstacking: cap aggregate modeled downside.
+  let ctrBudget = 45;
+  let engBudget = 35;
+
+  const mapped = impacts.map((p) => {
+    const ctrLo = Math.round(p.baseCtr[0] * goalWeight);
+    const ctrHi = Math.round(p.baseCtr[1] * goalWeight);
+    const engLo = Math.round(p.baseEng[0] * (input.goal === "awareness" ? 1.1 : 1));
+    const engHi = Math.round(p.baseEng[1] * (input.goal === "awareness" ? 1.1 : 1));
+
+    const allowedCtrLo = Math.min(ctrLo, Math.max(0, ctrBudget));
+    const allowedCtrHi = Math.min(ctrHi, Math.max(allowedCtrLo, ctrBudget));
+    const allowedEngLo = Math.min(engLo, Math.max(0, engBudget));
+    const allowedEngHi = Math.min(engHi, Math.max(allowedEngLo, engBudget));
+
+    ctrBudget = Math.max(0, ctrBudget - allowedCtrLo);
+    engBudget = Math.max(0, engBudget - allowedEngLo);
+
+    const priority: "High" | "Medium" | "Low" = p.severity === "high" ? "High" : p.severity === "medium" ? "Medium" : "Low";
+
+    return {
+      issue: p.issue,
+      impact: p.impact,
+      estimatedEffect: `Estimated effect: CTR -${allowedCtrLo}% to -${allowedCtrHi}%, Engagement -${allowedEngLo}% to -${allowedEngHi}%`,
+      fix: p.fix,
+      expectedOutcome: p.expectedOutcome,
+      severity: p.severity,
+      priority,
+    } as PerformanceImpactInsight;
+  });
+
+  return mapped.sort((a, b) => {
+    const order = { High: 0, Medium: 1, Low: 2 };
+    return order[a.priority] - order[b.priority];
+  });
 }
 
 // ── 6. Tone Detection ─────────────────────────────────────────────────────────
@@ -960,6 +1405,7 @@ interface NineDimInput {
   clutter: { index: number; label: ClutterLabel };
   emotionalAppeal: EmotionalAppeal;
   visualHierarchy: VisualHierarchy;
+  goalAlignmentScore: number;
 }
 
 function scoreAllDimensions(inp: NineDimInput): Record<keyof typeof DIM_WEIGHTS, DimensionScore> {
@@ -1025,13 +1471,13 @@ function scoreAllDimensions(inp: NineDimInput): Record<keyof typeof DIM_WEIGHTS,
   brightRaw = clamp(brightRaw);
   brightDetail = `Brightness: ${px.brightness}% | Contrast: ${px.contrast}% | WCAG: ${px.wcagLevel} | Ratio: ${px.textContrast}:1`;
 
-  // D5 — Goal Alignment (0–100)
-  const goalRaw = calculateGoalAlignmentFull(goal, cta, px, ocr);
+  // D5 — Goal Alignment (0–100): score passed in from analyzeGoalAlignment (single source of truth)
+  const goalRaw = inp.goalAlignmentScore;
   const goalDetail = `CTA fit: ${cta.goalFit} | Has urgency: ${cta.urgencySignal} | Has price: ${ocr.hasCurrency} | Goal: ${goal}`;
 
   // D6 — Pixel Quality (0–100)
   let pixelRaw = 82, pixelDetail = "";
-  if (px.isBlurry) pixelRaw -= 40;
+  if (px.isBlurry) pixelRaw -= px.isLowDefinition ? 34 : 40;
   if (px.hasCompressionArtifacts) pixelRaw -= 25;
   if (px.contrast < 20) pixelRaw -= 28;
   else if (px.contrast < 35) pixelRaw -= 14;
@@ -1040,7 +1486,7 @@ function scoreAllDimensions(inp: NineDimInput): Record<keyof typeof DIM_WEIGHTS,
   if (px.edgeDensity < 0.02) pixelRaw -= 12;
   if (ocr.ocrConfidence > 0 && ocr.ocrConfidence < 45) pixelRaw -= 12;
   pixelRaw = clamp(pixelRaw);
-  pixelDetail = `Sharpness: ${px.isBlurry ? "BLURRY" : "SHARP"} (${px.laplacianVariance}) | Artifacts: ${px.hasCompressionArtifacts ? "YES" : "NO"} | OCR: ${ocr.ocrConfidence.toFixed(0)}%`;
+  pixelDetail = `Quality: ${px.isLowDefinition ? "LOW-DEFINITION" : px.isBlurry ? "BLURRY" : "SHARP"} | Sharpness: ${px.laplacianVariance} | Blockiness: ${px.blockinessRatio}x | Artifacts: ${px.hasCompressionArtifacts ? "YES" : "NO"} | OCR: ${ocr.ocrConfidence.toFixed(0)}%`;
 
   // D7 — File Size (0–100)
   let fileSizeRaw = 95;
@@ -1084,142 +1530,17 @@ function scoreAllDimensions(inp: NineDimInput): Record<keyof typeof DIM_WEIGHTS,
   };
 }
 
-function calculateWeightedScore(dims: Record<keyof typeof DIM_WEIGHTS, DimensionScore>): number {
-  let total = 0, weightUsed = 0;
-  (Object.keys(DIM_WEIGHTS) as (keyof typeof DIM_WEIGHTS)[]).forEach(key => {
-    const d = dims[key];
-    if (d.verdict !== "N/A") {
-      total += d.raw * d.weight;
-      weightUsed += d.weight;
-    }
-  });
-  return weightUsed > 0 ? Math.round(total / weightUsed) : 0;
-}
-
 function clamp(v: number, lo = 0, hi = 100): number {
   return Math.max(lo, Math.min(hi, Math.round(v)));
 }
 
-// ── 8. Full Goal Alignment Matrix ─────────────────────────────────────────────
+// ── 9. Engagement confidence helper ───────────────────────────────────────────
 
-function calculateGoalAlignmentFull(
-  goal: CampaignGoal,
-  cta: ReturnType<typeof analyzeCTA>,
-  px: PixelData,
-  ocr: OcrData,
-): number {
-  let ctaScore = 0, intentScore = 0, visualScore = 0, offerScore = 0, clarityScore = 0;
-  const t = ocr.text.toLowerCase();
-
-  const hasPrice = /\$|€|£|price|cost|₹/.test(t);
-  const hasDiscount = /% off|discount|save|off/.test(t);
-  const hasUrgency = /today|now|hurry|limited|ends|flash|expires/.test(t);
-  const hasFeatures = /features|benefits|quality|best|guide|compare|top/.test(t);
-  const hasProof = /rated|reviews|stars|proven|trusted|#1|customers/.test(t);
-  const hasNumber = ocr.hasNumbers;
-
-  // CTA Match (25)
-  if (goal === "awareness") {
-    ctaScore = cta.strength === "soft" ? 25 : (cta.strength === "medium" || !cta.found) ? 16 : 6;
-  } else if (goal === "consideration") {
-    ctaScore = cta.strength === "medium" ? 25 : (cta.strength === "soft" || !cta.found) ? 16 : 10;
-  } else {
-    ctaScore = cta.strength === "hard" ? 25 : cta.strength === "medium" ? 12 : 0;
-  }
-
-  // Message Intent (25)
-  const aK = AWARENESS_KEYWORDS.filter(w => t.includes(w)).length;
-  const cK = CONSIDERATION_KEYWORDS.filter(w => t.includes(w)).length;
-  const vK = CONVERSION_KEYWORDS.filter(w => t.includes(w)).length;
-  if (goal === "awareness") {
-    intentScore = aK >= 2 ? 25 : aK === 1 ? 18 : cK >= 1 ? 12 : 8;
-  } else if (goal === "consideration") {
-    intentScore = cK >= 2 ? 25 : cK === 1 ? 18 : aK >= 1 ? 12 : 8;
-  } else {
-    intentScore = vK >= 2 ? 25 : vK === 1 ? 18 : (cK >= 1 || hasNumber) ? 12 : 5;
-  }
-
-  // Visual Alignment (15)
-  if (goal === "awareness") {
-    visualScore = ocr.textAreaPercent < 20 ? 15 : ocr.textAreaPercent < 40 ? 10 : 5;
-  } else if (goal === "consideration") {
-    visualScore = (ocr.textAreaPercent >= 15 && ocr.textAreaPercent < 40) ? 15 : ocr.textAreaPercent < 15 ? 10 : 5;
-  } else {
-    visualScore = cta.found && px.contrast > 40 ? 15 : (cta.found || px.contrast > 40) ? 10 : 5;
-  }
-
-  // Offer / Info Presence (20)
-  if (goal === "awareness") {
-    offerScore = (!hasPrice && !hasDiscount) ? 20 : hasPrice && !hasDiscount ? 10 : 5;
-  } else if (goal === "consideration") {
-    offerScore = (hasFeatures && hasProof) ? 20 : (hasFeatures || hasProof) ? 12 : 5;
-  } else {
-    offerScore = ((hasPrice || hasDiscount) && hasUrgency) ? 20
-      : (hasPrice && hasDiscount) ? 15
-        : (hasPrice || hasDiscount || hasUrgency) ? 10 : 0;
-  }
-
-  // Action Clarity (15)
-  clarityScore = (cta.found && px.contrast > 30 && ocr.textAreaPercent < 40 && ocr.headlineDetected) ? 15
-    : (cta.found && px.contrast > 30) ? 12
-      : cta.found ? 8 : 3;
-
-  return clamp(ctaScore + intentScore + visualScore + offerScore + clarityScore);
-}
-
-// ── 9. Engagement Forecast (enhanced with confidence %) ───────────────────────
-
-function calculateEngagementForecast(
-  dims: Record<keyof typeof DIM_WEIGHTS, DimensionScore>,
-  emotionalAppeal: EmotionalAppeal,
-  clutter: { index: number; label: ClutterLabel },
-  cta: ReturnType<typeof analyzeCTA>,
-  visualHierarchy: VisualHierarchy,
-): { forecast: EngagementForecast; drivers: string[]; confidence: number } {
-  const finalScore = calculateWeightedScore(dims);
-  const drivers: string[] = [];
-
-  // Positive signals
-  if (dims.cta.raw >= 82) drivers.push("Strong CTA with perfect funnel alignment");
-  if (dims.goal.raw >= 82) drivers.push("Excellent goal alignment across all creative elements");
-  if (emotionalAppeal === "HIGH") drivers.push("High emotional appeal — strong scroll-stop potential");
-  if (clutter.label === "CLEAN") drivers.push("Clean layout — mobile feed friendly");
-  if (dims.text.raw >= 82) drivers.push("Crystal clear message extractable in < 3 seconds");
-  if (visualHierarchy === "STRONG") drivers.push("Strong visual hierarchy guides viewer attention naturally");
-  if (dims.color_harmony.raw >= 80) drivers.push("Harmonious color palette — professional and memorable");
-  if (cta.urgencySignal) drivers.push("Urgency signal detected — drives immediate action");
-
-  // Negative signals
-  if (dims.cta.raw < 50) drivers.push("Weak or missing CTA will hurt click-through rate");
-  if (dims.goal.raw < 50) drivers.push("Goal misalignment — creative fights the funnel stage");
-  if (clutter.label === "CLUTTERED" || clutter.label === "CHAOTIC") drivers.push("High clutter — poor mobile readability and attention retention");
-  if (emotionalAppeal === "LOW") drivers.push("Low emotional appeal — may not stop the scroll");
-  if (dims.brightness.raw < 50) drivers.push("Brightness/contrast issues reduce visual impact");
-  if (visualHierarchy === "WEAK") drivers.push("Weak visual hierarchy — viewer doesn't know where to look");
-  if (dims.color_harmony.raw < 45) drivers.push("Discordant colors hurt brand perception and readability");
-
-  const positives = drivers.filter(d => !["hurt", "Weak", "missing", "poor", "Low", "Clutter", "issues", "misalignment", "Discordant", "don't"].some(k => d.includes(k)));
-  const negatives = drivers.filter(d => ["hurt", "Weak", "missing", "poor", "Low", "Clutter", "issues", "misalignment", "Discordant"].some(k => d.includes(k)));
-
-  const topDrivers = finalScore >= 65 ? positives : negatives;
-
-  const forecast: EngagementForecast =
-    finalScore >= 85 && emotionalAppeal !== "LOW" && clutter.label !== "CLUTTERED" && clutter.label !== "CHAOTIC" && visualHierarchy !== "WEAK"
-      ? "PEAK"
-      : finalScore >= 72 && emotionalAppeal !== "LOW"
-        ? "HIGH"
-        : finalScore >= 55
-          ? "MEDIUM"
-          : "LOW";
-
-  // Confidence: how many signals align vs contradict
-  const allSignalCount = positives.length + negatives.length;
-  const dominantSignals = finalScore >= 65 ? positives.length : negatives.length;
-  const confidence = allSignalCount > 0
-    ? clamp(Math.round((dominantSignals / allSignalCount) * 100))
-    : 50;
-
-  return { forecast, drivers: (topDrivers.length > 0 ? topDrivers : drivers).slice(0, 4), confidence };
+function calculateEngagementConfidence(engagementScore: number, reasons: string[]): number {
+  // Confidence grows with stronger separation from neutral baseline and number of concrete reasons.
+  const separation = Math.abs(engagementScore - 50) * 2;
+  const reasonCoverage = Math.min(30, reasons.length * 6);
+  return clamp(separation + reasonCoverage, 0, 100);
 }
 
 // ── 10. A/B Hypothesis Generator ─────────────────────────────────────────────
@@ -1437,7 +1758,9 @@ function generateFixBlocks(
       : px.laplacianVariance < 60 ? "noticeably blurry"
         : "slightly soft";
 
-    const problem = px.isBlurry
+    const problem = px.isLowDefinition
+      ? `Image looks low-definition or pixelated (sharpness: ${px.laplacianVariance}, blockiness: ${px.blockinessRatio}x). Under-resolved assets reduce perceived product quality before users read the copy.`
+      : px.isBlurry
       ? `Image is ${blurLevel} (sharpness score: ${px.laplacianVariance} — sharp images score 300+). Out-of-focus visuals reduce CTR by up to 30%.`
       : px.hasCompressionArtifacts
         ? `Severe JPEG compression artifacts detected. Blocky noise visible at normal viewing distance (edge density: ${Math.round(px.edgeDensity * 100)}%, contrast: ${px.contrast}/100).`
@@ -1445,7 +1768,9 @@ function generateFixBlocks(
           ? `Very low contrast (${px.contrast}/100) — the image blends into the page background. WCAG level: ${px.wcagLevel}.`
           : `Pixel quality issues: contrast ${px.contrast}/100, OCR confidence ${ocr.ocrConfidence.toFixed(0)}%.`;
 
-    const fixNow = px.isBlurry
+    const fixNow = px.isLowDefinition
+      ? `Replace the hero with a higher-resolution source file and export at the final slot size or 2x. Avoid stretching small assets to fill the canvas.`
+      : px.isBlurry
       ? `Replace with a sharper image. If you must use this one, apply Unsharp Mask (Amount: 80%, Radius: 1px, Threshold: 2) in Photoshop or Affinity Photo.`
       : px.hasCompressionArtifacts
         ? `Re-export as PNG-24 or WebP at ≥ 85% quality. Avoid saving JPEG over JPEG — each save multiplies artifact blocks.`
@@ -1453,7 +1778,9 @@ function generateFixBlocks(
           ? `Add a semi-transparent dark overlay (rgba 0,0,0,0.3) behind any text. Boost image exposure by +25–35% in editing.`
           : `Re-export at 2× display resolution (e.g. 600×500 for a 300×250 slot) as PNG with minimal compression.`;
 
-    const fixDeep = px.isBlurry
+    const fixDeep = px.isLowDefinition
+      ? `Go back to the original photography or design file. If the source itself is small, reshoot, re-render, or switch to vector artwork so the creative stays crisp at delivery size.`
+      : px.isBlurry
       ? `Source a higher-resolution original image. For product shots, reshoot with proper depth of field. For lifestyle, use a stock library with sharpness ratings. Consider using vector/illustration art which never blurs.`
       : px.hasCompressionArtifacts
         ? `Audit your export pipeline — find where the JPEG re-compression is happening. If the original source file is also compressed, go back to the raw asset. Switch your banner delivery format to WebP for 30–50% smaller files at identical quality.`
@@ -1464,20 +1791,26 @@ function generateFixBlocks(
       score: dims.pixel.raw,
       severity: severity(dims.pixel.raw),
       problem,
-      impact: px.isBlurry
+      impact: px.isLowDefinition
+        ? "Low-definition creatives look cheap at first glance and depress both trust and click intent, especially on premium inventory."
+        : px.isBlurry
         ? "Blurry creatives are the #1 reason for immediate scroll-past. Platforms (Meta, DV360) deprioritise low-sharpness creatives in delivery auctions."
         : px.hasCompressionArtifacts
           ? "Artifact-heavy images signal low production quality and reduce brand trust scores by ~20% in user testing."
           : "Low contrast triggers banner blindness — the creative literally disappears against light-coloured page backgrounds.",
       fixNow,
       fixDeep,
-      timeEstimate: px.isBlurry ? "15–30 min (asset swap)" : px.hasCompressionArtifacts ? "5–10 min (re-export)" : "30–60 min",
-      datasetNote: px.isBlurry
+      timeEstimate: px.isLowDefinition || px.isBlurry ? "15–30 min (asset swap)" : px.hasCompressionArtifacts ? "5–10 min (re-export)" : "30–60 min",
+      datasetNote: px.isLowDefinition
+        ? "Dataset analysis: under-resolved creatives consistently lose trust against crisp controls, especially in consideration and conversion campaigns."
+        : px.isBlurry
         ? "Dataset analysis: blurry creatives average 0.4% CTR vs 1.8% CTR for sharp equivalents in the same campaign."
         : px.hasCompressionArtifacts
           ? "Platform rejection rates spike significantly for creatives with visible JPEG artifact blocking."
           : "Creatives with contrast > 50 consistently outperform dark or washed-out variants by 25–40%.",
-      abTestIdea: px.isBlurry
+      abTestIdea: px.isLowDefinition
+        ? `A/B: current low-definition asset vs higher-resolution replacement — trust and CTR lift expected: 20–40%`
+        : px.isBlurry
         ? `A/B: current blurry hero vs sharp replacement — CTR delta expected: 30–60%`
         : px.hasCompressionArtifacts
           ? `A/B: JPEG export vs WebP/PNG re-export — quality perception lift: 15–25%`
@@ -1556,7 +1889,6 @@ function matchDataset(
       creative_id: match.id.toString() || "DATASET_MATCH",
       similarity: "High",
       result_label: match.result_label || "MEDIUM",
-      ctr: match.ctr,
       learning: match.label_notes || `Similar ${goal} creative with ${ctaStrength} CTA from dataset.`,
     }];
   } catch {
@@ -1627,7 +1959,37 @@ export async function analyzeCreativeLocal(
         const ocr = await detectText(imageUrl, img, width, height);
 
         // Step 3: CTA Detection
-        const cta = analyzeCTA(ocr.text, goal);
+        const textSignals = analyzeTextSignals({
+          text: ocr.text,
+          ocrConfidence: ocr.ocrConfidence,
+          wordCount: ocr.wordCount,
+          lineCount: ocr.lineCount,
+          textAreaPercent: ocr.textAreaPercent,
+          minTextHeightPx: ocr.minTextHeightPx,
+        });
+        const realCTA = detectCTA({
+          normalizedText: textSignals.normalizedText,
+          candidates: ocr.ctaCandidates,
+          minTextHeightPx: ocr.minTextHeightPx,
+          maxTextHeightPx: ocr.maxTextHeightPx,
+        });
+        const cta = analyzeCTA(ocr.text, goal, realCTA);
+        const ctaStrengthFromReal =
+          realCTA.strength === "high" ? "hard" : realCTA.strength === "medium" ? "medium" : "soft";
+        cta.found = realCTA.detected;
+        cta.word = realCTA.text;
+        cta.strength = realCTA.detected ? ctaStrengthFromReal : "none";
+        cta.confidence = `${realCTA.confidence}%`;
+        cta.ctaType = realCTA.strength === "high" ? "Hard" : realCTA.strength === "medium" ? "Medium" : realCTA.detected ? "Soft" : "None";
+
+        const imageSignals = analyzeImageSignals({
+          brightness: px.brightness,
+          contrast: px.contrast,
+          isBlurry: px.isBlurry,
+          laplacianVariance: px.laplacianVariance,
+          edgeDensity: px.edgeDensity,
+        });
+
         const tone = detectTone(ocr.text);
 
         // Step 4: Intelligence Pre-Scan
@@ -1661,7 +2023,9 @@ export async function analyzeCreativeLocal(
           issues.push({
             id: "blur",
             severity: "high",
-            evidence: `Image is blurry (sharpness: ${px.laplacianVariance} — sharp images score 300+). Blurry creatives are scroll-past magnets.`,
+            evidence: px.isLowDefinition
+              ? `Image appears low-definition or pixelated (sharpness: ${px.laplacianVariance}, blockiness: ${px.blockinessRatio}x). Under-resolved creatives lose trust fast in feed.`
+              : `Image is blurry (sharpness: ${px.laplacianVariance} — sharp images score 300+). Blurry creatives are scroll-past magnets.`,
           });
 
         if (px.hasCompressionArtifacts)
@@ -1671,22 +2035,133 @@ export async function analyzeCreativeLocal(
             evidence: `JPEG compression artifacts detected — re-export as PNG or WebP at ≥ 85% quality.`,
           });
 
-        // Step 6: 9-Dimension Scoring
-        const dims = scoreAllDimensions({ goal, px, ocr, cta, fileSizeKB, clutter, emotionalAppeal, visualHierarchy });
-        const weightedFinalScore = calculateWeightedScore(dims);
+        // Step 6: Goal Alignment (single source of truth — computed before 9-dimension scoring)
+        const emotionalLevel: "Low" | "Medium" | "High" =
+          emotionalAppeal === "HIGH" ? "High" : emotionalAppeal === "MEDIUM" ? "Medium" : "Low";
 
-        const highPenalty = issues.filter(i => i.severity === "high").length * 3;
-        const finalScore = clamp(weightedFinalScore - highPenalty);
+        const goalAlignment = analyzeGoalAlignment({
+          goal,
+          cta: {
+            detected: realCTA.detected,
+            strength: realCTA.strength,
+          },
+          emotionalLevel,
+          textLength: ocr.wordCount,
+          clarityScore: textSignals.clarity,
+          extractedText: textSignals.normalizedText,
+        });
 
-        // Step 7: Engagement Forecast
-        const { forecast, drivers: engagementDrivers, confidence: forecastConfidence } =
-          calculateEngagementForecast(dims, emotionalAppeal, clutter, cta, visualHierarchy);
+        const supportedSizes = [
+          ...(PLATFORM_SIZES[platform]?.desktop ?? []),
+          ...(PLATFORM_SIZES[platform]?.mobile ?? []),
+        ];
+
+        // Step 7: Three-layer scoring architecture
+        const eligibility = computeAuctionEligibility({
+          fileSizeKB,
+          formatValid: supportedSizes.includes(size),
+          isBlurry: imageSignals.isBlurry,
+          loadReady: fileSizeKB <= 180,
+        });
+
+        const layoutBalanceScore = visualHierarchy === "STRONG" ? 90 : visualHierarchy === "MODERATE" ? 68 : 42;
+        const clutterScore = clamp(100 - clutter.index * 10);
+        const attention = computeAttentionCapture({
+          contrastScore: imageSignals.contrast,
+          clarityScore: textSignals.clarity,
+          clutterScore,
+          blurScore: px.isBlurry ? 85 : 15,
+          focalPointScore: px.focalPointStrength,
+          layoutBalanceScore,
+        });
+
+        const brandPresenceScore = clamp(
+          (ocr.cornerTextDetected ? 60 : 38)
+          + (ocr.hasTrademark ? 18 : 0)
+          + (px.focalPointStrength > 50 ? 14 : px.focalPointStrength > 30 ? 8 : 0),
+        );
+
+        const ctaDetail = computeCTADetail({
+          detected: realCTA.detected,
+          strength: realCTA.strength,
+          visibilityScore: imageSignals.visibility,
+          contrastScore: imageSignals.contrast,
+          positionScore: visualHierarchy === "STRONG" ? 82 : visualHierarchy === "MODERATE" ? 64 : 42,
+          urgencyScore: cta.urgencySignal ? 88 : /\b(now|today|limited|hurry|last chance)\b/i.test(textSignals.rawText) ? 72 : 35,
+        });
+
+        const performance = computePerformanceSignals({
+          goal,
+          cta: ctaDetail,
+          clarityScore: textSignals.clarity,
+          brandScore: brandPresenceScore,
+          goalAlignmentScore: goalAlignment.alignmentScore,
+        });
+
+        const performanceImpact = buildPerformanceImpactInsights({
+          contrast: imageSignals.contrast,
+          isBlurry: imageSignals.isBlurry,
+          qualityMessage: px.qualityMessage,
+          ctaDetected: realCTA.detected,
+          ctaGoalFit: performance.ctaGoalFit,
+          goalAlignmentScore: goalAlignment.alignmentScore,
+          goal,
+        });
+
+        const finalScore = computeFinalCreativeScore(eligibility.score, attention.score, performance.score);
+
+        // Keep detailed dimensions for fix blocks and deep diagnostics.
+        const dims = scoreAllDimensions({ goal, px, ocr, cta, fileSizeKB, clutter, emotionalAppeal, visualHierarchy, goalAlignmentScore: goalAlignment.alignmentScore });
+
+        // Step 8: Engagement derived from attention + performance + goal alignment
+        const engagementCore = computeEngagement({
+          attentionScore: attention.score,
+          performanceScore: performance.score,
+          goalAlignmentScore: goalAlignment.alignmentScore,
+          goal,
+          ctaDetected: realCTA.detected,
+          isBlurry: imageSignals.isBlurry,
+        });
+        const engagement = {
+          engagementScore: engagementCore.score,
+          level: engagementCore.level,
+          reasons: [
+            ...engagementCore.reasons,
+            ...performanceImpact.slice(0, 3).map((p) => `${p.issue} (${p.priority} priority)`),
+          ],
+        };
+        const forecast = engagement.level;
+        const engagementDrivers = engagement.reasons;
+
+        const signalConfidence = computeSignalConfidence({
+          ctaDetected: realCTA.detected,
+          textClarityGood: textSignals.clarity >= 60,
+          imageQualityGood: imageSignals.imageQuality >= 55,
+          contrastGood: imageSignals.hasGoodContrast,
+          layoutGood: visualHierarchy !== "WEAK" && clutter.index <= 6,
+        });
+        const engagementConfidence = calculateEngagementConfidence(engagement.engagementScore, engagement.reasons);
 
         // Estimate stop rate
-        const stopRateEstimate = estimateStopRate(forecast, emotionalAppeal, clutter);
+        const stopRateEstimate = estimateStopRate(forecast);
 
         // Step 8: Fix Blocks
-        const fixBlocks = generateFixBlocks(dims, goal, cta, ocr, px);
+        const fixBlocks = generateFixBlocks(dims, goal, cta, ocr, px).map((fix) => {
+          const insight = performanceImpact.find((p) => {
+            const issue = p.issue.toLowerCase();
+            const dim = fix.dimension.toLowerCase();
+            if (dim.includes("cta")) return issue.includes("cta");
+            if (dim.includes("brightness") || dim.includes("pixel")) return issue.includes("contrast") || issue.includes("blur") || issue.includes("low-definition");
+            if (dim.includes("goal")) return issue.includes("goal misalignment");
+            return false;
+          });
+
+          if (!insight) return fix;
+          return {
+            ...fix,
+            impact: `${fix.impact} ${insight.estimatedEffect}`,
+          };
+        });
 
         // Step 9: A/B Hypotheses
         const abHypotheses = generateABHypotheses(dims, goal, cta, emotionalAppeal, ocr);
@@ -1699,15 +2174,27 @@ export async function analyzeCreativeLocal(
 
         // Step 11: Suggestions
         const allSugg = [
+          `Eligibility score ${eligibility.score}: ${eligibility.issues?.length ? eligibility.issues[0] : "Auction checks are stable"}`,
+          `Attention score ${attention.score}: contrast ${Math.round(imageSignals.contrast)}, clarity ${Math.round(textSignals.clarity)}, clutter ${Math.round(clutterScore)}, quality risk ${px.isBlurry ? px.qualityMessage.toLowerCase() : "low"}`,
+          `Performance score ${performance.score}: CTA ${Math.round(performance.breakdown?.cta ?? 0)}, goal alignment ${Math.round(goalAlignment.alignmentScore)}, brand ${Math.round(brandPresenceScore)}`,
+          ...performanceImpact.map((p) => `${p.issue} -> ${p.estimatedEffect}. Fix: ${p.fix}`),
           ...fixBlocks.map(f => `[${f.dimension}] ${f.fixNow}`),
           ...issues.map(i => i.evidence),
         ].filter((s, i, arr) => s && arr.indexOf(s) === i);
 
+        const validationAlerts = buildValidationAlerts({
+          fileSizeKB,
+          size,
+          supportedSizes,
+          isBlurry: imageSignals.isBlurry,
+          contrast: imageSignals.contrast,
+        });
+
         // Step 12: Assembly
-        const goalAlignScore = dims.goal.raw;
+        const goalAlignScore = goalAlignment.alignmentScore;
         const source = "pixel-ocr-acie-v4";
         const summary = cta.found ? `CTA: "${cta.word}" — ${cta.goalFit}` : "No CTA detected.";
-        const alignLabel = goalAlignScore >= 80 ? "Strong ✅" : goalAlignScore >= 60 ? "Moderate ⚠️" : "Poor ❌";
+        const alignLabel = goalAlignment.status;
         const funnelText = `Funnel: ${goal}. Goal Alignment: ${goalAlignScore}/100 (${alignLabel}). CTA: ${cta.found ? `"${cta.word}" [${cta.ctaType}]` : "none"}. Archetype: ${creativeArchetype}. Hierarchy: ${visualHierarchy}.`;
 
         const dimDetails: Record<string, string> = {};
@@ -1729,8 +2216,9 @@ export async function analyzeCreativeLocal(
           colorPalette: px.colorPalette,
           isBlurry: px.isBlurry,
           hasCompressionArtifacts: px.hasCompressionArtifacts,
+          qualityMessage: px.qualityMessage,
           // Text
-          text_clarity: dims.text.raw,
+          text_clarity: textSignals.clarity,
           text_density: ocr.textAreaPercent > 50 ? "high" : ocr.textAreaPercent > 20 ? "medium" : "low",
           headlineDetected: ocr.headlineDetected,
           readingFlow: ocr.readingFlow,
@@ -1741,8 +2229,8 @@ export async function analyzeCreativeLocal(
           hasTextCrowding: ocr.hasTextCrowding,
           hasIllegibleText: ocr.hasIllegibleText,
           // 9 Dimensions
-          dim_cta: dims.cta.raw,
-          dim_text: dims.text.raw,
+          dim_cta: realCTA.confidence,
+          dim_text: textSignals.clarity,
           dim_brand: dims.brand.raw,
           dim_brightness: dims.brightness.raw,
           dim_goal: dims.goal.raw,
@@ -1752,42 +2240,76 @@ export async function analyzeCreativeLocal(
           dim_visual_hierarchy: dims.visual_hierarchy.raw,
           dim_details: dimDetails,
           // Legacy
-          layout_score: 80,
+          layout_score: clamp(Math.round((100 - clutter.index * 10 + (visualHierarchy === "STRONG" ? 20 : visualHierarchy === "MODERATE" ? 8 : -8)) / 2)),
           visual_quality: dims.pixel.raw,
           goal_fit: goalAlignScore,
           overall_score: finalScore,
+          score: finalScore,
+          finalScore,
+          cta: {
+            detected: realCTA.detected,
+            text: realCTA.text,
+            strength: realCTA.strength,
+            confidence: realCTA.confidence,
+            visibilityScore: ctaDetail.visibilityScore,
+            contrastScore: ctaDetail.contrastScore,
+            positionScore: ctaDetail.positionScore,
+            urgencyScore: ctaDetail.urgencyScore,
+          },
+          metrics: {
+            clarity: textSignals.clarity,
+            contrast: imageSignals.contrast,
+            visibility: imageSignals.visibility,
+            brand: dims.brand.raw,
+          },
+          eligibility: {
+            score: eligibility.score,
+            issues: eligibility.issues ?? [],
+            breakdown: eligibility.breakdown ?? {},
+          },
+          attention: {
+            score: attention.score,
+            breakdown: attention.breakdown ?? {},
+          },
+          performance: {
+            score: performance.score,
+            breakdown: performance.breakdown ?? {},
+            ctaGoalFit: performance.ctaGoalFit,
+          },
+          issues: validationAlerts,
           // CTA
-          cta_presence: cta.found,
-          cta_strength: cta.strength,
+          cta_presence: realCTA.detected,
+          cta_strength: realCTA.strength,
           cta_recommendations: GOAL_CTA[goal],
-          cta_detected: cta.found,
-          cta_text: cta.word || null,
+          cta_detected: realCTA.detected,
+          cta_text: realCTA.text || null,
           cta_type: cta.ctaType,
           cta_goal_fit: cta.goalFit,
           cta_scores: {
-            overall: dims.cta.raw / 10,
-            clarity: dims.cta.raw / 10,
-            urgency: cta.urgencySignal ? 9 : tone === "urgent" ? 7 : tone === "helpful" ? 4 : 2,
-            value: cta.valueSignal ? 8 : dims.goal.raw / 10,
-            visibility: dims.pixel.raw / 10,
+            overall: ctaDetail.ctaScore / 10,
+            clarity: ctaDetail.positionScore / 10,
+            urgency: ctaDetail.urgencyScore / 10,
+            value: ctaDetail.contrastScore / 10,
+            visibility: ctaDetail.visibilityScore / 10,
           },
           // Core Checks
           coreChecks: {
-            noticeability: { score: px.contrast, label: px.contrast > 30 ? "Good Contrast" : "Low Contrast", pass: px.contrast > 30 },
-            messageClarity: { score: dims.text.raw, label: `${ocr.wordCount} words | ${Math.round(ocr.textAreaPercent)}% area | Headline: ${ocr.headlineDetected ? "✓" : "✗"}`, pass: dims.text.raw >= 65 },
-            ctaStrength: { score: dims.cta.raw, label: cta.found ? `"${cta.word}" [${cta.ctaType}]` : "No CTA Found", pass: cta.found || goal === "awareness" },
+            noticeability: { score: imageSignals.contrast, label: imageSignals.contrast > 30 ? "Good Contrast" : "Low Contrast", pass: imageSignals.contrast > 30 },
+            messageClarity: { score: textSignals.clarity, label: `${ocr.wordCount} words | ${Math.round(ocr.textAreaPercent)}% area | Headline: ${ocr.headlineDetected ? "✓" : "✗"}`, pass: textSignals.clarity >= 60 },
+            ctaStrength: { score: realCTA.confidence, label: realCTA.detected ? `"${realCTA.text}" [${cta.ctaType}]` : "No CTA Found", pass: realCTA.detected || goal === "awareness" },
             brandPresence: { score: dims.brand.raw, label: `Brand Score: ${dims.brand.raw}/100`, pass: dims.brand.raw >= 55 },
             crowding: { score: 100 - clutter.index * 10, label: `Clutter ${clutter.index}/10 — ${clutter.label}`, pass: clutter.index <= 5 },
             formatFit: { score: 100, label: tier, pass: true },
           },
           platformChecks: computePlatformChecks(platform, fileSizeKB, ocr, size, px, clutter, visualHierarchy, cta, dims.cta.raw, emotionalAppeal, cognitiveLoad),
-          adVisibilityScore: dims.pixel.raw,
+          adVisibilityScore: imageSignals.visibility,
           goalAlignmentIndicator: goalAlignScore,
           // Suggestions & Fixes
           suggestions: allSugg,
-          improvement_suggestions: [],
+          improvement_suggestions: goalAlignment.reasons,
           fix_blocks: fixBlocks,
           ab_hypotheses: abHypotheses,
+          performanceImpact,
           // ACIE v4 Intelligence
           creative_archetype: creativeArchetype,
           emotion_signature: emotionSignature,
@@ -1795,8 +2317,10 @@ export async function analyzeCreativeLocal(
           clutter_label: clutter.label,
           emotional_appeal: emotionalAppeal,
           engagement_forecast: forecast,
-          engagement_forecast_confidence: forecastConfidence,
+          engagement_forecast_confidence: engagementConfidence,
           engagement_drivers: engagementDrivers,
+          engagement,
+          aiInsights: null,
           visual_hierarchy: visualHierarchy,
           cognitive_load_score: cognitiveLoad,
           stop_rate_estimate: stopRateEstimate,
@@ -1808,17 +2332,17 @@ export async function analyzeCreativeLocal(
           analyzed_at: new Date().toISOString(),
           source, sizeTier: tier, fileSizeKB,
           deterministicIssues: issues,
-          confidence: datasetConfidence === "HIGH" ? "high" : "low",
+          confidence: `${signalConfidence}%`,
           // Funnel
           primary_stage: goal.charAt(0).toUpperCase() + goal.slice(1),
           bestFor: goal.charAt(0).toUpperCase() + goal.slice(1),
           goalMatchScore: goalAlignScore,
-          funnelReasoning: funnelText,
+          funnelReasoning: `${funnelText} ${goalAlignment.reasons.join(" | ")}`,
           funnelSignals: [],
           recommendedTemplates: ["newspaper", "health"],
           messaging_intent: tone === "urgent" ? "High Urgency" : tone === "helpful" ? "Informative" : "Persuasive",
           urgency_level: cta.urgencySignal ? "High" : tone === "urgent" ? "High" : tone === "helpful" ? "Medium" : "Low",
-          ai_cta_strength: cta.strength,
+          ai_cta_strength: realCTA.strength,
           // Analysis Text
           analysis: summary,
           impact: issues[0]?.evidence ?? "",
@@ -1827,8 +2351,8 @@ export async function analyzeCreativeLocal(
           agentSummary: summary,
           agentFunnelAnalysis: funnelText,
           agentBreakdown: {
-            cta: cta.found ? `"${cta.word}" — ${cta.ctaType} — ${cta.goalFit}` : "No CTA — Score: 0/100",
-            text_clarity: `${ocr.wordCount} words | ${Math.round(ocr.textAreaPercent)}% area | Headline: ${ocr.headlineDetected} | Flow: ${ocr.readingFlow} | Score: ${dims.text.raw}/100`,
+            cta: realCTA.detected ? `"${realCTA.text}" — ${cta.ctaType} — ${cta.goalFit}` : "No CTA — Score: 0/100",
+            text_clarity: `${ocr.wordCount} words | ${Math.round(ocr.textAreaPercent)}% area | Headline: ${ocr.headlineDetected} | Flow: ${ocr.readingFlow} | Score: ${textSignals.clarity}/100`,
             brand_presence: `Focal: ${px.focalPointStrength}/100 | Score: ${dims.brand.raw}/100`,
             brightness_contrast: `B: ${px.brightness}% C: ${px.contrast}% Sat: ${px.saturation}% WCAG: ${px.wcagLevel} → ${dims.brightness.raw}/100`,
             ad_visibility: `Pixel: ${dims.pixel.raw}/100 | Clutter: ${clutter.index}/10 | CogLoad: ${cognitiveLoad}/100`,
@@ -1837,11 +2361,11 @@ export async function analyzeCreativeLocal(
             visual_hierarchy: `${visualHierarchy} | Headline: ${ocr.headlineDetected} | Flow: ${ocr.readingFlow} | Score: ${dims.visual_hierarchy.raw}/100`,
           },
           agentScores: {
-            cta: dims.cta.raw / 10,
-            clarity: dims.text.raw / 10,
+            cta: realCTA.confidence / 10,
+            clarity: textSignals.clarity / 10,
             brand: dims.brand.raw / 10,
             visual_quality: dims.pixel.raw / 10,
-            visibility: dims.pixel.raw / 10,
+            visibility: imageSignals.visibility / 10,
             goal_alignment: dims.goal.raw / 10,
             color_harmony: dims.color_harmony.raw / 10,
             visual_hierarchy: dims.visual_hierarchy.raw / 10,

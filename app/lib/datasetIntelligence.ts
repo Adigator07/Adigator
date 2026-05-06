@@ -486,7 +486,6 @@ export function findSimilarCreative(goal: string, ctaStrength: string) {
     persuasion: match.persuasion_technique,
     headline_type: match.headline_type,
     label_notes: match.label_notes,
-    ctr: (Math.random() * 2 + 0.5).toFixed(2) + "%",
     result_label: match.scores.goal_alignment > 70 ? "HIGH" : "MEDIUM",
   };
 }
