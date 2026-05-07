@@ -634,7 +634,7 @@ function ImpactCard({ item }) {
       : "border-emerald-500/30 bg-emerald-500/7 text-emerald-300";
 
   return (
-    <div className="rounded-xl border border-white/10 bg-white/5 p-3 hover:bg-white/[0.08] transition-colors">
+    <div className="rounded-xl border border-white/10 bg-white/5 p-3 hover:bg-white/8 transition-colors">
       <div className="flex items-center justify-between gap-2 mb-1.5">
         <p className="text-sm font-semibold text-white">{item.issue}</p>
         <span className={`text-[10px] px-2 py-0.5 rounded-full border ${priorityTone}`}>{item.priority}</span>
@@ -811,7 +811,7 @@ export default function AnalysisPanel({
     <div className="space-y-6">
 
       {/* ── Summary Banner ─────────────────────────────────────────── */}
-      <div className="p-5 rounded-2xl bg-gradient-to-br from-slate-800/60 to-slate-900/60 border border-white/10 space-y-4">
+      <div className="p-5 rounded-2xl bg-linear-to-br from-slate-800/60 to-slate-900/60 border border-white/10 space-y-4">
         <div className="flex items-center gap-2">
           <Sparkles size={15} className="text-fuchsia-400" />
           <h3 className="text-sm font-bold text-white">ACIE v4.0 — Advanced Creative Intelligence Engine</h3>
@@ -896,7 +896,7 @@ export default function AnalysisPanel({
               initial={{ opacity: 0, x: 14 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -14 }}
-              className="lg:col-span-2 rounded-2xl border border-fuchsia-500/25 bg-gradient-to-br from-fuchsia-900/15 to-purple-900/15 p-5 space-y-5"
+              className="lg:col-span-2 rounded-2xl border border-fuchsia-500/25 bg-linear-to-br from-fuchsia-900/15 to-purple-900/15 p-5 space-y-5"
             >
               <div className="sticky top-2 z-20 rounded-2xl border border-white/10 bg-slate-950/85 backdrop-blur-md p-3 shadow-[0_10px_30px_rgba(2,6,23,0.5)]">
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5">
@@ -978,7 +978,7 @@ export default function AnalysisPanel({
                     {onGoalChange && (
                       <div className="flex bg-black/40 p-1 rounded-xl border border-white/5">
                         {["awareness", "consideration", "conversion"].map((g) => (
-                          <button key={g} onClick={() => onGoalChange(g)} className={`flex-1 py-2 px-3 text-xs font-bold rounded-lg capitalize transition ${campaignGoal === g ? "bg-gradient-to-r from-fuchsia-600 to-purple-600 text-white shadow-md" : "text-gray-400 hover:text-white hover:bg-white/5"
+                          <button key={g} onClick={() => onGoalChange(g)} className={`flex-1 py-2 px-3 text-xs font-bold rounded-lg capitalize transition ${campaignGoal === g ? "bg-linear-to-r from-fuchsia-600 to-purple-600 text-white shadow-md" : "text-gray-400 hover:text-white hover:bg-white/5"
                             }`}>{g}</button>
                         ))}
                       </div>

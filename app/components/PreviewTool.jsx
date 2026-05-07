@@ -20,7 +20,7 @@ import {
 // ── Toast Component ──────────────────────────────────────────
 function Toast({ toasts }) {
   return (
-    <div className="fixed bottom-6 right-6 z-[9999] flex flex-col gap-2 pointer-events-none">
+    <div className="fixed bottom-6 right-6 z-9999 flex flex-col gap-2 pointer-events-none">
       <AnimatePresence>
         {toasts.map((t) => (
           <motion.div key={t.id} initial={{ opacity: 0, y: 20, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 10, scale: 0.95 }}
@@ -558,9 +558,9 @@ export default function PreviewTool() {
   // Reusable Buttons
   const NavBtn = ({ onClick, children, variant = "primary", disabled = false }) => {
     const base = "flex-1 py-3 px-6 rounded-xl font-semibold transition disabled:opacity-40 disabled:cursor-not-allowed";
-    const bg = variant === "primary" ? "bg-gradient-to-r from-blue-600 to-purple-600 text-white"
+    const bg = variant === "primary" ? "bg-linear-to-r from-blue-600 to-purple-600 text-white"
       : variant === "back" ? "bg-white/10 hover:bg-white/20 text-white"
-        : "bg-gradient-to-r from-green-600 to-emerald-600 text-white";
+        : "bg-linear-to-r from-green-600 to-emerald-600 text-white";
     return (
       <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={onClick} disabled={disabled} className={`${base} ${bg}`}>
         {children}
@@ -575,18 +575,18 @@ export default function PreviewTool() {
       animate={selected ? { boxShadow: ["0 0 0 rgba(168,85,247,0)", "0 0 22px rgba(168,85,247,0.25)", "0 0 0 rgba(168,85,247,0)"] } : { boxShadow: "0 0 0 rgba(0,0,0,0)" }}
       transition={selected ? { duration: 1.6, repeat: Infinity, ease: "easeInOut" } : { duration: 0.2 }}
       onClick={onClick}
-      className={`cursor-pointer rounded-2xl p-8 border-2 transition-all duration-200 bg-gradient-to-br ${selected ? `${activeClasses} shadow-2xl` : "border-white/10 bg-white/5 hover:border-white/25"
+      className={`cursor-pointer rounded-2xl p-8 border-2 transition-all duration-200 bg-linear-to-br ${selected ? `${activeClasses} shadow-2xl` : "border-white/10 bg-white/5 hover:border-white/25"
         }`}>
       {children}
     </motion.div>
   );
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 text-white">
+    <div className="min-h-screen bg-linear-to-br from-slate-900 via-purple-900 to-slate-900 text-white">
       {/* HEADER */}
       <header className="sticky top-0 z-50 backdrop-blur-xl bg-black/30 border-b border-white/10 px-6 py-3">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <h1 className="text-xl font-black bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
+          <h1 className="text-xl font-black bg-linear-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
             Adigator Creative Studio
           </h1>
           <div className="hidden lg:flex items-center gap-1 text-xs">
@@ -606,7 +606,7 @@ export default function PreviewTool() {
       {/* PROGRESS */}
       <div className="h-1 bg-white/5">
         <motion.div
-          className="h-full origin-left bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500"
+          className="h-full origin-left bg-linear-to-r from-blue-500 via-purple-500 to-pink-500"
           initial={{ scaleX: 0 }}
           animate={{ scaleX: step / TOTAL_STEPS }}
           transition={{ duration: 0.5, ease: "easeOut" }}
@@ -733,19 +733,19 @@ export default function PreviewTool() {
               {/* Validation Summary Stats */}
               {creatives.length > 0 && (
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <div className="bg-gradient-to-br from-blue-500/20 to-blue-600/20 border border-blue-500/30 rounded-xl p-4 text-center">
+                  <div className="bg-linear-to-br from-blue-500/20 to-blue-600/20 border border-blue-500/30 rounded-xl p-4 text-center">
                     <p className="text-3xl font-bold text-blue-400">{creatives.length}</p>
                     <p className="text-sm text-gray-400 mt-1">Total</p>
                   </div>
-                  <div className="bg-gradient-to-br from-green-500/20 to-green-600/20 border border-green-500/30 rounded-xl p-4 text-center">
+                  <div className="bg-linear-to-br from-green-500/20 to-green-600/20 border border-green-500/30 rounded-xl p-4 text-center">
                     <p className="text-3xl font-bold text-green-400">{validCreatives.length}</p>
                     <p className="text-sm text-gray-400 mt-1">Ready</p>
                   </div>
-                  <div className="bg-gradient-to-br from-amber-500/20 to-amber-600/20 border border-amber-500/30 rounded-xl p-4 text-center">
+                  <div className="bg-linear-to-br from-amber-500/20 to-amber-600/20 border border-amber-500/30 rounded-xl p-4 text-center">
                     <p className="text-3xl font-bold text-amber-400">{validationSummary.warningCount}</p>
                     <p className="text-sm text-gray-400 mt-1">Warnings</p>
                   </div>
-                  <div className="bg-gradient-to-br from-red-500/20 to-red-600/20 border border-red-500/30 rounded-xl p-4 text-center">
+                  <div className="bg-linear-to-br from-red-500/20 to-red-600/20 border border-red-500/30 rounded-xl p-4 text-center">
                     <p className="text-3xl font-bold text-red-400">{validationSummary.criticalCount}</p>
                     <p className="text-sm text-gray-400 mt-1">Critical</p>
                   </div>
@@ -872,7 +872,7 @@ export default function PreviewTool() {
 
               {!analysisResult && !analysisLoading && (
                 <div className="flex flex-col items-center justify-center p-12 bg-white/5 rounded-3xl border border-white/10 text-center">
-                  <div className="w-20 h-20 mb-6 bg-gradient-to-br from-fuchsia-500/20 to-purple-600/20 rounded-full flex items-center justify-center border border-fuchsia-500/30">
+                  <div className="w-20 h-20 mb-6 bg-linear-to-br from-fuchsia-500/20 to-purple-600/20 rounded-full flex items-center justify-center border border-fuchsia-500/30">
                     <span className="text-4xl">🧠</span>
                   </div>
                   <h3 className="text-xl font-bold text-white mb-3">Ready to Analyze</h3>
@@ -932,7 +932,7 @@ export default function PreviewTool() {
                   <p className="text-gray-400">See your creatives in realistic interactive website contexts.</p>
                 </div>
                 <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} onClick={handleExportPptx} disabled={isExporting}
-                  className="px-8 py-3 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-xl font-semibold flex items-center gap-2 disabled:opacity-60">
+                  className="px-8 py-3 bg-linear-to-r from-green-600 to-emerald-600 text-white rounded-xl font-semibold flex items-center gap-2 disabled:opacity-60">
                   <Download size={20} /> {isExporting ? "Exporting..." : "Export PPTX"}
                 </motion.button>
               </div>
