@@ -6,7 +6,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { preprocessImage, validateImage, estimateOCRQuality } from "@/app/lib/vision";
 import { extractTextFromImage, cleanOCRText, validateOCRQuality } from "@/app/lib/ocr";
-import { analyzeTextWithAI } from "@/app/lib/ai";
+import { analyzeCreativeWithAI } from "@/app/lib/ai";
 
 interface ProcessingResponse {
   success: boolean;
@@ -47,6 +47,45 @@ interface ProcessingResponse {
     message: string;
     stage: "validation" | "preprocessing" | "ocr" | "analysis" | "unknown";
     details?: string;
+  };
+}
+
+async function analyzeTextWithAI(text: string, context?: string) {
+  const analysis = await analyzeCreativeWithAI(
+    context ? `${text}\n\nAdditional context: ${context}` : text
+  );
+
+  const keyPoints = [
+    analysis.hook && `Hook: ${analysis.hook}`,
+    analysis.cta && `CTA: ${analysis.cta}`,
+    analysis.offer && `Offer: ${analysis.offer}`,
+    analysis.valueProposition && `Value proposition: ${analysis.valueProposition}`,
+    analysis.painPoint && `Pain point: ${analysis.painPoint}`,
+  ].filter(Boolean) as string[];
+
+  const entities = [
+    analysis.hook && { name: analysis.hook, type: "hook", value: analysis.hookType || "unknown" },
+    analysis.cta && { name: analysis.cta, type: "cta", value: analysis.cta },
+    analysis.offer && { name: analysis.offer, type: "offer", value: analysis.offer },
+    analysis.targetAudience && {
+      name: analysis.targetAudience,
+      type: "audience",
+      value: analysis.targetAudience,
+    },
+  ].filter(Boolean) as Array<{ name: string; type: string; value: string }>;
+
+  return {
+    summary: [analysis.valueProposition, analysis.emotionalTrigger, analysis.targetAudience]
+      .filter(Boolean)
+      .join(" | "),
+    classification: analysis.hookType || "marketing-creative",
+    keyPoints,
+    entities,
+    sentiment: analysis.emotionalTrigger
+      ? "positive"
+      : ("neutral" as "positive" | "negative" | "neutral"),
+    confidence: Number((analysis.conversionScore / 100).toFixed(2)),
+    structuredData: analysis as unknown as Record<string, unknown>,
   };
 }
 

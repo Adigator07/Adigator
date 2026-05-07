@@ -8,7 +8,6 @@
 
 import { validateImage, preprocessImage } from "@/app/lib/vision";
 import { extractTextFromImage, cleanOCRText } from "@/app/lib/ocr";
-import { generateSummary } from "@/app/lib/ai";
 
 interface TestResult {
   name: string;

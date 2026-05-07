@@ -1,6 +1,86 @@
-import { computeSignalConfidence } from "@/app/lib/analyzer/confidenceEngine";
-import { computeDynamicScore } from "@/app/lib/analyzer/scoringEngine";
-import { buildValidationAlerts } from "@/app/lib/analyzer/validator";
+type ContributionMap = Record<string, number>;
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(Math.max(value, min), max);
+}
+
+function computeDynamicScore(payload: {
+  ctaDetected: boolean;
+  ctaStrength: "low" | "medium" | "high";
+  hasGoodContrast: boolean;
+  hasClearText: boolean;
+  isBlurry: boolean;
+  hasLowContrast: boolean;
+  hasTooMuchText: boolean;
+  datasetCalibration: number;
+}): { score: number; contributions: ContributionMap } {
+  const contributions: ContributionMap = {
+    cta: payload.ctaDetected
+      ? payload.ctaStrength === "high"
+        ? 28
+        : payload.ctaStrength === "medium"
+          ? 20
+          : 12
+      : 0,
+    contrast: payload.hasGoodContrast ? 18 : payload.hasLowContrast ? -12 : 0,
+    clarity: payload.hasClearText ? 18 : -8,
+    sharpness: payload.isBlurry ? -15 : 10,
+    textDensity: payload.hasTooMuchText ? -12 : 8,
+    calibration: clamp(payload.datasetCalibration, -10, 10),
+  };
+
+  const total = Object.values(contributions).reduce((sum, value) => sum + value, 35);
+  return {
+    score: clamp(Math.round(total), 0, 100),
+    contributions,
+  };
+}
+
+function computeSignalConfidence(payload: {
+  ctaDetected: boolean;
+  textClarityGood: boolean;
+  imageQualityGood: boolean;
+  contrastGood: boolean;
+  layoutGood: boolean;
+}): number {
+  const signals = [
+    payload.ctaDetected,
+    payload.textClarityGood,
+    payload.imageQualityGood,
+    payload.contrastGood,
+    payload.layoutGood,
+  ];
+  const confidence = signals.filter(Boolean).length / signals.length;
+  return Number(confidence.toFixed(2));
+}
+
+function buildValidationAlerts(payload: {
+  fileSizeKB: number;
+  size: string;
+  supportedSizes: string[];
+  isBlurry: boolean;
+  contrast: number;
+}): string[] {
+  const alerts: string[] = [];
+
+  if (payload.fileSizeKB > 5120) {
+    alerts.push("File size is high and may affect delivery performance.");
+  }
+
+  if (payload.size && payload.supportedSizes.length > 0 && !payload.supportedSizes.includes(payload.size)) {
+    alerts.push("Creative size is not in the supported placement list.");
+  }
+
+  if (payload.isBlurry) {
+    alerts.push("Image appears blurry and may reduce readability.");
+  }
+
+  if (payload.contrast < 35) {
+    alerts.push("Contrast is low and may hurt accessibility.");
+  }
+
+  return alerts;
+}
 
 interface AnalyzePayload {
   ctaDetected: boolean;
