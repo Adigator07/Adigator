@@ -172,7 +172,7 @@ function HeroScene({ mx, my }: { mx: MotionValue<number>; my: MotionValue<number
   const rX = useSpring(useTransform(my, [-0.5, 0.5], [10, -10]), { stiffness: 32, damping: 18 });
 
   return (
-    <div className="scene-wrap w-full h-[420px] md:h-[520px]">
+    <div className="scene-wrap w-full h-105 md:h-130">
       <motion.div
         className="scene-root w-full h-full"
         style={{ rotateY: rY, rotateX: rX }}
@@ -199,7 +199,7 @@ function HeroScene({ mx, my }: { mx: MotionValue<number>; my: MotionValue<number
             <p className="text-[10px] font-bold uppercase tracking-widest text-gray-500 mb-3">Platform Checks</p>
             {["Size: 300×250","Format: JPEG","CTA: Visible","Brand: Safe"].map(item => (
               <div key={item} className="flex items-center gap-2 mb-2">
-                <div className="h-1.5 w-1.5 rounded-full bg-emerald-400 dot-emerald flex-shrink-0" />
+                <div className="h-1.5 w-1.5 rounded-full bg-emerald-400 dot-emerald shrink-0" />
                 <span className="text-[10px] text-gray-400">{item} ✓</span>
               </div>
             ))}
@@ -231,7 +231,7 @@ function HeroScene({ mx, my }: { mx: MotionValue<number>; my: MotionValue<number
                     <span className="text-[10px] font-bold text-white">{item.val}%</span>
                   </div>
                   <div className="bar-track">
-                    <div className={`bar-fill bg-gradient-to-r ${item.from} ${item.to}`} style={{ "--w": item.w } as React.CSSProperties} />
+                    <div className={`bar-fill bg-linear-to-r ${item.from} ${item.to}`} style={{ "--w": item.w } as React.CSSProperties} />
                   </div>
                 </div>
               ))}
@@ -426,7 +426,7 @@ const carouselItems = [
         </div>
         {["Size: 300×250 ✓","Format: JPEG ✓","Compression: Optimised ✓","CTA Visible: Yes ✓"].map(it=>(
           <div key={it} className="flex items-center gap-2 mb-2 text-xs text-gray-400">
-            <div className="h-1.5 w-1.5 rounded-full bg-emerald-400 dot-emerald flex-shrink-0" />
+            <div className="h-1.5 w-1.5 rounded-full bg-emerald-400 dot-emerald shrink-0" />
             {it}
           </div>
         ))}
@@ -469,7 +469,7 @@ const carouselItems = [
               <span className={`text-xs font-bold ${it.tc}`}>{it.v}%</span>
             </div>
             <div className="bar-track">
-              <div className={`bar-fill bg-gradient-to-r ${it.c}`} style={{ "--w": it.w } as React.CSSProperties} />
+              <div className={`bar-fill bg-linear-to-r ${it.c}`} style={{ "--w": it.w } as React.CSSProperties} />
             </div>
           </div>
         ))}
@@ -693,237 +693,45 @@ export default function Home() {
                   </motion.div>
                 </AnimatePresence>
 
-                <div className="mt-5 flex items-center justify-center gap-2">
-                  {carouselItems.map((c,i) => (
-                    <button key={c.id} type="button" onClick={() => setActive(i)}
-                      className="rounded-full transition-all duration-300"
-                      style={{ height:8, width: i===active ? 28 : 8, background: i===active ? "linear-gradient(90deg,#9333ea,#ec4899)" : "rgba(255,255,255,0.2)", boxShadow: i===active ? "0 0 12px rgba(168,85,247,0.6)" : "none" }}
-                      aria-label={c.title} />
-                  ))}
+                <div className="mt-5 flex items-center justify-between gap-3">
+                  <button
+                    onClick={() => setActive((p) => (p - 1 + carouselItems.length) % carouselItems.length)}
+                    className="rounded-lg p-2 hover:bg-white/10 transition-colors"
+                  >
+                    ←
+                  </button>
+                  <button
+                    onClick={() => setActive((p) => (p + 1) % carouselItems.length)}
+                    className="rounded-lg p-2 hover:bg-white/10 transition-colors"
+                  >
+                    →
+                  </button>
                 </div>
               </HoloCard>
             </div>
           </Reveal>
-        </div>
-      </section>
-
-      {/* ══════════════════════════════════════════════
-          STATS
-      ══════════════════════════════════════════════ */}
-      <section className="relative z-10 py-4">
-        <div className="landing-container">
-          <Reveal>
-            <div className="stats-strip">
-              {[
-                { v:"6–20h", l:"Saved per campaign" },
-                { v:"200+",  l:"Teams using Adigator" },
-                { v:"~99%",  l:"Faster than manual QA" },
-                { v:"4.9★",  l:"Average rating" },
-              ].map((s,i)=>(
-                <div key={s.l} className="stat-item">
-                  <span className="stat-value">{s.v}</span>
-                  <span className="stat-label">{s.l}</span>
-                  {i < 3 && <div className="stat-sep" />}
-                </div>
-              ))}
-            </div>
-          </Reveal>
-        </div>
-      </section>
-
-      {/* ══════════════════════════════════════════════
-          PROBLEM
-      ══════════════════════════════════════════════ */}
-      <section className="landing-section relative z-10">
-        <div className="landing-container">
-          <HoloCard className="overflow-hidden">
-            <div className="grid gap-8 p-6 md:grid-cols-2 md:p-10">
-              <Reveal>
-                <span className="badge"><span className="badge-dot" />The Problem</span>
-                <h2 className="font-display mt-5 text-3xl font-semibold text-white md:text-4xl leading-tight">
-                  Creative workflows are slower than they should be
-                </h2>
-                <ul className="mt-6 space-y-3">
-                  {[
-                    "Manual validation takes hours",
-                    "Multiple review cycles delay approvals",
-                    "Cross-team coordination introduces gaps",
-                    "Campaign launches depend on stakeholder availability",
-                  ].map((it,i)=>(
-                    <motion.li key={it}
-                      initial={{ opacity:0, x:-16 }}
-                      whileInView={{ opacity:1, x:0 }}
-                      viewport={{ once:true, amount:0.5 }}
-                      transition={{ duration:0.5, delay:i*0.09 }}
-                      className="flex items-start gap-3 text-sm text-gray-400">
-                      <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-purple-400 dot-purple flex-shrink-0" />
-                      {it}
-                    </motion.li>
-                  ))}
-                </ul>
-              </Reveal>
-              <Reveal delay={0.15}>
-                <div className="rounded-2xl p-7 h-full flex flex-col justify-center"
-                  style={{ background:"linear-gradient(135deg,rgba(239,68,68,0.1),rgba(236,72,153,0.07))", border:"1px solid rgba(239,68,68,0.2)" }}>
-                  <span className="badge" style={{ color:"#fca5a5", borderColor:"rgba(239,68,68,0.3)", background:"rgba(239,68,68,0.1)" }}>
-                    <span className="badge-dot" style={{ background:"#fca5a5", "--glow-c":"rgba(252,165,165,0.7)" } as React.CSSProperties} />
-                    Reality Check
-                  </span>
-                  <p className="mt-5 text-xl font-semibold text-white leading-snug">
-                    Most campaigns lose hours — sometimes days — before they go live.
-                  </p>
-                  <div className="mt-6 rounded-xl p-5" style={{ background:"rgba(0,0,0,0.25)", border:"1px solid rgba(255,255,255,0.07)" }}>
-                    <p className="text-xs text-gray-400">Without optimisation</p>
-                    <p className="font-display mt-2 text-4xl font-bold text-red-300">6–20 hours</p>
-                    <p className="mt-1 text-xs text-gray-500">per campaign + approval delays</p>
-                  </div>
-                </div>
-              </Reveal>
-            </div>
-          </HoloCard>
-        </div>
-      </section>
-
-      {/* ══════════════════════════════════════════════
-          VALUE
-      ══════════════════════════════════════════════ */}
-      <section className="landing-section relative z-10">
-        <div className="landing-container">
-          <Reveal>
-            <h2 className="font-display mx-auto max-w-3xl text-center text-3xl font-semibold text-white md:text-5xl">
-              From hours of work to{" "}
-              <span className="gradient-text">minutes of clarity</span>
-            </h2>
-          </Reveal>
-          <div className="mt-12 grid gap-8 lg:grid-cols-2">
-            <Reveal>
-              <HoloCard className="p-6 md:p-8 h-full">
-                <span className="badge" style={{ color:"rgba(156,163,175,1)", borderColor:"rgba(255,255,255,0.12)", background:"rgba(255,255,255,0.05)" }}>Manual Process Today</span>
-                <div className="mt-6 space-y-3">
-                  {[
-                    { task:"QA & validation",      time:"1–3 hours" },
-                    { task:"Internal reviews",      time:"1–3 hours" },
-                    { task:"Reporting & previews",  time:"2–4 hours" },
-                    { task:"Approval cycles",        time:"Unpredictable" },
-                  ].map(it=>(
-                    <div key={it.task} className="flex items-center justify-between rounded-xl px-4 py-3"
-                      style={{ background:"rgba(255,255,255,0.04)", border:"1px solid rgba(255,255,255,0.07)" }}>
-                      <span className="text-sm text-gray-400">{it.task}</span>
-                      <span className="text-sm font-bold text-red-300">{it.time}</span>
-                    </div>
-                  ))}
-                </div>
-                <div className="mt-6 rounded-xl px-5 py-4"
-                  style={{ background:"rgba(239,68,68,0.08)", border:"1px solid rgba(239,68,68,0.25)" }}>
-                  <p className="text-xs text-red-300/70">Total</p>
-                  <p className="font-display mt-2 text-4xl font-bold text-red-300">6–20+ hours</p>
-                </div>
-              </HoloCard>
-            </Reveal>
-            <Reveal delay={0.12}>
-              <HoloCard className="p-6 md:p-8 h-full"
-                style={{ background:"rgba(12,8,40,0.85)", borderColor:"rgba(168,85,247,0.2)" } as React.CSSProperties}>
-                <span className="badge">With Adigator</span>
-                <div className="mt-6 space-y-3">
-                  {["Upload your creatives","Analyse automatically in seconds","Preview in real environments","Share results with team","Launch with confidence"].map((it,i)=>(
-                    <motion.div key={it}
-                      initial={{ opacity:0, x:18 }}
-                      whileInView={{ opacity:1, x:0 }}
-                      viewport={{ once:true, amount:0.5 }}
-                      transition={{ duration:0.45, delay:i*0.09 }}
-                      className="flex items-center gap-3 rounded-xl px-4 py-3"
-                      style={{ background:"rgba(168,85,247,0.08)", border:"1px solid rgba(168,85,247,0.2)" }}>
-                      <span className="flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold text-purple-300 flex-shrink-0"
-                        style={{ background:"rgba(168,85,247,0.25)" }}>{i+1}</span>
-                      <span className="text-sm text-purple-100">{it}</span>
-                    </motion.div>
-                  ))}
-                </div>
-                <div className="mt-6 rounded-xl px-5 py-4"
-                  style={{ background:"rgba(16,185,129,0.08)", border:"1px solid rgba(16,185,129,0.3)" }}>
-                  <p className="text-xs text-emerald-300/70">Total</p>
-                  <p className="font-display mt-2 text-4xl font-bold text-emerald-300">Minutes</p>
-                </div>
-              </HoloCard>
-            </Reveal>
-          </div>
-        </div>
-      </section>
-
-      {/* ══════════════════════════════════════════════
-          WORKFLOW STEPS
-      ══════════════════════════════════════════════ */}
-      <section className="landing-section relative z-10">
-        <div className="landing-container">
-          <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-10">
-            <Reveal>
-              <h2 className="font-display max-w-xl text-3xl font-semibold text-white md:text-4xl leading-tight">
-                A three-stage system your team can repeat every campaign
-              </h2>
-            </Reveal>
-            <Reveal delay={0.1}>
-              <p className="hidden md:block max-w-xs text-sm text-gray-400 leading-relaxed">
-                Structured, repeatable. Each stage removes friction and accelerates approval velocity.
-              </p>
-            </Reveal>
-          </div>
-
-          <div className="grid gap-5 sm:grid-cols-3">
-            {[
-              { n:"01", title:"Validate Instantly",       desc:"Upload creatives. Instantly validate against all platform standards, sizes, and specifications.", accent:"rgba(147,51,234,0.15)", dot:"bg-purple-400 dot-purple", grd:"from-purple-500/15 to-transparent" },
-              { n:"02", title:"Identify Winners",         desc:"Get actionable insights in seconds. See which creatives perform best before launch.",             accent:"rgba(59,130,246,0.15)",  dot:"bg-blue-400   dot-cyan",   grd:"from-blue-500/15   to-transparent" },
-              { n:"03", title:"Present with Confidence",  desc:"Real preview environments and detailed reports. Share results with stakeholders instantly.",       accent:"rgba(236,72,153,0.15)",  dot:"bg-pink-400   dot-pink",   grd:"from-pink-500/15   to-transparent" },
-            ].map((s,i)=>(
-              <Reveal key={s.n} delay={i*0.1}>
-                <HoloCard className={`p-7 h-full bg-gradient-to-br ${s.grd}`}>
-                  <div className="flex items-start justify-between mb-5">
-                    <span className="font-display text-5xl font-bold text-white/8">{s.n}</span>
-                    <div className={`h-2.5 w-2.5 rounded-full ${s.dot}`} />
-                  </div>
-                  <h3 className="text-xl font-bold text-white mb-3">{s.title}</h3>
-                  <p className="text-sm leading-relaxed text-gray-400">{s.desc}</p>
-                </HoloCard>
-              </Reveal>
-            ))}
-          </div>
         </div>
       </section>
 
       {/* ══════════════════════════════════════════════
           FEATURES
       ══════════════════════════════════════════════ */}
-      <section className="landing-section relative z-10">
+      <section className="landing-section relative z-10 py-20">
         <div className="landing-container">
           <Reveal>
-            <h2 className="font-display text-3xl font-semibold text-white md:text-4xl mb-10">
-              Built for teams that{" "}
-              <span className="gradient-text-cool">move fast</span>
-            </h2>
+            <div className="text-center mb-16">
+              <h2 className="font-display text-4xl md:text-5xl font-bold mb-4">Why teams choose Adigator</h2>
+              <p className="text-lg text-gray-400 max-w-2xl mx-auto">Lightning-fast validation, comprehensive insights, and instant collaboration</p>
+            </div>
           </Reveal>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {[
-              { title:"IAB ready in minutes",          detail:"All standard banner sizes validated automatically." },
-              { title:"Mobile + desktop in one view",  detail:"See real placements across devices before launch." },
-              { title:"Streamlined approvals",         detail:"Share findings instantly. Eliminate approval delays." },
-              { title:"Reduce back-and-forth",         detail:"Actionable insights mean fewer revision rounds." },
-              { title:"Instant creative comparison",   detail:"Identify top performers before spending budget." },
-              { title:"Real-time collaboration",       detail:"Share reports across teams instantly." },
-            ].map((f,i)=>(
-              <Reveal key={f.title} delay={i*0.07}>
-                <motion.div
-                  className="feat-card h-full"
-                  whileHover={{ scale:1.025 }}
-                  onMouseMove={(e)=>{
-                    const r = e.currentTarget.getBoundingClientRect();
-                    e.currentTarget.style.setProperty("--cx", `${((e.clientX-r.left)/r.width)*100}%`);
-                    e.currentTarget.style.setProperty("--cy", `${((e.clientY-r.top)/r.height)*100}%`);
-                  }}
-                  transition={{ duration:0.12, ease:"easeOut" }}
-                >
-                  <div className="feat-icon">{featureIcons[f.title] ?? "✦"}</div>
-                  <p className="text-sm font-bold uppercase tracking-widest text-white">{f.title}</p>
-                  <p className="mt-3 text-sm leading-relaxed text-gray-400">{f.detail}</p>
-                </motion.div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {Object.entries(featureIcons).map(([feature, icon], i) => (
+              <Reveal key={feature} delay={i * 0.1}>
+                <div className="rounded-2xl p-6 backdrop-blur-sm" style={{ background: "rgba(10,15,42,0.6)", border: "1px solid rgba(168,85,247,0.15)" }}>
+                  <div className="text-4xl mb-3">{icon}</div>
+                  <p className="font-semibold text-white">{feature}</p>
+                </div>
               </Reveal>
             ))}
           </div>
@@ -931,113 +739,22 @@ export default function Home() {
       </section>
 
       {/* ══════════════════════════════════════════════
-          BENEFITS + TESTIMONIAL
-      ══════════════════════════════════════════════ */}
-      <section className="landing-section relative z-10">
-        <div className="landing-container">
-          <HoloCard className="overflow-hidden">
-            <div className="grid gap-8 p-6 md:grid-cols-[1.2fr_0.8fr] md:p-10">
-              <div>
-                <Reveal>
-                  <span className="badge"><span className="badge-dot" />Who It's For</span>
-                  <h2 className="font-display mt-5 text-3xl font-semibold text-white md:text-4xl leading-tight">
-                    For agencies and in-house teams running display campaigns
-                  </h2>
-                </Reveal>
-                <div className="mt-8 space-y-3">
-                  {[
-                    "Launch campaigns on schedule — every time",
-                    "Reduce approval delays and approval cycles",
-                    "Make confident decisions with actionable data",
-                  ].map((it,i)=>(
-                    <Reveal key={it} delay={i*0.1}>
-                      <div className="flex items-center gap-3 rounded-xl px-5 py-4 text-sm text-gray-300"
-                        style={{ background:"rgba(255,255,255,0.04)", border:"1px solid rgba(255,255,255,0.07)" }}>
-                        <span className="flex h-5 w-5 items-center justify-center rounded-full text-[10px] text-purple-300 flex-shrink-0"
-                          style={{ background:"rgba(168,85,247,0.25)" }}>✓</span>
-                        {it}
-                      </div>
-                    </Reveal>
-                  ))}
-                </div>
-              </div>
-              <Reveal delay={0.15}>
-                <div className="testimonial h-full flex flex-col justify-between">
-                  <p className="mt-6 text-lg leading-relaxed text-white/90 relative z-10">
-                    "We eliminated our entire manual QA process. Adigator became
-                    the pre-flight check for every campaign."
-                  </p>
-                  <div className="mt-8 flex items-center gap-3 relative z-10">
-                    <div className="h-10 w-10 rounded-full flex items-center justify-center text-sm font-bold text-white flex-shrink-0"
-                      style={{ background:"linear-gradient(135deg,#9333ea,#ec4899)" }}>CD</div>
-                    <div>
-                      <p className="text-sm font-bold text-white">Creative Director</p>
-                      <p className="text-xs text-gray-500">Growth Agency</p>
-                    </div>
-                    <div className="ml-auto flex">{Array.from({length:5}).map((_,k)=><span key={k} className="text-yellow-400 text-xs">★</span>)}</div>
-                  </div>
-                </div>
-              </Reveal>
-            </div>
-          </HoloCard>
-        </div>
-      </section>
-
-      {/* ══════════════════════════════════════════════
           CTA
       ══════════════════════════════════════════════ */}
-      <section className="landing-section relative z-10 text-center overflow-hidden"
-        style={{ borderTop:"1px solid rgba(255,255,255,0.07)", borderBottom:"1px solid rgba(255,255,255,0.07)" }}>
-        {/* Glow rings */}
-        {[400,600,800].map(s=>(
-          <div key={s} className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full"
-            style={{ width:s, height:s, border:"1px solid rgba(168,85,247,0.08)", borderRadius:"50%" }} />
-        ))}
-        <div className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] rounded-full"
-          style={{ background:"radial-gradient(circle, rgba(147,51,234,0.1) 0%, transparent 70%)", filter:"blur(30px)" }} />
-
-        <div className="landing-container relative z-10">
+      <section className="landing-section relative z-10 py-20">
+        <div className="landing-container text-center">
           <Reveal>
-            <span className="badge"><span className="badge-dot" />Get Started Free</span>
-          </Reveal>
-          <Reveal delay={0.08}>
-            <h2 className="font-display mx-auto mt-6 max-w-3xl text-4xl font-semibold text-white md:text-5xl lg:text-6xl leading-tight">
-              Stop spending hours reviewing creatives.
-              <span className="block gradient-text mt-1">Start launching with confidence.</span>
-            </h2>
-          </Reveal>
-          <Reveal delay={0.16}>
-            <p className="mx-auto mt-6 max-w-xl text-base text-gray-400">
-              Validate, preview, and finalise creatives in minutes — not days.
-            </p>
-          </Reveal>
-          <Reveal delay={0.24}>
-            <div className="mt-10 flex flex-wrap items-center justify-center gap-4">
-              <Magnetic>
-                <Link href="/preview" className="btn-primary">
-                  Start Free Preview →
-                </Link>
-              </Magnetic>
-              <Magnetic>
-                <button className="btn-secondary">Schedule a Demo</button>
-              </Magnetic>
-            </div>
-          </Reveal>
-          <Reveal delay={0.32}>
-            <p className="mt-8 text-xs text-gray-600">
-              No credit card required · Free to get started · Cancel anytime
-            </p>
+            <h2 className="font-display text-4xl md:text-5xl font-bold mb-6">Ready to ship with confidence?</h2>
+            <p className="text-lg text-gray-400 mb-8 max-w-2xl mx-auto">Join 200+ teams using Adigator to eliminate approval delays and launch faster</p>
+            <Magnetic>
+              <Link href="/preview" className="btn-primary inline-block">
+                Start Free Preview
+                <span className="ml-1">→</span>
+              </Link>
+            </Magnetic>
           </Reveal>
         </div>
       </section>
-
-      {/* ── Footer ── */}
-      <footer className="relative z-10 px-6 py-8 text-center">
-        <p className="text-xs uppercase tracking-widest text-gray-600">
-          © 2026 Adigator · Ad intelligence for modern teams
-        </p>
-      </footer>
-
     </main>
   );
 }
