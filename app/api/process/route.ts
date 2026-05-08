@@ -56,35 +56,30 @@ async function analyzeTextWithAI(text: string, context?: string) {
   );
 
   const keyPoints = [
-    analysis.hook && `Hook: ${analysis.hook}`,
+    analysis.hookType && `Hook: ${analysis.hookType}`,
+    analysis.vertical && `Vertical: ${analysis.vertical}`,
     analysis.cta && `CTA: ${analysis.cta}`,
-    analysis.offer && `Offer: ${analysis.offer}`,
-    analysis.valueProposition && `Value proposition: ${analysis.valueProposition}`,
-    analysis.painPoint && `Pain point: ${analysis.painPoint}`,
+    analysis.strengths?.[0] && `Strength: ${analysis.strengths[0]}`,
+    analysis.weaknesses?.[0] && `Issue: ${analysis.weaknesses[0]}`,
   ].filter(Boolean) as string[];
 
   const entities = [
-    analysis.hook && { name: analysis.hook, type: "hook", value: analysis.hookType || "unknown" },
+    analysis.hookType && { name: analysis.hookType, type: "hook_type", value: analysis.hookType },
+    analysis.vertical && { name: analysis.vertical, type: "vertical", value: analysis.vertical },
     analysis.cta && { name: analysis.cta, type: "cta", value: analysis.cta },
-    analysis.offer && { name: analysis.offer, type: "offer", value: analysis.offer },
-    analysis.targetAudience && {
-      name: analysis.targetAudience,
-      type: "audience",
-      value: analysis.targetAudience,
-    },
   ].filter(Boolean) as Array<{ name: string; type: string; value: string }>;
 
   return {
-    summary: [analysis.valueProposition, analysis.emotionalTrigger, analysis.targetAudience]
-      .filter(Boolean)
-      .join(" | "),
-    classification: analysis.hookType || "marketing-creative",
+    summary: [
+      analysis.hookType && `Hook: ${analysis.hookType}`,
+      analysis.vertical && `Vertical: ${analysis.vertical}`,
+      analysis.valueProposition && `Value Prop: ${analysis.valueProposition}`,
+    ].filter(Boolean).join(" | "),
+    classification: analysis.vertical || "marketing-creative",
     keyPoints,
     entities,
-    sentiment: analysis.emotionalTrigger
-      ? "positive"
-      : ("neutral" as "positive" | "negative" | "neutral"),
-    confidence: Number((analysis.conversionScore / 100).toFixed(2)),
+    sentiment: (analysis.conversionScore >= 65 ? "positive" : analysis.conversionScore >= 45 ? "neutral" : "negative") as "positive" | "negative" | "neutral",
+    confidence: 0.8,
     structuredData: analysis as unknown as Record<string, unknown>,
   };
 }

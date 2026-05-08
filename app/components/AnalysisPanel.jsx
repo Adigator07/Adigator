@@ -79,6 +79,209 @@ const SEVERITY_CONFIG = {
   LOW: { color: "border-white/15 bg-white/3", badge: "bg-white/10 text-gray-400", icon: <Info size={12} /> },
 };
 
+// ── Grade Config ─────────────────────────────────────────────────────────────
+
+const GRADE_CONFIG = {
+  "Elite Creative":     { emoji: "🌟", bg: "bg-emerald-500/15 border-emerald-500/40", text: "text-emerald-300" },
+  "Strong Performer":   { emoji: "🚀", bg: "bg-blue-500/15 border-blue-500/40",     text: "text-blue-300" },
+  "Needs Optimization": { emoji: "🛠",  bg: "bg-yellow-500/15 border-yellow-500/40", text: "text-yellow-300" },
+  "High Risk Creative": { emoji: "⚠️", bg: "bg-red-500/15 border-red-500/40",       text: "text-red-300" },
+};
+
+function GradeBadge({ grade }) {
+  if (!grade) return null;
+  const cfg = GRADE_CONFIG[grade] || GRADE_CONFIG["Needs Optimization"];
+  return (
+    <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-black border ${cfg.bg} ${cfg.text}`}>
+      {cfg.emoji} {grade}
+    </span>
+  );
+}
+
+// ── Subscore Bar Row ──────────────────────────────────────────────────────────
+
+function SubscoreRow({ label, value, tooltip }) {
+  const barColor =
+    value >= 80 ? "bg-emerald-400" :
+    value >= 60 ? "bg-yellow-400" :
+    "bg-red-400";
+  const textColor =
+    value >= 80 ? "text-emerald-400" :
+    value >= 60 ? "text-yellow-400" :
+    "text-red-400";
+  return (
+    <div title={tooltip || label}>
+      <div className="flex justify-between text-[11px] mb-1">
+        <span className="text-gray-400">{label}</span>
+        <span className={`font-bold tabular-nums ${textColor}`}>{value ?? 0}</span>
+      </div>
+      <div className="h-1.5 bg-white/8 rounded-full overflow-hidden">
+        <motion.div
+          initial={{ scaleX: 0 }}
+          animate={{ scaleX: Math.max(0, Math.min(1, (value ?? 0) / 100)) }}
+          transition={{ duration: 0.65, ease: "easeOut" }}
+          className={`h-full origin-left rounded-full ${barColor}`}
+        />
+      </div>
+    </div>
+  );
+}
+
+// ── Creative Intelligence Dashboard ──────────────────────────────────────────
+
+function CreativeIntelligenceDashboard({ aiData, decisionEngine }) {
+  if (!aiData && !decisionEngine) return null;
+
+  const subs = aiData?.subscores;
+  const grade = decisionEngine?.grade;
+  const optimizations = decisionEngine?.optimizations || [];
+
+  const SUBSCORE_GROUPS = [
+    {
+      title: "Funnel Intelligence", icon: "🎯",
+      color: "border-blue-500/25 bg-blue-500/5",
+      items: [
+        { key: "stage_alignment",      label: "Stage Alignment",      tooltip: "How well the creative aligns with the campaign funnel stage" },
+        { key: "conversion_readiness", label: "Conversion Readiness", tooltip: "Likelihood this creative converts based on all signals" },
+      ],
+    },
+    {
+      title: "Creative Quality", icon: "✨",
+      color: "border-purple-500/25 bg-purple-500/5",
+      items: [
+        { key: "visual_hierarchy",    label: "Visual Hierarchy",    tooltip: "How well the viewer's eye is guided through the ad" },
+        { key: "readability",          label: "Readability",          tooltip: "Legibility of text at a glance on any device" },
+        { key: "cognitive_simplicity", label: "Cognitive Simplicity", tooltip: "How easy the ad is to process within 2 seconds" },
+      ],
+    },
+    {
+      title: "Psychology & Trust", icon: "🧠",
+      color: "border-fuchsia-500/25 bg-fuchsia-500/5",
+      items: [
+        { key: "emotional_resonance", label: "Emotional Resonance", tooltip: "Strength of emotional appeal and audience connection" },
+        { key: "trust_signals",       label: "Trust Signals",       tooltip: "Presence of credibility elements: badges, reviews, etc." },
+        { key: "brand_recall",        label: "Brand Recall",        tooltip: "How memorable the brand impression is" },
+      ],
+    },
+    {
+      title: "Performance Drivers", icon: "⚡",
+      color: "border-amber-500/25 bg-amber-500/5",
+      items: [
+        { key: "cta_alignment",  label: "CTA Alignment",  tooltip: "CTA match quality relative to the campaign goal" },
+        { key: "offer_clarity",  label: "Offer Clarity",  tooltip: "How clearly the value proposition or offer is stated" },
+        { key: "urgency_fit",    label: "Urgency Fit",    tooltip: "Whether urgency levels match the funnel stage" },
+      ],
+    },
+  ];
+
+  return (
+    <div className="rounded-2xl border border-white/10 bg-slate-900/55 shadow-[0_8px_24px_rgba(2,6,23,0.35)] p-4 md:p-5 space-y-5">
+      {/* Header */}
+      <div className="flex items-center gap-2">
+        <Brain size={14} className="text-cyan-400" />
+        <p className="text-sm font-semibold text-white">Creative Intelligence</p>
+        {grade && (
+          <div className="ml-auto">
+            <GradeBadge grade={grade.grade} />
+          </div>
+        )}
+      </div>
+
+      {/* Funnel + Vertical context pills */}
+      {aiData && (
+        <div className="flex flex-wrap gap-2">
+          {aiData.campaign_goal && aiData.campaign_goal !== "Unknown" && (
+            <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-blue-500/15 border border-blue-500/30 text-blue-300">
+              📣 {aiData.campaign_goal}
+            </span>
+          )}
+          {aiData.vertical && aiData.vertical !== "Other" && (
+            <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-purple-500/15 border border-purple-500/30 text-purple-300">
+              🏢 {aiData.vertical}
+            </span>
+          )}
+          {aiData.cta_state && (
+            <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full border ${
+              aiData.cta_state === "Explicit" || aiData.cta_state === "Strong"
+                ? "bg-emerald-500/15 border-emerald-500/30 text-emerald-300"
+                : aiData.cta_state === "Missing"
+                  ? "bg-red-500/15 border-red-500/30 text-red-300"
+                  : "bg-yellow-500/15 border-yellow-500/30 text-yellow-300"
+            }`}>
+              CTA: {aiData.cta_state}
+            </span>
+          )}
+          {aiData.overall_score > 0 && (
+            <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-cyan-500/15 border border-cyan-500/30 text-cyan-300 ml-auto">
+              AI Score: {aiData.overall_score}/100
+            </span>
+          )}
+        </div>
+      )}
+
+      {/* Subscore Groups */}
+      {subs && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {SUBSCORE_GROUPS.map((group) => (
+            <div key={group.title} className={`p-3.5 rounded-xl border space-y-2.5 ${group.color}`}>
+              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{group.icon} {group.title}</p>
+              {group.items.map(({ key, label, tooltip }) => (
+                <SubscoreRow key={key} label={label} value={subs[key]} tooltip={tooltip} />
+              ))}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* AI Explanation */}
+      {aiData?.explanation && (
+        <div className="p-3 rounded-xl bg-white/4 border border-white/10">
+          <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">AI Analysis Summary</p>
+          <p className="text-xs text-gray-300 leading-relaxed">{aiData.explanation}</p>
+          {aiData.confidence > 0 && (
+            <p className="text-[11px] text-gray-500 mt-1">Confidence: <span className="text-white font-semibold">{Math.round(aiData.confidence * 100)}%</span></p>
+          )}
+        </div>
+      )}
+
+      {/* Decision Engine Optimizations */}
+      {optimizations.length > 0 && (
+        <div className="space-y-2">
+          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">🔧 Decision Engine — Optimization Roadmap</p>
+          {optimizations.slice(0, 5).map((opt, i) => {
+            const pBg = opt.priority === "High"
+              ? "border-red-500/30 bg-red-500/5"
+              : opt.priority === "Medium"
+                ? "border-yellow-500/25 bg-yellow-500/4"
+                : "border-white/10 bg-white/3";
+            const pBadge = opt.priority === "High"
+              ? "bg-red-500/20 text-red-300"
+              : opt.priority === "Medium"
+                ? "bg-yellow-500/20 text-yellow-300"
+                : "bg-gray-500/20 text-gray-400";
+            return (
+              <motion.div
+                key={i}
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: i * 0.06 }}
+                className={`p-3 rounded-xl border ${pBg}`}
+              >
+                <div className="flex items-center justify-between gap-2 mb-1">
+                  <p className="text-xs font-bold text-white">{opt.dimension}</p>
+                  <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${pBadge}`}>{opt.priority}</span>
+                </div>
+                <p className="text-[11px] text-gray-400 leading-relaxed">{opt.issue}</p>
+                <p className="text-[11px] text-emerald-300 mt-1">→ {opt.recommendation}</p>
+              </motion.div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Reusable Animated Bar ────────────────────────────────────────────────────
 
 function AnimBar({ value, color, delay = 0, height = "h-1.5" }) {
@@ -912,11 +1115,14 @@ export default function AnalysisPanel({
                 <img src={selected.creative.url} className="w-20 h-16 rounded-xl object-cover border border-white/20 shrink-0" alt={selected.creative.name} />
                 <div className="flex-1 min-w-0">
                   <h4 className="text-base font-bold text-white truncate">{selected.creative.name}</h4>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <span className="text-xl">{medalFor(selectedRank)}</span>
                     <p className={`text-sm font-semibold ${sc(selected.data.overall_score)}`}>
                       {scoreLabel(selected.data.overall_score)} ({selected.data.overall_score}/100)
                     </p>
+                    {selected.data.decisionEngine?.grade && (
+                      <GradeBadge grade={selected.data.decisionEngine.grade.grade} />
+                    )}
                   </div>
                   <div className="flex flex-wrap gap-1.5 mt-2">
                     <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${selected.data.cta_presence ? "bg-emerald-500/15 border-emerald-500/40 text-emerald-300" : "bg-red-500/15 border-red-500/40 text-red-300"
@@ -1029,19 +1235,12 @@ export default function AnalysisPanel({
                       </p>
                     </SectionContainer>
 
-                    {selected.data.aiInsights && (
-                      <div className="p-4 rounded-xl bg-cyan-500/5 border border-cyan-500/20 space-y-2">
-                        <p className="text-[10px] font-bold text-cyan-300 uppercase tracking-widest">AI Insights (Advisory Only)</p>
-                        <p className="text-xs text-gray-300">{selected.data.aiInsights.contextSummary}</p>
-                        <p className="text-xs text-gray-400">Detected emotion context: <span className="text-white font-semibold">{selected.data.aiInsights.emotion}</span></p>
-                        {selected.data.aiInsights.insights?.length > 0 && (
-                          <ul className="space-y-1">
-                            {selected.data.aiInsights.insights.map((insight, i) => (
-                              <li key={i} className="text-xs text-gray-300">• {insight}</li>
-                            ))}
-                          </ul>
-                        )}
-                      </div>
+                    {/* ── Creative Intelligence Dashboard (AI Subscores + Decision Engine) ── */}
+                    {(selected.data.aiData || selected.data.decisionEngine) && (
+                      <CreativeIntelligenceDashboard
+                        aiData={selected.data.aiData}
+                        decisionEngine={selected.data.decisionEngine}
+                      />
                     )}
 
                     {selected.data.performanceImpact?.length > 0 && (

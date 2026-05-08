@@ -10,6 +10,7 @@ import AnalysisPanel from "./AnalysisPanel";
 import { supabase } from "../lib/supabase";
 import { analyzeCreativeLocal, PLATFORM_SIZES, GOAL_CTA } from "../lib/localAnalyzer";
 import { validateCreativeAsset, buildValidationSummary } from "../lib/creativeValidation";
+import { evaluateCreative } from "../lib/decision-engine";
 import {
   UploadCloud, CheckCircle2, XCircle, AlertCircle,
   Download, LayoutGrid, Square, CheckSquare,
@@ -83,12 +84,31 @@ const GOALS = [
   },
 ];
 
+const VERTICALS = [
+  { id: "healthcare", title: "Healthcare" },
+  { id: "technology", title: "Technology" },
+  { id: "automotive", title: "Automotive" },
+  { id: "news_media", title: "News / Media" },
+  { id: "sports", title: "Sports" },
+  { id: "finance", title: "Business / Finance" },
+  { id: "luxury", title: "Luxury" },
+  { id: "travel", title: "Travel" },
+  { id: "hotels", title: "Hotels" },
+  { id: "food", title: "Restaurants / Food" },
+  { id: "banking", title: "Banking / FinTech" },
+  { id: "real_estate", title: "Real Estate" },
+  { id: "education", title: "Education / EdTech" },
+  { id: "gaming", title: "Gaming" },
+  { id: "entertainment", title: "Entertainment / OTT / Streaming" },
+  { id: "ecommerce", title: "E-commerce / Retail" }
+];
+
 
 const containerVariants = { hidden: { opacity: 0 }, visible: { opacity: 1, transition: { staggerChildren: 0.1 } } };
 const itemVariants = { hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } };
 
 // ── Shared analysis helper ─────────────────────────────────────────────────────
-async function analyzeAllCreatives(creatives, goal, platform) {
+async function analyzeAllCreatives(creatives, goal, platform, vertical) {
   const results = [];
   for (const creative of creatives) {
     const data = await analyzeCreativeLocal(
@@ -106,6 +126,7 @@ async function analyzeAllCreatives(creatives, goal, platform) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           goal,
+          vertical,
           extractedText: data.cta?.text || "",
           signals: {
             eligibilityScore: data.eligibility?.score ?? 0,
@@ -126,8 +147,13 @@ async function analyzeAllCreatives(creatives, goal, platform) {
       if (aiRes.ok) {
         const aiJson = await aiRes.json();
         data.aiInsights = aiJson?.aiInsights ?? null;
+        data.aiData = aiJson;
+        if (aiJson) {
+          data.decisionEngine = evaluateCreative(aiJson);
+        }
       }
-    } catch {
+    } catch (err) {
+      console.error("AI insights error:", err);
       data.aiInsights = null;
     }
 
@@ -178,29 +204,33 @@ export default function PreviewTool() {
   const [step, setStep] = useState(urlStep);
   const [platform, setPlatform] = useState("programmatic");
   const [campaignGoal, setCampaignGoal] = useState(null);
+  const [campaignVertical, setCampaignVertical] = useState(null);
 
   // 1. Persistence: Hydrate from localStorage on mount
   useEffect(() => {
     const savedPlatform = localStorage.getItem("adigator_platform");
     const savedGoal = localStorage.getItem("adigator_goal");
+    const savedVertical = localStorage.getItem("adigator_vertical");
     
     if (savedPlatform) setPlatform(savedPlatform);
     if (savedGoal && savedGoal !== "null") setCampaignGoal(savedGoal);
+    if (savedVertical && savedVertical !== "null") setCampaignVertical(savedVertical);
   }, []);
 
   // 2. Persistence: Save to localStorage when state changes
   useEffect(() => {
     localStorage.setItem("adigator_platform", platform);
     if (campaignGoal) localStorage.setItem("adigator_goal", campaignGoal);
-  }, [platform, campaignGoal]);
+    if (campaignVertical) localStorage.setItem("adigator_vertical", campaignVertical);
+  }, [platform, campaignGoal, campaignVertical]);
 
   // 3. Robust Config Guard: If on Step 2+, but config is missing, force back to Step 1
   useEffect(() => {
-    if (step > 1 && (!platform || !campaignGoal)) {
+    if (step > 1 && (!platform || !campaignGoal || !campaignVertical)) {
       addToast("Configuration required. Please complete Step 1.", "error");
       router.push(`${pathname}?step=1`, { scroll: true });
     }
-  }, [step, platform, campaignGoal, pathname, router, addToast]);
+  }, [step, platform, campaignGoal, campaignVertical, pathname, router, addToast]);
 
   const [creatives, setCreatives] = useState([]);
   const [drag, setDrag] = useState(false);
@@ -429,11 +459,11 @@ export default function PreviewTool() {
 
   const runAnalysis = useCallback(async () => {
     if (validCreatives.length === 0) { addToast("No valid creatives to analyze.", "error"); return; }
-    if (!campaignGoal || !platform) { addToast("Missing configuration.", "error"); return; }
+    if (!campaignGoal || !platform || !campaignVertical) { addToast("Missing configuration.", "error"); return; }
 
     setAnalysisLoading(true); setAnalysisResult(null);
     try {
-      const results = await analyzeAllCreatives(validCreatives, campaignGoal, platform);
+      const results = await analyzeAllCreatives(validCreatives, campaignGoal, platform, campaignVertical);
       setAnalysisResult(results);
       if (results.length > 0 && results[0].data.recommendedTemplates?.length > 0) {
         setSelectedTemplate(results[0].data.recommendedTemplates[0]);
@@ -444,14 +474,14 @@ export default function PreviewTool() {
     } finally {
       setAnalysisLoading(false);
     }
-  }, [validCreatives, campaignGoal, platform, addToast]);
+  }, [validCreatives, campaignGoal, platform, campaignVertical, addToast]);
 
   const handleGoalChange = async (newGoal) => {
     setCampaignGoal(newGoal);
     if (validCreatives.length === 0) return;
     setAnalysisLoading(true); setAnalysisResult(null);
     try {
-      const results = await analyzeAllCreatives(validCreatives, newGoal, platform);
+      const results = await analyzeAllCreatives(validCreatives, newGoal, platform, campaignVertical);
       setAnalysisResult(results);
       if (results.length > 0 && results[0].data.recommendedTemplates?.length > 0) {
         setSelectedTemplate(results[0].data.recommendedTemplates[0]);
@@ -626,9 +656,10 @@ export default function PreviewTool() {
 
               <motion.div variants={itemVariants} className="rounded-2xl border border-white/10 bg-white/5 p-5 backdrop-blur-lg">
                 <p className="text-xs uppercase tracking-[0.14em] text-gray-500">Selected Setup</p>
-                <div className="mt-3 grid gap-2 text-sm md:grid-cols-3">
-                  <p className="text-gray-300">Platform: <span className="text-white font-semibold">{selectedPlatform}</span></p>
-                  <p className="text-gray-300">Goal: <span className="text-white font-semibold">{selectedGoal}</span></p>
+                <div className="mt-3 grid gap-2 text-sm md:grid-cols-4">
+                  <p className="text-gray-300">Platform: <span className="text-white font-semibold">{platform}</span></p>
+                  <p className="text-gray-300">Goal: <span className="text-white font-semibold">{campaignGoal}</span></p>
+                  <p className="text-gray-300">Vertical: <span className="text-white font-semibold">{campaignVertical ? VERTICALS.find(v => v.id === campaignVertical)?.title : "None"}</span></p>
                 </div>
               </motion.div>
 
@@ -687,6 +718,28 @@ export default function PreviewTool() {
 
 
 
+              <motion.section variants={itemVariants} className="space-y-5">
+                <div>
+                  <h3 className="text-2xl font-bold text-white">Industry Vertical</h3>
+                  <p className="mt-1 text-gray-400">Select the vertical for your campaign.</p>
+                </div>
+                <div className="flex flex-wrap gap-3">
+                  {VERTICALS.map((v) => (
+                    <button
+                      key={v.id}
+                      onClick={() => setCampaignVertical(v.id)}
+                      className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all border ${
+                        campaignVertical === v.id
+                          ? "bg-purple-600 border-purple-400 text-white shadow-[0_0_15px_rgba(168,85,247,0.4)]"
+                          : "bg-white/5 border-white/10 text-gray-300 hover:bg-white/10 hover:border-white/20"
+                      }`}
+                    >
+                      {v.title}
+                    </button>
+                  ))}
+                </div>
+              </motion.section>
+
               <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-white/10 bg-slate-950/85 backdrop-blur-xl">
                 <div className="mx-auto flex w-full max-w-7xl gap-4 px-6 py-4 md:px-10">
                   <NavBtn variant="back" onClick={goBack}>
@@ -694,7 +747,7 @@ export default function PreviewTool() {
                   </NavBtn>
                   <NavBtn
                     onClick={goNext}
-                    disabled={!platform || !campaignGoal}
+                    disabled={!platform || !campaignGoal || !campaignVertical}
                   >
                     Upload Creatives →
                   </NavBtn>
