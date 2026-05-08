@@ -3,12 +3,15 @@
 import Link from "next/link";
 import { useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
+import { usePathname } from "next/navigation";
 import Logo from "@/app/components/Logo";
 
 export default function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const pathname = usePathname();
 
   const navLinks = [
+    { href: "/", label: "Home" },
     { href: "/product", label: "Product" },
     { href: "/about", label: "About" },
     { href: "/login", label: "Login" },
@@ -81,9 +84,18 @@ export default function Header() {
           <Link
             key={link.href}
             href={link.href}
-            className="cursor-pointer text-gray-400 transition hover:text-white"
+            className={`group relative rounded-full px-3 py-1.5 transition ${
+              pathname === link.href
+                ? "text-white"
+                : "text-gray-400 hover:text-white"
+            }`}
           >
             {link.label}
+            <span
+              className={`pointer-events-none absolute bottom-0 left-1/2 h-px w-0 -translate-x-1/2 bg-linear-to-r from-purple-400 via-pink-400 to-cyan-400 transition-all duration-300 ${
+                pathname === link.href ? "w-9" : "group-hover:w-7"
+              }`}
+            />
           </Link>
         ))}
       </nav>
@@ -142,7 +154,11 @@ export default function Header() {
                     key={link.href}
                     href={link.href}
                     onClick={() => setMobileMenuOpen(false)}
-                    className="rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-medium text-white"
+                    className={`rounded-xl border px-4 py-3 text-sm font-medium transition ${
+                      pathname === link.href
+                        ? "border-purple-400/45 bg-purple-500/15 text-white"
+                        : "border-white/10 bg-white/5 text-white"
+                    }`}
                   >
                     {link.label}
                   </Link>

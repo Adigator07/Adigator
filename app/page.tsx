@@ -10,6 +10,7 @@ import {
   type MotionValue,
 } from "framer-motion";
 import Header from "@/app/components/Header";
+import { motionTokens } from "@/app/lib/motionTokens";
 
 /* ═══════════════════════════════════════════════════════
    1. CUSTOM CURSOR
@@ -107,7 +108,7 @@ function CanvasParticles() {
     const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     if (prefersReducedMotion) return;
 
-    const dpr = Math.min(window.devicePixelRatio || 1, 1.6);
+    const dpr = Math.min(window.devicePixelRatio || 1, 1.25);
     const setCanvasSize = () => {
       const vw = window.innerWidth;
       const vh = window.innerHeight;
@@ -123,52 +124,23 @@ function CanvasParticles() {
     let mx = W / 2, my = H / 2;
     let animId: number;
     let prev = 0;
-    const frameMs = 1000 / 36;
+    const baseFps = 26;
+    let frameMs = 1000 / baseFps;
 
-    const nodeCount = W >= 1536 ? 36 : W >= 1280 ? 28 : 22;
-    const starCount = W >= 1536 ? 170 : W >= 1280 ? 120 : 80;
+    const starCount = W >= 1536 ? 90 : W >= 1366 ? 70 : 54;
     let scrolling = false;
     let scrollTimeout: ReturnType<typeof setTimeout> | null = null;
 
     const stars = Array.from({ length: starCount }, () => ({
       x: Math.random() * W,
       y: Math.random() * H,
-      z: Math.random() * 0.85 + 0.15,
-      vx: (Math.random() - 0.5) * 0.1,
-      vy: (Math.random() - 0.5) * 0.1,
-      twinkle: Math.random() * 2.2 + 0.8,
+      z: Math.random() * 0.8 + 0.2,
+      vx: (Math.random() - 0.5) * 0.08,
+      vy: (Math.random() - 0.5) * 0.08,
+      twinkle: Math.random() * 1.8 + 0.7,
       phase: Math.random() * Math.PI * 2,
-      r: Math.random() * 1.2 + 0.3,
+      r: Math.random() * 1.1 + 0.25,
     }));
-
-    const nodes = Array.from({ length: nodeCount }, () => ({
-      x: Math.random() * W,
-      y: Math.random() * H,
-      vx: (Math.random() - 0.5) * 0.44,
-      vy: (Math.random() - 0.5) * 0.44,
-      r: Math.random() * 1.7 + 0.5,
-    }));
-
-    const pulseCount = 4;
-    const pulses = Array.from({ length: pulseCount }, () => ({ from: 0, to: 1, t: Math.random(), speed: Math.random() * 0.014 + 0.008 }));
-
-    const pickPulseRoute = (pulse: { from: number; to: number; t: number; speed: number }) => {
-      pulse.from = Math.floor(Math.random() * nodeCount);
-      pulse.to = Math.floor(Math.random() * nodeCount);
-      if (pulse.from === pulse.to) pulse.to = (pulse.to + 1) % nodeCount;
-      pulse.t = 0;
-      pulse.speed = Math.random() * 0.014 + 0.008;
-    };
-    pulses.forEach(p => pickPulseRoute(p));
-
-    const shooter = { x: -200, y: -200, vx: 0, vy: 0, life: 0, cooldown: 80 };
-    const spawnShooter = () => {
-      shooter.x = -80;
-      shooter.y = Math.random() * H * 0.55;
-      shooter.vx = Math.random() * 5 + 6;
-      shooter.vy = Math.random() * 1.3 + 0.7;
-      shooter.life = Math.floor(Math.random() * 36) + 38;
-    };
 
     const draw = (ts = 0) => {
       animId = requestAnimationFrame(draw);
@@ -195,92 +167,6 @@ function CanvasParticles() {
         ctx.fill();
       }
 
-      // connections between AI nodes
-      for (let i = 0; i < nodeCount; i++) {
-        const a = nodes[i];
-        if (!scrolling) {
-          for (let j = i + 1; j < nodeCount; j++) {
-            const b = nodes[j];
-            const dx = a.x - b.x, dy = a.y - b.y;
-            const d = Math.sqrt(dx * dx + dy * dy);
-            if (d < 125) {
-              ctx.beginPath();
-              ctx.moveTo(a.x, a.y);
-              ctx.lineTo(b.x, b.y);
-              ctx.strokeStyle = `rgba(99,102,241,${0.13 * (1 - d / 125)})`;
-              ctx.lineWidth = 0.45;
-              ctx.stroke();
-            }
-          }
-        }
-        // connection to mouse
-        const mdx = a.x - mx, mdy = a.y - my;
-        const md = Math.sqrt(mdx * mdx + mdy * mdy);
-        if (md < 190) {
-          ctx.beginPath();
-          ctx.moveTo(a.x, a.y);
-          ctx.lineTo(mx, my);
-          ctx.strokeStyle = `rgba(56,189,248,${0.2 * (1 - md / 190)})`;
-          ctx.lineWidth = 0.8;
-          ctx.stroke();
-        }
-
-        // draw node
-        ctx.beginPath();
-        ctx.arc(a.x, a.y, a.r, 0, Math.PI * 2);
-        ctx.fillStyle = "rgba(129,140,248,0.72)";
-        ctx.fill();
-
-        // move
-        a.x += a.vx; a.y += a.vy;
-        if (a.x < 0 || a.x > W) a.vx *= -1;
-        if (a.y < 0 || a.y > H) a.vy *= -1;
-      }
-
-      // data pulses traveling between nodes
-      for (let i = 0; i < pulses.length; i++) {
-        const p = pulses[i];
-        p.t += p.speed;
-        if (p.t > 1) {
-          pickPulseRoute(p);
-          continue;
-        }
-
-        const from = nodes[p.from];
-        const to = nodes[p.to];
-        const x = from.x + (to.x - from.x) * p.t;
-        const y = from.y + (to.y - from.y) * p.t;
-        ctx.beginPath();
-        ctx.arc(x, y, 2.1, 0, Math.PI * 2);
-        ctx.fillStyle = "rgba(34,211,238,0.9)";
-        ctx.fill();
-      }
-
-      // occasional shooting star for extra depth
-      if (shooter.life <= 0) {
-        shooter.cooldown -= 1;
-        if (shooter.cooldown <= 0) {
-          spawnShooter();
-          shooter.cooldown = Math.floor(Math.random() * 110) + 120;
-        }
-      } else {
-        const tx = shooter.x + shooter.vx * 5;
-        const ty = shooter.y + shooter.vy * 5;
-        const grad = ctx.createLinearGradient(shooter.x, shooter.y, tx, ty);
-        grad.addColorStop(0, "rgba(196,181,253,0)");
-        grad.addColorStop(1, "rgba(196,181,253,0.8)");
-        ctx.beginPath();
-        ctx.moveTo(shooter.x, shooter.y);
-        ctx.lineTo(tx, ty);
-        ctx.strokeStyle = grad;
-        ctx.lineWidth = 1.4;
-        ctx.stroke();
-
-        shooter.x += shooter.vx;
-        shooter.y += shooter.vy;
-        shooter.life -= 1;
-      }
-
       // draw mouse glow node
       const grad = ctx.createRadialGradient(mx, my, 0, mx, my, 10);
       grad.addColorStop(0, "rgba(56,189,248,0.75)");
@@ -291,9 +177,9 @@ function CanvasParticles() {
       ctx.fill();
 
       ctx.beginPath();
-      ctx.arc(mx, my, 22, 0, Math.PI * 2);
+      ctx.arc(mx, my, 16, 0, Math.PI * 2);
       ctx.strokeStyle = "rgba(56,189,248,0.22)";
-      ctx.lineWidth = 0.8;
+      ctx.lineWidth = 0.7;
       ctx.stroke();
     };
 
@@ -302,10 +188,12 @@ function CanvasParticles() {
     const onMove   = (e: MouseEvent) => { mx = e.clientX; my = e.clientY; };
     const onScroll = () => {
       scrolling = true;
+      frameMs = 1000 / 18;
       if (scrollTimeout) clearTimeout(scrollTimeout);
       scrollTimeout = setTimeout(() => {
         scrolling = false;
-      }, 120);
+        frameMs = 1000 / baseFps;
+      }, 150);
     };
     const onResize = () => {
       const resized = setCanvasSize();
@@ -331,8 +219,8 @@ function CanvasParticles() {
    3. CSS PRESERVE-3D HERO SCENE
 ═══════════════════════════════════════════════════════ */
 function HeroScene({ mx, my }: { mx: MotionValue<number>; my: MotionValue<number> }) {
-  const rY = useSpring(useTransform(mx, [-0.5, 0.5], [-16, 16]), { stiffness: 32, damping: 18 });
-  const rX = useSpring(useTransform(my, [-0.5, 0.5], [10, -10]), { stiffness: 32, damping: 18 });
+  const rY = useSpring(useTransform(mx, [-0.5, 0.5], [-10, 10]), { stiffness: 28, damping: 20 });
+  const rX = useSpring(useTransform(my, [-0.5, 0.5], [7, -7]), { stiffness: 28, damping: 20 });
 
   return (
     <div className="scene-wrap w-full h-105 md:h-130">
@@ -403,43 +291,20 @@ function HeroScene({ mx, my }: { mx: MotionValue<number>; my: MotionValue<number
                 <span className="text-xs font-bold text-purple-200">Overall Score</span>
                 <span className="font-display text-2xl font-bold text-purple-200">91%</span>
               </div>
-            </div>
-          </div>
-        </div>
 
-        {/* ─── LAYER +65: comparison tile (right, mid-front) ─── */}
-        <div className="scene-layer scene-item-compare" style={{ transform: "translateZ(65px) translate(76%, -10%) scale(0.72)" }}>
-          <div className="w-48 rounded-2xl p-4"
-            style={{ background: "rgba(8,12,36,0.88)", border: "1px solid rgba(255,255,255,0.1)", boxShadow: "0 0 30px rgba(147,51,234,0.15), 0 16px 40px rgba(0,0,0,0.6)" }}>
-            <p className="text-[9px] font-bold uppercase tracking-widest text-gray-500 mb-3">Creative Match</p>
-            <div className="grid grid-cols-3 gap-1.5">
-              {[{v:"A",s:"71%",best:false},{v:"B",s:"94%",best:true},{v:"C",s:"65%",best:false}].map(c=>(
-                <div key={c.v} className="rounded-lg p-1.5 flex flex-col gap-1"
-                  style={{ background: c.best ? "rgba(168,85,247,0.18)" : "rgba(255,255,255,0.04)", border: c.best ? "1px solid rgba(168,85,247,0.4)" : "1px solid rgba(255,255,255,0.06)" }}>
-                  <div className="h-8 rounded-md" style={{ background: c.best ? "rgba(168,85,247,0.25)" : "rgba(255,255,255,0.08)" }} />
-                  <p className={`text-[8px] font-bold ${c.best ? "text-purple-300" : "text-gray-500"}`}>{c.best ? "★ Best" : `V${c.v}`}</p>
-                  <p className={`text-[7px] ${c.best ? "text-purple-400" : "text-gray-600"}`}>{c.s}</p>
+              <div className="mt-3 grid grid-cols-2 gap-2.5">
+                <div className="rounded-xl px-3 py-2 text-center"
+                  style={{ background: "rgba(16,185,129,0.16)", border: "1px solid rgba(52,211,153,0.34)", boxShadow: "0 0 18px rgba(52,211,153,0.16)" }}>
+                  <p className="text-[8px] font-bold uppercase tracking-widest text-emerald-300">IAB Ready</p>
+                  <p className="font-display text-xl font-bold text-emerald-300">✓ All Clear</p>
                 </div>
-              ))}
+                <div className="rounded-xl px-3 py-2 text-center"
+                  style={{ background: "rgba(147,51,234,0.2)", border: "1px solid rgba(168,85,247,0.45)", boxShadow: "0 0 16px rgba(168,85,247,0.22)" }}>
+                  <p className="text-[8px] text-purple-300 uppercase tracking-widest">Saved</p>
+                  <p className="font-display text-2xl font-bold text-purple-200">18h</p>
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
-
-        {/* ─── LAYER +110: score badge (floating, closest) ─── */}
-        <div className="scene-layer scene-item-iab" style={{ transform: "translateZ(104px) translate(52%, 78%) scale(0.82)", animation: "float-a 4.5s ease-in-out infinite" }}>
-          <div className="rounded-2xl px-4 py-3 text-center"
-            style={{ background: "rgba(16,185,129,0.15)", border: "1px solid rgba(52,211,153,0.35)", boxShadow: "0 0 30px rgba(52,211,153,0.2), 0 12px 32px rgba(0,0,0,0.5)" }}>
-            <p className="text-[9px] font-bold uppercase tracking-widest text-emerald-400 mb-1">IAB Ready</p>
-            <p className="text-xl font-display font-bold text-emerald-300">✓ All Clear</p>
-          </div>
-        </div>
-
-        {/* ─── LAYER +130: time saved pill (topmost) ─── */}
-        <div className="scene-layer scene-item-saved" style={{ transform: "translateZ(112px) translate(78%, 78%) scale(0.72)", animation: "float-b 5.5s ease-in-out infinite" }}>
-          <div className="rounded-xl px-3.5 py-2.5"
-            style={{ background: "rgba(147,51,234,0.2)", border: "1px solid rgba(168,85,247,0.45)", boxShadow: "0 0 24px rgba(168,85,247,0.3), 0 8px 24px rgba(0,0,0,0.5)" }}>
-            <p className="text-[8px] text-purple-400 uppercase tracking-widest">Saved</p>
-            <p className="font-display text-2xl font-bold text-purple-200">18h</p>
           </div>
         </div>
 
@@ -849,7 +714,7 @@ export default function Home() {
           {/* Right — 3D CSS Scene */}
           <motion.div
             initial={{ opacity:0, x:40 }} animate={{ opacity:1, x:0 }}
-            transition={{ duration:0.85, delay:0.35, ease:[0.22,1,0.36,1] }}
+            transition={{ duration: motionTokens.duration.hero, delay: 0.35, ease: motionTokens.ease.standard }}
           >
             <HeroScene mx={mx} my={my} />
           </motion.div>
