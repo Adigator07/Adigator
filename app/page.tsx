@@ -11,11 +11,12 @@ import {
 } from "framer-motion";
 import Header from "@/app/components/Header";
 import { motionTokens } from "@/app/lib/motionTokens";
+import { getAdaptivePerformanceTier, type PerformanceTier } from "@/app/lib/performanceTier";
 
 /* ═══════════════════════════════════════════════════════
    1. CUSTOM CURSOR
 ═══════════════════════════════════════════════════════ */
-function CustomCursor() {
+function CustomCursor({ disabled = false }: { disabled?: boolean }) {
   const dotRef  = useRef<HTMLDivElement>(null);
   const ringRef = useRef<HTMLDivElement>(null);
   const [state, setState] = useState<"idle"|"clicking"|"hovering">("idle");
@@ -24,7 +25,7 @@ function CustomCursor() {
   useEffect(() => {
     const media = window.matchMedia("(hover: hover) and (pointer: fine)");
     const motion = window.matchMedia("(prefers-reduced-motion: reduce)");
-    const updateEnabled = () => setEnabled(media.matches && !motion.matches);
+    const updateEnabled = () => setEnabled(!disabled && media.matches && !motion.matches);
     updateEnabled();
 
     media.addEventListener("change", updateEnabled);
@@ -33,7 +34,7 @@ function CustomCursor() {
       media.removeEventListener("change", updateEnabled);
       motion.removeEventListener("change", updateEnabled);
     };
-  }, []);
+  }, [disabled]);
 
   useEffect(() => {
     if (!enabled) return;
@@ -96,7 +97,7 @@ function CustomCursor() {
 /* ═══════════════════════════════════════════════════════
    2. CANVAS PARTICLE NETWORK
 ═══════════════════════════════════════════════════════ */
-function CanvasParticles() {
+function CanvasParticles({ mode = "full" }: { mode?: PerformanceTier }) {
   const ref = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
@@ -108,7 +109,8 @@ function CanvasParticles() {
     const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     if (prefersReducedMotion) return;
 
-    const dpr = Math.min(window.devicePixelRatio || 1, 1.25);
+    const isLite = mode === "lite";
+    const dpr = Math.min(window.devicePixelRatio || 1, isLite ? 1 : 1.25);
     const setCanvasSize = () => {
       const vw = window.innerWidth;
       const vh = window.innerHeight;
@@ -124,10 +126,12 @@ function CanvasParticles() {
     let mx = W / 2, my = H / 2;
     let animId: number;
     let prev = 0;
-    const baseFps = 26;
+    const baseFps = isLite ? 18 : 26;
     let frameMs = 1000 / baseFps;
 
-    const starCount = W >= 1536 ? 90 : W >= 1366 ? 70 : 54;
+    const starCount = isLite
+      ? (W >= 1366 ? 44 : 30)
+      : (W >= 1536 ? 90 : W >= 1366 ? 70 : 54);
     let scrolling = false;
     let scrollTimeout: ReturnType<typeof setTimeout> | null = null;
 
@@ -168,27 +172,32 @@ function CanvasParticles() {
       }
 
       // draw mouse glow node
-      const grad = ctx.createRadialGradient(mx, my, 0, mx, my, 10);
-      grad.addColorStop(0, "rgba(56,189,248,0.75)");
-      grad.addColorStop(1, "rgba(56,189,248,0)");
-      ctx.beginPath();
-      ctx.arc(mx, my, 10, 0, Math.PI * 2);
-      ctx.fillStyle = grad;
-      ctx.fill();
+      if (!isLite) {
+        const grad = ctx.createRadialGradient(mx, my, 0, mx, my, 10);
+        grad.addColorStop(0, "rgba(56,189,248,0.75)");
+        grad.addColorStop(1, "rgba(56,189,248,0)");
+        ctx.beginPath();
+        ctx.arc(mx, my, 10, 0, Math.PI * 2);
+        ctx.fillStyle = grad;
+        ctx.fill();
 
-      ctx.beginPath();
-      ctx.arc(mx, my, 16, 0, Math.PI * 2);
-      ctx.strokeStyle = "rgba(56,189,248,0.22)";
-      ctx.lineWidth = 0.7;
-      ctx.stroke();
+        ctx.beginPath();
+        ctx.arc(mx, my, 16, 0, Math.PI * 2);
+        ctx.strokeStyle = "rgba(56,189,248,0.22)";
+        ctx.lineWidth = 0.7;
+        ctx.stroke();
+      }
     };
 
     draw();
 
-    const onMove   = (e: MouseEvent) => { mx = e.clientX; my = e.clientY; };
+    const onMove = (e: MouseEvent) => {
+      mx = e.clientX;
+      my = e.clientY;
+    };
     const onScroll = () => {
       scrolling = true;
-      frameMs = 1000 / 18;
+      frameMs = 1000 / (isLite ? 14 : 18);
       if (scrollTimeout) clearTimeout(scrollTimeout);
       scrollTimeout = setTimeout(() => {
         scrolling = false;
@@ -200,17 +209,21 @@ function CanvasParticles() {
       W = resized.vw;
       H = resized.vh;
     };
-    window.addEventListener("mousemove", onMove,   { passive: true });
+    if (!isLite) {
+      window.addEventListener("mousemove", onMove, { passive: true });
+    }
     window.addEventListener("scroll", onScroll, { passive: true });
     window.addEventListener("resize",   onResize);
     return () => {
       cancelAnimationFrame(animId);
       if (scrollTimeout) clearTimeout(scrollTimeout);
-      window.removeEventListener("mousemove", onMove);
+      if (!isLite) {
+        window.removeEventListener("mousemove", onMove);
+      }
       window.removeEventListener("scroll", onScroll);
       window.removeEventListener("resize",   onResize);
     };
-  }, []);
+  }, [mode]);
 
   return <canvas ref={ref} className="pointer-events-none fixed inset-0 z-0" />;
 }
@@ -218,9 +231,18 @@ function CanvasParticles() {
 /* ═══════════════════════════════════════════════════════
    3. CSS PRESERVE-3D HERO SCENE
 ═══════════════════════════════════════════════════════ */
-function HeroScene({ mx, my }: { mx: MotionValue<number>; my: MotionValue<number> }) {
-  const rY = useSpring(useTransform(mx, [-0.5, 0.5], [-10, 10]), { stiffness: 28, damping: 20 });
-  const rX = useSpring(useTransform(my, [-0.5, 0.5], [7, -7]), { stiffness: 28, damping: 20 });
+function HeroScene({
+  mx,
+  my,
+  mode = "full",
+}: {
+  mx: MotionValue<number>;
+  my: MotionValue<number>;
+  mode?: PerformanceTier;
+}) {
+  const isLite = mode === "lite";
+  const rY = useSpring(useTransform(mx, [-0.5, 0.5], isLite ? [-4, 4] : [-10, 10]), { stiffness: 28, damping: 20 });
+  const rX = useSpring(useTransform(my, [-0.5, 0.5], isLite ? [3, -3] : [7, -7]), { stiffness: 28, damping: 20 });
 
   return (
     <div className="scene-wrap w-full h-105 md:h-130">
@@ -309,7 +331,7 @@ function HeroScene({ mx, my }: { mx: MotionValue<number>; my: MotionValue<number
         </div>
 
         {/* ─── Floating glow orbs at various depths ─── */}
-        {[
+        {!isLite && [
           { z: -30, x: "28%",  y: "15%", c: "rgba(168,85,247,0.35)",  s: 8, a: "float-c 6s 0s   infinite" },
           { z:  30, x: "-32%", y: "-25%",c: "rgba(6,182,212,0.4)",    s: 6, a: "float-c 7s 1.5s infinite" },
           { z:  80, x: "12%",  y: "38%", c: "rgba(236,72,153,0.35)",  s: 5, a: "float-a 5s 0.8s infinite" },
@@ -327,7 +349,7 @@ function HeroScene({ mx, my }: { mx: MotionValue<number>; my: MotionValue<number
 /* ═══════════════════════════════════════════════════════
    4. MAGNETIC BUTTON WRAPPER
 ═══════════════════════════════════════════════════════ */
-function Magnetic({ children }: { children: React.ReactNode }) {
+function Magnetic({ children, disabled = false }: { children: React.ReactNode; disabled?: boolean }) {
   const ref = useRef<HTMLDivElement>(null);
   const x = useMotionValue(0);
   const y = useMotionValue(0);
@@ -335,12 +357,17 @@ function Magnetic({ children }: { children: React.ReactNode }) {
   const sy = useSpring(y, { stiffness: 180, damping: 12 });
 
   const onMove = (e: React.MouseEvent) => {
+    if (disabled) return;
     const rect = ref.current?.getBoundingClientRect();
     if (!rect) return;
     x.set((e.clientX - (rect.left + rect.width  / 2)) * 0.32);
     y.set((e.clientY - (rect.top  + rect.height / 2)) * 0.32);
   };
   const onLeave = () => { x.set(0); y.set(0); };
+
+  if (disabled) {
+    return <div className="inline-block">{children}</div>;
+  }
 
   return (
     <div ref={ref} onMouseMove={onMove} onMouseLeave={onLeave} className="inline-block">
@@ -353,10 +380,11 @@ function Magnetic({ children }: { children: React.ReactNode }) {
    5. HOLOGRAPHIC TILT CARD
 ═══════════════════════════════════════════════════════ */
 function HoloCard({
-  children, className, intensity = 10,
+  children, className, intensity = 10, disableTilt = false,
   style, onMouseEnter, onMouseLeave,
 }: {
   children: React.ReactNode; className?: string; intensity?: number;
+  disableTilt?: boolean;
   style?: React.CSSProperties;
   onMouseEnter?: () => void; onMouseLeave?: () => void;
 }) {
@@ -365,6 +393,7 @@ function HoloCard({
   const [hovered, setHovered] = useState(false);
 
   const onMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    if (disableTilt) return;
     const rect = ref.current?.getBoundingClientRect();
     if (!rect) return;
     const rx = (e.clientX - rect.left) / rect.width;
@@ -374,7 +403,7 @@ function HoloCard({
     ref.current?.style.setProperty("--mx", `${rx * 100}%`);
     ref.current?.style.setProperty("--my", `${ry * 100}%`);
     ref.current?.style.setProperty("--hue", `${rx * 80}deg`);
-  }, [intensity]);
+  }, [disableTilt, intensity]);
 
   return (
     <div
@@ -385,8 +414,12 @@ function HoloCard({
       onMouseLeave={() => { setHovered(false); setTilt({ x:0, y:0 }); onMouseLeave?.(); }}
       style={{
         ...style,
-        transform: `perspective(1100px) rotateX(${tilt.y}deg) rotateY(${tilt.x}deg) scale(${hovered ? 1.025 : 1})`,
-        transition: hovered ? "transform 0.08s ease-out" : "transform 0.55s cubic-bezier(0.23,1,0.32,1)",
+        transform: disableTilt
+          ? "none"
+          : `perspective(1100px) rotateX(${tilt.y}deg) rotateY(${tilt.x}deg) scale(${hovered ? 1.025 : 1})`,
+        transition: disableTilt
+          ? "none"
+          : (hovered ? "transform 0.08s ease-out" : "transform 0.55s cubic-bezier(0.23,1,0.32,1)"),
         willChange: "transform",
       }}
     >
@@ -555,14 +588,38 @@ export default function Home() {
   const [showGrain, setShowGrain] = useState(false);
   const [showStickyCta, setShowStickyCta] = useState(false);
   const [isScrolling, setIsScrolling] = useState(false);
+  const [performanceTier, setPerformanceTier] = useState<PerformanceTier>("full");
 
   useEffect(() => {
     const media = window.matchMedia("(prefers-reduced-motion: reduce)");
-    const onChange = () => setShowGrain(!media.matches);
+    const nav = window.navigator as Navigator & {
+      connection?: {
+        addEventListener?: (type: string, listener: EventListener) => void;
+        removeEventListener?: (type: string, listener: EventListener) => void;
+      };
+    };
+
+    const updateTier = () => setPerformanceTier(getAdaptivePerformanceTier());
+    updateTier();
+
+    media.addEventListener("change", updateTier);
+    window.addEventListener("resize", updateTier);
+    nav.connection?.addEventListener?.("change", updateTier);
+
+    return () => {
+      media.removeEventListener("change", updateTier);
+      window.removeEventListener("resize", updateTier);
+      nav.connection?.removeEventListener?.("change", updateTier);
+    };
+  }, []);
+
+  useEffect(() => {
+    const media = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const onChange = () => setShowGrain(!media.matches && performanceTier === "full");
     onChange();
     media.addEventListener("change", onChange);
     return () => media.removeEventListener("change", onChange);
-  }, []);
+  }, [performanceTier]);
 
   useEffect(() => {
     if (paused) return;
@@ -609,25 +666,58 @@ export default function Home() {
     <main className="relative min-h-screen bg-[#020617] text-white" data-scrolling={isScrolling ? "true" : "false"}>
 
       {/* ── Custom Cursor ── */}
-      <CustomCursor />
+      <CustomCursor disabled={performanceTier === "lite"} />
 
       {/* ── Canvas Particles ── */}
-      <CanvasParticles />
+      <CanvasParticles mode={performanceTier} />
 
       {/* ── Film Grain ── */}
       {showGrain && <div className="grain" />}
 
       {/* ── Atmospheric Orbs (mouse-reactive) ── */}
       <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
-        <motion.div className="absolute rounded-full"
-          style={{ top: "-10%", left: "-12%", width: 700, height: 700, background: "radial-gradient(circle, rgba(139,92,246,0.17) 0%, transparent 68%)", filter: "blur(55px)", x: ox1, y: oy1 }} />
-        <motion.div className="absolute rounded-full"
-          style={{ top: "20%", right: "-12%", width: 580, height: 580, background: "radial-gradient(circle, rgba(59,130,246,0.13) 0%, transparent 68%)", filter: "blur(55px)", x: ox2, y: oy2 }} />
-        <motion.div className="absolute rounded-full"
-          style={{ bottom: "-8%", left: "38%", width: 500, height: 500, background: "radial-gradient(circle, rgba(236,72,153,0.11) 0%, transparent 68%)", filter: "blur(55px)", x: ox3, y: oy3 }} />
+        <motion.div
+          className="absolute rounded-full"
+          style={{
+            top: "-10%",
+            left: "-12%",
+            width: 700,
+            height: 700,
+            background: "radial-gradient(circle, rgba(139,92,246,0.17) 0%, transparent 68%)",
+            filter: "blur(55px)",
+            x: performanceTier === "lite" ? 0 : ox1,
+            y: performanceTier === "lite" ? 0 : oy1,
+          }}
+        />
+        <motion.div
+          className="absolute rounded-full"
+          style={{
+            top: "20%",
+            right: "-12%",
+            width: 580,
+            height: 580,
+            background: "radial-gradient(circle, rgba(59,130,246,0.13) 0%, transparent 68%)",
+            filter: "blur(55px)",
+            x: performanceTier === "lite" ? 0 : ox2,
+            y: performanceTier === "lite" ? 0 : oy2,
+          }}
+        />
+        <motion.div
+          className="absolute rounded-full"
+          style={{
+            bottom: "-8%",
+            left: "38%",
+            width: 500,
+            height: 500,
+            background: "radial-gradient(circle, rgba(236,72,153,0.11) 0%, transparent 68%)",
+            filter: "blur(55px)",
+            x: performanceTier === "lite" ? 0 : ox3,
+            y: performanceTier === "lite" ? 0 : oy3,
+          }}
+        />
 
-        <div className="absolute inset-0 ai-pixels" />
-        <div className="absolute inset-0 ai-beam" />
+        {performanceTier === "full" && <div className="absolute inset-0 ai-pixels" />}
+        {performanceTier === "full" && <div className="absolute inset-0 ai-beam" />}
 
         {/* Marching grid overlay */}
         <div className="absolute inset-0 grid-bg" />
@@ -679,13 +769,13 @@ export default function Home() {
               transition={{ duration:0.6, delay:0.9 }}
               className="mt-9 flex flex-wrap gap-4"
             >
-              <Magnetic>
+              <Magnetic disabled={performanceTier === "lite"}>
                 <Link href="/preview" className="btn-primary">
                   Start Free Preview
                   <span className="ml-1">→</span>
                 </Link>
               </Magnetic>
-              <Magnetic>
+              <Magnetic disabled={performanceTier === "lite"}>
                 <button className="btn-secondary">See How It Works</button>
               </Magnetic>
             </motion.div>
@@ -716,7 +806,7 @@ export default function Home() {
             initial={{ opacity:0, x:40 }} animate={{ opacity:1, x:0 }}
             transition={{ duration: motionTokens.duration.hero, delay: 0.35, ease: motionTokens.ease.standard }}
           >
-            <HeroScene mx={mx} my={my} />
+            <HeroScene mx={mx} my={my} mode={performanceTier} />
           </motion.div>
         </motion.div>
       </section>
@@ -750,6 +840,7 @@ export default function Home() {
             <div className="glow-border max-w-lg mx-auto">
               <HoloCard
                 className="p-6"
+                disableTilt={performanceTier === "lite"}
                 onMouseEnter={() => setPaused(true)}
                 onMouseLeave={() => setPaused(false)}
               >
@@ -831,7 +922,7 @@ export default function Home() {
           <Reveal>
             <h2 className="font-display text-4xl md:text-5xl font-bold mb-6">Ready to ship with confidence?</h2>
             <p className="text-lg text-gray-400 mb-8 max-w-2xl mx-auto">Join 200+ teams using Adigator to eliminate approval delays and launch faster</p>
-            <Magnetic>
+            <Magnetic disabled={performanceTier === "lite"}>
               <Link href="/preview" className="btn-primary inline-block">
                 Start Free Preview
                 <span className="ml-1">→</span>

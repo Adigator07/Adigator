@@ -1,12 +1,14 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { type PerformanceTier } from "@/app/lib/performanceTier";
 
 type PremiumParticlesProps = {
   density?: "low" | "medium";
+  mode?: PerformanceTier;
 };
 
-export default function PremiumParticles({ density = "low" }: PremiumParticlesProps) {
+export default function PremiumParticles({ density = "low", mode = "full" }: PremiumParticlesProps) {
   const ref = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
@@ -18,7 +20,8 @@ export default function PremiumParticles({ density = "low" }: PremiumParticlesPr
     const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     if (prefersReducedMotion) return;
 
-    const dpr = Math.min(window.devicePixelRatio || 1, 1.3);
+    const isLite = mode === "lite";
+    const dpr = Math.min(window.devicePixelRatio || 1, isLite ? 1 : 1.3);
     const setCanvasSize = () => {
       const vw = window.innerWidth;
       const vh = window.innerHeight;
@@ -35,12 +38,13 @@ export default function PremiumParticles({ density = "low" }: PremiumParticlesPr
     let my = H / 2;
     let animId = 0;
     let last = 0;
-    let frameMs = 1000 / 24;
+    let frameMs = 1000 / (isLite ? 18 : 24);
     let scrolling = false;
     let scrollTimeout: ReturnType<typeof setTimeout> | null = null;
 
     const baseCount = density === "medium" ? 72 : 42;
-    const stars = Array.from({ length: baseCount }, () => ({
+    const starCount = isLite ? Math.max(24, Math.floor(baseCount * 0.58)) : baseCount;
+    const stars = Array.from({ length: starCount }, () => ({
       x: Math.random() * W,
       y: Math.random() * H,
       vx: (Math.random() - 0.5) * 0.11,
@@ -85,7 +89,7 @@ export default function PremiumParticles({ density = "low" }: PremiumParticlesPr
         ctx.fill();
       }
 
-      if (!scrolling) {
+      if (!scrolling && !isLite) {
         if (streak.life <= 0) {
           streak.cooldown -= 1;
           if (streak.cooldown <= 0) {
@@ -111,13 +115,15 @@ export default function PremiumParticles({ density = "low" }: PremiumParticlesPr
         }
       }
 
-      const glow = ctx.createRadialGradient(mx, my, 0, mx, my, 8);
-      glow.addColorStop(0, "rgba(56,189,248,0.48)");
-      glow.addColorStop(1, "rgba(56,189,248,0)");
-      ctx.beginPath();
-      ctx.arc(mx, my, 8, 0, Math.PI * 2);
-      ctx.fillStyle = glow;
-      ctx.fill();
+      if (!isLite) {
+        const glow = ctx.createRadialGradient(mx, my, 0, mx, my, 8);
+        glow.addColorStop(0, "rgba(56,189,248,0.48)");
+        glow.addColorStop(1, "rgba(56,189,248,0)");
+        ctx.beginPath();
+        ctx.arc(mx, my, 8, 0, Math.PI * 2);
+        ctx.fillStyle = glow;
+        ctx.fill();
+      }
     };
 
     draw();
@@ -129,11 +135,11 @@ export default function PremiumParticles({ density = "low" }: PremiumParticlesPr
 
     const onScroll = () => {
       scrolling = true;
-      frameMs = 1000 / 18;
+      frameMs = 1000 / (isLite ? 14 : 18);
       if (scrollTimeout) clearTimeout(scrollTimeout);
       scrollTimeout = setTimeout(() => {
         scrolling = false;
-        frameMs = 1000 / 24;
+        frameMs = 1000 / (isLite ? 18 : 24);
       }, 140);
     };
 
@@ -143,17 +149,21 @@ export default function PremiumParticles({ density = "low" }: PremiumParticlesPr
       H = resized.vh;
     };
 
-    window.addEventListener("mousemove", onMove, { passive: true });
+    if (!isLite) {
+      window.addEventListener("mousemove", onMove, { passive: true });
+    }
     window.addEventListener("scroll", onScroll, { passive: true });
     window.addEventListener("resize", onResize);
     return () => {
       cancelAnimationFrame(animId);
       if (scrollTimeout) clearTimeout(scrollTimeout);
-      window.removeEventListener("mousemove", onMove);
+      if (!isLite) {
+        window.removeEventListener("mousemove", onMove);
+      }
       window.removeEventListener("scroll", onScroll);
       window.removeEventListener("resize", onResize);
     };
-  }, [density]);
+  }, [density, mode]);
 
   return <canvas ref={ref} className="pointer-events-none fixed inset-0 z-0" />;
 }
