@@ -82,6 +82,22 @@
   50%  { opacity: 0.18; }
   100% { transform: translateX(45%) rotate(-8deg); opacity: 0; }
 }
+@keyframes node-drift {
+  0%   { transform: translate3d(0, 0, 0) scale(1); }
+  33%  { transform: translate3d(2.4%, -1.6%, 0) scale(1.03); }
+  66%  { transform: translate3d(-1.8%, 1.8%, 0) scale(0.98); }
+  100% { transform: translate3d(0, 0, 0) scale(1); }
+}
+@keyframes matrix-fall {
+  0%   { transform: translateY(-16%); opacity: 0.05; }
+  15%  { opacity: 0.18; }
+  100% { transform: translateY(16%); opacity: 0.04; }
+}
+@keyframes ring-orbit {
+  0%   { transform: rotate(0deg) scale(1); }
+  50%  { transform: rotate(180deg) scale(1.04); }
+  100% { transform: rotate(360deg) scale(1); }
+}
 @keyframes cursor-in {
   from { transform: translate(-50%,-50%) scale(0.5); opacity: 0; }
   to   { transform: translate(-50%,-50%) scale(1);   opacity: 1; }
@@ -177,14 +193,14 @@ body {
   position: absolute;
   inset: 0;
   pointer-events: none;
-  opacity: 0.28;
+  opacity: 0.12;
   background-image:
     radial-gradient(circle at 10% 20%, rgba(56,189,248,0.18) 0 1px, transparent 1px),
     radial-gradient(circle at 80% 70%, rgba(196,181,253,0.15) 0 1px, transparent 1px),
     radial-gradient(circle at 40% 50%, rgba(244,114,182,0.12) 0 1px, transparent 1px);
   background-size: 24px 24px, 20px 20px, 28px 28px;
   mix-blend-mode: screen;
-  animation: pixel-drift 22s linear infinite;
+  animation: pixel-drift 14s linear infinite;
   transition: opacity 0.25s ease;
 }
 .ai-beam {
@@ -193,21 +209,84 @@ body {
   pointer-events: none;
   background: linear-gradient(90deg, transparent 36%, rgba(125,211,252,0.1) 48%, rgba(196,181,253,0.12) 56%, transparent 68%);
   filter: blur(2px);
-  animation: beam-sweep 8.4s ease-in-out infinite;
+  animation: beam-sweep 7.2s ease-in-out infinite;
   transition: opacity 0.25s ease, filter 0.25s ease;
+}
+.ai-nodes {
+  position: absolute;
+  inset: -6% -8%;
+  pointer-events: none;
+  opacity: 0.15;
+  background-image:
+    radial-gradient(circle at 14% 26%, rgba(103,232,249,0.26) 0 1.6px, transparent 2.2px),
+    radial-gradient(circle at 66% 18%, rgba(192,132,252,0.22) 0 1.4px, transparent 2px),
+    radial-gradient(circle at 78% 72%, rgba(244,114,182,0.2) 0 1.5px, transparent 2px),
+    linear-gradient(90deg, transparent 0 18%, rgba(125,211,252,0.1) 19% 20%, transparent 21% 100%),
+    linear-gradient(0deg, transparent 0 24%, rgba(196,181,253,0.08) 25% 26%, transparent 27% 100%);
+  background-size: 180px 160px, 220px 180px, 200px 200px, 320px 320px, 320px 320px;
+  mix-blend-mode: screen;
+  animation: node-drift 18s ease-in-out infinite;
+}
+.ai-matrix {
+  position: absolute;
+  inset: -12% 0;
+  pointer-events: none;
+  opacity: 0.09;
+  background-image:
+    repeating-linear-gradient(
+      180deg,
+      rgba(56,189,248,0) 0,
+      rgba(56,189,248,0) 20px,
+      rgba(56,189,248,0.12) 20px,
+      rgba(56,189,248,0.12) 21px
+    );
+  mask-image: radial-gradient(ellipse 75% 55% at 50% 35%, black 0%, transparent 100%);
+  animation: matrix-fall 12s linear infinite;
+}
+.ai-rings {
+  position: absolute;
+  inset: -20% -12%;
+  pointer-events: none;
+  opacity: 0.08;
+  background:
+    radial-gradient(circle at 24% 36%, transparent 0 68px, rgba(196,181,253,0.22) 69px 70px, transparent 71px),
+    radial-gradient(circle at 68% 58%, transparent 0 102px, rgba(103,232,249,0.2) 103px 104px, transparent 105px),
+    radial-gradient(circle at 52% 24%, transparent 0 82px, rgba(244,114,182,0.18) 83px 84px, transparent 85px);
+  mix-blend-mode: screen;
+  animation: ring-orbit 24s linear infinite;
 }
 
 main[data-scrolling="true"] .ai-pixels {
-  opacity: 0.34;
-  animation-duration: 14s;
+  opacity: 0.16;
+  animation-duration: 10s;
 }
 main[data-scrolling="true"] .ai-beam {
-  opacity: 0.42;
+  opacity: 0.26;
   filter: blur(1px);
-  animation-duration: 5.6s;
+  animation-duration: 4.8s;
 }
 main[data-scrolling="true"] .grid-bg {
   animation-duration: 8s;
+}
+main[data-scrolling="true"] .ai-nodes {
+  opacity: 0.2;
+  animation-duration: 12s;
+}
+main[data-scrolling="true"] .ai-matrix {
+  opacity: 0.12;
+  animation-duration: 8s;
+}
+main[data-scrolling="true"] .ai-rings {
+  opacity: 0.1;
+  animation-duration: 18s;
+}
+
+@media (max-width: 900px) {
+  .ai-nodes,
+  .ai-matrix,
+  .ai-rings {
+    opacity: 0.14;
+  }
 }
 
 /* ════════════════════════════════════════════════════════

@@ -63,7 +63,7 @@ export default function PremiumPageShell({ children }: PremiumPageShellProps) {
 
   return (
     <main className="relative min-h-screen bg-[#020617] text-white" data-scrolling={isScrolling ? "true" : "false"}>
-      <PremiumParticles density="medium" mode={performanceTier} />
+      <PremiumParticles density="high" mode={performanceTier} />
       {showGrain && <div className="grain" />}
 
       <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
@@ -95,25 +95,26 @@ export default function PremiumPageShell({ children }: PremiumPageShellProps) {
           animate={performanceTier === "lite" ? { x: [0, -12, 8, 0], y: [0, 8, -6, 0] } : { x: [0, -36, 22, 0], y: [0, 20, -16, 0] }}
           transition={{ duration: 22, repeat: Infinity, ease: "easeInOut" }}
         />
-        {performanceTier === "full" && (
-          <motion.div
-            className="absolute rounded-full"
-            style={{
-              bottom: "-10%",
-              left: "34%",
-              width: 460,
-              height: 460,
-              background: "radial-gradient(circle, rgba(236,72,153,0.12) 0%, transparent 68%)",
-              filter: "blur(52px)",
-              willChange: "transform",
-            }}
-            animate={{ x: [0, 28, -16, 0], y: [0, -14, 22, 0] }}
-            transition={{ duration: 24, repeat: Infinity, ease: "easeInOut" }}
-          />
-        )}
+        <motion.div
+          className="absolute rounded-full"
+          style={{
+            bottom: "-10%",
+            left: "34%",
+            width: 460,
+            height: 460,
+            background: "radial-gradient(circle, rgba(236,72,153,0.12) 0%, transparent 68%)",
+            filter: "blur(52px)",
+            willChange: "transform",
+          }}
+          animate={performanceTier === "lite" ? { x: [0, 10, -6, 0], y: [0, -6, 10, 0] } : { x: [0, 28, -16, 0], y: [0, -14, 22, 0] }}
+          transition={{ duration: 24, repeat: Infinity, ease: "easeInOut" }}
+        />
 
-        {performanceTier === "full" && <div className="absolute inset-0 ai-pixels" />}
-        {performanceTier === "full" && <div className="absolute inset-0 ai-beam" />}
+        <div className="absolute inset-0 ai-pixels" />
+        <div className="absolute inset-0 ai-beam" />
+        <div className="absolute inset-0 ai-nodes" />
+        <div className="absolute inset-0 ai-matrix" />
+        <div className="absolute inset-0 ai-rings" />
         <div className="absolute inset-0 grid-bg" />
       </div>
 

@@ -22,7 +22,6 @@ export function getAdaptivePerformanceTier(): PerformanceTier {
   const lowMemory = typeof nav.deviceMemory === "number" && nav.deviceMemory <= 4;
   const saveData = Boolean(nav.connection?.saveData);
   const slowNetwork = ["slow-2g", "2g", "3g"].includes(nav.connection?.effectiveType ?? "");
-  const smallViewport = window.innerWidth < 900;
 
-  return lowCpu || lowMemory || saveData || slowNetwork || smallViewport ? "lite" : "full";
+  return lowCpu || lowMemory || saveData || slowNetwork ? "lite" : "full";
 }
