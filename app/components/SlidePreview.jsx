@@ -480,7 +480,7 @@ function ViewModeToggle({ viewMode, setViewMode }) {
       <button
         onClick={() => setViewMode("multiple")}
         className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all ${viewMode === "multiple"
-          ? "bg-gradient-to-r from-purple-600 to-blue-600 text-white shadow-lg"
+          ? "bg-linear-to-r from-purple-600 to-blue-600 text-white shadow-lg"
           : "text-gray-400 hover:text-white"
           }`}
       >
@@ -489,7 +489,7 @@ function ViewModeToggle({ viewMode, setViewMode }) {
       <button
         onClick={() => setViewMode("single")}
         className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all ${viewMode === "single"
-          ? "bg-gradient-to-r from-purple-600 to-blue-600 text-white shadow-lg"
+          ? "bg-linear-to-r from-purple-600 to-blue-600 text-white shadow-lg"
           : "text-gray-400 hover:text-white"
           }`}
       >
@@ -777,7 +777,7 @@ export default function SlidePreview({
               key={tpl.id}
               onClick={() => setSelectedTemplate?.(tpl.id)}
               className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold whitespace-nowrap transition-all border-2 ${selectedTemplate === tpl.id
-                ? "bg-gradient-to-r from-blue-600 to-purple-600 border-transparent text-white shadow-lg"
+                ? "bg-linear-to-r from-blue-600 to-purple-600 border-transparent text-white shadow-lg"
                 : "bg-white/5 border-white/10 text-gray-400 hover:text-white hover:border-white/30"
                 }`}
             >
@@ -844,7 +844,7 @@ export default function SlidePreview({
                     setActiveIndex(idx);
                   }}
                   className={`rounded-full transition-all ${idx === safeActiveIndex
-                    ? "w-8 h-2.5 bg-gradient-to-r from-purple-500 to-blue-500 shadow-lg shadow-purple-500/30"
+                    ? "w-8 h-2.5 bg-linear-to-r from-purple-500 to-blue-500 shadow-lg shadow-purple-500/30"
                     : "w-2.5 h-2.5 bg-white/20 hover:bg-white/40"
                     }`}
                   title={`Slide ${idx + 1}`}
@@ -939,17 +939,17 @@ export default function SlidePreview({
 
           {/* ── Stats row ─────────────────────────────────── */}
           <div className="grid grid-cols-3 gap-3">
-            <div className="bg-gradient-to-br from-blue-500/15 to-blue-600/15 border border-blue-500/25 rounded-xl p-3 text-center">
+            <div className="bg-linear-to-br from-blue-500/15 to-blue-600/15 border border-blue-500/25 rounded-xl p-3 text-center">
               <p className="text-2xl font-bold text-blue-400">{totalSlides}</p>
               <p className="text-[11px] text-gray-500 mt-1">
                 {viewMode === "single" ? "Total Slide" : "Slides"}
               </p>
             </div>
-            <div className="bg-gradient-to-br from-green-500/15 to-green-600/15 border border-green-500/25 rounded-xl p-3 text-center">
+            <div className="bg-linear-to-br from-green-500/15 to-green-600/15 border border-green-500/25 rounded-xl p-3 text-center">
               <p className="text-2xl font-bold text-green-400">{filledSlots}</p>
               <p className="text-[11px] text-gray-500 mt-1">Filled Slots</p>
             </div>
-            <div className="bg-gradient-to-br from-purple-500/15 to-purple-600/15 border border-purple-500/25 rounded-xl p-3 text-center">
+            <div className="bg-linear-to-br from-purple-500/15 to-purple-600/15 border border-purple-500/25 rounded-xl p-3 text-center">
               <p className="text-2xl font-bold text-purple-400">
                 {displayedSlots.length > 0
                   ? Math.round((filledSlots / displayedSlots.length) * 100)

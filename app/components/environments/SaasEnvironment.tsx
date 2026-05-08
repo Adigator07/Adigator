@@ -45,7 +45,7 @@ export default function SaasEnvironment({ content, slotType, creativeUrl, creati
       <header className="border-b border-slate-800 bg-slate-900/80 backdrop-blur px-6 py-3 sticky top-0 z-10">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <div className="text-lg font-black bg-gradient-to-r from-violet-400 to-purple-400 bg-clip-text text-transparent">{publisher}</div>
+            <div className="text-lg font-black bg-linear-to-r from-violet-400 to-purple-400 bg-clip-text text-transparent">{publisher}</div>
             {!isMobile && (
               <nav className="flex items-center gap-1 text-sm">
                 {["Dashboard", "Analytics", "Campaigns", "Creatives", "Reports"].map((n, i) => (
@@ -65,7 +65,7 @@ export default function SaasEnvironment({ content, slotType, creativeUrl, creati
       <div className={`${isMobile ? "px-4 py-4" : "flex"}`}>
         {/* Left sidebar */}
         {!isMobile && (
-          <aside className="w-48 flex-shrink-0 border-r border-slate-800 min-h-screen p-4 space-y-1">
+          <aside className="w-48 shrink-0 border-r border-slate-800 min-h-screen p-4 space-y-1">
             {[
               ["📊", "Overview"],
               ["📈", "Performance"],
@@ -111,7 +111,7 @@ export default function SaasEnvironment({ content, slotType, creativeUrl, creati
 
           {/* Dashboard module ad slot */}
           {slotType === "dashboard-module" && (
-            <div className="bg-gradient-to-br from-violet-900/40 to-purple-900/20 border-2 border-violet-500/40 rounded-2xl p-5 mb-6">
+            <div className="bg-linear-to-br from-violet-900/40 to-purple-900/20 border-2 border-violet-500/40 rounded-2xl p-5 mb-6">
               <div className="flex items-center justify-between mb-3">
                 <div>
                   <p className="text-xs font-bold uppercase tracking-widest text-violet-300">Sponsored Feature</p>

@@ -81,7 +81,7 @@ export default function NewspaperTemplate({
         
         {/* ── LEFT RAIL ZONE (Desktop Only) ── */}
         {!isMobile && leftSlots.length > 0 && (
-          <aside className="w-[160px] flex-shrink-0 flex flex-col gap-6 pt-4 sticky top-32 h-fit">
+          <aside className="w-[160px] shrink-0 flex flex-col gap-6 pt-4 sticky top-32 h-fit">
             <p className="text-[10px] text-slate-400 uppercase tracking-widest text-center font-semibold">Advertisement</p>
             {leftSlots.map((slotDef) => <AdSlot key={slotDef.id} slotDef={slotDef} {...adSlotProps} />)}
           </aside>
@@ -103,7 +103,7 @@ export default function NewspaperTemplate({
             
             <div className="flex items-center justify-between border-y border-slate-200 py-4 mt-6">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-slate-200 flex-shrink-0 overflow-hidden">
+                <div className="w-10 h-10 rounded-full bg-slate-200 shrink-0 overflow-hidden">
                   <img src="https://i.pravatar.cc/100?img=68" alt="Author" className="w-full h-full object-cover" />
                 </div>
                 <div>
@@ -194,7 +194,7 @@ export default function NewspaperTemplate({
 
         {/* ── RIGHT RAIL ZONE (Desktop Only) ── */}
         {!isMobile && (
-          <aside className="w-[300px] flex-shrink-0 flex flex-col gap-8">
+          <aside className="w-[300px] shrink-0 flex flex-col gap-8">
             <div className="rounded-xl border border-slate-200 p-6 bg-white shadow-sm">
               <h3 className="text-sm font-black text-slate-900 uppercase tracking-wider mb-5 flex items-center gap-2">
                 <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>

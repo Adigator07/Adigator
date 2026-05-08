@@ -28,8 +28,8 @@ export default function CreativeCard({
       transition={{ type: "spring", damping: 20, stiffness: 300 }}
       className={`relative group rounded-xl overflow-hidden border-2 transition-all ${
         creative.valid
-          ? "border-green-500/30 bg-gradient-to-br from-green-500/10 to-emerald-500/10 hover:border-green-500/60 hover:shadow-lg hover:shadow-green-500/10"
-          : "border-red-500/30 bg-gradient-to-br from-red-500/10 to-rose-500/10 hover:border-red-500/60 hover:shadow-lg hover:shadow-red-500/10"
+          ? "border-green-500/30 bg-linear-to-br from-green-500/10 to-emerald-500/10 hover:border-green-500/60 hover:shadow-lg hover:shadow-green-500/10"
+          : "border-red-500/30 bg-linear-to-br from-red-500/10 to-rose-500/10 hover:border-red-500/60 hover:shadow-lg hover:shadow-red-500/10"
       }`}
     >
       {/* Image */}

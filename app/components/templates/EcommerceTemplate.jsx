@@ -83,7 +83,7 @@ export default function EcommerceTemplate({
         
         {/* ── LEFT RAIL ZONE (Filters) ── */}
         {!isMobile && (
-          <aside className="w-[220px] flex-shrink-0 flex flex-col gap-8 pt-2">
+          <aside className="w-[220px] shrink-0 flex flex-col gap-8 pt-2">
             <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
               <h3 className="font-black text-slate-900 mb-5 uppercase tracking-tighter text-sm">Filter Results</h3>
               
@@ -127,7 +127,7 @@ export default function EcommerceTemplate({
           {/* Main Hero Promotion */}
           <div className="w-full aspect-[21/7] bg-slate-900 rounded-[2rem] overflow-hidden relative shadow-2xl group">
             <img src={content.hero.image} className="absolute inset-0 w-full h-full object-cover opacity-60 group-hover:scale-105 transition duration-[2s]" alt="Promo" />
-            <div className="absolute inset-0 bg-gradient-to-r from-slate-950 via-slate-950/40 to-transparent flex items-center px-12">
+            <div className="absolute inset-0 bg-linear-to-r from-slate-950 via-slate-950/40 to-transparent flex items-center px-12">
               <div className="max-w-md">
                 <span className="bg-rose-600 text-white text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest mb-4 inline-block">Flash Sale</span>
                 <h2 className="text-4xl md:text-5xl font-black text-white mb-4 leading-tight tracking-tighter">{content.hero.headline}</h2>
@@ -203,7 +203,7 @@ export default function EcommerceTemplate({
 
         {/* ── RIGHT RAIL ZONE (Desktop Only) ── */}
         {!isMobile && rightSlots.length > 0 && (
-          <aside className="w-[300px] flex-shrink-0 flex flex-col gap-6">
+          <aside className="w-[300px] shrink-0 flex flex-col gap-6">
             <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
               <h3 className="font-bold text-slate-900 mb-4">Your Browsing History</h3>
               <div className="grid grid-cols-2 gap-2">

@@ -35,10 +35,10 @@ export default function AdSlot({
   return (
     <div className="flex justify-center w-full my-4 overflow-hidden">
       <motion.div
-        className={`relative flex-shrink-0 origin-center ${
+        className={`relative shrink-0 origin-center ${
           isActive
             ? "ring-2 ring-blue-500 ring-offset-2 ring-offset-white shadow-2xl shadow-blue-500/20 z-10"
-            : "opacity-30 grayscale-[50%] pointer-events-none"
+            : "opacity-30 grayscale-50 pointer-events-none"
         }`}
         style={{
           width: slotWidth,

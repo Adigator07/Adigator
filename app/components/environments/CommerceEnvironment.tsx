@@ -101,7 +101,7 @@ export default function CommerceEnvironment({ content, slotType, creativeUrl, cr
       <div className={`max-w-7xl mx-auto px-4 py-6 ${isMobile ? "" : "flex gap-6"}`}>
         {/* Filters sidebar */}
         {!isMobile && (
-          <aside className="w-52 flex-shrink-0 space-y-5">
+          <aside className="w-52 shrink-0 space-y-5">
             {slotType === "sidebar" && (
               <AdUnit creativeUrl={creativeUrl} creativeSize={creativeSize} />
             )}
@@ -175,7 +175,7 @@ export default function CommerceEnvironment({ content, slotType, creativeUrl, cr
                 )}
                 <div key={i} className="border border-gray-200 rounded-xl overflow-hidden bg-white hover:shadow-md transition cursor-pointer group">
                   <div className="relative">
-                    <div className="w-full bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center" style={{ height: 160 }}>
+                    <div className="w-full bg-linear-to-br from-gray-100 to-gray-200 flex items-center justify-center" style={{ height: 160 }}>
                       <span className="text-4xl opacity-30">📦</span>
                     </div>
                     {prod.badge && (

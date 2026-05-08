@@ -6,7 +6,7 @@ export default function Logo() {
       viewBox="0 0 500 500"
       role="img"
       xmlns="http://www.w3.org/2000/svg"
-      className="flex-shrink-0 neon-glow-logo"
+      className="shrink-0 neon-glow-logo"
     >
       <style>{`
         .adigator-primary { fill: currentColor; }

@@ -96,7 +96,7 @@ export default function NewsEnvironment({ content, slotType, creativeUrl, creati
           <p className="text-sm font-sans text-gray-500 mb-4 border-b border-gray-100 pb-4">{byline}</p>
 
           {/* Hero image placeholder */}
-          <div className="w-full h-52 bg-gradient-to-br from-gray-200 to-gray-300 rounded mb-4 flex items-center justify-center">
+          <div className="w-full h-52 bg-linear-to-br from-gray-200 to-gray-300 rounded mb-4 flex items-center justify-center">
             <span className="text-gray-400 font-sans text-sm">Featured image</span>
           </div>
 
@@ -130,7 +130,7 @@ export default function NewsEnvironment({ content, slotType, creativeUrl, creati
               <div className="space-y-3">
                 {related.items?.map((item, i) => (
                   <div key={i} className="flex gap-3">
-                    <div className="w-16 h-12 bg-gray-200 rounded flex-shrink-0" />
+                    <div className="w-16 h-12 bg-gray-200 rounded shrink-0" />
                     <div>
                       <p className="text-sm font-sans font-semibold text-gray-800 leading-snug">{item.text}</p>
                       <p className="text-xs font-sans text-gray-400 mt-0.5">{item.secondary}</p>
@@ -144,7 +144,7 @@ export default function NewsEnvironment({ content, slotType, creativeUrl, creati
 
         {/* Sidebar */}
         {!isMobile && (
-          <aside className="w-72 flex-shrink-0 space-y-6">
+          <aside className="w-72 shrink-0 space-y-6">
             {/* Sidebar ad slot */}
             {slotType === "sidebar" && (
               <AdUnit creativeUrl={creativeUrl} creativeSize={creativeSize} />
@@ -159,7 +159,7 @@ export default function NewsEnvironment({ content, slotType, creativeUrl, creati
                 <div className="space-y-3">
                   {trending.items?.map((item, i) => (
                     <div key={i} className="flex items-start gap-2 cursor-pointer group">
-                      <span className="text-2xl font-black text-gray-200 leading-none font-sans w-7 flex-shrink-0 group-hover:text-red-400 transition">
+                      <span className="text-2xl font-black text-gray-200 leading-none font-sans w-7 shrink-0 group-hover:text-red-400 transition">
                         {i + 1}
                       </span>
                       <div>
@@ -183,7 +183,7 @@ export default function NewsEnvironment({ content, slotType, creativeUrl, creati
                 <div className="space-y-3">
                   {related.items?.map((item, i) => (
                     <div key={i} className="flex gap-3 cursor-pointer group">
-                      <div className="w-16 h-12 bg-gray-100 rounded flex-shrink-0" />
+                      <div className="w-16 h-12 bg-gray-100 rounded shrink-0" />
                       <div>
                         <p className="text-xs font-sans font-semibold text-gray-800 leading-snug group-hover:text-blue-600 transition">
                           {item.text}

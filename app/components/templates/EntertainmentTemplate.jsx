@@ -62,7 +62,7 @@ export default function EntertainmentTemplate({
           <div className="w-full aspect-[4/5] md:aspect-[21/9] relative">
             <img src={content.hero.image} alt="Hero" className="w-full h-full object-cover" />
             <div className="absolute inset-0 bg-gradient-to-t from-[#141414] via-[#141414]/20 to-transparent"></div>
-            <div className="absolute inset-0 bg-gradient-to-r from-[#141414] via-[#141414]/50 to-transparent"></div>
+            <div className="absolute inset-0 bg-linear-to-r from-[#141414] via-[#141414]/50 to-transparent"></div>
             
             <div className="absolute bottom-[10%] md:bottom-[20%] left-4 md:left-12 max-w-2xl z-20">
               <h1 className="text-4xl md:text-6xl font-black text-white leading-tight mb-4 drop-shadow-lg tracking-tight">
@@ -101,7 +101,7 @@ export default function EntertainmentTemplate({
             <div className="flex gap-6 overflow-x-auto scrollbar-hide pb-8">
               {content.movies.map((movie, idx) => (
                 <React.Fragment key={idx}>
-                  <div className="w-[180px] md:w-[280px] flex-shrink-0 group cursor-pointer relative">
+                  <div className="w-[180px] md:w-[280px] shrink-0 group cursor-pointer relative">
                     <div className="aspect-video rounded-xl overflow-hidden bg-zinc-900 relative z-10 group-hover:scale-105 group-hover:ring-4 group-hover:ring-red-600 transition duration-500 shadow-2xl">
                       <img src={movie.image} alt={movie.title} className="w-full h-full object-cover" />
                       <div className="absolute inset-0 bg-black/20 group-hover:bg-transparent transition duration-300"></div>
@@ -127,7 +127,7 @@ export default function EntertainmentTemplate({
 
           {/* ── AD BREAK SECTION (Native full-width zone) ── */}
           {contentSlots.length > 0 && (
-            <div className="w-full relative py-12 border-y border-white/5 bg-gradient-to-r from-red-600/5 via-zinc-900 to-blue-600/5">
+            <div className="w-full relative py-12 border-y border-white/5 bg-linear-to-r from-red-600/5 via-zinc-900 to-blue-600/5">
               <div className="flex flex-col items-center">
                 <span className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.2em] mb-6">Sponsored Ad Break</span>
                 <div className="max-w-4xl w-full flex justify-center scale-110 md:scale-125">
@@ -141,7 +141,7 @@ export default function EntertainmentTemplate({
             <h3 className="text-xl md:text-3xl font-black text-white mb-6 uppercase tracking-tighter">Binge-worthy Collections</h3>
             <div className="flex gap-6 overflow-x-auto scrollbar-hide pb-8">
               {[...content.movies].reverse().map((movie, idx) => (
-                <div key={idx} className="w-[180px] md:w-[280px] flex-shrink-0 group cursor-pointer relative">
+                <div key={idx} className="w-[180px] md:w-[280px] shrink-0 group cursor-pointer relative">
                   <div className="aspect-video rounded-xl overflow-hidden bg-zinc-900 group-hover:scale-105 group-hover:ring-4 group-hover:ring-white transition duration-500 shadow-2xl">
                     <img src={movie.image} alt="Movie" className="w-full h-full object-cover" />
                   </div>

@@ -51,7 +51,7 @@ export default function FinanceEnvironment({ content, slotType, creativeUrl, cre
       <div className="bg-slate-900 text-white px-4 py-1.5 overflow-hidden">
         <div className="flex items-center gap-6 text-xs font-mono overflow-x-auto">
           {TICKER.map((t) => (
-            <span key={t.symbol} className="flex items-center gap-1.5 flex-shrink-0">
+            <span key={t.symbol} className="flex items-center gap-1.5 shrink-0">
               <span className="font-bold text-white">{t.symbol}</span>
               <span className="text-gray-300">{t.price}</span>
               <span className={t.up ? "text-green-400" : "text-red-400"}>{t.change}</span>
@@ -162,7 +162,7 @@ export default function FinanceEnvironment({ content, slotType, creativeUrl, cre
 
         {/* Sidebar */}
         {!isMobile && (
-          <aside className="w-72 flex-shrink-0 space-y-5">
+          <aside className="w-72 shrink-0 space-y-5">
             {slotType === "sidebar" && (
               <AdUnit creativeUrl={creativeUrl} creativeSize={creativeSize} />
             )}
@@ -189,7 +189,7 @@ export default function FinanceEnvironment({ content, slotType, creativeUrl, cre
                 <div className="space-y-3">
                   {related.items?.map((item, i) => (
                     <div key={i} className="flex gap-3 cursor-pointer group">
-                      <div className="w-16 h-12 bg-gray-100 rounded flex-shrink-0" />
+                      <div className="w-16 h-12 bg-gray-100 rounded shrink-0" />
                       <div>
                         <p className="text-xs font-semibold text-gray-800 group-hover:text-blue-700 transition leading-snug">{item.text}</p>
                         <p className="text-[10px] text-gray-400 mt-0.5">{item.secondary}</p>

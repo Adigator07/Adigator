@@ -44,7 +44,7 @@ export default function TravelEnvironment({ content, slotType, creativeUrl, crea
     <div className="bg-[#f8f7f4] font-sans min-h-screen border border-gray-200 rounded-xl overflow-hidden shadow-xl">
       {/* Hero header */}
       <div className="relative">
-        <div className="w-full h-44 bg-gradient-to-br from-cyan-500 via-blue-500 to-indigo-600 flex flex-col items-center justify-center px-6 text-center">
+        <div className="w-full h-44 bg-linear-to-br from-cyan-500 via-blue-500 to-indigo-600 flex flex-col items-center justify-center px-6 text-center">
           <div className="text-white text-2xl font-black tracking-tight mb-1">{publisher}</div>
           <p className="text-blue-100 text-sm mb-4">Discover · Plan · Book your perfect journey</p>
           {/* Search bar */}
@@ -55,7 +55,7 @@ export default function TravelEnvironment({ content, slotType, creativeUrl, crea
             <span className="text-gray-400 text-sm whitespace-nowrap">May 15 – May 22</span>
             <span className="text-gray-400">·</span>
             <span className="text-gray-400 text-sm whitespace-nowrap">2 guests</span>
-            <button className="bg-gradient-to-r from-cyan-500 to-blue-600 text-white text-xs font-bold px-4 py-1.5 rounded-xl ml-2">Search</button>
+            <button className="bg-linear-to-r from-cyan-500 to-blue-600 text-white text-xs font-bold px-4 py-1.5 rounded-xl ml-2">Search</button>
           </div>
         </div>
       </div>
@@ -101,7 +101,7 @@ export default function TravelEnvironment({ content, slotType, creativeUrl, crea
                   </div>
                 )}
                 <div key={i} className="rounded-2xl overflow-hidden bg-white border border-gray-200 cursor-pointer group hover:shadow-lg transition">
-                  <div className="relative w-full bg-gradient-to-br from-blue-100 to-cyan-100 flex items-center justify-center" style={{ height: 180 }}>
+                  <div className="relative w-full bg-linear-to-br from-blue-100 to-cyan-100 flex items-center justify-center" style={{ height: 180 }}>
                     <span className="text-5xl opacity-30">🌍</span>
                     <span className={`absolute top-3 left-3 text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full text-white ${dest.tag === "Luxury" ? "bg-amber-500" : dest.tag === "Trending" ? "bg-red-500" : dest.tag === "Bestseller" ? "bg-green-500" : "bg-blue-500"}`}>
                       {dest.tag}
@@ -113,12 +113,12 @@ export default function TravelEnvironment({ content, slotType, creativeUrl, crea
                         <h3 className="font-black text-gray-900 text-base group-hover:text-blue-600 transition">{dest.name}</h3>
                         <p className="text-sm text-gray-500 mt-0.5">{dest.rating}</p>
                       </div>
-                      <div className="text-right flex-shrink-0">
+                      <div className="text-right shrink-0">
                         <p className="text-xs text-gray-500">Starting</p>
                         <p className="font-black text-blue-600 text-sm">{dest.price}</p>
                       </div>
                     </div>
-                    <button className="mt-3 w-full py-2 bg-gradient-to-r from-cyan-500 to-blue-600 text-white text-xs font-bold rounded-xl hover:opacity-90 transition">
+                    <button className="mt-3 w-full py-2 bg-linear-to-r from-cyan-500 to-blue-600 text-white text-xs font-bold rounded-xl hover:opacity-90 transition">
                       View Deals →
                     </button>
                   </div>
@@ -137,7 +137,7 @@ export default function TravelEnvironment({ content, slotType, creativeUrl, crea
 
         {/* Sidebar */}
         {!isMobile && (
-          <aside className="w-72 flex-shrink-0 space-y-5">
+          <aside className="w-72 shrink-0 space-y-5">
             {slotType === "sidebar" && (
               <div className="bg-white rounded-2xl border border-gray-200 p-4">
                 <AdUnit creativeUrl={creativeUrl} creativeSize={creativeSize} />
@@ -148,7 +148,7 @@ export default function TravelEnvironment({ content, slotType, creativeUrl, crea
               <div className="space-y-3">
                 {["Bali, Indonesia · $780/5n", "Prague, Czech Republic · $540/4n", "Dubai, UAE · $1,100/5n"].map((item, i) => (
                   <div key={i} className="flex items-center gap-3 cursor-pointer group">
-                    <div className="w-12 h-10 bg-gradient-to-br from-blue-100 to-cyan-100 rounded-xl flex-shrink-0 flex items-center justify-center text-xl">✈️</div>
+                    <div className="w-12 h-10 bg-linear-to-br from-blue-100 to-cyan-100 rounded-xl shrink-0 flex items-center justify-center text-xl">✈️</div>
                     <div>
                       <p className="text-sm font-semibold text-gray-800 group-hover:text-blue-600 transition">{item.split("·")[0].trim()}</p>
                       <p className="text-xs font-bold text-blue-600">{item.split("·")[1]?.trim()}</p>

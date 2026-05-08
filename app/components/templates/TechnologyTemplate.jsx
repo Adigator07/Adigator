@@ -72,7 +72,7 @@ export default function TechnologyTemplate({
         
         {/* ── LEFT RAIL ZONE (Desktop Only) ── */}
         {!isMobile && leftSlots.length > 0 && (
-          <aside className="w-[160px] flex-shrink-0 flex flex-col gap-6 pt-4 sticky top-32 h-fit">
+          <aside className="w-[160px] shrink-0 flex flex-col gap-6 pt-4 sticky top-32 h-fit">
             <p className="text-[10px] text-slate-400 uppercase tracking-widest text-center font-semibold">Advertisement</p>
             {leftSlots.map((slotDef) => <AdSlot key={slotDef.id} slotDef={slotDef} {...adSlotProps} />)}
           </aside>
@@ -95,7 +95,7 @@ export default function TechnologyTemplate({
               </div>
             </div>
             
-            <div className="w-full md:w-[45%] flex-shrink-0 order-1 md:order-2">
+            <div className="w-full md:w-[45%] shrink-0 order-1 md:order-2">
               {contentSlots.length > 0 ? (
                  <div className="w-full flex items-center justify-center bg-white border border-slate-200 p-4 shadow-sm">
                    {contentSlots.map((slotDef) => <AdSlot key={slotDef.id} slotDef={slotDef} {...adSlotProps} />)}
@@ -184,7 +184,7 @@ export default function TechnologyTemplate({
 
         {/* ── RIGHT RAIL ZONE (Desktop Only) ── */}
         {!isMobile && (
-          <aside className="w-[300px] flex-shrink-0 flex flex-col gap-8">
+          <aside className="w-[300px] shrink-0 flex flex-col gap-8">
             <div className="border border-slate-200 bg-white p-6 shadow-sm">
               <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-6 flex items-center gap-2">
                 <TrendingUp size={16} className="text-blue-500" />

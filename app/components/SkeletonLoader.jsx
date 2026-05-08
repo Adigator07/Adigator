@@ -8,7 +8,7 @@
 export function SkeletonCard({ className = "", height = "h-32" }) {
   return (
     <div className={`relative overflow-hidden rounded-2xl bg-white/5 border border-white/10 ${height} ${className}`}>
-      <div className="absolute inset-0 -translate-x-full animate-[shimmer_1.5s_infinite] bg-gradient-to-r from-transparent via-white/8 to-transparent" />
+      <div className="absolute inset-0 -translate-x-full animate-[shimmer_1.5s_infinite] bg-linear-to-r from-transparent via-white/8 to-transparent" />
     </div>
   );
 }
@@ -16,7 +16,7 @@ export function SkeletonCard({ className = "", height = "h-32" }) {
 export function SkeletonText({ className = "", width = "w-full" }) {
   return (
     <div className={`relative overflow-hidden rounded-lg bg-white/5 h-4 ${width} ${className}`}>
-      <div className="absolute inset-0 -translate-x-full animate-[shimmer_1.5s_infinite] bg-gradient-to-r from-transparent via-white/8 to-transparent" />
+      <div className="absolute inset-0 -translate-x-full animate-[shimmer_1.5s_infinite] bg-linear-to-r from-transparent via-white/8 to-transparent" />
     </div>
   );
 }

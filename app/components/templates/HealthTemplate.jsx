@@ -76,7 +76,7 @@ export default function HealthTemplate({
         
         {/* ── LEFT RAIL ZONE (Desktop Only) ── */}
         {!isMobile && leftSlots.length > 0 && (
-          <aside className="w-[160px] flex-shrink-0 flex flex-col gap-6 pt-4 sticky top-32 h-fit">
+          <aside className="w-[160px] shrink-0 flex flex-col gap-6 pt-4 sticky top-32 h-fit">
             <p className="text-[10px] text-slate-400 uppercase tracking-widest text-center font-semibold">Advertisement</p>
             {leftSlots.map((slotDef) => <AdSlot key={slotDef.id} slotDef={slotDef} {...adSlotProps} />)}
           </aside>
@@ -134,7 +134,7 @@ export default function HealthTemplate({
                   Learn More
                 </button>
               </div>
-              <div className="w-full md:w-[300px] flex-shrink-0">
+              <div className="w-full md:w-[300px] shrink-0">
                 <AdSlot slotDef={contentSlots[0]} {...adSlotProps} />
               </div>
             </div>
@@ -145,7 +145,7 @@ export default function HealthTemplate({
             {content.articles.map((article, idx) => (
               <React.Fragment key={idx}>
                 <div className="flex gap-8 group cursor-pointer items-center">
-                  <div className="w-1/3 aspect-[4/3] rounded-2xl overflow-hidden flex-shrink-0 shadow-lg group-hover:shadow-emerald-200 transition">
+                  <div className="w-1/3 aspect-[4/3] rounded-2xl overflow-hidden shrink-0 shadow-lg group-hover:shadow-emerald-200 transition">
                     <img src={article.image} alt="Article" className="w-full h-full object-cover group-hover:scale-105 transition duration-700" />
                   </div>
                   <div>
@@ -163,7 +163,7 @@ export default function HealthTemplate({
 
         {/* ── RIGHT RAIL ZONE (Desktop Only) ── */}
         {!isMobile && (
-          <aside className="w-[300px] flex-shrink-0 flex flex-col gap-8">
+          <aside className="w-[300px] shrink-0 flex flex-col gap-8">
             <div className="rounded-xl border border-blue-100 p-6 bg-blue-50 shadow-sm relative overflow-hidden">
               <Stethoscope className="absolute -right-4 -top-4 text-blue-100 opacity-50" size={100} />
               <h3 className="text-lg font-black text-blue-900 mb-2 relative z-10">Ask a Doctor</h3>

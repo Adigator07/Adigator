@@ -85,7 +85,7 @@ function KPICard({ metric, index }: { metric: Metric; index: number }) {
       className={`
         relative rounded-2xl border border-white/10 p-5 cursor-default
         transition-all duration-300 overflow-hidden
-        bg-gradient-to-br ${metric.color}
+        bg-linear-to-br ${metric.color}
         ${hovered ? `scale-[1.02] shadow-2xl ${metric.glow} border-white/20` : "scale-100"}
       `}
       style={{
@@ -96,7 +96,7 @@ function KPICard({ metric, index }: { metric: Metric; index: number }) {
       {/* Decorative circle */}
       <div
         className={`absolute -right-4 -top-4 w-24 h-24 rounded-full opacity-10
-        bg-gradient-to-br ${metric.color}`}
+        bg-linear-to-br ${metric.color}`}
       />
 
       <div className="flex items-start justify-between mb-4">

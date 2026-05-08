@@ -103,7 +103,7 @@ export default function EditCreativeModal({ creative, onApply, onClose }) {
           initial="hidden"
           animate="visible"
           exit="exit"
-          className="relative w-full max-w-6xl max-h-[90vh] overflow-y-auto rounded-2xl border border-white/10 bg-gradient-to-br from-slate-900 via-[#1a1035] to-slate-900 shadow-2xl shadow-purple-500/10"
+          className="relative w-full max-w-6xl max-h-[90vh] overflow-y-auto rounded-2xl border border-white/10 bg-linear-to-br from-slate-900 via-[#1a1035] to-slate-900 shadow-2xl shadow-purple-500/10"
         >
           {/* Header */}
           <div className="sticky top-0 z-10 flex items-center justify-between border-b border-white/10 bg-black/40 backdrop-blur-xl px-8 py-5">
@@ -242,7 +242,7 @@ export default function EditCreativeModal({ creative, onApply, onClose }) {
                   onClick={() =>
                     handleResize(creative.url, creative.size, selectedSize.w, selectedSize.h)
                   }
-                  className="w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-gradient-to-r from-blue-600/80 to-blue-500/80 border border-blue-400/20 text-white font-semibold text-sm hover:shadow-lg hover:shadow-blue-500/20 transition disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-linear-to-r from-blue-600/80 to-blue-500/80 border border-blue-400/20 text-white font-semibold text-sm hover:shadow-lg hover:shadow-blue-500/20 transition disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   <Maximize2 size={18} />
                   <span className="flex-1 text-left">Resize to Fit</span>
@@ -256,7 +256,7 @@ export default function EditCreativeModal({ creative, onApply, onClose }) {
                   onClick={() =>
                     handleAutoFit(creative.url, creative.size, selectedSize.w, selectedSize.h)
                   }
-                  className="w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-gradient-to-r from-purple-600/80 to-pink-500/80 border border-purple-400/20 text-white font-semibold text-sm hover:shadow-lg hover:shadow-purple-500/20 transition disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-linear-to-r from-purple-600/80 to-pink-500/80 border border-purple-400/20 text-white font-semibold text-sm hover:shadow-lg hover:shadow-purple-500/20 transition disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   <Crop size={18} />
                   <span className="flex-1 text-left">Smart Crop (Center)</span>
@@ -271,7 +271,7 @@ export default function EditCreativeModal({ creative, onApply, onClose }) {
                     const best = suggestions[0];
                     if (best) handleAutoFit(creative.url, creative.size, best.w, best.h);
                   }}
-                  className="w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-gradient-to-r from-amber-600/80 to-orange-500/80 border border-amber-400/20 text-white font-semibold text-sm hover:shadow-lg hover:shadow-amber-500/20 transition disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-linear-to-r from-amber-600/80 to-orange-500/80 border border-amber-400/20 text-white font-semibold text-sm hover:shadow-lg hover:shadow-amber-500/20 transition disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   <Wand2 size={18} />
                   <span className="flex-1 text-left">Auto-Fix (Best Match)</span>
@@ -446,7 +446,7 @@ export default function EditCreativeModal({ creative, onApply, onClose }) {
               whileTap={{ scale: 0.97 }}
               disabled={!previewUrl || isProcessing}
               onClick={handleApply}
-              className="px-8 py-2.5 rounded-xl bg-gradient-to-r from-green-600 to-emerald-500 text-white font-bold text-sm shadow-lg shadow-green-500/20 hover:shadow-green-500/40 transition disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2"
+              className="px-8 py-2.5 rounded-xl bg-linear-to-r from-green-600 to-emerald-500 text-white font-bold text-sm shadow-lg shadow-green-500/20 hover:shadow-green-500/40 transition disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2"
             >
               <Check size={18} />
               Apply Changes

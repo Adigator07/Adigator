@@ -47,7 +47,7 @@ export default function SportsEnvironment({ content, slotType, creativeUrl, crea
           <div className="flex items-center gap-2">
             <span className="text-2xl">⚡</span>
             <div>
-              <div className="text-lg font-black bg-gradient-to-r from-yellow-400 to-orange-400 bg-clip-text text-transparent">{publisher}</div>
+              <div className="text-lg font-black bg-linear-to-r from-yellow-400 to-orange-400 bg-clip-text text-transparent">{publisher}</div>
             </div>
           </div>
           {!isMobile && (
@@ -79,7 +79,7 @@ export default function SportsEnvironment({ content, slotType, creativeUrl, crea
       <div className={`border-b border-gray-700/50 px-4 py-3 overflow-x-auto ${isMobile ? "" : ""}`}>
         <div className="flex items-center gap-3 min-w-max">
           {MATCHES.map((m, i) => (
-            <div key={i} className={`flex items-center gap-3 bg-gray-800/60 border border-gray-700/50 rounded-xl px-4 py-2.5 cursor-pointer hover:border-yellow-500/40 transition flex-shrink-0 ${i === 0 ? "border-yellow-500/50" : ""}`}>
+            <div key={i} className={`flex items-center gap-3 bg-gray-800/60 border border-gray-700/50 rounded-xl px-4 py-2.5 cursor-pointer hover:border-yellow-500/40 transition shrink-0 ${i === 0 ? "border-yellow-500/50" : ""}`}>
               <div className="text-center">
                 <p className="text-[10px] text-gray-500 uppercase tracking-wider mb-1">{m.league}</p>
                 <div className="flex items-center gap-3">
@@ -103,7 +103,7 @@ export default function SportsEnvironment({ content, slotType, creativeUrl, crea
         <main className={isMobile ? "w-full" : "flex-1 min-w-0"}>
           {/* Hero article */}
           <div className="bg-gray-800/40 border border-gray-700/50 rounded-2xl overflow-hidden mb-5">
-            <div className="w-full h-48 bg-gradient-to-br from-yellow-900/30 to-orange-900/30 flex items-center justify-center">
+            <div className="w-full h-48 bg-linear-to-br from-yellow-900/30 to-orange-900/30 flex items-center justify-center">
               <span className="text-6xl opacity-30">⚽</span>
             </div>
             <div className="p-5">
@@ -134,7 +134,7 @@ export default function SportsEnvironment({ content, slotType, creativeUrl, crea
               { title: "Transfer window: Top 10 moves to watch this summer", label: "Football", time: "2h" },
             ].map((story, i) => (
               <div key={i} className="flex items-center gap-4 bg-gray-800/30 border border-gray-700/30 rounded-xl p-3 cursor-pointer hover:border-yellow-500/30 transition">
-                <div className="w-16 h-12 bg-gray-700/60 rounded-lg flex items-center justify-center text-2xl flex-shrink-0">⚡</div>
+                <div className="w-16 h-12 bg-gray-700/60 rounded-lg flex items-center justify-center text-2xl shrink-0">⚡</div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold text-white leading-snug">{story.title}</p>
                   <div className="flex items-center gap-2 mt-0.5">
@@ -149,7 +149,7 @@ export default function SportsEnvironment({ content, slotType, creativeUrl, crea
 
         {/* Sidebar */}
         {!isMobile && (
-          <aside className="w-72 flex-shrink-0 space-y-4">
+          <aside className="w-72 shrink-0 space-y-4">
             {slotType === "sidebar" && (
               <div className="bg-gray-800/40 border border-gray-700/50 rounded-xl p-3">
                 <AdUnit creativeUrl={creativeUrl} creativeSize={creativeSize} />
@@ -163,7 +163,7 @@ export default function SportsEnvironment({ content, slotType, creativeUrl, crea
                 <div className="space-y-3">
                   {trending.items?.map((item, i) => (
                     <div key={i} className="flex items-start gap-2 cursor-pointer group">
-                      <span className="text-xl font-black text-gray-700 leading-none w-6 flex-shrink-0 group-hover:text-yellow-400 transition">{i + 1}</span>
+                      <span className="text-xl font-black text-gray-700 leading-none w-6 shrink-0 group-hover:text-yellow-400 transition">{i + 1}</span>
                       <div>
                         <p className="text-sm font-semibold text-gray-200 leading-snug group-hover:text-yellow-400 transition">{item.text}</p>
                         <p className="text-xs text-gray-500 mt-0.5">{item.secondary}</p>

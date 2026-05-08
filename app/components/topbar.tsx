@@ -101,7 +101,7 @@ export default function Topbar({ user }: any) {
             onClick={() => { setShowProfile((v) => !v); setShowNotif(false); }}
             className="flex items-center gap-2 bg-white/5 border border-white/10 rounded-xl px-3 py-1.5 hover:bg-white/8 hover:border-white/20 transition"
           >
-            <div className="w-7 h-7 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center text-sm font-bold text-white">
+            <div className="w-7 h-7 rounded-full bg-linear-to-br from-purple-500 to-blue-500 flex items-center justify-center text-sm font-bold text-white">
               {user?.email?.[0]?.toUpperCase() || "U"}
             </div>
             <div className="hidden sm:block text-left">

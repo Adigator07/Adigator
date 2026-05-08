@@ -91,8 +91,8 @@ export default function GamingEnvironment({ content, slotType, creativeUrl, crea
       <div className={`max-w-7xl mx-auto px-4 py-6 ${isMobile ? "" : "flex gap-6"}`}>
         <main className={isMobile ? "w-full" : "flex-1 min-w-0"}>
           {/* Hero */}
-          <div className="relative rounded-2xl overflow-hidden mb-6 border border-gray-700/50 bg-gradient-to-br from-gray-900 to-gray-800">
-            <div className="w-full h-52 bg-gradient-to-br from-emerald-900/30 via-gray-900 to-gray-800 flex items-center justify-center">
+          <div className="relative rounded-2xl overflow-hidden mb-6 border border-gray-700/50 bg-linear-to-br from-gray-900 to-gray-800">
+            <div className="w-full h-52 bg-linear-to-br from-emerald-900/30 via-gray-900 to-gray-800 flex items-center justify-center">
               <span className="text-8xl opacity-15">🎮</span>
             </div>
             <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
@@ -116,7 +116,7 @@ export default function GamingEnvironment({ content, slotType, creativeUrl, crea
           <div className="space-y-3">
             {GAMES.map((game, i) => (
               <div key={i} className="flex items-center gap-4 bg-gray-900/60 border border-gray-700/40 rounded-xl p-3 cursor-pointer hover:border-emerald-500/40 transition">
-                <div className="w-14 h-14 bg-gradient-to-br from-gray-700 to-gray-800 rounded-xl flex items-center justify-center text-2xl flex-shrink-0">🕹️</div>
+                <div className="w-14 h-14 bg-linear-to-br from-gray-700 to-gray-800 rounded-xl flex items-center justify-center text-2xl shrink-0">🕹️</div>
                 <div className="flex-1 min-w-0">
                   <p className="font-bold text-white text-sm">{game.name}</p>
                   <p className="text-xs text-gray-500 mt-0.5">{game.genre}</p>
@@ -125,7 +125,7 @@ export default function GamingEnvironment({ content, slotType, creativeUrl, crea
                     <span className="text-xs text-emerald-400 font-medium">{game.players}</span>
                   </div>
                 </div>
-                <button className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-lg transition flex-shrink-0">Play</button>
+                <button className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-lg transition shrink-0">Play</button>
               </div>
             ))}
           </div>
@@ -133,7 +133,7 @@ export default function GamingEnvironment({ content, slotType, creativeUrl, crea
 
         {/* Sidebar */}
         {!isMobile && (
-          <aside className="w-64 flex-shrink-0 space-y-4">
+          <aside className="w-64 shrink-0 space-y-4">
             {slotType === "sidebar" && (
               <div className="bg-gray-900/60 border border-gray-700/50 rounded-xl p-3">
                 <AdUnit creativeUrl={creativeUrl} creativeSize={creativeSize} />
@@ -144,7 +144,7 @@ export default function GamingEnvironment({ content, slotType, creativeUrl, crea
               <div className="space-y-3">
                 {["xGamer_Pro · 48.2K viewers", "ShadowWolf · 31.7K viewers", "NightOwl_GG · 19.4K viewers"].map((s, i) => (
                   <div key={i} className="flex items-center gap-2 cursor-pointer">
-                    <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-600 to-teal-600 flex items-center justify-center text-sm flex-shrink-0">👤</div>
+                    <div className="w-8 h-8 rounded-lg bg-linear-to-br from-emerald-600 to-teal-600 flex items-center justify-center text-sm shrink-0">👤</div>
                     <div className="flex-1 min-w-0">
                       <p className="text-xs font-semibold text-gray-200 truncate">{s.split("·")[0].trim()}</p>
                       <p className="text-[10px] text-red-400 font-medium">{s.split("·")[1]?.trim()}</p>

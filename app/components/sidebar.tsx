@@ -54,7 +54,7 @@ export default function Sidebar({ collapsed, setCollapsed, user }: any) {
               transition={{ duration: 0.15 }}
               className="flex items-center gap-2"
             >
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center font-bold text-sm text-white shrink-0">A</div>
+              <div className="w-8 h-8 rounded-lg bg-linear-to-br from-purple-500 to-blue-500 flex items-center justify-center font-bold text-sm text-white shrink-0">A</div>
               <span className="font-extrabold text-white text-lg tracking-tight">Adigator</span>
             </motion.div>
           )}
@@ -86,7 +86,7 @@ export default function Sidebar({ collapsed, setCollapsed, user }: any) {
                       whileHover={{ x: collapsed ? 0 : 2 }}
                       className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-150 cursor-pointer relative group ${
                         active
-                          ? "bg-gradient-to-r from-purple-600/30 to-blue-600/20 text-white border border-purple-500/30"
+                          ? "bg-linear-to-r from-purple-600/30 to-blue-600/20 text-white border border-purple-500/30"
                           : "text-white/50 hover:bg-white/5 hover:text-white border border-transparent"
                       }`}
                     >
@@ -135,7 +135,7 @@ export default function Sidebar({ collapsed, setCollapsed, user }: any) {
       <div className="p-3 border-t border-white/10 shrink-0">
         {!collapsed ? (
           <div className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-white/5 border border-white/10">
-            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center text-sm font-bold text-white shrink-0">
+            <div className="w-8 h-8 rounded-full bg-linear-to-br from-purple-500 to-blue-500 flex items-center justify-center text-sm font-bold text-white shrink-0">
               {user?.email?.[0]?.toUpperCase() || "U"}
             </div>
             <div className="flex-1 min-w-0">

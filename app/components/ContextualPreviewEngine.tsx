@@ -270,7 +270,7 @@ export default function ContextualPreviewEngine({ creativeUrl, creativeSize, ver
         </div>
 
         {/* Environment render */}
-        <div className="border-x border-b border-white/10 rounded-b-xl overflow-hidden max-h-[700px] overflow-y-auto">
+        <div className="border-x border-b border-white/10 rounded-b-xl overflow-hidden max-h-175 overflow-y-auto">
           <AnimatePresence mode="wait">
             <motion.div
               key={`${currentEnv}-${device}`}
@@ -315,15 +315,15 @@ export default function ContextualPreviewEngine({ creativeUrl, creativeSize, ver
           <p className="text-sm font-bold text-white mb-3">Placement Details</p>
           <div className="space-y-2">
             <div className="flex items-start gap-2 text-xs">
-              <span className="text-gray-500 w-24 flex-shrink-0">Slot type</span>
+              <span className="text-gray-500 w-24 shrink-0">Slot type</span>
               <span className="text-gray-200 font-mono bg-white/5 px-2 py-0.5 rounded">{creativeMapping.slotType}</span>
             </div>
             <div className="flex items-start gap-2 text-xs">
-              <span className="text-gray-500 w-24 flex-shrink-0">Placement</span>
+              <span className="text-gray-500 w-24 shrink-0">Placement</span>
               <span className="text-gray-200">{creativeMapping.placementType}</span>
             </div>
             <div className="flex items-start gap-2 text-xs">
-              <span className="text-gray-500 w-24 flex-shrink-0">Injection</span>
+              <span className="text-gray-500 w-24 shrink-0">Injection</span>
               <span className="text-gray-300 leading-relaxed">{creativeMapping.injectionNotes}</span>
             </div>
           </div>
@@ -337,7 +337,7 @@ export default function ContextualPreviewEngine({ creativeUrl, creativeSize, ver
           <ul className="space-y-2">
             {recommendations.map((rec, i) => (
               <li key={i} className="flex items-start gap-2 text-sm text-gray-300">
-                <span className="text-purple-400 mt-0.5 flex-shrink-0">→</span>
+                <span className="text-purple-400 mt-0.5 shrink-0">→</span>
                 {rec}
               </li>
             ))}

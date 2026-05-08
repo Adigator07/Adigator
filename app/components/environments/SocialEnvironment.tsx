@@ -39,13 +39,13 @@ export default function SocialEnvironment({ content, slotType, creativeUrl, crea
       {/* Top nav */}
       <header className="border-b border-white/10 bg-[#0f1117]/90 backdrop-blur px-4 py-3 sticky top-0 z-10">
         <div className="max-w-2xl mx-auto flex items-center justify-between">
-          <div className="text-xl font-black bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
+          <div className="text-xl font-black bg-linear-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
             {publisher}
           </div>
           <div className="flex items-center gap-3">
             <button className="w-8 h-8 bg-white/5 rounded-full flex items-center justify-center text-sm hover:bg-white/10 transition">🔍</button>
             <button className="w-8 h-8 bg-white/5 rounded-full flex items-center justify-center text-sm hover:bg-white/10 transition">🔔</button>
-            <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full flex items-center justify-center text-sm font-bold">Y</div>
+            <div className="w-8 h-8 bg-linear-to-br from-purple-500 to-pink-500 rounded-full flex items-center justify-center text-sm font-bold">Y</div>
           </div>
         </div>
       </header>
@@ -54,18 +54,18 @@ export default function SocialEnvironment({ content, slotType, creativeUrl, crea
       {!isMobile && (
         <div className="border-b border-white/10 px-4 py-3">
           <div className="max-w-2xl mx-auto flex items-center gap-3 overflow-x-auto pb-1">
-            <div className="flex flex-col items-center gap-1 flex-shrink-0 cursor-pointer">
-              <div className="w-12 h-12 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 p-0.5">
+            <div className="flex flex-col items-center gap-1 shrink-0 cursor-pointer">
+              <div className="w-12 h-12 rounded-full bg-linear-to-br from-purple-500 to-pink-500 p-0.5">
                 <div className="w-full h-full rounded-full bg-[#0f1117] flex items-center justify-center text-lg">+</div>
               </div>
               <span className="text-[10px] text-gray-400">Your story</span>
             </div>
             {FEED_USERS.slice(0, 4).map((u) => (
-              <div key={u.handle} className="flex flex-col items-center gap-1 flex-shrink-0 cursor-pointer">
-                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-purple-400 to-blue-500 p-0.5">
+              <div key={u.handle} className="flex flex-col items-center gap-1 shrink-0 cursor-pointer">
+                <div className="w-12 h-12 rounded-full bg-linear-to-br from-purple-400 to-blue-500 p-0.5">
                   <div className="w-full h-full rounded-full bg-gray-800 flex items-center justify-center text-lg">{u.avatar}</div>
                 </div>
-                <span className="text-[10px] text-gray-400 max-w-[48px] truncate">{u.name.split(" ")[0]}</span>
+                <span className="text-[10px] text-gray-400 max-w-12 truncate">{u.name.split(" ")[0]}</span>
               </div>
             ))}
           </div>
@@ -89,7 +89,7 @@ export default function SocialEnvironment({ content, slotType, creativeUrl, crea
           {/* Post 1 */}
           <div className="bg-white/5 border border-white/10 rounded-2xl p-4">
             <div className="flex items-start gap-3">
-              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center text-xl flex-shrink-0">{FEED_USERS[0].avatar}</div>
+              <div className="w-10 h-10 rounded-full bg-linear-to-br from-blue-500 to-cyan-500 flex items-center justify-center text-xl shrink-0">{FEED_USERS[0].avatar}</div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-baseline gap-2">
                   <span className="font-bold text-white text-sm">{FEED_USERS[0].name}</span>
@@ -112,7 +112,7 @@ export default function SocialEnvironment({ content, slotType, creativeUrl, crea
           {slotType === "feed-card" && (
             <div className="bg-white/5 border-2 border-purple-500/40 rounded-2xl p-4 relative">
               <div className="flex items-start gap-3">
-                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-sm font-bold flex-shrink-0">AD</div>
+                <div className="w-10 h-10 rounded-full bg-linear-to-br from-purple-500 to-pink-500 flex items-center justify-center text-sm font-bold shrink-0">AD</div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-baseline gap-2 mb-2">
                     <span className="font-bold text-white text-sm">Sponsored</span>
@@ -133,7 +133,7 @@ export default function SocialEnvironment({ content, slotType, creativeUrl, crea
           {/* Post 2 */}
           <div className="bg-white/5 border border-white/10 rounded-2xl p-4">
             <div className="flex items-start gap-3">
-              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-green-500 to-emerald-500 flex items-center justify-center text-xl flex-shrink-0">{FEED_USERS[1].avatar}</div>
+              <div className="w-10 h-10 rounded-full bg-linear-to-br from-green-500 to-emerald-500 flex items-center justify-center text-xl shrink-0">{FEED_USERS[1].avatar}</div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-baseline gap-2">
                   <span className="font-bold text-white text-sm">{FEED_USERS[1].name}</span>
@@ -144,7 +144,7 @@ export default function SocialEnvironment({ content, slotType, creativeUrl, crea
                 <p className="text-sm text-gray-300 mt-1 leading-relaxed">
                   {bodyBlocks[0]?.text ?? "Thread: 5 insights from our latest quarterly analysis that every marketer needs to read before Q3 planning begins. 🧵"}
                 </p>
-                <div className="w-full h-32 bg-gradient-to-br from-gray-800 to-gray-700 rounded-xl mt-2 flex items-center justify-center text-gray-500 text-sm">
+                <div className="w-full h-32 bg-linear-to-br from-gray-800 to-gray-700 rounded-xl mt-2 flex items-center justify-center text-gray-500 text-sm">
                   Attached media
                 </div>
                 <div className="flex items-center gap-5 mt-3 text-gray-500 text-xs">
@@ -159,7 +159,7 @@ export default function SocialEnvironment({ content, slotType, creativeUrl, crea
           {/* Post 3 */}
           <div className="bg-white/5 border border-white/10 rounded-2xl p-4">
             <div className="flex items-start gap-3">
-              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-orange-500 to-yellow-500 flex items-center justify-center text-xl flex-shrink-0">{FEED_USERS[2].avatar}</div>
+              <div className="w-10 h-10 rounded-full bg-linear-to-br from-orange-500 to-yellow-500 flex items-center justify-center text-xl shrink-0">{FEED_USERS[2].avatar}</div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-baseline gap-2">
                   <span className="font-bold text-white text-sm">{FEED_USERS[2].name}</span>
@@ -193,7 +193,7 @@ export default function SocialEnvironment({ content, slotType, creativeUrl, crea
 
         {/* Right panel (desktop only) */}
         {!isMobile && (
-          <aside className="w-64 flex-shrink-0 space-y-4">
+          <aside className="w-64 shrink-0 space-y-4">
             {slotType === "sidebar" && (
               <div className="bg-white/5 border border-purple-500/30 rounded-2xl p-3">
                 <span className="text-xs text-purple-300 font-semibold uppercase tracking-widest block mb-2">Sponsored</span>
@@ -205,7 +205,7 @@ export default function SocialEnvironment({ content, slotType, creativeUrl, crea
               <div className="space-y-3">
                 {FEED_USERS.slice(2).map((u) => (
                   <div key={u.handle} className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-base">{u.avatar}</div>
+                    <div className="w-9 h-9 rounded-full bg-linear-to-br from-purple-500 to-pink-500 flex items-center justify-center text-base">{u.avatar}</div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-semibold text-white truncate">{u.name}</p>
                       <p className="text-xs text-gray-500 truncate">{u.handle}</p>
