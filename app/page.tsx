@@ -18,8 +18,25 @@ function CustomCursor() {
   const dotRef  = useRef<HTMLDivElement>(null);
   const ringRef = useRef<HTMLDivElement>(null);
   const [state, setState] = useState<"idle"|"clicking"|"hovering">("idle");
+  const [enabled, setEnabled] = useState(false);
 
   useEffect(() => {
+    const media = window.matchMedia("(hover: hover) and (pointer: fine)");
+    const motion = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const updateEnabled = () => setEnabled(media.matches && !motion.matches);
+    updateEnabled();
+
+    media.addEventListener("change", updateEnabled);
+    motion.addEventListener("change", updateEnabled);
+    return () => {
+      media.removeEventListener("change", updateEnabled);
+      motion.removeEventListener("change", updateEnabled);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!enabled) return;
+
     let rafId: number;
     let tx = -100, ty = -100;  // target (dot)
     let rx = -100, ry = -100;  // ring (lagged)
@@ -30,10 +47,13 @@ function CustomCursor() {
     const onDown  = () => setState("clicking");
     const onUp    = () => setState("idle");
 
-    const addHover = (el: Element) => el.addEventListener("mouseenter", () => setState("hovering"));
-    const remHover = (el: Element) => el.addEventListener("mouseleave", () => setState("idle"));
+    const onEnter = () => setState("hovering");
+    const onLeave = () => setState("idle");
     const interactables = document.querySelectorAll("a,button,[data-cursor-hover]");
-    interactables.forEach(el => { addHover(el); remHover(el); });
+    interactables.forEach(el => {
+      el.addEventListener("mouseenter", onEnter);
+      el.addEventListener("mouseleave", onLeave);
+    });
 
     const loop = () => {
       rafId = requestAnimationFrame(loop);
@@ -51,11 +71,18 @@ function CustomCursor() {
     window.addEventListener("mouseup", onUp);
     return () => {
       cancelAnimationFrame(rafId);
+      setState("idle");
+      interactables.forEach(el => {
+        el.removeEventListener("mouseenter", onEnter);
+        el.removeEventListener("mouseleave", onLeave);
+      });
       window.removeEventListener("mousemove", onMove);
       window.removeEventListener("mousedown", onDown);
       window.removeEventListener("mouseup", onUp);
     };
-  }, []);
+  }, [enabled]);
+
+  if (!enabled) return null;
 
   return (
     <>
@@ -77,56 +104,131 @@ function CanvasParticles() {
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    let W = (canvas.width  = window.innerWidth);
-    let H = (canvas.height = window.innerHeight);
+    const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (prefersReducedMotion) return;
+
+    const dpr = Math.min(window.devicePixelRatio || 1, 1.6);
+    const setCanvasSize = () => {
+      const vw = window.innerWidth;
+      const vh = window.innerHeight;
+      canvas.style.width = `${vw}px`;
+      canvas.style.height = `${vh}px`;
+      canvas.width = Math.floor(vw * dpr);
+      canvas.height = Math.floor(vh * dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      return { vw, vh };
+    };
+
+    let { vw: W, vh: H } = setCanvasSize();
     let mx = W / 2, my = H / 2;
     let animId: number;
+    let prev = 0;
+    const frameMs = 1000 / 36;
 
-    const N = 45;
-    const pts = Array.from({ length: N }, () => ({
+    const nodeCount = W >= 1536 ? 36 : W >= 1280 ? 28 : 22;
+    const starCount = W >= 1536 ? 170 : W >= 1280 ? 120 : 80;
+    let scrolling = false;
+    let scrollTimeout: ReturnType<typeof setTimeout> | null = null;
+
+    const stars = Array.from({ length: starCount }, () => ({
       x: Math.random() * W,
       y: Math.random() * H,
-      vx: (Math.random() - 0.5) * 0.35,
-      vy: (Math.random() - 0.5) * 0.35,
-      r: Math.random() * 1.8 + 0.4,
+      z: Math.random() * 0.85 + 0.15,
+      vx: (Math.random() - 0.5) * 0.1,
+      vy: (Math.random() - 0.5) * 0.1,
+      twinkle: Math.random() * 2.2 + 0.8,
+      phase: Math.random() * Math.PI * 2,
+      r: Math.random() * 1.2 + 0.3,
     }));
 
-    const draw = () => {
+    const nodes = Array.from({ length: nodeCount }, () => ({
+      x: Math.random() * W,
+      y: Math.random() * H,
+      vx: (Math.random() - 0.5) * 0.44,
+      vy: (Math.random() - 0.5) * 0.44,
+      r: Math.random() * 1.7 + 0.5,
+    }));
+
+    const pulseCount = 4;
+    const pulses = Array.from({ length: pulseCount }, () => ({ from: 0, to: 1, t: Math.random(), speed: Math.random() * 0.014 + 0.008 }));
+
+    const pickPulseRoute = (pulse: { from: number; to: number; t: number; speed: number }) => {
+      pulse.from = Math.floor(Math.random() * nodeCount);
+      pulse.to = Math.floor(Math.random() * nodeCount);
+      if (pulse.from === pulse.to) pulse.to = (pulse.to + 1) % nodeCount;
+      pulse.t = 0;
+      pulse.speed = Math.random() * 0.014 + 0.008;
+    };
+    pulses.forEach(p => pickPulseRoute(p));
+
+    const shooter = { x: -200, y: -200, vx: 0, vy: 0, life: 0, cooldown: 80 };
+    const spawnShooter = () => {
+      shooter.x = -80;
+      shooter.y = Math.random() * H * 0.55;
+      shooter.vx = Math.random() * 5 + 6;
+      shooter.vy = Math.random() * 1.3 + 0.7;
+      shooter.life = Math.floor(Math.random() * 36) + 38;
+    };
+
+    const draw = (ts = 0) => {
       animId = requestAnimationFrame(draw);
+      if (ts - prev < frameMs) return;
+      prev = ts;
+
+      if (document.visibilityState !== "visible") return;
       ctx.clearRect(0, 0, W, H);
 
-      // connections between particles
-      for (let i = 0; i < N; i++) {
-        const a = pts[i];
-        for (let j = i + 1; j < N; j++) {
-          const b = pts[j];
-          const dx = a.x - b.x, dy = a.y - b.y;
-          const d = Math.sqrt(dx * dx + dy * dy);
-          if (d < 110) {
-            ctx.beginPath();
-            ctx.moveTo(a.x, a.y);
-            ctx.lineTo(b.x, b.y);
-            ctx.strokeStyle = `rgba(139,92,246,${0.14 * (1 - d / 110)})`;
-            ctx.lineWidth = 0.4;
-            ctx.stroke();
+      for (let i = 0; i < stars.length; i++) {
+        const s = stars[i];
+        s.x += s.vx * s.z;
+        s.y += s.vy * s.z;
+        if (s.x < -4) s.x = W + 4;
+        if (s.x > W + 4) s.x = -4;
+        if (s.y < -4) s.y = H + 4;
+        if (s.y > H + 4) s.y = -4;
+
+        const tw = 0.45 + 0.55 * Math.sin(ts * 0.0011 * s.twinkle + s.phase);
+        const alpha = 0.18 + (tw + 1) * 0.22 * s.z;
+        ctx.beginPath();
+        ctx.arc(s.x, s.y, s.r * s.z, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(186,230,253,${alpha})`;
+        ctx.fill();
+      }
+
+      // connections between AI nodes
+      for (let i = 0; i < nodeCount; i++) {
+        const a = nodes[i];
+        if (!scrolling) {
+          for (let j = i + 1; j < nodeCount; j++) {
+            const b = nodes[j];
+            const dx = a.x - b.x, dy = a.y - b.y;
+            const d = Math.sqrt(dx * dx + dy * dy);
+            if (d < 125) {
+              ctx.beginPath();
+              ctx.moveTo(a.x, a.y);
+              ctx.lineTo(b.x, b.y);
+              ctx.strokeStyle = `rgba(99,102,241,${0.13 * (1 - d / 125)})`;
+              ctx.lineWidth = 0.45;
+              ctx.stroke();
+            }
           }
         }
         // connection to mouse
         const mdx = a.x - mx, mdy = a.y - my;
         const md = Math.sqrt(mdx * mdx + mdy * mdy);
-        if (md < 160) {
+        if (md < 190) {
           ctx.beginPath();
           ctx.moveTo(a.x, a.y);
           ctx.lineTo(mx, my);
-          ctx.strokeStyle = `rgba(168,85,247,${0.22 * (1 - md / 160)})`;
-          ctx.lineWidth = 0.7;
+          ctx.strokeStyle = `rgba(56,189,248,${0.2 * (1 - md / 190)})`;
+          ctx.lineWidth = 0.8;
           ctx.stroke();
         }
 
-        // draw particle
+        // draw node
         ctx.beginPath();
         ctx.arc(a.x, a.y, a.r, 0, Math.PI * 2);
-        ctx.fillStyle = "rgba(139,92,246,0.65)";
+        ctx.fillStyle = "rgba(129,140,248,0.72)";
         ctx.fill();
 
         // move
@@ -135,28 +237,89 @@ function CanvasParticles() {
         if (a.y < 0 || a.y > H) a.vy *= -1;
       }
 
+      // data pulses traveling between nodes
+      for (let i = 0; i < pulses.length; i++) {
+        const p = pulses[i];
+        p.t += p.speed;
+        if (p.t > 1) {
+          pickPulseRoute(p);
+          continue;
+        }
+
+        const from = nodes[p.from];
+        const to = nodes[p.to];
+        const x = from.x + (to.x - from.x) * p.t;
+        const y = from.y + (to.y - from.y) * p.t;
+        ctx.beginPath();
+        ctx.arc(x, y, 2.1, 0, Math.PI * 2);
+        ctx.fillStyle = "rgba(34,211,238,0.9)";
+        ctx.fill();
+      }
+
+      // occasional shooting star for extra depth
+      if (shooter.life <= 0) {
+        shooter.cooldown -= 1;
+        if (shooter.cooldown <= 0) {
+          spawnShooter();
+          shooter.cooldown = Math.floor(Math.random() * 110) + 120;
+        }
+      } else {
+        const tx = shooter.x + shooter.vx * 5;
+        const ty = shooter.y + shooter.vy * 5;
+        const grad = ctx.createLinearGradient(shooter.x, shooter.y, tx, ty);
+        grad.addColorStop(0, "rgba(196,181,253,0)");
+        grad.addColorStop(1, "rgba(196,181,253,0.8)");
+        ctx.beginPath();
+        ctx.moveTo(shooter.x, shooter.y);
+        ctx.lineTo(tx, ty);
+        ctx.strokeStyle = grad;
+        ctx.lineWidth = 1.4;
+        ctx.stroke();
+
+        shooter.x += shooter.vx;
+        shooter.y += shooter.vy;
+        shooter.life -= 1;
+      }
+
       // draw mouse glow node
-      const grad = ctx.createRadialGradient(mx, my, 0, mx, my, 8);
-      grad.addColorStop(0, "rgba(192,132,252,0.8)");
-      grad.addColorStop(1, "rgba(192,132,252,0)");
+      const grad = ctx.createRadialGradient(mx, my, 0, mx, my, 10);
+      grad.addColorStop(0, "rgba(56,189,248,0.75)");
+      grad.addColorStop(1, "rgba(56,189,248,0)");
       ctx.beginPath();
-      ctx.arc(mx, my, 8, 0, Math.PI * 2);
+      ctx.arc(mx, my, 10, 0, Math.PI * 2);
       ctx.fillStyle = grad;
       ctx.fill();
+
+      ctx.beginPath();
+      ctx.arc(mx, my, 22, 0, Math.PI * 2);
+      ctx.strokeStyle = "rgba(56,189,248,0.22)";
+      ctx.lineWidth = 0.8;
+      ctx.stroke();
     };
 
     draw();
 
     const onMove   = (e: MouseEvent) => { mx = e.clientX; my = e.clientY; };
+    const onScroll = () => {
+      scrolling = true;
+      if (scrollTimeout) clearTimeout(scrollTimeout);
+      scrollTimeout = setTimeout(() => {
+        scrolling = false;
+      }, 120);
+    };
     const onResize = () => {
-      W = canvas.width  = window.innerWidth;
-      H = canvas.height = window.innerHeight;
+      const resized = setCanvasSize();
+      W = resized.vw;
+      H = resized.vh;
     };
     window.addEventListener("mousemove", onMove,   { passive: true });
+    window.addEventListener("scroll", onScroll, { passive: true });
     window.addEventListener("resize",   onResize);
     return () => {
       cancelAnimationFrame(animId);
+      if (scrollTimeout) clearTimeout(scrollTimeout);
       window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("scroll", onScroll);
       window.removeEventListener("resize",   onResize);
     };
   }, []);
@@ -245,7 +408,7 @@ function HeroScene({ mx, my }: { mx: MotionValue<number>; my: MotionValue<number
         </div>
 
         {/* ─── LAYER +65: comparison tile (right, mid-front) ─── */}
-        <div className="scene-layer scene-item-compare" style={{ transform: "translateZ(65px) translate(68%, -38%) scale(0.82)" }}>
+        <div className="scene-layer scene-item-compare" style={{ transform: "translateZ(65px) translate(76%, -10%) scale(0.72)" }}>
           <div className="w-48 rounded-2xl p-4"
             style={{ background: "rgba(8,12,36,0.88)", border: "1px solid rgba(255,255,255,0.1)", boxShadow: "0 0 30px rgba(147,51,234,0.15), 0 16px 40px rgba(0,0,0,0.6)" }}>
             <p className="text-[9px] font-bold uppercase tracking-widest text-gray-500 mb-3">Creative Match</p>
@@ -263,7 +426,7 @@ function HeroScene({ mx, my }: { mx: MotionValue<number>; my: MotionValue<number
         </div>
 
         {/* ─── LAYER +110: score badge (floating, closest) ─── */}
-        <div className="scene-layer scene-item-iab" style={{ transform: "translateZ(110px) translate(-12%, 68%) scale(0.92)", animation: "float-a 4.5s ease-in-out infinite" }}>
+        <div className="scene-layer scene-item-iab" style={{ transform: "translateZ(104px) translate(52%, 78%) scale(0.82)", animation: "float-a 4.5s ease-in-out infinite" }}>
           <div className="rounded-2xl px-4 py-3 text-center"
             style={{ background: "rgba(16,185,129,0.15)", border: "1px solid rgba(52,211,153,0.35)", boxShadow: "0 0 30px rgba(52,211,153,0.2), 0 12px 32px rgba(0,0,0,0.5)" }}>
             <p className="text-[9px] font-bold uppercase tracking-widest text-emerald-400 mb-1">IAB Ready</p>
@@ -272,7 +435,7 @@ function HeroScene({ mx, my }: { mx: MotionValue<number>; my: MotionValue<number
         </div>
 
         {/* ─── LAYER +130: time saved pill (topmost) ─── */}
-        <div className="scene-layer scene-item-saved" style={{ transform: "translateZ(130px) translate(52%, 68%) scale(0.88)", animation: "float-b 5.5s ease-in-out infinite" }}>
+        <div className="scene-layer scene-item-saved" style={{ transform: "translateZ(112px) translate(78%, 78%) scale(0.72)", animation: "float-b 5.5s ease-in-out infinite" }}>
           <div className="rounded-xl px-3.5 py-2.5"
             style={{ background: "rgba(147,51,234,0.2)", border: "1px solid rgba(168,85,247,0.45)", boxShadow: "0 0 24px rgba(168,85,247,0.3), 0 8px 24px rgba(0,0,0,0.5)" }}>
             <p className="text-[8px] text-purple-400 uppercase tracking-widest">Saved</p>
@@ -524,11 +687,45 @@ export default function Home() {
   // Carousel
   const [active, setActive]  = useState(0);
   const [paused, setPaused]  = useState(false);
+  const [showGrain, setShowGrain] = useState(false);
+  const [showStickyCta, setShowStickyCta] = useState(false);
+  const [isScrolling, setIsScrolling] = useState(false);
+
+  useEffect(() => {
+    const media = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const onChange = () => setShowGrain(!media.matches);
+    onChange();
+    media.addEventListener("change", onChange);
+    return () => media.removeEventListener("change", onChange);
+  }, []);
+
   useEffect(() => {
     if (paused) return;
     const id = setInterval(() => setActive(p => (p + 1) % carouselItems.length), 2700);
     return () => clearInterval(id);
   }, [paused]);
+
+  useEffect(() => {
+    const onScroll = () => setShowStickyCta(window.scrollY > 480);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
+  useEffect(() => {
+    let timeout: ReturnType<typeof setTimeout> | null = null;
+    const onScroll = () => {
+      setIsScrolling(true);
+      if (timeout) clearTimeout(timeout);
+      timeout = setTimeout(() => setIsScrolling(false), 180);
+    };
+
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      if (timeout) clearTimeout(timeout);
+      window.removeEventListener("scroll", onScroll);
+    };
+  }, []);
 
   // Scroll parallax
   const { scrollY } = useScroll();
@@ -544,7 +741,7 @@ export default function Home() {
   };
 
   return (
-    <main className="relative min-h-screen bg-[#020617] text-white">
+    <main className="relative min-h-screen bg-[#020617] text-white" data-scrolling={isScrolling ? "true" : "false"}>
 
       {/* ── Custom Cursor ── */}
       <CustomCursor />
@@ -553,7 +750,7 @@ export default function Home() {
       <CanvasParticles />
 
       {/* ── Film Grain ── */}
-      <div className="grain" />
+      {showGrain && <div className="grain" />}
 
       {/* ── Atmospheric Orbs (mouse-reactive) ── */}
       <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
@@ -563,6 +760,9 @@ export default function Home() {
           style={{ top: "20%", right: "-12%", width: 580, height: 580, background: "radial-gradient(circle, rgba(59,130,246,0.13) 0%, transparent 68%)", filter: "blur(55px)", x: ox2, y: oy2 }} />
         <motion.div className="absolute rounded-full"
           style={{ bottom: "-8%", left: "38%", width: 500, height: 500, background: "radial-gradient(circle, rgba(236,72,153,0.11) 0%, transparent 68%)", filter: "blur(55px)", x: ox3, y: oy3 }} />
+
+        <div className="absolute inset-0 ai-pixels" />
+        <div className="absolute inset-0 ai-beam" />
 
         {/* Marching grid overlay */}
         <div className="absolute inset-0 grid-bg" />
@@ -654,6 +854,26 @@ export default function Home() {
             <HeroScene mx={mx} my={my} />
           </motion.div>
         </motion.div>
+      </section>
+
+      <section className="landing-section relative z-10 pt-0 pb-6">
+        <div className="landing-container">
+          <Reveal>
+            <div className="trust-strip">
+              {[
+                { label: "Validation Speed", value: "< 20s" },
+                { label: "Creative Accuracy", value: "94.2%" },
+                { label: "Avg Time Saved", value: "18h" },
+              ].map((item, idx) => (
+                <div key={item.label} className="trust-item">
+                  <p className="trust-value">{item.value}</p>
+                  <p className="trust-label">{item.label}</p>
+                  {idx < 2 && <span className="trust-sep" />}
+                </div>
+              ))}
+            </div>
+          </Reveal>
+        </div>
       </section>
 
       {/* ══════════════════════════════════════════════
@@ -755,6 +975,23 @@ export default function Home() {
           </Reveal>
         </div>
       </section>
+
+      <AnimatePresence>
+        {showStickyCta && (
+          <motion.div
+            initial={{ opacity: 0, y: 24, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 16, scale: 0.95 }}
+            transition={{ duration: 0.25 }}
+            className="sticky-cta-wrap"
+          >
+            <Link href="/preview" className="sticky-cta-btn">
+              Launch Preview
+              <span>→</span>
+            </Link>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </main>
   );
 }
