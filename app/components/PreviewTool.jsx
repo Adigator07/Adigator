@@ -4,6 +4,8 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import SlidePreview from "./SlidePreview";
+import dynamic from "next/dynamic";
+const ContextualPreviewEngine = dynamic(() => import("./ContextualPreviewEngine"), { ssr: false, loading: () => <div className="py-20 text-center text-gray-500 text-sm">Loading contextual engine…</div> });
 import EditCreativeModal from "./EditCreativeModal";
 import CreativeCard from "./CreativeCard";
 import AnalysisPanel from "./AnalysisPanel";
@@ -247,6 +249,7 @@ export default function PreviewTool() {
   const [viewMode, setViewMode] = useState("multiple");
   const [showSlotLabels, setShowSlotLabels] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
+  const [previewTab, setPreviewTab] = useState("template"); // "template" | "contextual"
 
   const fileRef = useRef(null);
   const userRef = useRef(null);
@@ -979,7 +982,7 @@ export default function PreviewTool() {
           {/* STEP 4: PREVIEW STUDIO */}
           {step === 4 && (
             <motion.div key="step-4" variants={itemVariants} initial="hidden" animate="visible" exit="hidden" className="space-y-8">
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between flex-wrap gap-4">
                 <div>
                   <h2 className="text-4xl font-bold text-white mb-2">Step 4: Preview Studio</h2>
                   <p className="text-gray-400">See your creatives in realistic interactive website contexts.</p>
@@ -990,22 +993,62 @@ export default function PreviewTool() {
                 </motion.button>
               </div>
 
-              <label className="flex items-center gap-3 cursor-pointer bg-white/5 border border-white/20 rounded-lg px-4 py-3 hover:bg-white/10 transition w-fit">
-                <input type="checkbox" checked={showSlotLabels} onChange={(e) => setShowSlotLabels(e.target.checked)} className="w-4 h-4 cursor-pointer" />
-                <span className="text-sm font-medium text-white">Show slot IDs</span>
-              </label>
+              {/* Tab switcher */}
+              <div className="flex items-center gap-2 bg-white/5 border border-white/10 rounded-xl p-1 w-fit">
+                <button
+                  onClick={() => setPreviewTab("template")}
+                  className={`px-5 py-2 rounded-lg text-sm font-semibold transition ${previewTab === "template" ? "bg-white/15 text-white shadow" : "text-gray-400 hover:text-white"}`}
+                >
+                  🗂️ Template View
+                </button>
+                <button
+                  onClick={() => setPreviewTab("contextual")}
+                  className={`px-5 py-2 rounded-lg text-sm font-semibold transition flex items-center gap-2 ${previewTab === "contextual" ? "bg-purple-600 text-white shadow-lg shadow-purple-500/30" : "text-gray-400 hover:text-white"}`}
+                >
+                  🌐 Contextual Preview
+                  <span className="text-[9px] bg-purple-500/40 text-purple-200 px-1.5 py-0.5 rounded-full font-bold uppercase tracking-wider">NEW</span>
+                </button>
+              </div>
 
-              <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-                <SlidePreview
-                  validCreatives={validCreatives}
-                  showSlotLabels={showSlotLabels}
-                  selectedTemplate={selectedTemplate}
-                  setSelectedTemplate={setSelectedTemplate}
-                  TEMPLATES={TEMPLATES}
-                  viewMode={viewMode}
-                  onViewModeChange={setViewMode}
+              {previewTab === "template" && (
+                <>
+                  <label className="flex items-center gap-3 cursor-pointer bg-white/5 border border-white/20 rounded-lg px-4 py-3 hover:bg-white/10 transition w-fit">
+                    <input type="checkbox" checked={showSlotLabels} onChange={(e) => setShowSlotLabels(e.target.checked)} className="w-4 h-4 cursor-pointer" />
+                    <span className="text-sm font-medium text-white">Show slot IDs</span>
+                  </label>
+                  <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+                    <SlidePreview
+                      validCreatives={validCreatives}
+                      showSlotLabels={showSlotLabels}
+                      selectedTemplate={selectedTemplate}
+                      setSelectedTemplate={setSelectedTemplate}
+                      TEMPLATES={TEMPLATES}
+                      viewMode={viewMode}
+                      onViewModeChange={setViewMode}
+                    />
+                  </motion.div>
+                </>
+              )}
+
+              {previewTab === "contextual" && validCreatives.length > 0 && (
+                <ContextualPreviewEngine
+                  creativeUrl={validCreatives[0].url}
+                  creativeSize={validCreatives[0].size}
+                  vertical={campaignVertical || "general"}
+                  goal={campaignGoal || "awareness"}
+                  analyzerOutput={analysisResult?.[0]?.data ?? {}}
+                  ctaText={analysisResult?.[0]?.data?.cta?.text ?? ""}
+                  headline={analysisResult?.[0]?.data?.headline ?? ""}
                 />
-              </motion.div>
+              )}
+
+              {previewTab === "contextual" && validCreatives.length === 0 && (
+                <div className="flex flex-col items-center justify-center py-16 text-center bg-white/3 border border-white/10 rounded-2xl">
+                  <span className="text-4xl mb-4">🌐</span>
+                  <p className="text-white font-semibold">No valid creatives to preview</p>
+                  <p className="text-gray-400 text-sm mt-1">Upload and validate a creative in step 2 first.</p>
+                </div>
+              )}
 
               <div className="flex gap-4 pt-4">
                 <NavBtn variant="back" onClick={goBack}>← Back</NavBtn>
