@@ -110,7 +110,8 @@ function CanvasParticles({ mode = "full" }: { mode?: PerformanceTier }) {
     if (prefersReducedMotion) return;
 
     const isLite = mode === "lite";
-    const dpr = Math.min(window.devicePixelRatio || 1, isLite ? 1 : 1.25);
+    const isMobile = window.innerWidth <= 768;
+    const dpr = isMobile ? 1 : Math.min(window.devicePixelRatio || 1, isLite ? 1 : 1.2);
     const setCanvasSize = () => {
       const vw = window.innerWidth;
       const vh = window.innerHeight;
@@ -126,12 +127,13 @@ function CanvasParticles({ mode = "full" }: { mode?: PerformanceTier }) {
     let mx = W / 2, my = H / 2;
     let animId: number;
     let prev = 0;
-    const baseFps = isLite ? 18 : 26;
+    const baseFps = isMobile ? 14 : isLite ? 18 : 24;
     let frameMs = 1000 / baseFps;
 
-    const starCount = isLite
-      ? (W >= 1366 ? 110 : 84)
-      : (W >= 1536 ? 210 : W >= 1366 ? 176 : 142);
+    // Reduced star counts vs before — avoids canvas overdraw lag
+    const starCount = isMobile ? 30 : isLite
+      ? (W >= 1366 ? 65 : 50)
+      : (W >= 1536 ? 90 : W >= 1366 ? 78 : 65);
     let scrolling = false;
     let scrollTimeout: ReturnType<typeof setTimeout> | null = null;
 
@@ -148,22 +150,22 @@ function CanvasParticles({ mode = "full" }: { mode?: PerformanceTier }) {
 
     const stars = Array.from({ length: starCount }, () => {
       const d = directionPool[Math.floor(Math.random() * directionPool.length)];
-      const speed = Math.random() * 0.24 + 0.09;
+      const speed = Math.random() * 0.2 + 0.08;
       return {
-      x: Math.random() * W,
-      y: Math.random() * H,
-      z: Math.random() * 0.8 + 0.2,
-      vx: d.x * speed,
-      vy: d.y * speed,
-      twinkle: Math.random() * 1.8 + 0.7,
-      phase: Math.random() * Math.PI * 2,
-      waveAmp: Math.random() * 0.16 + 0.04,
-      waveSpeed: Math.random() * 0.001 + 0.0005,
-      r: Math.random() * 1.1 + 0.25,
+        x: Math.random() * W,
+        y: Math.random() * H,
+        z: Math.random() * 0.8 + 0.2,
+        vx: d.x * speed,
+        vy: d.y * speed,
+        twinkle: Math.random() * 1.6 + 0.6,
+        phase: Math.random() * Math.PI * 2,
+        waveAmp: Math.random() * 0.14 + 0.04,
+        waveSpeed: Math.random() * 0.0008 + 0.0004,
+        r: Math.random() * 1.0 + 0.25,
       };
     });
 
-    const shooterCount = isLite ? 2 : 6;
+    const shooterCount = isMobile ? 1 : isLite ? 2 : 3;
     const shooters = Array.from({ length: shooterCount }, () => ({
       x: -100,
       y: -100,
@@ -171,21 +173,29 @@ function CanvasParticles({ mode = "full" }: { mode?: PerformanceTier }) {
       vy: 0,
       life: 0,
       maxLife: 0,
-      cooldown: Math.floor(Math.random() * 36) + 10,
+      cooldown: Math.floor(Math.random() * 60) + 30,
       headAlpha: 0.9,
     }));
 
+    const anglePresets = [
+      Math.PI * 0.15, Math.PI * 0.22, Math.PI * 0.28,
+      Math.PI * 1.15, Math.PI * 1.22, Math.PI * 1.72,
+    ];
+
     const spawnShooter = (s: typeof shooters[number]) => {
-      s.x = Math.random() * W;
-      s.y = Math.random() * H;
-      const angle = Math.random() * Math.PI * 2;
-      const speed = Math.random() * 3.6 + 3.6;
+      const edge = Math.floor(Math.random() * 2);
+      if (edge === 0) { s.x = Math.random() * W; s.y = -10; }
+      else { s.x = -10; s.y = Math.random() * H * 0.6; }
+      const angle = anglePresets[Math.floor(Math.random() * anglePresets.length)] + (Math.random() * 0.14 - 0.07);
+      const speed = Math.random() * 5 + 4;
       s.vx = Math.cos(angle) * speed;
       s.vy = Math.sin(angle) * speed;
-      s.maxLife = Math.floor(Math.random() * 20) + 22;
+      s.maxLife = Math.floor(Math.random() * 24) + 20;
       s.life = s.maxLife;
-      s.headAlpha = Math.random() * 0.25 + 0.72;
-      s.cooldown = Math.floor(Math.random() * 40) + 14;
+      s.headAlpha = Math.random() * 0.15 + 0.82;
+      s.cooldown = isMobile
+        ? Math.floor(Math.random() * 120) + 60
+        : Math.floor(Math.random() * 60) + 30;
     };
 
     const draw = (ts = 0) => {
@@ -198,10 +208,8 @@ function CanvasParticles({ mode = "full" }: { mode?: PerformanceTier }) {
 
       for (let i = 0; i < stars.length; i++) {
         const s = stars[i];
-        const swirlX = Math.sin(ts * 0.00023 + s.phase) * 0.06;
-        const swirlY = Math.cos(ts * 0.00027 + s.phase) * 0.06;
-        s.x += (s.vx + swirlX) * s.z;
-        s.y += (s.vy + swirlY) * s.z + Math.sin(ts * s.waveSpeed + s.phase) * s.waveAmp;
+        s.x += s.vx * s.z;
+        s.y += s.vy * s.z + Math.sin(ts * s.waveSpeed + s.phase) * s.waveAmp;
         if (s.x < -4) s.x = W + 4;
         if (s.x > W + 4) {
           s.x = -4;
@@ -210,69 +218,50 @@ function CanvasParticles({ mode = "full" }: { mode?: PerformanceTier }) {
         if (s.y < -4) s.y = H + 4;
         if (s.y > H + 4) s.y = -4;
 
-        const tw = 0.45 + 0.55 * Math.sin(ts * 0.0011 * s.twinkle + s.phase);
-        const alpha = 0.28 + (tw + 1) * 0.24 * s.z;
+        const tw = 0.45 + 0.55 * Math.sin(ts * 0.001 * s.twinkle + s.phase);
+        const alpha = 0.28 + (tw + 1) * 0.22 * s.z;
 
-        const glowR = s.r * s.z * (isLite ? 1.9 : 2.5);
-        ctx.beginPath();
-        ctx.arc(s.x, s.y, glowR, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(186,230,253,${alpha * (isLite ? 0.12 : 0.18)})`;
-        ctx.fill();
-
+        // Single arc per star — no glow circle (halves draw calls)
         ctx.beginPath();
         ctx.arc(s.x, s.y, s.r * s.z, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(186,230,253,${alpha})`;
+        ctx.fillStyle = `rgba(186,230,253,${Math.min(alpha, 0.95)})`;
         ctx.fill();
       }
 
-      for (let i = 0; i < shooters.length; i++) {
-        const s = shooters[i];
-        if (s.life <= 0) {
-          s.cooldown -= 1;
-          if (s.cooldown <= 0) spawnShooter(s);
-          continue;
+      if (!scrolling) {
+        for (let i = 0; i < shooters.length; i++) {
+          const s = shooters[i];
+          if (s.life <= 0) {
+            s.cooldown -= 1;
+            if (s.cooldown <= 0) spawnShooter(s);
+            continue;
+          }
+
+          const progress = 1 - s.life / s.maxLife;
+          const tailLen = isMobile ? 52 : isLite ? 64 : 88;
+          const tx = s.x - s.vx * tailLen * 0.24;
+          const ty = s.y - s.vy * tailLen * 0.24;
+
+          const grad = ctx.createLinearGradient(tx, ty, s.x, s.y);
+          grad.addColorStop(0, "rgba(125,211,252,0)");
+          grad.addColorStop(0.55, `rgba(196,210,255,${s.headAlpha * 0.28 * (1 - progress * 0.5)})`);
+          grad.addColorStop(1, `rgba(230,220,255,${s.headAlpha * (1 - progress * 0.45)})`);
+          ctx.beginPath();
+          ctx.moveTo(tx, ty);
+          ctx.lineTo(s.x, s.y);
+          ctx.strokeStyle = grad;
+          ctx.lineWidth = 1.4;
+          ctx.stroke();
+
+          ctx.beginPath();
+          ctx.arc(s.x, s.y, isMobile ? 1.6 : 2.0, 0, Math.PI * 2);
+          ctx.fillStyle = `rgba(240,248,255,${s.headAlpha * (1 - progress * 0.4)})`;
+          ctx.fill();
+
+          s.x += s.vx;
+          s.y += s.vy;
+          s.life -= 1;
         }
-
-        const progress = 1 - s.life / s.maxLife;
-        const tailLen = isLite ? 34 : 56;
-        const tx = s.x - s.vx * tailLen * 0.2;
-        const ty = s.y - s.vy * tailLen * 0.2;
-
-        const grad = ctx.createLinearGradient(tx, ty, s.x, s.y);
-        grad.addColorStop(0, "rgba(125,211,252,0)");
-        grad.addColorStop(1, `rgba(196,181,253,${s.headAlpha * (1 - progress * 0.5)})`);
-        ctx.beginPath();
-        ctx.moveTo(tx, ty);
-        ctx.lineTo(s.x, s.y);
-        ctx.strokeStyle = grad;
-        ctx.lineWidth = isLite ? 1.05 : 1.35;
-        ctx.stroke();
-
-        ctx.beginPath();
-        ctx.arc(s.x, s.y, isLite ? 1.3 : 1.8, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(224,242,254,${s.headAlpha})`;
-        ctx.fill();
-
-        s.x += s.vx;
-        s.y += s.vy;
-        s.life -= 1;
-      }
-
-      // draw mouse glow node
-      if (!isLite) {
-        const grad = ctx.createRadialGradient(mx, my, 0, mx, my, 10);
-        grad.addColorStop(0, "rgba(56,189,248,0.75)");
-        grad.addColorStop(1, "rgba(56,189,248,0)");
-        ctx.beginPath();
-        ctx.arc(mx, my, 10, 0, Math.PI * 2);
-        ctx.fillStyle = grad;
-        ctx.fill();
-
-        ctx.beginPath();
-        ctx.arc(mx, my, 16, 0, Math.PI * 2);
-        ctx.strokeStyle = "rgba(56,189,248,0.22)";
-        ctx.lineWidth = 0.7;
-        ctx.stroke();
       }
     };
 
@@ -284,7 +273,7 @@ function CanvasParticles({ mode = "full" }: { mode?: PerformanceTier }) {
     };
     const onScroll = () => {
       scrolling = true;
-      frameMs = 1000 / (isLite ? 14 : 18);
+      frameMs = 1000 / (isMobile ? 10 : isLite ? 14 : 16);
       if (scrollTimeout) clearTimeout(scrollTimeout);
       scrollTimeout = setTimeout(() => {
         scrolling = false;
@@ -1022,22 +1011,6 @@ export default function Home() {
         </div>
       </section>
 
-      <AnimatePresence>
-        {showStickyCta && (
-          <motion.div
-            initial={{ opacity: 0, y: 24, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 16, scale: 0.95 }}
-            transition={{ duration: 0.25 }}
-            className="sticky-cta-wrap"
-          >
-            <Link href="/preview" className="sticky-cta-btn">
-              Launch Preview
-              <span>→</span>
-            </Link>
-          </motion.div>
-        )}
-      </AnimatePresence>
     </main>
   );
 }

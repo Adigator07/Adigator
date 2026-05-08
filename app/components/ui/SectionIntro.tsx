@@ -23,8 +23,8 @@ export default function SectionIntro({ eyebrow, title, subtitle, center = false 
           {eyebrow}
         </p>
       )}
-      <h2 className="font-display mt-6 text-4xl leading-tight text-white md:text-5xl">{title}</h2>
-      {subtitle && <p className="mt-4 text-lg leading-relaxed text-gray-400">{subtitle}</p>}
+      <h2 className="font-display mt-6 text-4xl leading-tight text-white md:text-5xl lg:text-[3.4rem]">{title}</h2>
+      {subtitle && <p className="mt-4 text-base leading-relaxed text-gray-400 md:text-lg">{subtitle}</p>}
     </motion.div>
   );
 }

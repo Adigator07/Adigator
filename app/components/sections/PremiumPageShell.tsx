@@ -63,57 +63,45 @@ export default function PremiumPageShell({ children }: PremiumPageShellProps) {
 
   return (
     <main className="relative min-h-screen bg-[#020617] text-white" data-scrolling={isScrolling ? "true" : "false"}>
-      <PremiumParticles density="high" mode={performanceTier} />
+      <PremiumParticles density="medium" mode={performanceTier} />
       {showGrain && <div className="grain" />}
 
       <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
+        {/* Single ambient orb — lite gets static, full gets slow drift */}
         <motion.div
           className="absolute rounded-full"
           style={{
-            top: "-12%",
-            left: "-14%",
-            width: 640,
-            height: 640,
-            background: "radial-gradient(circle, rgba(139,92,246,0.16) 0%, transparent 68%)",
-            filter: "blur(58px)",
+            top: "-10%",
+            left: "-12%",
+            width: 560,
+            height: 560,
+            background: "radial-gradient(circle, rgba(139,92,246,0.14) 0%, transparent 68%)",
+            filter: "blur(64px)",
             willChange: "transform",
           }}
-          animate={performanceTier === "lite" ? { x: [0, 10, -8, 0], y: [0, -8, 6, 0] } : { x: [0, 34, -26, 0], y: [0, -24, 14, 0] }}
-          transition={{ duration: 20, repeat: Infinity, ease: "easeInOut" }}
+          animate={performanceTier === "lite" ? {} : { x: [0, 28, -18, 0], y: [0, -18, 12, 0] }}
+          transition={{ duration: 28, repeat: Infinity, ease: "easeInOut" }}
         />
-        <motion.div
-          className="absolute rounded-full"
-          style={{
-            top: "18%",
-            right: "-14%",
-            width: 540,
-            height: 540,
-            background: "radial-gradient(circle, rgba(59,130,246,0.14) 0%, transparent 68%)",
-            filter: "blur(56px)",
-            willChange: "transform",
-          }}
-          animate={performanceTier === "lite" ? { x: [0, -12, 8, 0], y: [0, 8, -6, 0] } : { x: [0, -36, 22, 0], y: [0, 20, -16, 0] }}
-          transition={{ duration: 22, repeat: Infinity, ease: "easeInOut" }}
-        />
-        <motion.div
-          className="absolute rounded-full"
-          style={{
-            bottom: "-10%",
-            left: "34%",
-            width: 460,
-            height: 460,
-            background: "radial-gradient(circle, rgba(236,72,153,0.12) 0%, transparent 68%)",
-            filter: "blur(52px)",
-            willChange: "transform",
-          }}
-          animate={performanceTier === "lite" ? { x: [0, 10, -6, 0], y: [0, -6, 10, 0] } : { x: [0, 28, -16, 0], y: [0, -14, 22, 0] }}
-          transition={{ duration: 24, repeat: Infinity, ease: "easeInOut" }}
-        />
+        {performanceTier !== "lite" && (
+          <motion.div
+            className="absolute rounded-full"
+            style={{
+              bottom: "-8%",
+              right: "-10%",
+              width: 460,
+              height: 460,
+              background: "radial-gradient(circle, rgba(59,130,246,0.11) 0%, transparent 68%)",
+              filter: "blur(56px)",
+              willChange: "transform",
+            }}
+            animate={{ x: [0, -22, 14, 0], y: [0, 16, -12, 0] }}
+            transition={{ duration: 32, repeat: Infinity, ease: "easeInOut" }}
+          />
+        )}
 
         <div className="absolute inset-0 ai-pixels" />
         <div className="absolute inset-0 ai-beam" />
         <div className="absolute inset-0 ai-nodes" />
-        <div className="absolute inset-0 ai-matrix" />
         <div className="absolute inset-0 ai-rings" />
         <div className="absolute inset-0 grid-bg" />
       </div>

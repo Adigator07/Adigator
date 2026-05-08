@@ -193,7 +193,7 @@ body {
   position: absolute;
   inset: 0;
   pointer-events: none;
-  opacity: 0.12;
+  opacity: 0.08;
   background-image:
     radial-gradient(circle at 10% 20%, rgba(56,189,248,0.18) 0 1px, transparent 1px),
     radial-gradient(circle at 80% 70%, rgba(196,181,253,0.15) 0 1px, transparent 1px),
@@ -209,14 +209,14 @@ body {
   pointer-events: none;
   background: linear-gradient(90deg, transparent 36%, rgba(125,211,252,0.1) 48%, rgba(196,181,253,0.12) 56%, transparent 68%);
   filter: blur(2px);
-  animation: beam-sweep 7.2s ease-in-out infinite;
+  animation: beam-sweep 11s ease-in-out infinite;
   transition: opacity 0.25s ease, filter 0.25s ease;
 }
 .ai-nodes {
   position: absolute;
   inset: -6% -8%;
   pointer-events: none;
-  opacity: 0.15;
+  opacity: 0.10;
   background-image:
     radial-gradient(circle at 14% 26%, rgba(103,232,249,0.26) 0 1.6px, transparent 2.2px),
     radial-gradient(circle at 66% 18%, rgba(192,132,252,0.22) 0 1.4px, transparent 2px),
@@ -247,7 +247,7 @@ body {
   position: absolute;
   inset: -20% -12%;
   pointer-events: none;
-  opacity: 0.08;
+  opacity: 0.05;
   background:
     radial-gradient(circle at 24% 36%, transparent 0 68px, rgba(196,181,253,0.22) 69px 70px, transparent 71px),
     radial-gradient(circle at 68% 58%, transparent 0 102px, rgba(103,232,249,0.2) 103px 104px, transparent 105px),
@@ -257,35 +257,40 @@ body {
 }
 
 main[data-scrolling="true"] .ai-pixels {
-  opacity: 0.16;
+  opacity: 0.11;
   animation-duration: 10s;
 }
 main[data-scrolling="true"] .ai-beam {
-  opacity: 0.26;
+  opacity: 0.18;
   filter: blur(1px);
-  animation-duration: 4.8s;
+  animation-duration: 7s;
 }
 main[data-scrolling="true"] .grid-bg {
   animation-duration: 8s;
 }
 main[data-scrolling="true"] .ai-nodes {
-  opacity: 0.2;
-  animation-duration: 12s;
-}
-main[data-scrolling="true"] .ai-matrix {
-  opacity: 0.12;
-  animation-duration: 8s;
+  opacity: 0.13;
+  animation-duration: 14s;
 }
 main[data-scrolling="true"] .ai-rings {
-  opacity: 0.1;
+  opacity: 0.06;
   animation-duration: 18s;
 }
 
 @media (max-width: 900px) {
+  /* Disable all animated bg layers on mobile — too expensive */
   .ai-nodes,
-  .ai-matrix,
-  .ai-rings {
-    opacity: 0.14;
+  .ai-rings,
+  .ai-beam {
+    display: none;
+  }
+  .ai-pixels {
+    opacity: 0.05;
+    animation: none;
+  }
+  .grid-bg {
+    animation: none;
+    opacity: 0.5;
   }
 }
 
@@ -315,9 +320,13 @@ main[data-scrolling="true"] .ai-rings {
    LAYOUT
 ════════════════════════════════════════════════════════ */
 .landing-container { width: 100%; max-width: min(1200px,100%); margin: 0 auto; padding: 0 24px; }
-.landing-section   { padding: 88px 24px; }
+.landing-section   { padding: 80px 0; }
 section, main      { width: 100%; max-width: 100%; overflow-x: clip; }
 img, video         { max-width: 100%; height: auto; }
+
+@media (min-width: 1024px) {
+  .landing-section { padding: 96px 0; }
+}
 
 /* ════════════════════════════════════════════════════════
    BUTTONS
@@ -549,11 +558,11 @@ footer { background: var(--bg); border-top: 1px solid rgba(255,255,255,0.055); p
 @media (max-width: 768px) {
   html { cursor: auto; }
   .cursor-dot, .cursor-ring { display: none; }
-  .landing-section { padding: 60px 16px; }
+  .landing-section { padding: 52px 0; }
   .stat-item { padding: 10px 20px; }
-  .btn-primary, .btn-secondary { cursor: pointer; }
+  .btn-primary, .btn-secondary { cursor: pointer; width: 100%; justify-content: center; }
 
-  .scene-wrap { min-height: 340px; }
+  .scene-wrap { min-height: 320px; }
   .scene-item-platform { transform: translateZ(-55px) translate(12%, 10%) scale(0.72) !important; }
 
   .trust-strip {
@@ -561,6 +570,18 @@ footer { background: var(--bg); border-top: 1px solid rgba(255,255,255,0.055); p
   }
   .trust-sep {
     display: none;
+  }
+
+  /* Better mobile card padding */
+  .glass { padding: 20px 18px; }
+  .feat-card { padding: 22px 18px; }
+}
+
+/* Compact button layout on small screens — stack only below 480px */
+@media (max-width: 480px) {
+  .btn-primary, .btn-secondary {
+    padding: 13px 24px;
+    font-size: 0.85rem;
   }
 }
 

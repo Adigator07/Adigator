@@ -49,7 +49,7 @@ export default function AboutPage() {
               <span className="badge-dot" />
               About Adigator
             </p>
-            <h1 className="font-display mt-7 text-5xl leading-[1.03] sm:text-6xl md:text-[5.2rem]">
+            <h1 className="font-display mt-7 text-4xl leading-[1.06] sm:text-5xl md:text-[5.2rem]">
               Built for the future of
               <span className="block gradient-text">creative intelligence.</span>
             </h1>
@@ -63,15 +63,15 @@ export default function AboutPage() {
             <p className="mt-4 text-base leading-relaxed text-gray-300">
               Modern marketing teams are constrained by manual review loops, fragmented tools, and delayed approvals. Adigator unifies validation, preview, scoring, and launch guidance into a single intelligence layer.
             </p>
-            <div className="mt-6 grid grid-cols-3 gap-3 text-center">
+            <div className="mt-6 grid grid-cols-3 gap-2 text-center">
               {[
                 ["18h", "Saved"],
                 ["94%", "Confidence"],
                 ["5x", "Faster QA"],
               ].map((item) => (
-                <div key={item[1]} className="rounded-lg border border-white/10 bg-white/2 px-3 py-2">
-                  <p className="font-display text-3xl text-purple-200">{item[0]}</p>
-                  <p className="text-xs uppercase tracking-wider text-gray-400">{item[1]}</p>
+                <div key={item[1]} className="rounded-lg border border-white/10 bg-white/2 px-2 py-2">
+                  <p className="font-display text-2xl sm:text-3xl text-purple-200">{item[0]}</p>
+                  <p className="text-[10px] sm:text-xs uppercase tracking-wider text-gray-400">{item[1]}</p>
                 </div>
               ))}
             </div>
@@ -217,7 +217,7 @@ export default function AboutPage() {
           title="What guides platform decisions"
           subtitle="Enterprise-ready principles that keep quality and velocity aligned."
         />
-        <div className="mt-12 grid gap-4 md:grid-cols-5">
+        <div className="mt-12 grid gap-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
           {values.map((value) => (
             <div key={value.title} className="rounded-xl border border-white/10 bg-white/3 p-4 backdrop-blur-md">
               <p className="text-sm font-semibold uppercase tracking-wider text-purple-200">{value.title}</p>

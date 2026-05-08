@@ -90,14 +90,14 @@ export default function ProductPage() {
               <span className="badge-dot" />
               Product Platform
             </p>
-            <h1 className="font-display mt-7 text-5xl leading-[1.03] sm:text-6xl md:text-[5.4rem]">
+            <h1 className="font-display mt-7 text-4xl leading-[1.06] sm:text-5xl md:text-[5.4rem]">
               Creative intelligence
               <span className="block gradient-text">for every launch decision.</span>
             </h1>
             <p className="mt-6 max-w-xl text-lg leading-relaxed text-gray-400">
               Adigator combines validation, scoring, prediction, and workflow orchestration so teams move from asset upload to launch-ready confidence in minutes.
             </p>
-            <div className="mt-9 flex flex-wrap gap-4">
+            <div className="mt-9 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:gap-4">
               <Link href="/preview" className="btn-primary">
                 Start Free Preview
                 <span className="ml-1">→</span>
@@ -217,14 +217,14 @@ export default function ProductPage() {
           title="Upload Creative → AI Analysis → Validation → Suggestions → Launch"
           subtitle="Built for fast-moving teams that need precision, compliance, and predictable output quality."
         />
-        <div className="mt-12 grid gap-4 md:grid-cols-5">
+        <div className="mt-12 grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-5">
           {workflow.map((step, idx) => (
             <motion.div
               key={step.step}
               initial={{ opacity: 0, y: 16 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, amount: 0.2 }}
-              transition={{ ...transitions.card, delay: idx * 0.08 }}
+              transition={{ ...transitions.card, delay: idx * 0.07 }}
               className="relative"
             >
               <div className="rounded-xl border border-white/10 bg-white/3 p-5 backdrop-blur-md">
@@ -232,7 +232,7 @@ export default function ProductPage() {
                 <h4 className="mt-2 text-base font-semibold text-white">{step.title}</h4>
                 <p className="mt-2 text-sm text-gray-400">{step.desc}</p>
               </div>
-              {idx < workflow.length - 1 && <span className="pointer-events-none absolute -right-2 top-1/2 hidden -translate-y-1/2 text-xl text-purple-400/65 md:block">→</span>}
+              {idx < workflow.length - 1 && <span className="pointer-events-none absolute -right-2 top-1/2 hidden -translate-y-1/2 text-xl text-purple-400/65 lg:block">→</span>}
             </motion.div>
           ))}
         </div>
