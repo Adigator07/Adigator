@@ -21,7 +21,11 @@ import OpenAI from "openai";
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+function createOpenAIClient(): OpenAI | null {
+  const apiKey = process.env.OPENAI_API_KEY?.trim();
+  if (!apiKey) return null;
+  return new OpenAI({ apiKey });
+}
 
 const SYSTEM_PROMPT = `You are a Senior Advertising Intelligence Analyst with deep expertise in digital marketing, conversion optimization, and consumer psychology.
 
@@ -102,6 +106,14 @@ grade must match: overall_score >= 82 → "Elite Creative", >= 70 → "Strong Pe
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
+    const openai = createOpenAIClient();
+    if (!openai) {
+      return NextResponse.json(
+        { error: "Server misconfiguration: OPENAI_API_KEY is missing." },
+        { status: 500 }
+      );
+    }
+
     const formData = await request.formData();
     const file = formData.get("image") as File | null;
     const goal = (formData.get("goal") as string) || "awareness";
