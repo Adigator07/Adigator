@@ -249,7 +249,6 @@ export default function PreviewTool() {
   const [viewMode, setViewMode] = useState("multiple");
   const [showSlotLabels, setShowSlotLabels] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
-  const [previewTab, setPreviewTab] = useState("template"); // "template" | "contextual"
 
   const fileRef = useRef(null);
   const userRef = useRef(null);
@@ -979,44 +978,7 @@ export default function PreviewTool() {
                 </motion.button>
               </div>
 
-              {/* Tab switcher */}
-              <div className="flex items-center gap-2 bg-white/5 border border-white/10 rounded-xl p-1 w-fit">
-                <button
-                  onClick={() => setPreviewTab("template")}
-                  className={`px-5 py-2 rounded-lg text-sm font-semibold transition ${previewTab === "template" ? "bg-white/15 text-white shadow" : "text-gray-400 hover:text-white"}`}
-                >
-                  🗂️ Template View
-                </button>
-                <button
-                  onClick={() => setPreviewTab("contextual")}
-                  className={`px-5 py-2 rounded-lg text-sm font-semibold transition flex items-center gap-2 ${previewTab === "contextual" ? "bg-purple-600 text-white shadow-lg shadow-purple-500/30" : "text-gray-400 hover:text-white"}`}
-                >
-                  🌐 Contextual Preview
-                  <span className="text-[9px] bg-purple-500/40 text-purple-200 px-1.5 py-0.5 rounded-full font-bold uppercase tracking-wider">NEW</span>
-                </button>
-              </div>
-
-              {previewTab === "template" && (
-                <>
-                  <label className="flex items-center gap-3 cursor-pointer bg-white/5 border border-white/20 rounded-lg px-4 py-3 hover:bg-white/10 transition w-fit">
-                    <input type="checkbox" checked={showSlotLabels} onChange={(e) => setShowSlotLabels(e.target.checked)} className="w-4 h-4 cursor-pointer" />
-                    <span className="text-sm font-medium text-white">Show slot IDs</span>
-                  </label>
-                  <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-                    <SlidePreview
-                      validCreatives={validCreatives}
-                      showSlotLabels={showSlotLabels}
-                      selectedTemplate={selectedTemplate}
-                      setSelectedTemplate={setSelectedTemplate}
-                      TEMPLATES={TEMPLATES}
-                      viewMode={viewMode}
-                      onViewModeChange={setViewMode}
-                    />
-                  </motion.div>
-                </>
-              )}
-
-              {previewTab === "contextual" && validCreatives.length > 0 && (
+              {validCreatives.length > 0 && (
                 <ContextualPreviewEngine
                   creativeUrl={validCreatives[0].url}
                   creativeSize={validCreatives[0].size}
@@ -1028,7 +990,7 @@ export default function PreviewTool() {
                 />
               )}
 
-              {previewTab === "contextual" && validCreatives.length === 0 && (
+              {validCreatives.length === 0 && (
                 <div className="flex flex-col items-center justify-center py-16 text-center bg-white/3 border border-white/10 rounded-2xl">
                   <span className="text-4xl mb-4">🌐</span>
                   <p className="text-white font-semibold">No valid creatives to preview</p>

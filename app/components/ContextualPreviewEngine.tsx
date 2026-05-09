@@ -269,81 +269,41 @@ export default function ContextualPreviewEngine({ creativeUrl, creativeSize, ver
           </div>
         </div>
 
-        {/* Environment render */}
-        <div className="border-x border-b border-white/10 rounded-b-xl overflow-hidden max-h-175 overflow-y-auto">
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={`${currentEnv}-${device}`}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.25 }}
-            >
-              <EnvironmentRenderer
-                env={currentEnv}
-                output={output}
-                creativeUrl={creativeUrl}
-                creativeSize={creativeSize}
-                device={device}
-              />
-            </motion.div>
-          </AnimatePresence>
-        </div>
-      </div>
-
-      {/* Validation + insights panel */}
-      <div className="grid gap-4 md:grid-cols-2">
-        {/* Validation */}
-        <div className="bg-white/5 border border-white/10 rounded-2xl p-5">
-          <div className="flex items-center justify-between mb-4">
-            <p className="text-sm font-bold text-white">Safe Area Validation</p>
-            <span className={`text-xs font-bold px-3 py-1 rounded-full ${validation.overallStatus === "pass" ? "bg-green-500/20 text-green-300 border border-green-500/30" : validation.overallStatus === "warning" ? "bg-yellow-500/20 text-yellow-300 border border-yellow-500/30" : "bg-red-500/20 text-red-300 border border-red-500/30"}`}>
-              {validation.overallStatus.toUpperCase()}
-            </span>
+        {/* Environment render with creative on side */}
+        <div className="border-x border-b border-white/10 rounded-b-xl overflow-hidden max-h-175 overflow-y-auto flex">
+          {/* Creative preview */}
+          <div className="w-1/3 bg-gray-900 border-r border-white/10 p-4 flex flex-col items-center justify-center">
+            <p className="text-xs text-gray-500 mb-3 font-semibold">YOUR CREATIVE</p>
+            <div className="flex items-center justify-center bg-gray-800 rounded-lg overflow-hidden w-full max-w-xs">
+              <img src={creativeUrl} alt="Creative" className="max-w-full max-h-96 object-contain" />
+            </div>
+            <p className="text-[10px] text-gray-500 mt-3 font-mono">{creativeSize}</p>
           </div>
-          <div className="flex flex-wrap gap-2">
-            <ValidationBadge status={validation.ctaVisibility} label="CTA" />
-            <ValidationBadge status={validation.logoVisibility} label="Logo" />
-            <ValidationBadge status={validation.textOverflow} label="Text" />
-            <ValidationBadge status={validation.croppingRisk} label="Crop" />
-            <ValidationBadge status={validation.contextFit} label="Context" />
-          </div>
-        </div>
 
-        {/* Placement info */}
-        <div className="bg-white/5 border border-white/10 rounded-2xl p-5">
-          <p className="text-sm font-bold text-white mb-3">Placement Details</p>
-          <div className="space-y-2">
-            <div className="flex items-start gap-2 text-xs">
-              <span className="text-gray-500 w-24 shrink-0">Slot type</span>
-              <span className="text-gray-200 font-mono bg-white/5 px-2 py-0.5 rounded">{creativeMapping.slotType}</span>
-            </div>
-            <div className="flex items-start gap-2 text-xs">
-              <span className="text-gray-500 w-24 shrink-0">Placement</span>
-              <span className="text-gray-200">{creativeMapping.placementType}</span>
-            </div>
-            <div className="flex items-start gap-2 text-xs">
-              <span className="text-gray-500 w-24 shrink-0">Injection</span>
-              <span className="text-gray-300 leading-relaxed">{creativeMapping.injectionNotes}</span>
-            </div>
+          {/* Environment */}
+          <div className="flex-1">
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={`${currentEnv}-${device}`}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.25 }}
+              >
+                <EnvironmentRenderer
+                  env={currentEnv}
+                  output={output}
+                  creativeUrl={creativeUrl}
+                  creativeSize={creativeSize}
+                  device={device}
+                />
+              </motion.div>
+            </AnimatePresence>
           </div>
         </div>
       </div>
 
-      {/* Recommendations */}
-      {recommendations.length > 0 && (
-        <div className="bg-white/5 border border-white/10 rounded-2xl p-5">
-          <p className="text-sm font-bold text-white mb-3">Recommendations</p>
-          <ul className="space-y-2">
-            {recommendations.map((rec, i) => (
-              <li key={i} className="flex items-start gap-2 text-sm text-gray-300">
-                <span className="text-purple-400 mt-0.5 shrink-0">→</span>
-                {rec}
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
+
     </motion.div>
   );
 }
