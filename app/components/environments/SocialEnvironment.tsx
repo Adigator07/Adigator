@@ -218,10 +218,15 @@ export default function SocialEnvironment({ content, slotType, creativeUrl, crea
             <div className="bg-white/5 border border-white/10 rounded-2xl p-4">
               <p className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-3">Trending Topics</p>
               <div className="space-y-2">
-                {["#AIMarketing", "#CreativeOps", "#AdTech2026", "#CampaignROI"].map((tag) => (
+                {[
+                  ["#AIMarketing", "42K"],
+                  ["#CreativeOps", "28K"],
+                  ["#AdTech2026", "35K"],
+                  ["#CampaignROI", "19K"],
+                ].map(([tag, posts]) => (
                   <div key={tag} className="flex items-center justify-between cursor-pointer hover:bg-white/5 rounded-lg px-1 py-1 transition">
                     <span className="text-sm text-purple-400 font-medium">{tag}</span>
-                    <span className="text-xs text-gray-500">{Math.floor(Math.random() * 90 + 10)}K posts</span>
+                    <span className="text-xs text-gray-500">{posts} posts</span>
                   </div>
                 ))}
               </div>

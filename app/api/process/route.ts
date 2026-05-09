@@ -1,273 +1,105 @@
 /**
- * Main API Route: Image Processing Pipeline
- * Orchestrates: Upload → Preprocessing → OCR → AI Analysis
+ * Deprecated compatibility route.
+ * All creative intelligence now flows through the canonical graph orchestrator.
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { preprocessImage, validateImage, estimateOCRQuality } from "@/app/lib/vision";
-import { extractTextFromImage, cleanOCRText, validateOCRQuality } from "@/app/lib/ocr";
-import { analyzeCreativeWithAI } from "@/app/lib/ai";
+import { analyzeCreativeIntelligence } from "@/app/lib/intelligence/orchestrator";
+import type { CampaignGoal, VerticalKey } from "@/app/lib/intelligence-registry";
 
-interface ProcessingResponse {
-  success: boolean;
-  data?: {
-    image: {
-      width: number;
-      height: number;
-      format: string;
-      size: number;
-    };
-    ocr: {
-      text: string;
-      confidence: number;
-      blocksCount: number;
-      cleanedText: string;
-    };
-    analysis: {
-      summary: string;
-      classification: string;
-      keyPoints: string[];
-      entities: Array<{
-        name: string;
-        type: string;
-        value: string;
-      }>;
-      sentiment: "positive" | "negative" | "neutral";
-      confidence: number;
-      structuredData: Record<string, unknown>;
-    };
-    metrics: {
-      processingTime: number;
-      ocrConfidence: number;
-      aiConfidence: number;
-      overallQuality: number;
-    };
-  };
-  error?: {
-    message: string;
-    stage: "validation" | "preprocessing" | "ocr" | "analysis" | "unknown";
-    details?: string;
-  };
+export const runtime = "nodejs";
+export const maxDuration = 60;
+
+const goals: CampaignGoal[] = ["awareness", "consideration", "conversion"];
+const verticals: VerticalKey[] = [
+  "automotive", "banking", "ecommerce", "education", "entertainment",
+  "finance", "food", "gaming", "healthcare", "hotels", "luxury",
+  "news_media", "real_estate", "sports", "technology", "travel",
+];
+
+function asGoal(value: string): CampaignGoal {
+  return goals.includes(value as CampaignGoal) ? value as CampaignGoal : "awareness";
 }
 
-async function analyzeTextWithAI(text: string, context?: string) {
-  const analysis = await analyzeCreativeWithAI(
-    context ? `${text}\n\nAdditional context: ${context}` : text
-  );
-
-  const keyPoints = [
-    analysis.hookType && `Hook: ${analysis.hookType}`,
-    analysis.vertical && `Vertical: ${analysis.vertical}`,
-    analysis.cta && `CTA: ${analysis.cta}`,
-    analysis.strengths?.[0] && `Strength: ${analysis.strengths[0]}`,
-    analysis.weaknesses?.[0] && `Issue: ${analysis.weaknesses[0]}`,
-  ].filter(Boolean) as string[];
-
-  const entities = [
-    analysis.hookType && { name: analysis.hookType, type: "hook_type", value: analysis.hookType },
-    analysis.vertical && { name: analysis.vertical, type: "vertical", value: analysis.vertical },
-    analysis.cta && { name: analysis.cta, type: "cta", value: analysis.cta },
-  ].filter(Boolean) as Array<{ name: string; type: string; value: string }>;
-
-  return {
-    summary: [
-      analysis.hookType && `Hook: ${analysis.hookType}`,
-      analysis.vertical && `Vertical: ${analysis.vertical}`,
-      analysis.valueProposition && `Value Prop: ${analysis.valueProposition}`,
-    ].filter(Boolean).join(" | "),
-    classification: analysis.vertical || "marketing-creative",
-    keyPoints,
-    entities,
-    sentiment: (analysis.conversionScore >= 65 ? "positive" : analysis.conversionScore >= 45 ? "neutral" : "negative") as "positive" | "negative" | "neutral",
-    confidence: 0.8,
-    structuredData: analysis as unknown as Record<string, unknown>,
-  };
+function asVertical(value: string): VerticalKey {
+  return verticals.includes(value as VerticalKey) ? value as VerticalKey : "technology";
 }
 
-/**
- * POST /api/process
- * Process image through OCR and AI pipeline
- */
-export async function POST(request: NextRequest): Promise<NextResponse<ProcessingResponse>> {
-  const startTime = Date.now();
-
+export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
-    // Parse multipart form data
     const formData = await request.formData();
-    const file = formData.get("image") as File;
-    const context = formData.get("context") as string | null;
+    const file = formData.get("image") as File | null;
+    const goal = asGoal(String(formData.get("goal") || "awareness").toLowerCase());
+    const vertical = asVertical(String(formData.get("vertical") || "technology").toLowerCase());
 
     if (!file) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: {
-            message: "No image file provided",
-            stage: "validation",
-          },
+      return NextResponse.json({ success: false, error: { message: "No image file provided", stage: "validation" } }, { status: 400 });
+    }
+
+    const imageBuffer = Buffer.from(await file.arrayBuffer());
+    const result = await analyzeCreativeIntelligence({
+      imageBuffer,
+      goal,
+      vertical,
+      mimeType: file.type,
+      fileSizeBytes: file.size,
+    });
+
+    const details = result.analysisDetails as Record<string, unknown>;
+    const graph = details.graph as typeof result;
+    const ocr = details.ocr as { rawText?: string; cleanedText?: string; confidence?: number; blocks?: unknown[] };
+    const overallScore = Number.isFinite(result.scores.overall.value) ? (result.scores.overall.value as number) : null;
+
+    return NextResponse.json({
+      success: true,
+      data: {
+        image: {
+          width: result.asset.width,
+          height: result.asset.height,
+          format: result.asset.mimeType,
+          size: result.asset.sizeBytes,
         },
-        { status: 400 }
-      );
-    }
-
-    // ═══════════════════════════════════════════════════
-    // Stage 1: Image Validation
-    // ═══════════════════════════════════════════════════
-    console.log("[PROCESS] Starting image validation...");
-    const validation = await validateImage(file);
-
-    if (!validation.valid) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: {
-            message: validation.error || "Image validation failed",
-            stage: "validation",
-          },
+        ocr: {
+          text: ocr.rawText || "",
+          confidence: ocr.confidence || 0,
+          blocksCount: Array.isArray(ocr.blocks) ? ocr.blocks.length : 0,
+          cleanedText: ocr.cleanedText || "",
         },
-        { status: 400 }
-      );
-    }
-
-    // ═══════════════════════════════════════════════════
-    // Stage 2: Image Preprocessing
-    // ═══════════════════════════════════════════════════
-    console.log("[PROCESS] Preprocessing image...");
-    const preprocessed = await preprocessImage(file, 85);
-    const ocrQualityEstimate = estimateOCRQuality(validation.width, validation.height);
-
-    // ═══════════════════════════════════════════════════
-    // Stage 3: OCR Text Extraction
-    // ═══════════════════════════════════════════════════
-    console.log("[PROCESS] Extracting text with OCR...");
-    const ocrResult = await extractTextFromImage(preprocessed.base64);
-
-    // Validate OCR quality
-    if (!validateOCRQuality(ocrResult)) {
-      console.warn("[PROCESS] Low OCR quality detected");
-    }
-
-    const cleanedText = cleanOCRText(ocrResult.text);
-
-    if (!cleanedText) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: {
-            message: "No text detected in image",
-            stage: "ocr",
-            details: "OCR returned empty result. Image may not contain readable text.",
-          },
+        analysis: {
+          summary: result.strategicAnalysis && typeof result.strategicAnalysis === "object"
+            ? (result.strategicAnalysis as { strategyAlignmentExplanation?: string }).strategyAlignmentExplanation || ""
+            : "",
+          classification: graph.lockedContext.detectedVertical,
+          keyPoints: result.signals.slice(0, 5).map((signal) => signal.reasoning),
+          entities: result.signals.slice(0, 5).map((signal) => ({
+            name: signal.type,
+            type: signal.source,
+            value: signal.reasoning,
+          })),
+          sentiment: overallScore === null ? "unavailable" : overallScore >= 70 ? "positive" : overallScore >= 50 ? "neutral" : "negative",
+          confidence: result.confidence.overall,
+          structuredData: result,
         },
-        { status: 422 }
-      );
-    }
-
-    // ═══════════════════════════════════════════════════
-    // Stage 4: AI Analysis
-    // ═══════════════════════════════════════════════════
-    console.log("[PROCESS] Analyzing text with AI...");
-    const analysis = await analyzeTextWithAI(cleanedText, context || undefined);
-
-    // ═══════════════════════════════════════════════════
-    // Compile Results
-    // ═══════════════════════════════════════════════════
-    const processingTime = Date.now() - startTime;
-    const overallQuality =
-      (ocrResult.confidence + analysis.confidence + ocrQualityEstimate) / 3;
-
-    console.log(`[PROCESS] Pipeline completed in ${processingTime}ms`);
-
-    return NextResponse.json(
-      {
-        success: true,
-        data: {
-          image: {
-            width: validation.width,
-            height: validation.height,
-            format: validation.format,
-            size: validation.size,
-          },
-          ocr: {
-            text: ocrResult.text,
-            confidence: ocrResult.confidence,
-            blocksCount: ocrResult.blocks.length,
-            cleanedText,
-          },
-          analysis: {
-            summary: analysis.summary,
-            classification: analysis.classification,
-            keyPoints: analysis.keyPoints,
-            entities: analysis.entities,
-            sentiment: analysis.sentiment,
-            confidence: analysis.confidence,
-            structuredData: analysis.structuredData,
-          },
-          metrics: {
-            processingTime,
-            ocrConfidence: ocrResult.confidence,
-            aiConfidence: analysis.confidence,
-            overallQuality: Math.min(overallQuality, 1),
-          },
+        metrics: {
+          processingTime: result.processingTimeMs,
+          ocrConfidence: result.confidence.ocr,
+          aiConfidence: 0,
+          overallQuality: result.confidence.overall,
         },
       },
-      { status: 200 }
-    );
+      deprecated: true,
+      canonicalEndpoint: "/api/analyze-v2",
+    });
   } catch (error) {
-    const stage = determineErrorStage(error);
-    const message = error instanceof Error ? error.message : "Unknown error occurred";
-
-    console.error(`[PROCESS] Error at stage '${stage}':`, message);
-
-    return NextResponse.json(
-      {
-        success: false,
-        error: {
-          message,
-          stage,
-          details: process.env.NODE_ENV === "development" ? message : undefined,
-        },
-      },
-      { status: 500 }
-    );
+    const message = error instanceof Error ? error.message : "Analysis failed";
+    return NextResponse.json({ success: false, error: { message, stage: "analysis" } }, { status: 500 });
   }
 }
 
-/**
- * Determine which stage failed based on error
- */
-function determineErrorStage(error: unknown): "validation" | "preprocessing" | "ocr" | "analysis" | "unknown" {
-  if (!(error instanceof Error)) return "unknown";
-
-  const message = error.message.toLowerCase();
-
-  if (message.includes("validation") || message.includes("format")) {
-    return "validation";
-  }
-  if (message.includes("preprocess")) {
-    return "preprocessing";
-  }
-  if (message.includes("ocr") || message.includes("text_detection")) {
-    return "ocr";
-  }
-  if (message.includes("openai") || message.includes("analysis")) {
-    return "analysis";
-  }
-
-  return "unknown";
-}
-
-/**
- * GET /api/process
- * Health check endpoint
- */
 export async function GET(): Promise<NextResponse> {
   return NextResponse.json({
     status: "healthy",
-    service: "OCR and AI Processing Pipeline",
-    version: "1.0.0",
-    endpoints: {
-      process: "POST /api/process (multipart/form-data: image, context?)",
-    },
+    deprecated: true,
+    canonicalEndpoint: "POST /api/analyze-v2",
   });
 }

@@ -17,6 +17,16 @@ export default function CreativeCard({
   onRemove,
   compact = false,
 }) {
+  const validationStatus = creative?.validation?.status || (creative.valid ? "PASS" : "CRITICAL");
+  const readinessScore = creative?.auctionReadiness?.score ?? creative?.validation?.intelligence?.auctionReadiness?.score ?? 0;
+  const readinessClass = readinessScore >= 85
+    ? "text-emerald-300"
+    : readinessScore >= 70
+      ? "text-cyan-300"
+      : readinessScore >= 55
+        ? "text-amber-300"
+        : "text-red-300";
+
   return (
     <motion.div
       layout
@@ -74,7 +84,7 @@ export default function CreativeCard({
             animate={{ opacity: 1, scale: 1 }}
             className="absolute top-2 right-2 flex items-center gap-1 bg-green-600/90 backdrop-blur-sm text-white px-2 py-1 rounded-full text-[11px] font-bold shadow-lg shadow-green-500/20"
           >
-            <CheckCircle2 size={12} /> Valid
+            <CheckCircle2 size={12} /> {validationStatus}
           </motion.div>
         )}
 
@@ -85,7 +95,7 @@ export default function CreativeCard({
             animate={{ opacity: 1, scale: 1 }}
             className="absolute top-2 right-2 flex items-center gap-1 bg-red-600/90 backdrop-blur-sm text-white px-2 py-1 rounded-full text-[11px] font-bold shadow-lg shadow-red-500/20"
           >
-            <AlertTriangle size={12} /> Invalid
+            <AlertTriangle size={12} /> {validationStatus}
           </motion.div>
         )}
       </div>
@@ -109,9 +119,55 @@ export default function CreativeCard({
         <p className="text-[10px] text-gray-400 mt-1 font-medium">
           File Size: {formatFileSize(creative.fileSizeKB)}
         </p>
+
+        <div className="mt-2 space-y-1.5 text-[10px]">
+          <InfoRow label="Placement" value={formatLabel(creative.placementType)} />
+          <InfoRow label="Device" value={creative.deviceClassification || "Unknown"} />
+          <InfoRow
+            label="IAB"
+            value={creative.iabCompatibility?.compatible ? "Compatible" : "Not Compatible"}
+            valueClass={creative.iabCompatibility?.compatible ? "text-emerald-300" : "text-red-300"}
+          />
+          <InfoRow
+            label="DSP"
+            value={`${creative.dspCompatibility?.count || 0} / 7`}
+            valueClass={(creative.dspCompatibility?.count || 0) >= 6 ? "text-emerald-300" : "text-amber-300"}
+          />
+          <InfoRow
+            label="Inventory"
+            value={creative.inventoryAvailability?.category || "Unclassified"}
+          />
+          <InfoRow
+            label="Auction"
+            value={`${readinessScore}/100`}
+            valueClass={readinessClass}
+          />
+          <InfoRow
+            label="Premium"
+            value={creative.premiumPlacementPotential?.eligible ? "Eligible" : "Standard"}
+            valueClass={creative.premiumPlacementPotential?.eligible ? "text-fuchsia-300" : "text-gray-300"}
+          />
+        </div>
       </div>
     </motion.div>
   );
+}
+
+function InfoRow({ label, value, valueClass = "text-gray-200" }) {
+  return (
+    <div className="flex items-center justify-between gap-2">
+      <span className="uppercase tracking-wide text-gray-500">{label}</span>
+      <span className={`font-semibold text-right ${valueClass}`}>{value}</span>
+    </div>
+  );
+}
+
+function formatLabel(value) {
+  if (!value) return "Unknown";
+  return value
+    .split("-")
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
 }
 
 const formatFileSize = (kb) => {

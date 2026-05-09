@@ -22,6 +22,12 @@ const GOAL_CTA = {
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function rankVerdict(name, score, data) {
+  if (data?.analysis_state && data.analysis_state !== "success" && data.analysis_state !== "low_confidence" && !Number.isFinite(score)) {
+    return `"${name}" could not be fully scored: ${data.analysis_state_label || "insufficient validated signals"}.`;
+  }
+  if (data?.analysis_state === "low_confidence") {
+    return `"${name}" has low-confidence analysis. Validate with additional evidence before launch decisions.`;
+  }
   if (score >= 82) return `"${name}" is peak performance — ready to scale aggressively.`;
   if (score >= 68) {
     const weak = [];
@@ -59,12 +65,15 @@ function BestForBadge({ bestFor }) {
 }
 
 function sc(score) {
+  if (!Number.isFinite(score)) return "text-gray-400";
   return score >= 72 ? "text-emerald-400" : score >= 48 ? "text-amber-400" : "text-red-400";
 }
 function scBg(score) {
+  if (!Number.isFinite(score)) return "bg-gray-500";
   return score >= 72 ? "bg-emerald-400" : score >= 48 ? "bg-amber-400" : "bg-red-400";
 }
 function scoreLabel(score) {
+  if (!Number.isFinite(score)) return "Analysis Unavailable";
   if (score >= 85) return "Peak ✨";
   if (score >= 72) return "Good ✓";
   if (score >= 58) return "Fair ⚠";
@@ -86,6 +95,7 @@ const GRADE_CONFIG = {
   "Strong Performer":   { emoji: "🚀", bg: "bg-blue-500/15 border-blue-500/40",     text: "text-blue-300" },
   "Needs Optimization": { emoji: "🛠",  bg: "bg-yellow-500/15 border-yellow-500/40", text: "text-yellow-300" },
   "High Risk Creative": { emoji: "⚠️", bg: "bg-red-500/15 border-red-500/40",       text: "text-red-300" },
+  "Analysis Unavailable": { emoji: "ℹ️", bg: "bg-slate-500/15 border-slate-500/40", text: "text-slate-300" },
 };
 
 function GradeBadge({ grade }) {
@@ -101,24 +111,27 @@ function GradeBadge({ grade }) {
 // ── Subscore Bar Row ──────────────────────────────────────────────────────────
 
 function SubscoreRow({ label, value, tooltip }) {
+  const hasValue = Number.isFinite(value);
   const barColor =
-    value >= 80 ? "bg-emerald-400" :
-    value >= 60 ? "bg-yellow-400" :
-    "bg-red-400";
+    !hasValue ? "bg-gray-500" :
+      value >= 80 ? "bg-emerald-400" :
+      value >= 60 ? "bg-yellow-400" :
+      "bg-red-400";
   const textColor =
-    value >= 80 ? "text-emerald-400" :
-    value >= 60 ? "text-yellow-400" :
-    "text-red-400";
+    !hasValue ? "text-gray-400" :
+      value >= 80 ? "text-emerald-400" :
+      value >= 60 ? "text-yellow-400" :
+      "text-red-400";
   return (
     <div title={tooltip || label}>
       <div className="flex justify-between text-[11px] mb-1">
         <span className="text-gray-400">{label}</span>
-        <span className={`font-bold tabular-nums ${textColor}`}>{value ?? 0}</span>
+        <span className={`font-bold tabular-nums ${textColor}`}>{hasValue ? value : "—"}</span>
       </div>
       <div className="h-1.5 bg-white/8 rounded-full overflow-hidden">
         <motion.div
           initial={{ scaleX: 0 }}
-          animate={{ scaleX: Math.max(0, Math.min(1, (value ?? 0) / 100)) }}
+          animate={{ scaleX: Math.max(0, Math.min(1, (hasValue ? value : 0) / 100)) }}
           transition={{ duration: 0.65, ease: "easeOut" }}
           className={`h-full origin-left rounded-full ${barColor}`}
         />
@@ -300,10 +313,11 @@ function AnimBar({ value, color, delay = 0, height = "h-1.5" }) {
 // ── Confidence Ring ────────────────────────────────────────────────────────────
 
 function ConfidenceRing({ score, size = 80, label = "" }) {
+  const safeScore = Number.isFinite(score) ? score : 0;
   const r = (size - 12) / 2;
   const circ = 2 * Math.PI * r;
-  const offset = circ * (1 - score / 100);
-  const color = score >= 72 ? "#34d399" : score >= 48 ? "#fbbf24" : "#f87171";
+  const offset = circ * (1 - safeScore / 100);
+  const color = !Number.isFinite(score) ? "#64748b" : score >= 72 ? "#34d399" : score >= 48 ? "#fbbf24" : "#f87171";
 
   return (
     <div className="relative flex items-center justify-center" style={{ width: size, height: size }}>
@@ -320,7 +334,7 @@ function ConfidenceRing({ score, size = 80, label = "" }) {
         />
       </svg>
       <div className="absolute text-center">
-        <p className="text-xs font-black" style={{ color }}>{score}</p>
+        <p className="text-xs font-black" style={{ color }}>{Number.isFinite(score) ? score : "--"}</p>
         {label && <p className="text-[9px] text-gray-500 leading-none mt-0.5">{label}</p>}
       </div>
     </div>
@@ -447,24 +461,33 @@ function ClutterMeter({ index, label }) {
 }
 
 function IntelligencePanel({ data }) {
-  const emotionCfg = APPEAL_CONFIG[data.emotional_appeal] || APPEAL_CONFIG.MEDIUM;
-  const forecastCfg = FORECAST_CONFIG[data.engagement_forecast] || FORECAST_CONFIG.MEDIUM;
-  const clutterIndex = data.clutter_index ?? 5;
-  const clutterLabel = data.clutter_label ?? "MODERATE";
-  const confidence = data.engagement_forecast_confidence ?? 65;
+  const hasForecastSignal = Boolean(data.engagement_forecast);
+  const hasEmotionSignal = Boolean(data.emotional_appeal);
+  const hasClutterSignal = Number.isFinite(data.clutter_index);
+  const forecastCfg = hasForecastSignal ? (FORECAST_CONFIG[data.engagement_forecast] || FORECAST_CONFIG.MEDIUM) : null;
+  const emotionCfg = hasEmotionSignal ? (APPEAL_CONFIG[data.emotional_appeal] || APPEAL_CONFIG.MEDIUM) : null;
+  const clutterIndex = Number.isFinite(data.clutter_index) ? data.clutter_index : null;
+  const clutterLabel = data.clutter_label || null;
+  const confidence = Number.isFinite(data.engagement_forecast_confidence) ? data.engagement_forecast_confidence : null;
 
   return (
     <div className="space-y-4">
 
       {/* Engagement Forecast */}
-      <div className={`p-4 rounded-xl border ${forecastCfg.color}`}>
+      <div className={`p-4 rounded-xl border ${forecastCfg ? forecastCfg.color : "border-slate-700/40 bg-slate-800/30"}`}>
         <div className="flex items-start justify-between mb-3">
           <div>
             <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1">Engagement Forecast</p>
-            <span className={`text-lg font-black ${forecastCfg.text}`}>{forecastCfg.icon} {forecastCfg.label}</span>
+            <span className={`text-lg font-black ${forecastCfg ? forecastCfg.text : "text-gray-400"}`}>
+              {forecastCfg ? `${forecastCfg.icon} ${forecastCfg.label}` : "Signal unavailable"}
+            </span>
           </div>
           <div className="text-right">
-            <ConfidenceRing score={confidence} size={56} label="conf." />
+            {Number.isFinite(confidence) ? (
+              <ConfidenceRing score={confidence} size={56} label="conf." />
+            ) : (
+              <p className="text-xs text-gray-500">No confidence signal</p>
+            )}
           </div>
         </div>
         {data.stop_rate_estimate && (
@@ -476,25 +499,29 @@ function IntelligencePanel({ data }) {
           <ul className="space-y-1.5">
             {data.engagement_drivers.map((driver, i) => (
               <li key={i} className="flex items-start gap-2 text-xs text-gray-300">
-                <ChevronRight size={12} className={`shrink-0 mt-0.5 ${forecastCfg.text}`} />
+                <ChevronRight size={12} className={`shrink-0 mt-0.5 ${forecastCfg ? forecastCfg.text : "text-gray-500"}`} />
                 {driver}
               </li>
             ))}
           </ul>
         )}
+        {!data.engagement_drivers?.length && !data.stop_rate_estimate && !forecastCfg && (
+          <p className="text-xs text-gray-400">Analysis signal unavailable for engagement forecast.</p>
+        )}
       </div>
 
       {/* Emotional Appeal + Archetype */}
       <div className="grid grid-cols-2 gap-3">
-        <div className={`p-3 rounded-xl border ${emotionCfg.color}`}>
+        <div className={`p-3 rounded-xl border ${emotionCfg ? emotionCfg.color : "border-slate-700/40 bg-slate-800/30"}`}>
           <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">Emotional Appeal</p>
-          <span className={`inline-block px-2.5 py-1 rounded-full text-xs font-black ${emotionCfg.badge}`}>
-            {emotionCfg.icon} {data.emotional_appeal || "MEDIUM"}
+          <span className={`inline-block px-2.5 py-1 rounded-full text-xs font-black ${emotionCfg ? emotionCfg.badge : "bg-slate-500/20 text-gray-300"}`}>
+            {emotionCfg ? `${emotionCfg.icon} ${data.emotional_appeal}` : "Signal unavailable"}
           </span>
           <p className="text-[11px] text-gray-400 mt-2 leading-relaxed">
-            {data.emotional_appeal === "HIGH" ? "Strong scroll-stop potential. Triggers emotion in < 2 seconds." :
-              data.emotional_appeal === "MEDIUM" ? "Informative and credible. Works for consideration audiences." :
-                "Purely functional. Only effective for high-intent retargeting."}
+            {!hasEmotionSignal ? "Analysis signal unavailable for emotional profile." :
+              data.emotional_appeal === "HIGH" ? "Strong scroll-stop potential. Triggers emotion in < 2 seconds." :
+                data.emotional_appeal === "MEDIUM" ? "Informative and credible. Works for consideration audiences." :
+                  "Purely functional. Only effective for high-intent retargeting."}
           </p>
         </div>
         <div className="p-3 rounded-xl border border-fuchsia-500/20 bg-fuchsia-500/5">
@@ -536,12 +563,19 @@ function IntelligencePanel({ data }) {
       </div>
 
       {/* Color Intelligence */}
-      <ColorPaletteStrip
-        palette={data.colorPalette}
-        harmony={data.colorHarmony}
-        warmth={data.warmthScore}
-        hue={data.dominantHue}
-      />
+      {data.colorPalette?.length > 0 ? (
+        <ColorPaletteStrip
+          palette={data.colorPalette}
+          harmony={data.colorHarmony}
+          warmth={data.warmthScore}
+          hue={data.dominantHue}
+        />
+      ) : (
+        <div className="p-3.5 rounded-xl bg-slate-800/30 border border-slate-700/40">
+          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Color Intelligence</p>
+          <p className="text-xs text-gray-400 mt-2">Analysis signal unavailable for color palette extraction.</p>
+        </div>
+      )}
 
       <div className="flex items-center gap-3 flex-wrap">
         {data.wcagLevel && <WcagBadge level={data.wcagLevel} ratio={data.textContrast} />}
@@ -558,7 +592,14 @@ function IntelligencePanel({ data }) {
       </div>
 
       {/* Clutter Meter */}
-      <ClutterMeter index={clutterIndex} label={clutterLabel} />
+      {hasClutterSignal && clutterLabel ? (
+        <ClutterMeter index={clutterIndex} label={clutterLabel} />
+      ) : (
+        <div className="p-3.5 rounded-xl bg-slate-800/30 border border-slate-700/40">
+          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Clutter Index</p>
+          <p className="text-xs text-gray-400 mt-2">Analysis signal unavailable for clutter diagnostics.</p>
+        </div>
+      )}
 
       {/* Dataset */}
       {data.dataset_matches?.length > 0 ? (
@@ -734,18 +775,19 @@ function FixBlockCard({ fix, index }) {
 // ── Core Check Row ─────────────────────────────────────────────────────────────
 
 function CoreCheckRow({ icon: Icon, label, data }) {
+  const hasScore = Number.isFinite(data.score);
   return (
-    <div className={`flex items-center gap-3 p-3 rounded-xl border ${data.pass ? "bg-emerald-500/5 border-emerald-500/20" : "bg-red-500/5 border-red-500/20"
+    <div className={`flex items-center gap-3 p-3 rounded-xl border ${!hasScore ? "bg-slate-500/5 border-slate-500/20" : data.pass ? "bg-emerald-500/5 border-emerald-500/20" : "bg-red-500/5 border-red-500/20"
       }`}>
-      <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${data.pass ? "bg-emerald-500/15 text-emerald-400" : "bg-red-500/15 text-red-400"
+      <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${!hasScore ? "bg-slate-500/15 text-slate-300" : data.pass ? "bg-emerald-500/15 text-emerald-400" : "bg-red-500/15 text-red-400"
         }`}>
         <Icon size={14} />
       </div>
       <div className="flex-1 min-w-0">
         <p className="text-xs font-bold text-white">{label}</p>
-        <p className={`text-[11px] truncate ${data.pass ? "text-emerald-300/70" : "text-red-300/70"}`}>{data.label}</p>
+        <p className={`text-[11px] truncate ${!hasScore ? "text-slate-300/70" : data.pass ? "text-emerald-300/70" : "text-red-300/70"}`}>{data.label}</p>
       </div>
-      <div className={`text-sm font-black shrink-0 tabular-nums ${data.pass ? "text-emerald-400" : "text-red-400"}`}>{data.score}</div>
+      <div className={`text-sm font-black shrink-0 tabular-nums ${!hasScore ? "text-slate-300" : data.pass ? "text-emerald-400" : "text-red-400"}`}>{hasScore ? data.score : "--"}</div>
     </div>
   );
 }
@@ -769,20 +811,21 @@ function LayerSection({ title, score, breakdown, issues, tone = "fuchsia" }) {
     emerald: "border-emerald-500/20 bg-emerald-500/5 text-emerald-300",
     fuchsia: "border-fuchsia-500/20 bg-fuchsia-500/5 text-fuchsia-300",
   };
+  const hasScore = Number.isFinite(score);
 
   return (
     <div className={`p-3.5 rounded-xl border ${toneStyles[tone] || toneStyles.fuchsia}`}>
       <div className="flex items-center justify-between mb-2">
         <p className="text-[10px] font-bold uppercase tracking-wider">{title}</p>
-        <span className="text-sm font-black tabular-nums">{score ?? 0}/100</span>
+        <span className="text-sm font-black tabular-nums">{hasScore ? `${score}/100` : "Signal unavailable"}</span>
       </div>
-      <AnimBar value={score ?? 0} color="bg-white/70" />
+      <AnimBar value={hasScore ? score : 0} color="bg-white/70" />
       {breakdown && Object.keys(breakdown).length > 0 && (
         <div className="mt-3 space-y-1.5">
           {Object.entries(breakdown).map(([k, v]) => (
             <div key={k} className="flex justify-between text-[11px] text-gray-300" title={`Measured ${k.replace(/([A-Z])/g, " $1")} score from deterministic signals`}>
               <span className="capitalize">{k.replace(/([A-Z])/g, " $1")}</span>
-              <span className="font-semibold tabular-nums">{Math.round(Number(v) || 0)}</span>
+              <span className="font-semibold tabular-nums">{Number.isFinite(Number(v)) ? Math.round(Number(v)) : "—"}</span>
             </div>
           ))}
         </div>
@@ -793,6 +836,9 @@ function LayerSection({ title, score, breakdown, issues, tone = "fuchsia" }) {
             <li key={idx} className="text-[11px] text-gray-400">• {issue}</li>
           ))}
         </ul>
+      )}
+      {!hasScore && (!breakdown || Object.keys(breakdown).length === 0) && (
+        <p className="text-[11px] text-gray-400 mt-3">No runtime signal available for this layer.</p>
       )}
     </div>
   );
@@ -819,6 +865,7 @@ function ScoreCard({ label, value, tone = "blue", hint }) {
     green: "border-emerald-500/25 bg-emerald-500/10 text-emerald-300",
     yellow: "border-amber-500/25 bg-amber-500/10 text-amber-300",
     purple: "border-fuchsia-500/25 bg-fuchsia-500/10 text-fuchsia-300",
+    slate: "border-slate-500/25 bg-slate-500/10 text-slate-300",
   };
   return (
     <div className={`rounded-xl border p-3 ${toneMap[tone] || toneMap.blue}`} title={hint || label}>
@@ -916,7 +963,8 @@ function PlatformCheckGrid({ platformChecks }) {
 }
 
 function RankingLeaderboard({ results }) {
-  const sorted = [...results].sort((a, b) => b.data.overall_score - a.data.overall_score);
+  const sortable = (item) => (Number.isFinite(item?.data?.overall_score) ? item.data.overall_score : -1);
+  const sorted = [...results].sort((a, b) => sortable(b) - sortable(a));
   return (
     <div className="space-y-3">
       <div className="flex items-center gap-2 mb-4">
@@ -925,7 +973,7 @@ function RankingLeaderboard({ results }) {
         <span className="ml-auto text-[10px] text-gray-500">Sorted by Structured Final Score</span>
       </div>
       {sorted.map((res, rank) => {
-        const score = res.data.overall_score;
+        const score = Number.isFinite(res.data.overall_score) ? res.data.overall_score : null;
         const forecast = res.data.engagement_forecast;
         return (
           <motion.div
@@ -958,11 +1006,11 @@ function RankingLeaderboard({ results }) {
                   <span className="text-[10px] text-gray-600">{res.data.engagement_forecast_confidence}% confidence</span>
                 )}
               </div>
-              <p className={`text-[11px] mt-1 leading-relaxed ${score >= 65 ? "text-emerald-300/80" : score >= 45 ? "text-yellow-300/80" : "text-red-300/80"
+              <p className={`text-[11px] mt-1 leading-relaxed ${!Number.isFinite(score) ? "text-slate-300/80" : score >= 65 ? "text-emerald-300/80" : score >= 45 ? "text-yellow-300/80" : "text-red-300/80"
                 }`}>{rankVerdict(res.creative.name, score, res.data)}</p>
             </div>
             <div className="shrink-0">
-              <ConfidenceRing score={score} size={54} label="/100" />
+              <ConfidenceRing score={score} size={54} label={Number.isFinite(score) ? "/100" : "n/a"} />
             </div>
           </motion.div>
         );
@@ -980,7 +1028,8 @@ export default function AnalysisPanel({
   onDownloadReport,
   onGoalChange,
 }) {
-  const sortedResult = [...analysisResult].sort((a, b) => b.data.overall_score - a.data.overall_score);
+  const sortableScore = (entry) => (Number.isFinite(entry?.data?.overall_score) ? entry.data.overall_score : -1);
+  const sortedResult = [...analysisResult].sort((a, b) => sortableScore(b) - sortableScore(a));
   const getRank = (id) => sortedResult.findIndex(r => r.creative.id === id);
 
   const [selectedId, setSelectedId] = useState(analysisResult?.[0]?.creative?.id || null);
@@ -988,8 +1037,10 @@ export default function AnalysisPanel({
 
   if (!analysisResult || analysisResult.length === 0) return null;
 
-  const perfect = analysisResult.filter((r) => r.data.overall_score >= 70);
-  const needsWork = analysisResult.filter((r) => r.data.overall_score < 70);
+  const scoreAvailable = analysisResult.filter((r) => Number.isFinite(r.data.overall_score));
+  const unavailable = analysisResult.filter((r) => !Number.isFinite(r.data.overall_score));
+  const perfect = scoreAvailable.filter((r) => r.data.overall_score >= 70);
+  const needsWork = scoreAvailable.filter((r) => r.data.overall_score < 70);
   const selected = analysisResult.find((r) => r.creative.id === selectedId);
   const selectedRank = selected ? getRank(selected.creative.id) : -1;
 
@@ -1023,11 +1074,12 @@ export default function AnalysisPanel({
           </span>
         </div>
 
-        <div className="grid grid-cols-5 gap-2">
+        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-2">
           {[
             { label: "Analyzed", value: analysisResult.length, color: "bg-blue-500/10 border-blue-500/20 text-blue-400" },
             { label: "Launch Ready", value: perfect.length, color: "bg-emerald-500/10 border-emerald-500/20 text-emerald-400" },
             { label: "Needs Work", value: needsWork.length, color: "bg-yellow-500/10 border-yellow-500/20 text-yellow-400" },
+            { label: "Unavailable", value: unavailable.length, color: "bg-slate-500/10 border-slate-500/20 text-slate-300" },
             { label: "High Forecast", value: analysisResult.filter(r => ["HIGH"].includes(r.data.engagement_forecast)).length, color: "bg-fuchsia-500/10 border-fuchsia-500/20 text-fuchsia-400" },
             { label: "Fix Blocks", value: analysisResult.reduce((sum, r) => sum + (r.data.fix_blocks?.length || 0), 0), color: "bg-orange-500/10 border-orange-500/20 text-orange-400" },
           ].map(({ label, value, color }) => (
@@ -1047,6 +1099,11 @@ export default function AnalysisPanel({
           {needsWork.length > 0 && (
             <p className="text-xs text-yellow-300">
               ⚠️ <strong>{needsWork.map(r => r.creative.name).join(", ")}</strong> {needsWork.length === 1 ? "needs" : "need"} improvements before going live.
+            </p>
+          )}
+          {unavailable.length > 0 && (
+            <p className="text-xs text-slate-300">
+              ℹ️ <strong>{unavailable.map(r => r.creative.name).join(", ")}</strong> {unavailable.length === 1 ? "has" : "have"} unavailable or insufficient evidence states.
             </p>
           )}
         </div>
@@ -1101,12 +1158,34 @@ export default function AnalysisPanel({
               exit={{ opacity: 0, x: -14 }}
               className="lg:col-span-2 rounded-2xl border border-fuchsia-500/25 bg-linear-to-br from-fuchsia-900/15 to-purple-900/15 p-5 space-y-5"
             >
-              <div className="sticky top-2 z-20 rounded-2xl border border-white/10 bg-slate-950/85 backdrop-blur-md p-3 shadow-[0_10px_30px_rgba(2,6,23,0.5)]">
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5">
-                  <ScoreCard label="Final Score" value={`${selected.data.finalScore ?? selected.data.score}/100`} tone="purple" hint="Weighted score from Eligibility, Attention, and Performance layers" />
-                  <ScoreCard label="Engagement" value={selected.data.engagement?.level || selected.data.engagement_forecast || "MEDIUM"} tone={(selected.data.engagement?.level || selected.data.engagement_forecast) === "HIGH" ? "green" : (selected.data.engagement?.level || selected.data.engagement_forecast) === "MEDIUM" ? "yellow" : "blue"} hint="Derived from attention and performance layers" />
-                  <ScoreCard label="Confidence" value={selected.data.confidence || `${selected.data.engagement_forecast_confidence ?? 0}%`} tone="blue" hint="Signal-coverage confidence from deterministic checks" />
-                  <ScoreCard label="Campaign Goal" value={(selected.data.goal || campaignGoal || "awareness").toUpperCase()} tone="yellow" hint="Selected funnel objective used for goal-aware scoring" />
+              <div className="rounded-2xl border border-white/10 bg-slate-950/85 backdrop-blur-md p-3 shadow-[0_10px_30px_rgba(2,6,23,0.5)]">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5">
+                  <ScoreCard
+                    label="Final Score"
+                    value={Number.isFinite(selected.data.finalScore ?? selected.data.score)
+                      ? `${Math.round(selected.data.finalScore ?? selected.data.score)}/100`
+                      : (selected.data.analysis_state_label || "Analysis unavailable")}
+                    tone="purple"
+                    hint="Weighted score from Eligibility, Attention, and Performance layers"
+                  />
+                  <ScoreCard
+                    label="Engagement"
+                    value={selected.data.engagement?.level || selected.data.engagement_forecast || "Analysis unavailable"}
+                    tone={(selected.data.engagement?.level || selected.data.engagement_forecast) === "HIGH"
+                      ? "green"
+                      : (selected.data.engagement?.level || selected.data.engagement_forecast) === "MEDIUM"
+                        ? "yellow"
+                        : (selected.data.engagement?.level || selected.data.engagement_forecast) === "UNAVAILABLE"
+                          ? "slate"
+                          : "blue"}
+                    hint="Derived from attention and performance layers"
+                  />
+                  <ScoreCard
+                    label="Confidence"
+                    value={selected.data.confidence || (Number.isFinite(selected.data.engagement_forecast_confidence) ? `${selected.data.engagement_forecast_confidence}%` : "Signal unavailable")}
+                    tone="blue"
+                    hint="Signal-coverage confidence from deterministic checks"
+                  />
                 </div>
               </div>
 
@@ -1118,24 +1197,36 @@ export default function AnalysisPanel({
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="text-xl">{medalFor(selectedRank)}</span>
                     <p className={`text-sm font-semibold ${sc(selected.data.overall_score)}`}>
-                      {scoreLabel(selected.data.overall_score)} ({selected.data.overall_score}/100)
+                      {Number.isFinite(selected.data.overall_score)
+                        ? `${scoreLabel(selected.data.overall_score)} (${selected.data.overall_score}/100)`
+                        : (selected.data.analysis_state_label || scoreLabel(selected.data.overall_score))}
                     </p>
                     {selected.data.decisionEngine?.grade && (
                       <GradeBadge grade={selected.data.decisionEngine.grade.grade} />
                     )}
                   </div>
                   <div className="flex flex-wrap gap-1.5 mt-2">
-                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${selected.data.cta_presence ? "bg-emerald-500/15 border-emerald-500/40 text-emerald-300" : "bg-red-500/15 border-red-500/40 text-red-300"
+                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${selected.data.analysis_state === "success" || selected.data.analysis_state === "low_confidence"
+                      ? "bg-emerald-500/15 border-emerald-500/40 text-emerald-300"
+                      : selected.data.analysis_state === "partial_analysis"
+                        ? "bg-yellow-500/15 border-yellow-500/40 text-yellow-300"
+                        : "bg-slate-500/15 border-slate-500/40 text-slate-300"
                       }`}>
-                      {selected.data.cta_presence ? "✅ CTA" : "❌ No CTA"}
+                      {selected.data.analysis_state_label || "Validated Analysis"}
                     </span>
+                    {selected.data.analysis_state !== "ocr_failure" && selected.data.analysis_state !== "pipeline_failure" && selected.data.analysis_state !== "insufficient_evidence" && (
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${selected.data.cta_presence ? "bg-emerald-500/15 border-emerald-500/40 text-emerald-300" : "bg-red-500/15 border-red-500/40 text-red-300"
+                        }`}>
+                        {selected.data.cta_presence ? "✅ CTA" : "❌ No CTA"}
+                      </span>
+                    )}
                     {selected.data.engagement_forecast && (
                       <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${selected.data.engagement_forecast === "HIGH" ? "bg-emerald-500/15 border-emerald-500/40 text-emerald-300" :
                           selected.data.engagement_forecast === "MEDIUM" ? "bg-yellow-500/15 border-yellow-500/40 text-yellow-300" :
                             "bg-red-500/15 border-red-500/40 text-red-300"
                         }`}>
                         {selected.data.engagement_forecast}
-                        {selected.data.engagement_forecast_confidence !== undefined && ` · ${selected.data.engagement_forecast_confidence}%`}
+                        {Number.isFinite(selected.data.engagement_forecast_confidence) && ` · ${selected.data.engagement_forecast_confidence}%`}
                       </span>
                     )}
                     <span className="px-2 py-0.5 rounded-full text-[10px] font-bold border border-white/15 bg-white/5 text-gray-300">
@@ -1198,7 +1289,7 @@ export default function AnalysisPanel({
                       <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">6 Core Creative Checks</p>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                         {CORE_CHECK_CONFIG.map(({ key, icon, label }) => (
-                          <CoreCheckRow key={key} icon={icon} label={label} data={selected.data.coreChecks?.[key] || { score: 0, label: "—", pass: false }} />
+                          <CoreCheckRow key={key} icon={icon} label={label} data={selected.data.coreChecks?.[key] || { score: "—", label: "Signal unavailable", pass: false }} />
                         ))}
                       </div>
                     </div>
@@ -1321,7 +1412,7 @@ export default function AnalysisPanel({
                           const order = { CRITICAL: 0, HIGH: 1, MEDIUM: 2, LOW: 3 };
                           return order[a.severity] - order[b.severity];
                         })
-                        .map((fix, i) => <FixBlockCard key={fix.dimension} fix={fix} index={i} />)
+                        .map((fix, i) => <FixBlockCard key={`${fix.dimension}-${i}-${fix.problem || ""}`} fix={fix} index={i} />)
                       : (
                         <div className="p-6 rounded-xl bg-emerald-500/5 border border-emerald-500/20 text-center">
                           <p className="text-emerald-400 font-bold text-sm">🚀 No fixes needed!</p>
@@ -1337,7 +1428,7 @@ export default function AnalysisPanel({
                   <motion.div key="abtests" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-3">
                     <p className="text-[10px] text-gray-500">Auto-generated split test hypotheses based on scoring gaps.</p>
                     {selected.data.ab_hypotheses?.length > 0
-                      ? selected.data.ab_hypotheses.map((hyp, i) => <ABHypothesisCard key={hyp.dimension} hyp={hyp} index={i} />)
+                      ? selected.data.ab_hypotheses.map((hyp, i) => <ABHypothesisCard key={`${hyp.dimension}-${i}-${hyp.variant_b || ""}`} hyp={hyp} index={i} />)
                       : (
                         <div className="p-6 rounded-xl bg-fuchsia-500/5 border border-fuchsia-500/20 text-center">
                           <FlaskConical size={20} className="text-fuchsia-400 mx-auto mb-2" />
@@ -1353,8 +1444,14 @@ export default function AnalysisPanel({
                 {tab === "cta" && (
                   <motion.div key="cta" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-4">
                     <div className="flex items-center gap-2 flex-wrap">
+                      {selected.data.analysis_state === "ocr_failure" || selected.data.analysis_state === "pipeline_failure" || selected.data.analysis_state === "insufficient_evidence" ? (
+                        <span className="px-3 py-1.5 rounded-full text-xs font-bold border bg-slate-500/15 border-slate-500/40 text-slate-300">
+                          ℹ️ CTA analysis unavailable
+                        </span>
+                      ) : (
                       <span className={`px-3 py-1.5 rounded-full text-xs font-bold border ${selected.data.cta_detected ? "bg-emerald-500/15 border-emerald-500/40 text-emerald-300" : "bg-red-500/15 border-red-500/40 text-red-300"
                         }`}>{selected.data.cta_detected ? "✅ CTA Detected" : "❌ No CTA Found"}</span>
+                      )}
                       {selected.data.cta_text && (
                         <span className="px-3 py-1.5 rounded-full text-xs font-bold bg-white/10 border border-white/20 text-white">"{selected.data.cta_text}"</span>
                       )}
@@ -1411,8 +1508,16 @@ export default function AnalysisPanel({
 
                     {!selected.data.cta_detected && (
                       <div className="p-4 rounded-xl bg-red-500/5 border border-red-500/20">
-                        <p className="text-sm text-red-300 font-medium">No CTA — scores not applicable.</p>
-                        <p className="text-xs text-gray-400 mt-1">A missing CTA significantly reduces click-through potential.</p>
+                        <p className="text-sm text-red-300 font-medium">
+                          {selected.data.analysis_state === "ocr_failure" || selected.data.analysis_state === "pipeline_failure" || selected.data.analysis_state === "insufficient_evidence"
+                            ? "CTA signal unavailable due to analysis state."
+                            : "No CTA — scores not applicable."}
+                        </p>
+                        <p className="text-xs text-gray-400 mt-1">
+                          {selected.data.analysis_state === "ocr_failure" || selected.data.analysis_state === "pipeline_failure" || selected.data.analysis_state === "insufficient_evidence"
+                            ? "System failure or insufficient evidence prevented CTA validation."
+                            : "A missing CTA significantly reduces click-through potential."}
+                        </p>
                       </div>
                     )}
 

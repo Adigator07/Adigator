@@ -10,9 +10,29 @@ import EditCreativeModal from "./EditCreativeModal";
 import CreativeCard from "./CreativeCard";
 import AnalysisPanel from "./AnalysisPanel";
 import { supabase } from "../lib/supabase";
-import { analyzeCreativeLocal, PLATFORM_SIZES, GOAL_CTA } from "../lib/localAnalyzer";
-import { validateCreativeAsset, buildValidationSummary } from "../lib/creativeValidation";
-import { evaluateCreative } from "../lib/decision-engine";
+import {
+  validateCreativeAsset,
+  buildValidationSummary,
+  SUPPORTED_DISPLAY_SIZE_GROUPS,
+  DSP_PARTNERS,
+} from "../lib/creativeValidation";
+
+// Platform and CTA constants (previously from localAnalyzer)
+const PLATFORM_SIZES = {
+  programmatic: {
+    desktop: SUPPORTED_DISPLAY_SIZE_GROUPS.desktop,
+    mobile: SUPPORTED_DISPLAY_SIZE_GROUPS.mobile,
+    native: SUPPORTED_DISPLAY_SIZE_GROUPS.native,
+  },
+};
+
+const GOAL_CTA = {
+  awareness: ["Learn More", "Discover", "Explore", "Watch Now", "See Now"],
+  consideration: ["View Details", "Compare Now", "Check Features", "See Pricing", "Try Demo"],
+  conversion: ["Buy Now", "Sign Up", "Get Started", "Download", "Claim Offer"],
+};
+
+const DEFAULT_CAMPAIGN_GOAL = "awareness";
 import {
   UploadCloud, CheckCircle2, XCircle, AlertCircle,
   Download, LayoutGrid, Square, CheckSquare,
@@ -63,8 +83,9 @@ const PLATFORMS = [
   {
     id: "programmatic", icon: "📡", title: "Programmatic Ads", desc: "Real-time bidding across premium publisher inventory",
     color: "from-violet-600/30 to-violet-800/20", border: "border-violet-500/50",
-    desktop: ["300x250", "336x280", "728x90", "970x90", "970x250", "160x600", "300x600", "300x1050", "468x60", "234x60", "120x600", "120x240", "250x250", "200x200", "180x150"],
-    mobile: ["320x50", "320x100", "300x250", "320x480", "480x320", "360x640", "375x667", "414x736"],
+    desktop: SUPPORTED_DISPLAY_SIZE_GROUPS.desktop,
+    mobile: SUPPORTED_DISPLAY_SIZE_GROUPS.mobile,
+    native: SUPPORTED_DISPLAY_SIZE_GROUPS.native,
   },
 ];
 
@@ -109,57 +130,523 @@ const VERTICALS = [
 const containerVariants = { hidden: { opacity: 0 }, visible: { opacity: 1, transition: { staggerChildren: 0.1 } } };
 const itemVariants = { hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } };
 
+const VALID_VERTICALS = new Set([
+  "automotive", "banking", "ecommerce", "education", "entertainment",
+  "finance", "food", "gaming", "healthcare", "hotels", "luxury",
+  "news_media", "real_estate", "sports", "technology", "travel",
+]);
+
+function toFiniteNumber(value, fallback = null) {
+  const num = Number(value);
+  return Number.isFinite(num) ? num : fallback;
+}
+
+function toPercentValue(value, fallback = null) {
+  const num = toFiniteNumber(value, null);
+  if (num === null) return fallback;
+  if (num <= 1) return Math.round(num * 100);
+  return Math.round(num);
+}
+
+function clamp(value, min, max) {
+  return Math.min(max, Math.max(min, value));
+}
+
+function avg(values, fallback = null) {
+  const valid = values.filter((v) => Number.isFinite(v));
+  if (!valid.length) return fallback;
+  return Math.round(valid.reduce((sum, val) => sum + val, 0) / valid.length);
+}
+
+function scoreToForecast(score) {
+  if (!Number.isFinite(score)) return null;
+  if (score >= 75) return "HIGH";
+  if (score >= 55) return "MEDIUM";
+  return "LOW";
+}
+
+function scoreToLabel(score, passThreshold = 60) {
+  if (!Number.isFinite(score)) {
+    return { score: null, label: "Signal unavailable", pass: false, available: false };
+  }
+  return {
+    score,
+    label: score >= passThreshold ? "Pass" : "Needs improvement",
+    pass: score >= passThreshold,
+    available: true,
+  };
+}
+
+function resolveAnalysisState(unifiedData) {
+  const directState = unifiedData?.analysisState;
+  const nestedState = unifiedData?.analysisDetails?.analysisState;
+  const graphState = unifiedData?.analysisDetails?.graph?.analysisState;
+  const state = directState || nestedState || graphState;
+  if (state?.status) return state;
+  return {
+    status: "success",
+    reason: "validated_analysis",
+    message: "Validated analysis",
+  };
+}
+
+function analysisStateCopy(status, reason) {
+  if (status === "ocr_failure") return "OCR Processing Failed";
+  if (status === "pipeline_failure") return "Analysis Pipeline Failed";
+  if (status === "insufficient_evidence") return "Insufficient Validated Signals";
+  if (status === "partial_analysis") return "Partial Intelligence Available";
+  if (status === "low_confidence") return "Low Confidence Analysis";
+  if (reason === "partial_signal_coverage") return "Partial Intelligence Available";
+  return "Validated Analysis";
+}
+
+function buildFixBlocks(recommendations = []) {
+  const severityMap = {
+    critical: "CRITICAL",
+    high: "HIGH",
+    medium: "MEDIUM",
+    low: "LOW",
+  };
+
+  return recommendations.slice(0, 8).map((rec, index) => ({
+    dimension: rec.category || "creative",
+    severity: severityMap[rec.priority] || "MEDIUM",
+    score: clamp(100 - (toFiniteNumber(rec.expectedImpact, 12) * 3), 15, 92),
+    problem: rec.current || "Creative signal needs refinement",
+    impact: rec.reason || "May reduce campaign efficiency and auction competitiveness.",
+    fixNow: rec.suggested || "Apply recommended optimization.",
+    fixDeep: rec.reason || "Deepen test and iterate against goal/vertical profile.",
+    abTestIdea: rec.suggested ? `Test variant with: ${rec.suggested}` : null,
+    datasetNote: rec.source ? `Source: ${rec.source}` : null,
+    expectedOutcome: rec.expectedImpact
+      ? `Estimated +${rec.expectedImpact}% relative lift potential`
+      : "Expected stronger clarity and conversion intent",
+    timeEstimate: index < 2 ? "15m" : index < 5 ? "30m" : "45m",
+  }));
+}
+
+function buildAbHypotheses(fixBlocks = []) {
+  return fixBlocks.slice(0, 4).map((fix) => ({
+    dimension: fix.dimension,
+    priority: fix.severity === "CRITICAL" ? "HIGH" : fix.severity,
+    variant_a: fix.problem,
+    variant_b: fix.fixNow,
+    expected_lift: fix.expectedOutcome,
+  }));
+}
+
+function buildFixBlocksFromSuggestions(suggestions = []) {
+  return suggestions.slice(0, 6).map((text, index) => ({
+    dimension: "strategic_alignment",
+    severity: index < 2 ? "HIGH" : "MEDIUM",
+    score: index < 2 ? 45 : 58,
+    problem: "Strategic optimization required",
+    impact: text,
+    fixNow: text,
+    fixDeep: "Test this recommendation in a controlled A/B split and iterate by vertical.",
+    abTestIdea: `Variant B applies: ${text}`,
+    datasetNote: "Derived from strategic analysis recommendations",
+    expectedOutcome: "Improved campaign alignment and delivery performance",
+    timeEstimate: index < 2 ? "20m" : "35m",
+  }));
+}
+
+function normalizeUnifiedAnalysis(unifiedData, goal, vertical, colorSignals = null) {
+  const graph = unifiedData?.analysisDetails?.graph || unifiedData;
+  const strategic = unifiedData?.strategicAnalysis || {};
+  const details = unifiedData?.analysisDetails || {};
+  const state = resolveAnalysisState(unifiedData);
+  const stateStatus = state?.status || "success";
+  const stateLabel = analysisStateCopy(stateStatus, state?.reason);
+  const scoreSuppressed = ["ocr_failure", "insufficient_evidence", "pipeline_failure"].includes(stateStatus);
+  const strategicScores = strategic?.scores || {};
+  const rawScores = details?.scores || {};
+  const layoutMetrics = details?.layoutAnalysis?.metrics || {};
+  const recommendations = Array.isArray(details?.recommendations) ? details.recommendations : [];
+
+  const goalAlignment = toFiniteNumber(strategicScores?.goalAlignment?.score);
+  const verticalRelevance = toFiniteNumber(strategicScores?.verticalRelevance?.score);
+  const trustAlignment = toFiniteNumber(strategicScores?.trustAlignment?.score);
+  const mobileReadiness = toFiniteNumber(strategicScores?.mobileReadiness?.score);
+  const visualClarity = toFiniteNumber(strategicScores?.visualClarity?.score);
+  const layoutAlignment = toFiniteNumber(strategicScores?.layoutAlignment?.score);
+  const readabilityScore = toFiniteNumber(strategicScores?.readabilityScore?.score);
+  const strategyAlignment = toFiniteNumber(strategicScores?.strategyAlignment?.score);
+  const conversionPotential = toFiniteNumber(strategicScores?.conversionPotential?.score);
+  const ctaAlignment = toFiniteNumber(strategicScores?.ctaAlignment?.score);
+  const engagementPotential = toFiniteNumber(strategicScores?.engagementPotential?.score);
+  const competitiveStrength = toFiniteNumber(strategicScores?.competitiveStrength?.score);
+  const auctionReadiness = toFiniteNumber(strategicScores?.auctionReadiness?.score);
+  const emotionalAlignment = toFiniteNumber(strategicScores?.emotionalAlignment?.score);
+  const brandAlignment = toFiniteNumber(strategicScores?.brandAlignment?.score);
+
+  const eligibilityScore = avg([
+    goalAlignment,
+    verticalRelevance,
+    trustAlignment,
+    mobileReadiness,
+  ], null);
+
+  const attentionScore = avg([
+    visualClarity,
+    layoutAlignment,
+    readabilityScore,
+    strategyAlignment,
+  ], null);
+
+  const performanceScore = avg([
+    conversionPotential,
+    ctaAlignment,
+    engagementPotential,
+    competitiveStrength,
+    auctionReadiness,
+  ], null);
+
+  const canComputeFinal = !scoreSuppressed && Number.isFinite(eligibilityScore) && Number.isFinite(attentionScore) && Number.isFinite(performanceScore);
+  const finalScore = canComputeFinal
+    ? clamp(
+      Math.round((eligibilityScore * 0.2) + (attentionScore * 0.4) + (performanceScore * 0.4)),
+      0,
+      100
+    )
+    : null;
+
+  const confidencePct = toPercentValue(graph?.confidence?.overall, toPercentValue(strategic?.overallConfidence, null));
+  const engagementLevel = scoreSuppressed
+    ? "UNAVAILABLE"
+    : (scoreToForecast(engagementPotential ?? performanceScore) || "INSUFFICIENT DATA");
+  const ctaDetection = details?.ctaDetection || {};
+  const ctaDetected = Boolean(
+    ctaDetection?.detected ??
+    ctaDetection?.ctaExists ??
+    ctaDetection?.cta ??
+    ctaDetection?.candidateBlockId
+  );
+  const ctaText = ctaDetection?.text || ctaDetection?.cta || null;
+  const clutterQuality = toFiniteNumber(layoutMetrics?.clutter?.score, null);
+  const clutterRiskScore = Number.isFinite(clutterQuality) ? clamp(100 - clutterQuality, 0, 100) : null;
+  const clutterIndex = Number.isFinite(clutterRiskScore) ? clamp(Math.round(clutterRiskScore / 10), 1, 10) : null;
+  const clutterLabel = clutterIndex === null
+    ? null
+    : clutterIndex <= 3
+      ? "CLEAN"
+      : clutterIndex <= 6
+        ? "MODERATE"
+        : clutterIndex <= 8
+          ? "CLUTTERED"
+          : "CRITICAL";
+  const strategicRecs = strategic?.recommendations || {};
+
+  const suggestionPool = [
+    ...(strategicRecs.critical || []),
+    ...(strategicRecs.high || []),
+    ...(strategicRecs.medium || []),
+    ...(strategicRecs.lowPriority || []),
+  ].filter(Boolean);
+
+  const fallbackSuggestions = recommendations.map((rec) => rec?.suggested).filter(Boolean);
+  const suggestions = (suggestionPool.length ? suggestionPool : fallbackSuggestions).slice(0, 6);
+
+  const fixBlocksFromRecommendations = buildFixBlocks(recommendations);
+  const fixBlocksFromStrategicText = buildFixBlocksFromSuggestions(suggestionPool);
+  const fix_blocks = scoreSuppressed
+    ? []
+    : fixBlocksFromRecommendations.length > 0
+    ? fixBlocksFromRecommendations
+    : Number.isFinite(finalScore) && finalScore < 75
+      ? fixBlocksFromStrategicText
+      : [];
+  const ab_hypotheses = buildAbHypotheses(fix_blocks);
+
+  const performanceImpact = fix_blocks.slice(0, 5).map((fix) => ({
+    issue: fix.problem,
+    impact: fix.impact,
+    estimatedEffect: fix.expectedOutcome,
+    fix: fix.fixNow,
+    expectedOutcome: fix.expectedOutcome,
+    priority: fix.severity === "CRITICAL" || fix.severity === "HIGH" ? "High" : fix.severity === "MEDIUM" ? "Medium" : "Low",
+  }));
+
+  const stopRate = graph?.scores?.visualClarity?.value ?? null;
+  const recommendedTemplates = goal === "conversion"
+    ? ["ecommerce", "technology"]
+    : goal === "consideration"
+      ? ["business", "technology"]
+      : ["newspaper", "entertainment"];
+
+  const ctaVisibilitySignal = toFiniteNumber(ctaDetection?.strength, null);
+  const ctaVisibilityScore = ctaVisibilitySignal !== null
+    ? ctaVisibilitySignal <= 10
+      ? Math.round(ctaVisibilitySignal * 10)
+      : Math.round(ctaVisibilitySignal)
+    : toFiniteNumber(ctaDetection?.confidence, null);
+
+  const grade = rawScores?.grade || (
+    !Number.isFinite(finalScore)
+      ? "Analysis Unavailable"
+      : finalScore >= 82
+        ? "Elite Creative"
+        : finalScore >= 70
+          ? "Strong Performer"
+          : finalScore >= 55
+            ? "Needs Optimization"
+            : "High Risk Creative"
+  );
+
+  return {
+    ...unifiedData,
+    goal,
+    vertical,
+    analysis_state: stateStatus,
+    analysis_state_reason: state?.reason || null,
+    analysis_state_message: state?.message || stateLabel,
+    analysis_state_label: stateLabel,
+    finalScore,
+    score: finalScore,
+    overall_score: finalScore,
+    confidence: Number.isFinite(confidencePct) ? `${confidencePct}%` : "Unavailable",
+    engagement: { level: engagementLevel },
+    engagement_forecast: engagementLevel,
+    engagement_forecast_confidence: confidencePct,
+    emotional_appeal: scoreSuppressed ? null : (scoreToForecast(emotionalAlignment) || "MEDIUM"),
+    creative_archetype: goal === "conversion" ? "Direct Response" : goal === "consideration" ? "Proof-led Consideration" : "Brand Awareness",
+    emotion_signature: strategic?.strengths?.primary || null,
+    visual_hierarchy: scoreSuppressed
+      ? null
+      : scoreToForecast(visualClarity) === "HIGH"
+        ? "STRONG"
+        : scoreToForecast(visualClarity) === "MEDIUM"
+          ? "MODERATE"
+          : "WEAK",
+    headlineDetected: Boolean(details?.ocr?.headline || details?.ocr?.headlineText),
+    readingFlow: Number.isFinite(toFiniteNumber(layoutMetrics?.attentionDistribution?.score, null))
+      ? toFiniteNumber(layoutMetrics?.attentionDistribution?.score, null) >= 65 ? "LINEAR" : "SCATTERED"
+      : null,
+    focalPointStrength: toFiniteNumber(layoutMetrics?.visualHierarchy?.score, visualClarity ?? null),
+    cta_presence: scoreSuppressed ? null : ctaDetected,
+    cta_text: ctaText,
+    cta_detected: scoreSuppressed ? null : ctaDetected,
+    cta_goal_fit: ctaDetected
+      ? (ctaAlignment ?? 0) >= 75 ? "Perfect Match" : (ctaAlignment ?? 0) >= 55 ? "Acceptable" : "Mismatch"
+      : scoreSuppressed ? "Unavailable" : "None",
+    clutter_index: clutterIndex,
+    clutter_label: clutterLabel,
+    stop_rate_estimate: stopRate === null ? "Insufficient data" : `${stopRate}%`,
+    colorPalette: details?.colorAnalysis?.palette || colorSignals?.palette || [],
+    colorHarmony: details?.colorAnalysis?.colorHarmony || colorSignals?.colorHarmony || null,
+    warmthScore: toFiniteNumber(details?.colorAnalysis?.warmthScore, toFiniteNumber(colorSignals?.warmthScore, null)),
+    dominantHue: toFiniteNumber(details?.colorAnalysis?.dominantHue, toFiniteNumber(colorSignals?.dominantHue, null)),
+    intelligenceGraph: graph,
+    lockedContext: graph?.lockedContext || { goal, selectedVertical: vertical },
+    signalAvailability: details?.signalAvailability || graph?.signalAvailability || {},
+    suggestions,
+    fix_blocks,
+    ab_hypotheses,
+    performanceImpact,
+    recommendedTemplates,
+    eligibility: {
+      score: eligibilityScore,
+      breakdown: {
+        goalAlignment,
+        verticalRelevance,
+        trustAlignment,
+        mobileReadiness,
+      },
+      issues: strategic?.behavioralGaps?.trustGaps || [],
+    },
+    attention: {
+      score: attentionScore,
+      breakdown: {
+        visualClarity,
+        layoutAlignment,
+        readabilityScore,
+        strategyAlignment,
+      },
+    },
+    performance: {
+      score: performanceScore,
+      breakdown: {
+        conversionPotential,
+        ctaAlignment,
+        engagementPotential,
+        competitiveStrength,
+        auctionReadiness,
+      },
+      ctaGoalFit: ctaDetected
+        ? (ctaAlignment ?? 0) >= 75 ? "good" : (ctaAlignment ?? 0) >= 55 ? "acceptable" : "too weak"
+        : scoreSuppressed ? "unavailable" : "missing",
+    },
+    coreChecks: {
+      noticeability: scoreToLabel(visualClarity, 60),
+      messageClarity: scoreToLabel(readabilityScore, 60),
+      ctaStrength: scoreToLabel(ctaAlignment, 55),
+      brandPresence: scoreToLabel(brandAlignment, 55),
+      crowding: scoreToLabel(Number.isFinite(clutterRiskScore) ? 100 - clutterRiskScore : null, 50),
+      formatFit: scoreToLabel(layoutAlignment, 55),
+    },
+    cta: {
+      text: ctaText,
+      visibilityScore: ctaVisibilityScore,
+      contrastScore: toFiniteNumber(layoutMetrics?.contrastReadability?.score, null),
+      positionScore: toFiniteNumber(layoutMetrics?.attentionDistribution?.score, null),
+      urgencyScore: toFiniteNumber(strategicScores?.conversionPotential?.score, null),
+    },
+    adVisibilityScore: toFiniteNumber(rawScores?.attention?.value, attentionScore),
+    goalAlignmentIndicator: toFiniteNumber(strategicScores?.goalAlignment?.score, eligibilityScore),
+    cta_strength: toFiniteNumber(rawScores?.ctaStrength?.value, ctaAlignment ?? null),
+    brightness: toFiniteNumber(details?.ocr?.imageStats?.brightness, null),
+    contrast: toFiniteNumber(details?.ocr?.imageStats?.contrast, null),
+    aiData: {
+      conversionScore: toFiniteNumber(strategicScores?.conversionPotential?.score, performanceScore),
+      verticalFitScore: toFiniteNumber(strategicScores?.verticalRelevance?.score, eligibilityScore),
+      campaign_goal: graph?.lockedContext?.goal || goal,
+      vertical: graph?.lockedContext?.selectedVertical || vertical,
+      cta_state: scoreSuppressed ? "Unavailable" : (ctaDetected ? "Strong" : "Missing"),
+      overall_score: finalScore,
+      confidence: confidencePct,
+      strengths: [strategic?.strengths?.primary, ...(strategic?.strengths?.secondary || [])].filter(Boolean),
+      weaknesses: [strategic?.weaknesses?.primary, ...(strategic?.weaknesses?.secondary || [])].filter(Boolean),
+      missingElements: [
+        ...(strategic?.behavioralGaps?.ctaGaps || []),
+        ...(strategic?.behavioralGaps?.layoutGaps || []),
+      ],
+      subscores: {
+        stage_alignment: toFiniteNumber(strategicScores?.goalAlignment?.score, null),
+        conversion_readiness: toFiniteNumber(strategicScores?.conversionPotential?.score, null),
+        visual_hierarchy: toFiniteNumber(strategicScores?.layoutAlignment?.score, null),
+        readability: toFiniteNumber(strategicScores?.readabilityScore?.score, null),
+        cognitive_simplicity: toFiniteNumber(strategicScores?.visualClarity?.score, null),
+        emotional_resonance: toFiniteNumber(strategicScores?.emotionalAlignment?.score, null),
+        trust_signals: toFiniteNumber(strategicScores?.trustAlignment?.score, null),
+        brand_recall: toFiniteNumber(strategicScores?.brandAlignment?.score, null),
+        cta_alignment: toFiniteNumber(strategicScores?.ctaAlignment?.score, null),
+        offer_clarity: toFiniteNumber(strategicScores?.readabilityScore?.score, null),
+        urgency_fit: toFiniteNumber(strategicScores?.competitiveStrength?.score, null),
+      },
+    },
+    decisionEngine: {
+      grade: {
+        grade,
+        color: !Number.isFinite(finalScore) ? "slate" : finalScore >= 82 ? "emerald" : finalScore >= 70 ? "blue" : finalScore >= 55 ? "yellow" : "red",
+      },
+      optimizations: recommendations.slice(0, 6).map((rec) => ({
+        dimension: rec.category,
+        subscore: finalScore,
+        issue: rec.current,
+        recommendation: rec.suggested,
+        priority: rec.priority === "critical" || rec.priority === "high" ? "High" : rec.priority === "medium" ? "Medium" : "Low",
+      })),
+    },
+    analysisSignal: {
+      hasStrategic: Boolean(unifiedData?.strategicAnalysis),
+      hasRawDetails: Boolean(unifiedData?.analysisDetails),
+      processingTimeMs: toFiniteNumber(unifiedData?.processingTimeMs, null),
+      status: stateStatus,
+      statusLabel: stateLabel,
+      statusReason: state?.reason || null,
+    },
+  };
+}
+
 // ── Shared analysis helper ─────────────────────────────────────────────────────
 async function analyzeAllCreatives(creatives, goal, platform, vertical) {
   const results = [];
   for (const creative of creatives) {
-    const data = await analyzeCreativeLocal(
-      creative.url, 
-      goal, 
-      platform, 
-      creative.size, 
-      creative.fileSizeKB || 0
-    );
-
-    // Optional AI layer: enrich insights, never override deterministic scores.
     try {
-      const aiRes = await fetch("/api/creative-insights", {
+      // Fetch image from URL and convert to Blob
+      const imageRes = await fetch(creative.url);
+      if (!imageRes.ok) throw new Error(`Failed to fetch image: ${creative.url}`);
+      const imageBlob = await imageRes.blob();
+
+      // Call new unified analyzer API
+      const formData = new FormData();
+      formData.append("image", imageBlob, "creative.jpg");
+      formData.append("goal", goal);
+      const verticalForApi = VALID_VERTICALS.has(vertical) ? vertical : "technology";
+      formData.append("vertical", verticalForApi);
+
+      // Single source of truth: analyze-v2 unified pipeline
+      const analysisRes = await fetch("/api/analyze-v2", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          goal,
-          vertical,
-          extractedText: data.cta?.text || "",
-          signals: {
-            eligibilityScore: data.eligibility?.score ?? 0,
-            attentionScore: data.attention?.score ?? 0,
-            performanceScore: data.performance?.score ?? 0,
-            finalScore: data.finalScore ?? data.score,
-            ctaDetected: data.cta?.detected ?? false,
-            ctaStrength: data.cta?.strength ?? "low",
-            isBlurry: data.isBlurry ?? false,
-            contrast: data.contrast ?? 0,
-            clarity: data.text_clarity ?? 0,
-            goalAlignment: data.goalAlignmentIndicator ?? 0,
-            emotionalAppeal: data.emotional_appeal ?? "MEDIUM",
-          },
-        }),
+        body: formData,
       });
 
-      if (aiRes.ok) {
-        const aiJson = await aiRes.json();
-        data.aiInsights = aiJson?.aiInsights ?? null;
-        data.aiData = aiJson;
-        if (aiJson) {
-          data.decisionEngine = evaluateCreative(aiJson);
+      if (!analysisRes.ok) {
+        let apiErrorMessage = analysisRes.statusText;
+        let apiErrorBody = null;
+        try {
+          apiErrorBody = await analysisRes.json();
+          apiErrorMessage =
+            apiErrorBody?.details ||
+            apiErrorBody?.message ||
+            apiErrorBody?.error?.message ||
+            apiErrorBody?.error ||
+            apiErrorMessage;
+        } catch {
+          // Keep fallback statusText
         }
+        const fallbackFailure = {
+          analysisState: {
+            status: "pipeline_failure",
+            reason: "http_error",
+            message: `API error (${analysisRes.status}): ${apiErrorMessage}`,
+          },
+          strategicAnalysis: {
+            strategyAlignmentScore: null,
+            scores: {},
+          },
+          analysisDetails: {
+            analysisState: {
+              status: "pipeline_failure",
+              reason: "http_error",
+              message: `API error (${analysisRes.status}): ${apiErrorMessage}`,
+            },
+            scores: {
+              overallScore: null,
+              overallConfidence: null,
+            },
+            recommendations: [],
+          },
+        };
+        const data = normalizeUnifiedAnalysis(apiErrorBody || fallbackFailure, goal, verticalForApi, null);
+        results.push({ creative, data: { ...data, error: apiErrorMessage } });
+        continue;
       }
-    } catch (err) {
-      console.error("AI insights error:", err);
-      data.aiInsights = null;
-    }
 
-    results.push({ creative, data });
+      const unifiedData = await analysisRes.json();
+      const data = normalizeUnifiedAnalysis(unifiedData, goal, verticalForApi, null);
+
+      results.push({ creative, data });
+    } catch (err) {
+      const errMessage = err instanceof Error ? err.message : "Analysis request failed";
+      console.error(`Analysis failed for ${creative.url}:`, err);
+      results.push({
+        creative,
+        data: normalizeUnifiedAnalysis({
+          analysisState: {
+            status: "pipeline_failure",
+            reason: "client_exception",
+            message: errMessage,
+          },
+          strategicAnalysis: {
+            strategyAlignmentScore: null,
+            scores: {},
+          },
+          analysisDetails: {
+            analysisState: {
+              status: "pipeline_failure",
+              reason: "client_exception",
+              message: errMessage,
+            },
+            scores: {
+              overallScore: null,
+              overallConfidence: null,
+            },
+            recommendations: [],
+          },
+        }, goal, VALID_VERTICALS.has(vertical) ? vertical : "technology", null),
+      });
+    }
   }
   return results;
 }
@@ -205,7 +692,7 @@ export default function PreviewTool() {
   // Initialize state with basic defaults, then hydrate from localStorage
   const [step, setStep] = useState(urlStep);
   const [platform, setPlatform] = useState("programmatic");
-  const [campaignGoal, setCampaignGoal] = useState(null);
+  const [campaignGoal, setCampaignGoal] = useState(DEFAULT_CAMPAIGN_GOAL);
   const [campaignVertical, setCampaignVertical] = useState(null);
 
   // 1. Persistence: Hydrate from localStorage on mount
@@ -216,13 +703,14 @@ export default function PreviewTool() {
     
     if (savedPlatform) setPlatform(savedPlatform);
     if (savedGoal && savedGoal !== "null") setCampaignGoal(savedGoal);
+    else setCampaignGoal(DEFAULT_CAMPAIGN_GOAL);
     if (savedVertical && savedVertical !== "null") setCampaignVertical(savedVertical);
   }, []);
 
   // 2. Persistence: Save to localStorage when state changes
   useEffect(() => {
     localStorage.setItem("adigator_platform", platform);
-    if (campaignGoal) localStorage.setItem("adigator_goal", campaignGoal);
+    localStorage.setItem("adigator_goal", campaignGoal || DEFAULT_CAMPAIGN_GOAL);
     if (campaignVertical) localStorage.setItem("adigator_vertical", campaignVertical);
   }, [platform, campaignGoal, campaignVertical]);
 
@@ -256,7 +744,6 @@ export default function PreviewTool() {
 
   const selectedPlatform = PLATFORMS.find((p) => p.id === platform)?.title || "Not selected";
   const selectedGoal = GOALS.find((g) => g.id === campaignGoal)?.title || "Not selected";
-
   const scrollToSection = useCallback((ref) => {
     if (!ref?.current) return;
     window.setTimeout(() => {
@@ -273,10 +760,13 @@ export default function PreviewTool() {
     setCampaignGoal(id);
   }, []);
 
-
-
+  const selectedPlatformConfig = PLATFORMS.find((p) => p.id === platform);
   const allowedSizes = platform
-    ? [...(PLATFORM_SIZES[platform]?.desktop || []), ...(PLATFORM_SIZES[platform]?.mobile || [])]
+    ? [
+      ...(PLATFORM_SIZES[platform]?.desktop || []),
+      ...(PLATFORM_SIZES[platform]?.mobile || []),
+      ...(PLATFORM_SIZES[platform]?.native || []),
+    ]
     : [];
 
   const validCreatives = creatives.filter((c) => c && c.valid && (c.url || c.text || c.image || c.title));
@@ -394,10 +884,17 @@ export default function PreviewTool() {
           name: file.name.replace(/\.[^/.]+$/, ""),
           url: dataUrl,
           size,
-          valid: allowedSizes.includes(size) && normalizedValidation.status !== "CRITICAL",
+          valid: normalizedValidation.valid && normalizedValidation.status !== "CRITICAL",
           originalFile: file.name,
           fileSizeKB: Math.round(file.size / 1024),
           validation: normalizedValidation,
+          placementType: normalizedValidation.intelligence?.placementType,
+          deviceClassification: normalizedValidation.intelligence?.deviceClassification,
+          iabCompatibility: normalizedValidation.intelligence?.iabCompatibility,
+          dspCompatibility: normalizedValidation.intelligence?.dspCompatibility,
+          inventoryAvailability: normalizedValidation.intelligence?.inventory,
+          auctionReadiness: normalizedValidation.intelligence?.auctionReadiness,
+          premiumPlacementPotential: normalizedValidation.intelligence?.premiumPlacement,
         };
       }));
 
@@ -666,10 +1163,12 @@ export default function PreviewTool() {
                       <div className="space-y-2">
                         <p className="text-xs font-bold text-white/70 uppercase">Supported Sizes:</p>
                         <div className="flex flex-wrap gap-1.5">
-                          {[...p.desktop, ...p.mobile].slice(0, 6).map(s => (
+                          <span className="px-2 py-1 bg-white/10 rounded text-[10px] text-gray-300">Desktop: {p.desktop.length}</span>
+                          <span className="px-2 py-1 bg-white/10 rounded text-[10px] text-gray-300">Mobile: {p.mobile.length}</span>
+                          <span className="px-2 py-1 bg-white/10 rounded text-[10px] text-gray-300">Native: {p.native.length}</span>
+                          {[...p.desktop.slice(0, 2), ...p.mobile.slice(0, 2), ...p.native.slice(0, 2)].map(s => (
                             <span key={s} className="px-2 py-1 bg-white/10 rounded text-[10px] text-gray-300">{s}</span>
                           ))}
-                          {([...p.desktop, ...p.mobile].length > 6) && <span className="px-2 py-1 bg-white/10 rounded text-[10px] text-gray-300">+{([...p.desktop, ...p.mobile].length - 6)} more</span>}
                         </div>
                       </div>
                     </SelectionCard>
@@ -703,8 +1202,6 @@ export default function PreviewTool() {
                   ))}
                 </div>
               </motion.section>
-
-
 
               <motion.section variants={itemVariants} className="space-y-5">
                 <div>
@@ -749,7 +1246,64 @@ export default function PreviewTool() {
             <motion.div key="step-2" variants={itemVariants} initial="hidden" animate="visible" exit="hidden" className="space-y-8">
               <div>
                 <h2 className="text-4xl font-bold text-white mb-2">Step 2: Upload & Validate</h2>
-                <p className="text-gray-400">Supported {PLATFORMS.find(p => p.id === platform)?.title} sizes: {allowedSizes.join(", ")}</p>
+                <p className="text-gray-400">
+                  {selectedPlatformConfig?.title} size intelligence active: {allowedSizes.length} supported display sizes across desktop, mobile, and native.
+                </p>
+              </div>
+
+              <div className="rounded-3xl border border-white/10 bg-white/5 p-6 backdrop-blur-lg">
+                <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+                  <h3 className="text-xl font-bold text-white">Supported Display Sizes</h3>
+                  <p className="text-xs text-purple-200/90 bg-purple-500/15 border border-purple-500/25 rounded-full px-3 py-1">
+                    Display Programmatic Only • IAB Compatible Matrix
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="rounded-2xl border border-blue-500/25 bg-blue-500/8 p-4">
+                    <p className="text-xs uppercase tracking-wider text-blue-300 font-bold mb-3">Desktop Display</p>
+                    <div className="flex flex-wrap gap-2">
+                      {SUPPORTED_DISPLAY_SIZE_GROUPS.desktop.map((size) => (
+                        <span key={`desktop-${size}`} className="px-2 py-1 rounded-md bg-white/10 text-[11px] text-blue-100 border border-white/10">
+                          {size}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="rounded-2xl border border-purple-500/25 bg-purple-500/8 p-4">
+                    <p className="text-xs uppercase tracking-wider text-purple-300 font-bold mb-3">Mobile Display</p>
+                    <div className="flex flex-wrap gap-2">
+                      {SUPPORTED_DISPLAY_SIZE_GROUPS.mobile.map((size) => (
+                        <span key={`mobile-${size}`} className="px-2 py-1 rounded-md bg-white/10 text-[11px] text-purple-100 border border-white/10">
+                          {size}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="rounded-2xl border border-fuchsia-500/25 bg-fuchsia-500/8 p-4">
+                    <p className="text-xs uppercase tracking-wider text-fuchsia-300 font-bold mb-3">Native / Feed Display</p>
+                    <div className="flex flex-wrap gap-2">
+                      {SUPPORTED_DISPLAY_SIZE_GROUPS.native.map((size) => (
+                        <span key={`native-${size}`} className="px-2 py-1 rounded-md bg-white/10 text-[11px] text-fuchsia-100 border border-white/10">
+                          {size}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-4 rounded-xl border border-white/10 bg-black/20 p-3">
+                  <p className="text-xs font-semibold text-gray-300 uppercase tracking-wider mb-2">DSP Compatibility Intelligence</p>
+                  <div className="flex flex-wrap gap-2">
+                    {DSP_PARTNERS.map((dsp) => (
+                      <span key={dsp} className="px-2 py-1 rounded-md bg-emerald-500/10 border border-emerald-500/30 text-[11px] text-emerald-200">
+                        {dsp}
+                      </span>
+                    ))}
+                  </div>
+                </div>
               </div>
 
               {/* Upload Dropzone */}
