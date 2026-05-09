@@ -9,7 +9,7 @@ interface Props {
   device: "desktop" | "tablet" | "mobile";
 }
 
-const ARTICLE_PLACEHOLDER_IMAGE = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='1200' height='675'><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop offset='0' stop-color='%23dbeafe'/><stop offset='1' stop-color='%23e5e7eb'/></linearGradient></defs><rect width='100%' height='100%' fill='url(%23g)'/><text x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' fill='%236b7280' font-family='Arial' font-size='40'>Featured image</text></svg>";
+const ARTICLE_IMAGE_FALLBACK = "https://images.unsplash.com/photo-1495020689067-958852a7765e?auto=format&fit=crop&w=1400&q=80";
 
 function AdUnit({ creativeUrl, creativeSize }: { creativeUrl: string; creativeSize: string }) {
   const [w, h] = creativeSize.split("x").map(Number);
@@ -46,6 +46,7 @@ export default function NewsEnvironment({ content, slotType, creativeUrl, creati
   const related = content.uiModules.find((m) => m.type === "sidebar-widget");
   const publisher = content.publisherName ?? "The Digital Post";
   const isMobile = device === "mobile";
+  const heroImageSrc = ARTICLE_IMAGE_FALLBACK;
 
   return (
     <div className="bg-white font-serif min-h-screen border border-gray-200 rounded-xl overflow-hidden shadow-xl">
@@ -99,7 +100,15 @@ export default function NewsEnvironment({ content, slotType, creativeUrl, creati
 
           {/* Hero image */}
           <div className="w-full h-52 rounded mb-4 overflow-hidden bg-gray-100 border border-gray-200">
-            <img src={ARTICLE_PLACEHOLDER_IMAGE} alt="Featured" className="w-full h-full object-cover" />
+            <img
+              src={heroImageSrc}
+              alt="Featured"
+              className="w-full h-full object-cover"
+              onError={(e) => {
+                // Final fallback ensures we never render a blank hero area.
+                e.currentTarget.src = "https://images.unsplash.com/photo-1498050108023-c5249f4df085?auto=format&fit=crop&w=1400&q=80";
+              }}
+            />
           </div>
 
           {/* Body paragraph 1 */}

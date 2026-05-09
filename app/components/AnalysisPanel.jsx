@@ -246,6 +246,84 @@ function CreativeIntelligenceDashboard({ aiData, decisionEngine }) {
         </div>
       )}
 
+      {/* OpenAI Vision — Creative Intelligence fields */}
+      {aiData && (aiData.brand || aiData.headline || aiData.primary_message || aiData.emotion_trigger || aiData.target_audience) && (
+        <div className="space-y-2">
+          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">🔍 Creative Intelligence Extract</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            {aiData.brand && (
+              <div className="p-3 rounded-xl bg-white/4 border border-white/10">
+                <p className="text-[9px] font-bold text-gray-500 uppercase tracking-wider mb-1">Brand</p>
+                <p className="text-xs text-white font-semibold">{aiData.brand}</p>
+              </div>
+            )}
+            {aiData.headline && (
+              <div className="p-3 rounded-xl bg-white/4 border border-white/10">
+                <p className="text-[9px] font-bold text-gray-500 uppercase tracking-wider mb-1">Headline</p>
+                <p className="text-xs text-white font-semibold">{aiData.headline}</p>
+              </div>
+            )}
+            {aiData.emotion_trigger && (
+              <div className="p-3 rounded-xl bg-fuchsia-500/8 border border-fuchsia-500/20">
+                <p className="text-[9px] font-bold text-fuchsia-400 uppercase tracking-wider mb-1">Emotion Trigger</p>
+                <p className="text-xs text-white font-semibold capitalize">{aiData.emotion_trigger}</p>
+              </div>
+            )}
+            {aiData.target_audience && (
+              <div className="p-3 rounded-xl bg-blue-500/8 border border-blue-500/20">
+                <p className="text-[9px] font-bold text-blue-400 uppercase tracking-wider mb-1">Target Audience</p>
+                <p className="text-xs text-white font-semibold">{aiData.target_audience}</p>
+              </div>
+            )}
+          </div>
+          {aiData.primary_message && (
+            <div className="p-3 rounded-xl bg-emerald-500/8 border border-emerald-500/20">
+              <p className="text-[9px] font-bold text-emerald-400 uppercase tracking-wider mb-1">Primary Message</p>
+              <p className="text-xs text-white leading-relaxed">{aiData.primary_message}</p>
+            </div>
+          )}
+          {aiData.layout_hierarchy && (
+            <div className="p-3 rounded-xl bg-white/4 border border-white/10 space-y-1.5">
+              <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wider">Layout & Attention Flow</p>
+              {aiData.layout_hierarchy.attention_flow && (
+                <p className="text-[11px] text-gray-300"><span className="text-gray-500">Flow:</span> {aiData.layout_hierarchy.attention_flow}</p>
+              )}
+              {aiData.layout_hierarchy.visual_focus && (
+                <p className="text-[11px] text-gray-300"><span className="text-gray-500">Focus:</span> {aiData.layout_hierarchy.visual_focus}</p>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Platform Fit */}
+      {aiData?.platform_fit && Object.keys(aiData.platform_fit).length > 0 && (
+        <div className="space-y-2">
+          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">📱 Platform Fit</p>
+          <div className="space-y-1.5">
+            {Object.entries(aiData.platform_fit).map(([platform, verdict]) => {
+              const rating = typeof verdict === "string" ? verdict.split("—")[0].trim().toLowerCase() : "";
+              const ratingColor = rating === "excellent" ? "text-emerald-300 bg-emerald-500/15 border-emerald-500/30"
+                : rating === "good" ? "text-blue-300 bg-blue-500/15 border-blue-500/30"
+                : rating === "fair" ? "text-yellow-300 bg-yellow-500/15 border-yellow-500/30"
+                : "text-red-300 bg-red-500/15 border-red-500/30";
+              const label = platform.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+              return (
+                <div key={platform} className="flex items-start gap-2 p-2.5 rounded-xl bg-white/3 border border-white/8">
+                  <span className={`text-[9px] font-black px-2 py-0.5 rounded-full border capitalize shrink-0 ${ratingColor}`}>{rating || "—"}</span>
+                  <div>
+                    <p className="text-[10px] font-bold text-gray-300">{label}</p>
+                    {typeof verdict === "string" && verdict.includes("—") && (
+                      <p className="text-[10px] text-gray-500 mt-0.5">{verdict.split("—")[1]?.trim()}</p>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* AI Explanation */}
       {aiData?.explanation && (
         <div className="p-3 rounded-xl bg-white/4 border border-white/10">
@@ -1068,9 +1146,9 @@ export default function AnalysisPanel({
       <div className="p-5 rounded-2xl bg-linear-to-br from-slate-800/60 to-slate-900/60 border border-white/10 space-y-4">
         <div className="flex items-center gap-2">
           <Sparkles size={15} className="text-fuchsia-400" />
-          <h3 className="text-sm font-bold text-white">ACIE v4.0 — Advanced Creative Intelligence Engine</h3>
+          <h3 className="text-sm font-bold text-white">OpenAI Vision Analyzer — Creative Intelligence</h3>
           <span className="ml-auto text-[10px] font-bold px-2 py-0.5 rounded-full bg-fuchsia-500/15 text-fuchsia-300 border border-fuchsia-500/30">
-            Structured · Deterministic
+            GPT-4o · Vision
           </span>
         </div>
 

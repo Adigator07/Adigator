@@ -41,7 +41,6 @@ const ENV_LABELS: Record<EnvironmentFamily, { label: string; icon: string; color
 
 const DEVICE_OPTIONS: { id: DeviceType; label: string; icon: string; width: string }[] = [
   { id: "desktop", label: "Desktop", icon: "???", width: "w-full" },
-  { id: "tablet", label: "Tablet", icon: "??", width: "max-w-2xl" },
   { id: "mobile", label: "Mobile", icon: "??", width: "max-w-sm" },
 ];
 
@@ -93,6 +92,13 @@ export default function ContextualPreviewEngine({ creatives, vertical, goal }: P
   const safeCreativeIndex = Math.min(activeCreativeIndex, Math.max(0, creatives.length - 1));
   const activeCreative = creatives[safeCreativeIndex];
   const resolvedCreativeUrl = activeCreative?.url || "";
+
+  useEffect(() => {
+    // Guard against stale local state from hot reloads where "tablet" was previously selected.
+    if (device === "tablet") {
+      setDevice("desktop");
+    }
+  }, [device]);
 
   const buildCacheKey = useCallback((creative: Props["creatives"][number], envOverride: EnvironmentFamily | null = selectedEnvironment) => {
     return [vertical, goal, device, envOverride ?? "auto", creative.url, creative.size].join("|");
