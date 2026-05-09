@@ -9,6 +9,8 @@ interface Props {
   device: "desktop" | "tablet" | "mobile";
 }
 
+const ARTICLE_PLACEHOLDER_IMAGE = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='1200' height='675'><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop offset='0' stop-color='%23dbeafe'/><stop offset='1' stop-color='%23e5e7eb'/></linearGradient></defs><rect width='100%' height='100%' fill='url(%23g)'/><text x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' fill='%236b7280' font-family='Arial' font-size='40'>Featured image</text></svg>";
+
 function AdUnit({ creativeUrl, creativeSize }: { creativeUrl: string; creativeSize: string }) {
   const [w, h] = creativeSize.split("x").map(Number);
   const maxW = Math.min(w || 300, 700);
@@ -95,9 +97,9 @@ export default function NewsEnvironment({ content, slotType, creativeUrl, creati
           {/* Byline */}
           <p className="text-sm font-sans text-gray-500 mb-4 border-b border-gray-100 pb-4">{byline}</p>
 
-          {/* Hero image placeholder */}
-          <div className="w-full h-52 bg-linear-to-br from-gray-200 to-gray-300 rounded mb-4 flex items-center justify-center">
-            <span className="text-gray-400 font-sans text-sm">Featured image</span>
+          {/* Hero image */}
+          <div className="w-full h-52 rounded mb-4 overflow-hidden bg-gray-100 border border-gray-200">
+            <img src={ARTICLE_PLACEHOLDER_IMAGE} alt="Featured" className="w-full h-full object-cover" />
           </div>
 
           {/* Body paragraph 1 */}

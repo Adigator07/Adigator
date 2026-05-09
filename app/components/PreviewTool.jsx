@@ -1534,13 +1534,17 @@ export default function PreviewTool() {
 
               {validCreatives.length > 0 && (
                 <ContextualPreviewEngine
-                  creativeUrl={validCreatives[0].url}
-                  creativeSize={validCreatives[0].size}
+                  creatives={validCreatives.map((creative, index) => ({
+                    id: creative.id,
+                    name: creative.name,
+                    url: creative.url || creative.imageDataUrl || creative.image || "",
+                    size: creative.size,
+                    analyzerOutput: analysisResult?.[index]?.data ?? {},
+                    ctaText: analysisResult?.[index]?.data?.cta?.text ?? "",
+                    headline: analysisResult?.[index]?.data?.headline ?? "",
+                  }))}
                   vertical={campaignVertical || "general"}
                   goal={campaignGoal || "awareness"}
-                  analyzerOutput={analysisResult?.[0]?.data ?? {}}
-                  ctaText={analysisResult?.[0]?.data?.cta?.text ?? ""}
-                  headline={analysisResult?.[0]?.data?.headline ?? ""}
                 />
               )}
 

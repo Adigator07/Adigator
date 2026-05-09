@@ -169,7 +169,7 @@ function buildFallbackContent(
 export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
     const body = await request.json() as PreviewEngineInput;
-    const { vertical, goal, device, creativeSize, creativeType, analyzerOutput, ctaText, headline, logoPresent, riskFlags } = body;
+    const { preferredEnvironment, vertical, goal, device, creativeSize, creativeType, analyzerOutput, ctaText, headline, logoPresent, riskFlags } = body;
 
     if (!vertical || !goal) {
       return NextResponse.json(
@@ -178,7 +178,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       );
     }
 
-    const environment = selectEnvironmentFamily(vertical, goal);
+    const environment = preferredEnvironment ?? selectEnvironmentFamily(vertical, goal);
     let generatedEnv: GeneratedEnvironment;
 
     // Try AI content generation, fall back to deterministic content
@@ -203,7 +203,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     }
 
     const output = buildPreviewEngineOutput(
-      { vertical, goal, device, creativeSize, creativeType, analyzerOutput, ctaText, headline, logoPresent, riskFlags },
+      { preferredEnvironment, vertical, goal, device, creativeSize, creativeType, analyzerOutput, ctaText, headline, logoPresent, riskFlags },
       generatedEnv
     );
 

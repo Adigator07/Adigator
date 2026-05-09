@@ -109,6 +109,12 @@ export interface ValidationResult {
   overallStatus: "pass" | "fail" | "warning";
 }
 
+export interface CompatibilityCheck {
+  deviceFit: "pass" | "fail" | "warn";
+  message: string;
+  suggestedSizes: string[];
+}
+
 export interface PreviewEngineOutput {
   previewDecision: PreviewDecision;
   generatedEnvironment: GeneratedEnvironment;
@@ -116,6 +122,7 @@ export interface PreviewEngineOutput {
   creativeMapping: CreativeMapping;
   responsiveStates: ResponsiveState[];
   validation: ValidationResult;
+  compatibility: CompatibilityCheck;
   recommendations: string[];
   exportTargets: string[];
 }
@@ -123,6 +130,7 @@ export interface PreviewEngineOutput {
 export interface PreviewEngineInput {
   vertical: string;
   goal: "awareness" | "consideration" | "conversion";
+  preferredEnvironment?: EnvironmentFamily;
   device?: DeviceType;
   creativeSize?: string;
   creativeType?: string;

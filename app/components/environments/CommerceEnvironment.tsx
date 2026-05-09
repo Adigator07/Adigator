@@ -9,6 +9,10 @@ interface Props {
   device: "desktop" | "tablet" | "mobile";
 }
 
+function productPlaceholder(seed: string) {
+  return `data:image/svg+xml;utf8,${encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' width='800' height='600'><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop offset='0' stop-color='#f3f4f6'/><stop offset='1' stop-color='#e5e7eb'/></linearGradient></defs><rect width='100%' height='100%' fill='url(#g)'/><text x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' fill='#9ca3af' font-family='Arial' font-size='28'>${seed}</text></svg>`)}`;
+}
+
 const PRODUCTS = [
   { name: "Premium Collection Set", price: "$149.99", rating: 4.8, reviews: 2341, badge: "Best Seller" },
   { name: "Limited Edition Bundle", price: "$89.99", rating: 4.6, reviews: 1180, badge: "New" },
@@ -157,10 +161,10 @@ export default function CommerceEnvironment({ content, slotType, creativeUrl, cr
 
           <div className={`grid gap-4 ${isMobile ? "grid-cols-2" : "grid-cols-3 lg:grid-cols-4"}`}>
             {PRODUCTS.map((prod, i) => (
-              <>
+              <div key={`product-wrapper-${prod.name}-${i}`}>
                 {/* Inject sponsored product tile after index 1 */}
                 {i === 2 && slotType === "product-tile" && (
-                  <div key="ad-tile" className="border-2 border-orange-200 rounded-xl overflow-hidden bg-orange-50 flex flex-col">
+                  <div key={`ad-tile-${i}`} className="border-2 border-orange-200 rounded-xl overflow-hidden bg-orange-50 flex flex-col mb-4">
                     <div className="relative">
                       <img src={creativeUrl} alt="Sponsored" className="w-full object-cover" style={{ height: 160 }} />
                       <span className="absolute top-2 left-2 bg-orange-500 text-white text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded">
@@ -173,10 +177,14 @@ export default function CommerceEnvironment({ content, slotType, creativeUrl, cr
                     </div>
                   </div>
                 )}
-                <div key={i} className="border border-gray-200 rounded-xl overflow-hidden bg-white hover:shadow-md transition cursor-pointer group">
+                <div className="border border-gray-200 rounded-xl overflow-hidden bg-white hover:shadow-md transition cursor-pointer group">
                   <div className="relative">
-                    <div className="w-full bg-linear-to-br from-gray-100 to-gray-200 flex items-center justify-center" style={{ height: 160 }}>
-                      <span className="text-4xl opacity-30">📦</span>
+                    <div className="w-full bg-gray-100" style={{ height: 160 }}>
+                      <img
+                        src={productPlaceholder(prod.name)}
+                        alt={prod.name}
+                        className="w-full h-full object-cover"
+                      />
                     </div>
                     {prod.badge && (
                       <span className={`absolute top-2 left-2 text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded text-white ${prod.badge === "Sale" ? "bg-red-500" : prod.badge === "New" ? "bg-green-500" : "bg-blue-500"}`}>
@@ -196,7 +204,7 @@ export default function CommerceEnvironment({ content, slotType, creativeUrl, cr
                     </button>
                   </div>
                 </div>
-              </>
+              </div>
             ))}
           </div>
 

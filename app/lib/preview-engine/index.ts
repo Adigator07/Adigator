@@ -10,6 +10,7 @@ import type {
   SlotType,
   DeviceType,
   ValidationResult,
+  CompatibilityCheck,
   GeneratedEnvironment,
 } from "./types";
 
@@ -129,10 +130,85 @@ function buildResponsiveStates(): PreviewEngineOutput["responsiveStates"] {
   ];
 }
 
+const SUPPORTED_SIZES: Record<DeviceType, string[]> = {
+  desktop: ["300x250", "336x280", "468x60", "728x90", "970x90", "970x250", "160x600", "300x600", "1200x628"],
+  tablet: ["300x250", "336x280", "468x60", "728x90", "320x100"],
+  mobile: ["300x250", "320x50", "300x100", "320x100", "336x280"],
+};
+
+function normalizeSize(creativeSize?: string): { key: string; width: number; height: number } | null {
+  if (!creativeSize || !creativeSize.includes("x")) return null;
+  const [width, height] = creativeSize.toLowerCase().split("x").map((n) => Number(n.trim()));
+  if (!width || !height) return null;
+  return { key: `${width}x${height}`, width, height };
+}
+
+function evaluateCompatibility(device: DeviceType, creativeSize?: string): CompatibilityCheck {
+  const parsed = normalizeSize(creativeSize);
+  const allowed = SUPPORTED_SIZES[device];
+
+  if (!parsed) {
+    return {
+      deviceFit: "warn",
+      message: `Creative size is missing/invalid. Use one of: ${allowed.slice(0, 4).join(", ")}.`,
+      suggestedSizes: allowed,
+    };
+  }
+
+  if (device === "mobile") {
+    if (parsed.width > 420) {
+      return {
+        deviceFit: "fail",
+        message: `${parsed.key} is too wide for mobile placements.`,
+        suggestedSizes: allowed,
+      };
+    }
+    if (!allowed.includes(parsed.key)) {
+      return {
+        deviceFit: "fail",
+        message: `${parsed.key} is not a supported mobile ad size.`,
+        suggestedSizes: allowed,
+      };
+    }
+  }
+
+  if (device === "tablet") {
+    if (parsed.width > 800) {
+      return {
+        deviceFit: "fail",
+        message: `${parsed.key} is too wide for tablet placements.`,
+        suggestedSizes: allowed,
+      };
+    }
+    if (!allowed.includes(parsed.key)) {
+      return {
+        deviceFit: "warn",
+        message: `${parsed.key} is uncommon on tablet. Prefer one of: ${allowed.join(", ")}.`,
+        suggestedSizes: allowed,
+      };
+    }
+  }
+
+  if (device === "desktop" && !allowed.includes(parsed.key)) {
+    return {
+      deviceFit: "warn",
+      message: `${parsed.key} is non-standard for desktop inventory; fill rate may drop.`,
+      suggestedSizes: allowed,
+    };
+  }
+
+  return {
+    deviceFit: "pass",
+    message: `${parsed.key} is compatible with ${device} placements.`,
+    suggestedSizes: allowed,
+  };
+}
+
 // ── Validation ─────────────────────────────────────────────────────────────────
 function validateConfiguration(
   analyzerOutput: Record<string, unknown>,
-  riskFlags: string[]
+  riskFlags: string[],
+  compatibility: CompatibilityCheck
 ): ValidationResult {
   const hasCTA = !!(
     analyzerOutput?.ctaPhrase ||
@@ -150,22 +226,28 @@ function validateConfiguration(
   const logoV = hasLogo ? "pass" : ("warn" as const);
   const textV = crowded || blurry ? "warn" : ("pass" as const);
   const cropV = cropRisk ? "warn" : ("pass" as const);
-  const anyWarn = ctaV === "warn" || logoV === "warn" || textV === "warn" || cropV === "warn";
+  const anyWarn =
+    ctaV === "warn" ||
+    logoV === "warn" ||
+    textV === "warn" ||
+    cropV === "warn" ||
+    compatibility.deviceFit === "warn";
+  const anyFail = compatibility.deviceFit === "fail";
 
   return {
     ctaVisibility: ctaV,
     logoVisibility: logoV,
     textOverflow: textV,
     croppingRisk: cropV,
-    contextFit: "pass",
-    overallStatus: anyWarn ? "warning" : "pass",
+    contextFit: compatibility.deviceFit,
+    overallStatus: anyFail ? "fail" : anyWarn ? "warning" : "pass",
   };
 }
 
 // ── Recommendations builder ────────────────────────────────────────────────────
 function buildRecommendations(
   validation: ValidationResult,
-  input: PreviewEngineInput
+  compatibility: CompatibilityCheck
 ): string[] {
   const recs: string[] = [];
   if (validation.ctaVisibility === "warn")
@@ -176,6 +258,9 @@ function buildRecommendations(
     recs.push("Reduce visual clutter — fewer, larger text elements improve legibility at placement size.");
   if (validation.croppingRisk === "warn")
     recs.push("Move key creative elements toward the center — edge content risks being cropped.");
+  if (compatibility.deviceFit === "fail" || compatibility.deviceFit === "warn") {
+    recs.push(`${compatibility.message} Suggested sizes: ${compatibility.suggestedSizes.join(", ")}.`);
+  }
   if (recs.length === 0)
     recs.push("Creative is well-structured for this environment — safe to launch.");
   return recs;
@@ -187,11 +272,12 @@ export function buildPreviewEngineOutput(
   generatedEnv: GeneratedEnvironment
 ): PreviewEngineOutput {
   const device = input.device ?? inferDevice(input.creativeSize);
-  const environment = selectEnvironmentFamily(input.vertical, input.goal);
+  const environment = input.preferredEnvironment ?? selectEnvironmentFamily(input.vertical, input.goal);
   const slotType = selectSlotType(input.creativeSize ?? "300x250", environment);
   const primaryTemplate = buildTemplateName(environment, device, input.goal);
   const riskFlags = input.riskFlags ?? [];
   const analyzerOutput = input.analyzerOutput ?? {};
+  const compatibility = evaluateCompatibility(device, input.creativeSize);
 
   const creativeAnalysis = {
     creativeType: input.creativeType ?? "display",
@@ -216,8 +302,8 @@ export function buildPreviewEngineOutput(
     injectionNotes: buildInjectionNotes(slotType, input.creativeSize),
   };
 
-  const validation = validateConfiguration(analyzerOutput, riskFlags);
-  const recommendations = buildRecommendations(validation, input);
+  const validation = validateConfiguration(analyzerOutput, riskFlags, compatibility);
+  const recommendations = buildRecommendations(validation, compatibility);
 
   return {
     previewDecision: {
@@ -235,6 +321,7 @@ export function buildPreviewEngineOutput(
     creativeMapping,
     responsiveStates: buildResponsiveStates(),
     validation,
+    compatibility,
     recommendations,
     exportTargets: ["PNG", "JPG", "PPTX", "PDF"],
   };
