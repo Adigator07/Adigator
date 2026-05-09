@@ -479,22 +479,8 @@ export default function PreviewTool() {
     }
   }, [validCreatives, campaignGoal, platform, campaignVertical, addToast]);
 
-  const handleGoalChange = async (newGoal) => {
+  const handleGoalChange = (newGoal) => {
     setCampaignGoal(newGoal);
-    if (validCreatives.length === 0) return;
-    setAnalysisLoading(true); setAnalysisResult(null);
-    try {
-      const results = await analyzeAllCreatives(validCreatives, newGoal, platform, campaignVertical);
-      setAnalysisResult(results);
-      if (results.length > 0 && results[0].data.recommendedTemplates?.length > 0) {
-        setSelectedTemplate(results[0].data.recommendedTemplates[0]);
-      }
-      addToast(`Re-analyzed for ${newGoal} ✨`, "success");
-    } catch (err) {
-      addToast(err.message || "Analysis failed.", "error");
-    } finally {
-      setAnalysisLoading(false);
-    }
   };
 
   const handleDownloadReport = useCallback(async () => {
@@ -974,7 +960,7 @@ export default function PreviewTool() {
 
               <div className="flex gap-4 pt-6">
                 <NavBtn variant="back" onClick={goBack}>← Back</NavBtn>
-                {analysisResult && <NavBtn onClick={goNext}>Next: Preview Studio →</NavBtn>}
+                <NavBtn onClick={goNext}>Next: Preview Studio →</NavBtn>
               </div>
             </motion.div>
           )}
