@@ -1024,7 +1024,6 @@ export default function AnalysisPanel({
   campaignGoal,
   platform,
   onDownloadReport,
-  onGoalChange,
 }) {
   const sortableScore = (entry) => (Number.isFinite(entry?.data?.overall_score) ? entry.data.overall_score : -1);
   const sortedResult = [...analysisResult].sort((a, b) => sortableScore(b) - sortableScore(a));
@@ -1256,15 +1255,6 @@ export default function AnalysisPanel({
                 {/* ── OVERVIEW TAB ─────────────────────────────── */}
                 {tab === "overview" && (
                   <motion.div key="overview" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-5">
-
-                    {onGoalChange && (
-                      <div className="flex bg-black/40 p-1 rounded-xl border border-white/5">
-                        {["awareness", "consideration", "conversion"].map((g) => (
-                          <button key={g} onClick={() => onGoalChange(g)} className={`flex-1 py-2 px-3 text-xs font-bold rounded-lg capitalize transition ${campaignGoal === g ? "bg-linear-to-r from-fuchsia-600 to-purple-600 text-white shadow-md" : "text-gray-400 hover:text-white hover:bg-white/5"
-                            }`}>{g}</button>
-                        ))}
-                      </div>
-                    )}
 
                     <div className="space-y-4">
                       <IntelligencePanel data={selected.data} />

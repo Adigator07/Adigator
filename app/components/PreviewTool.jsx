@@ -739,10 +739,6 @@ export default function PreviewTool() {
     runAnalysis,
   ]);
 
-  const handleGoalChange = (newGoal) => {
-    setCampaignGoal(newGoal);
-  };
-
   const handleDownloadReport = useCallback(async () => {
     if (!analysisResult) return;
     try {
@@ -1269,7 +1265,6 @@ export default function PreviewTool() {
                     campaignGoal={campaignGoal}
                     platform={platform}
                     onDownloadReport={handleDownloadReport}
-                    onGoalChange={handleGoalChange}
                   />
                 </>
               )}
