@@ -1197,14 +1197,6 @@ export default function AnalysisPanel({
                     )}
                   </div>
                   <div className="flex flex-wrap gap-1.5 mt-2">
-                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${selected.data.analysis_state === "success" || selected.data.analysis_state === "low_confidence"
-                      ? "bg-emerald-500/15 border-emerald-500/40 text-emerald-300"
-                      : selected.data.analysis_state === "partial_analysis"
-                        ? "bg-yellow-500/15 border-yellow-500/40 text-yellow-300"
-                        : "bg-slate-500/15 border-slate-500/40 text-slate-300"
-                      }`}>
-                      {selected.data.analysis_state_label || "Validated Analysis"}
-                    </span>
                     {selected.data.engagement_forecast && (
                       <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${selected.data.engagement_forecast === "HIGH" ? "bg-emerald-500/15 border-emerald-500/40 text-emerald-300" :
                           selected.data.engagement_forecast === "MEDIUM" ? "bg-yellow-500/15 border-yellow-500/40 text-yellow-300" :
