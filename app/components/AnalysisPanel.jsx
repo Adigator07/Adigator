@@ -13,12 +13,6 @@ import {
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 
-const GOAL_CTA = {
-  awareness: ["Learn More", "Discover", "Explore", "Watch Now", "See Now"],
-  consideration: ["View Details", "Compare Now", "Check Features", "See Pricing", "Try Demo"],
-  conversion: ["Buy Now", "Sign Up", "Get Started", "Download", "Claim Offer"],
-};
-
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function rankVerdict(name, score, data) {
@@ -180,7 +174,6 @@ function CreativeIntelligenceDashboard({ aiData, decisionEngine }) {
       title: "Performance Drivers", icon: "⚡",
       color: "border-amber-500/25 bg-amber-500/5",
       items: [
-        { key: "cta_alignment",  label: "CTA Alignment",  tooltip: "CTA match quality relative to the campaign goal" },
         { key: "offer_clarity",  label: "Offer Clarity",  tooltip: "How clearly the value proposition or offer is stated" },
         { key: "urgency_fit",    label: "Urgency Fit",    tooltip: "Whether urgency levels match the funnel stage" },
       ],
@@ -211,17 +204,6 @@ function CreativeIntelligenceDashboard({ aiData, decisionEngine }) {
           {aiData.vertical && aiData.vertical !== "Other" && (
             <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-purple-500/15 border border-purple-500/30 text-purple-300">
               🏢 {aiData.vertical}
-            </span>
-          )}
-          {aiData.cta_state && (
-            <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full border ${
-              aiData.cta_state === "Explicit" || aiData.cta_state === "Strong"
-                ? "bg-emerald-500/15 border-emerald-500/30 text-emerald-300"
-                : aiData.cta_state === "Missing"
-                  ? "bg-red-500/15 border-red-500/30 text-red-300"
-                  : "bg-yellow-500/15 border-yellow-500/30 text-yellow-300"
-            }`}>
-              CTA: {aiData.cta_state}
             </span>
           )}
           {aiData.overall_score > 0 && (
@@ -293,34 +275,6 @@ function CreativeIntelligenceDashboard({ aiData, decisionEngine }) {
               )}
             </div>
           )}
-        </div>
-      )}
-
-      {/* Platform Fit */}
-      {aiData?.platform_fit && Object.keys(aiData.platform_fit).length > 0 && (
-        <div className="space-y-2">
-          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">📱 Platform Fit</p>
-          <div className="space-y-1.5">
-            {Object.entries(aiData.platform_fit).map(([platform, verdict]) => {
-              const rating = typeof verdict === "string" ? verdict.split("—")[0].trim().toLowerCase() : "";
-              const ratingColor = rating === "excellent" ? "text-emerald-300 bg-emerald-500/15 border-emerald-500/30"
-                : rating === "good" ? "text-blue-300 bg-blue-500/15 border-blue-500/30"
-                : rating === "fair" ? "text-yellow-300 bg-yellow-500/15 border-yellow-500/30"
-                : "text-red-300 bg-red-500/15 border-red-500/30";
-              const label = platform.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
-              return (
-                <div key={platform} className="flex items-start gap-2 p-2.5 rounded-xl bg-white/3 border border-white/8">
-                  <span className={`text-[9px] font-black px-2 py-0.5 rounded-full border capitalize shrink-0 ${ratingColor}`}>{rating || "—"}</span>
-                  <div>
-                    <p className="text-[10px] font-bold text-gray-300">{label}</p>
-                    {typeof verdict === "string" && verdict.includes("—") && (
-                      <p className="text-[10px] text-gray-500 mt-0.5">{verdict.split("—")[1]?.trim()}</p>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
         </div>
       )}
 
@@ -546,7 +500,6 @@ function IntelligencePanel({ data }) {
   const emotionCfg = hasEmotionSignal ? (APPEAL_CONFIG[data.emotional_appeal] || APPEAL_CONFIG.MEDIUM) : null;
   const clutterIndex = Number.isFinite(data.clutter_index) ? data.clutter_index : null;
   const clutterLabel = data.clutter_label || null;
-  const confidence = Number.isFinite(data.engagement_forecast_confidence) ? data.engagement_forecast_confidence : null;
 
   return (
     <div className="space-y-4">
@@ -559,13 +512,6 @@ function IntelligencePanel({ data }) {
             <span className={`text-lg font-black ${forecastCfg ? forecastCfg.text : "text-gray-400"}`}>
               {forecastCfg ? `${forecastCfg.icon} ${forecastCfg.label}` : "Signal unavailable"}
             </span>
-          </div>
-          <div className="text-right">
-            {Number.isFinite(confidence) ? (
-              <ConfidenceRing score={confidence} size={56} label="conf." />
-            ) : (
-              <p className="text-xs text-gray-500">No confidence signal</p>
-            )}
           </div>
         </div>
         {data.stop_rate_estimate && (
@@ -975,31 +921,6 @@ function ImpactCard({ item }) {
   );
 }
 
-function CTARecommendationStrip({ goal, detected }) {
-  const recs = GOAL_CTA[goal] || [];
-  return (
-    <div className="space-y-2">
-      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Recommended CTAs for {goal}</p>
-      <div className="flex flex-wrap gap-1.5">
-        {recs.map((cta) => {
-          const isDetected = detected && detected.toLowerCase().includes(cta.toLowerCase());
-          return (
-            <span key={cta} className={`px-2.5 py-1.5 rounded-full text-xs font-semibold border transition ${isDetected ? "bg-emerald-500/20 border-emerald-500/50 text-emerald-300" : "bg-white/5 border-white/12 text-gray-400"
-              }`}>
-              {isDetected ? "✓ " : ""}{cta}
-            </span>
-          );
-        })}
-      </div>
-      {detected && (
-        <p className="text-[11px] text-gray-500">
-          Detected: <span className="text-white font-semibold">"{detected}"</span>
-        </p>
-      )}
-    </div>
-  );
-}
-
 function PlatformCheckGrid({ platformChecks }) {
   if (!platformChecks) return null;
   const desktopItems = [
@@ -1080,15 +1001,14 @@ function RankingLeaderboard({ results }) {
                     {forecast === "HIGH" ? "🟢" : forecast === "MEDIUM" ? "🟡" : "🔴"} {forecast}
                   </span>
                 )}
-                {res.data.engagement_forecast_confidence !== undefined && (
-                  <span className="text-[10px] text-gray-600">{res.data.engagement_forecast_confidence}% confidence</span>
-                )}
               </div>
               <p className={`text-[11px] mt-1 leading-relaxed ${!Number.isFinite(score) ? "text-slate-300/80" : score >= 65 ? "text-emerald-300/80" : score >= 45 ? "text-yellow-300/80" : "text-red-300/80"
                 }`}>{rankVerdict(res.creative.name, score, res.data)}</p>
             </div>
             <div className="shrink-0">
-              <ConfidenceRing score={score} size={54} label={Number.isFinite(score) ? "/100" : "n/a"} />
+              <span className={`text-xs font-black ${sc(score)}`}>
+                {Number.isFinite(score) ? `${score}/100` : "--"}
+              </span>
             </div>
           </motion.div>
         );
@@ -1133,10 +1053,8 @@ export default function AnalysisPanel({
 
   const TABS = [
     { id: "overview", label: "Intelligence", icon: Brain },
-    { id: "fixes", label: "Fix Blocks", icon: Zap, badge: selected?.data?.fix_blocks?.length },
     { id: "abtests", label: "A/B Tests", icon: FlaskConical, badge: selected?.data?.ab_hypotheses?.length },
-    { id: "cta", label: "CTA", icon: MousePointer },
-    { id: "platform", label: "Platform", icon: Monitor },
+    { id: "platform", label: "Device Fit", icon: Monitor },
   ];
 
   return (
@@ -1146,9 +1064,9 @@ export default function AnalysisPanel({
       <div className="p-5 rounded-2xl bg-linear-to-br from-slate-800/60 to-slate-900/60 border border-white/10 space-y-4">
         <div className="flex items-center gap-2">
           <Sparkles size={15} className="text-fuchsia-400" />
-          <h3 className="text-sm font-bold text-white">OpenAI Vision Analyzer — Creative Intelligence</h3>
+          <h3 className="text-sm font-bold text-white">Adigator Creative Intelligence</h3>
           <span className="ml-auto text-[10px] font-bold px-2 py-0.5 rounded-full bg-fuchsia-500/15 text-fuchsia-300 border border-fuchsia-500/30">
-            GPT-4o · Vision
+            Adigator AI Engine
           </span>
         </div>
 
@@ -1159,10 +1077,10 @@ export default function AnalysisPanel({
             { label: "Needs Work", value: needsWork.length, color: "bg-yellow-500/10 border-yellow-500/20 text-yellow-400" },
             { label: "Unavailable", value: unavailable.length, color: "bg-slate-500/10 border-slate-500/20 text-slate-300" },
             { label: "High Forecast", value: analysisResult.filter(r => ["HIGH"].includes(r.data.engagement_forecast)).length, color: "bg-fuchsia-500/10 border-fuchsia-500/20 text-fuchsia-400" },
-            { label: "Fix Blocks", value: analysisResult.reduce((sum, r) => sum + (r.data.fix_blocks?.length || 0), 0), color: "bg-orange-500/10 border-orange-500/20 text-orange-400" },
+            { label: "Top Ranked", value: perfect.length > 0 ? perfect[0]?.creative?.name || "-" : "-", color: "bg-orange-500/10 border-orange-500/20 text-orange-400" },
           ].map(({ label, value, color }) => (
             <div key={label} className={`text-center p-2.5 rounded-xl border ${color}`}>
-              <p className="text-xl font-black">{value}</p>
+              <p className="text-xl font-black truncate">{value}</p>
               <p className="text-[10px] text-gray-400 mt-0.5">{label}</p>
             </div>
           ))}
@@ -1220,7 +1138,9 @@ export default function AnalysisPanel({
                     )}
                   </div>
                 </div>
-                <ConfidenceRing score={score} size={40} />
+                <span className={`text-xs font-black shrink-0 ${sc(score)}`}>
+                  {Number.isFinite(score) ? `${score}/100` : "--"}
+                </span>
               </motion.button>
             );
           })}
@@ -1237,7 +1157,7 @@ export default function AnalysisPanel({
               className="lg:col-span-2 rounded-2xl border border-fuchsia-500/25 bg-linear-to-br from-fuchsia-900/15 to-purple-900/15 p-5 space-y-5"
             >
               <div className="rounded-2xl border border-white/10 bg-slate-950/85 backdrop-blur-md p-3 shadow-[0_10px_30px_rgba(2,6,23,0.5)]">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
                   <ScoreCard
                     label="Final Score"
                     value={Number.isFinite(selected.data.finalScore ?? selected.data.score)
@@ -1257,12 +1177,6 @@ export default function AnalysisPanel({
                           ? "slate"
                           : "blue"}
                     hint="Derived from attention and performance layers"
-                  />
-                  <ScoreCard
-                    label="Confidence"
-                    value={selected.data.confidence || (Number.isFinite(selected.data.engagement_forecast_confidence) ? `${selected.data.engagement_forecast_confidence}%` : "Signal unavailable")}
-                    tone="blue"
-                    hint="Signal-coverage confidence from deterministic checks"
                   />
                 </div>
               </div>
@@ -1292,19 +1206,12 @@ export default function AnalysisPanel({
                       }`}>
                       {selected.data.analysis_state_label || "Validated Analysis"}
                     </span>
-                    {selected.data.analysis_state !== "ocr_failure" && selected.data.analysis_state !== "pipeline_failure" && selected.data.analysis_state !== "insufficient_evidence" && (
-                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${selected.data.cta_presence ? "bg-emerald-500/15 border-emerald-500/40 text-emerald-300" : "bg-red-500/15 border-red-500/40 text-red-300"
-                        }`}>
-                        {selected.data.cta_presence ? "✅ CTA" : "❌ No CTA"}
-                      </span>
-                    )}
                     {selected.data.engagement_forecast && (
                       <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${selected.data.engagement_forecast === "HIGH" ? "bg-emerald-500/15 border-emerald-500/40 text-emerald-300" :
                           selected.data.engagement_forecast === "MEDIUM" ? "bg-yellow-500/15 border-yellow-500/40 text-yellow-300" :
                             "bg-red-500/15 border-red-500/40 text-red-300"
                         }`}>
                         {selected.data.engagement_forecast}
-                        {Number.isFinite(selected.data.engagement_forecast_confidence) && ` · ${selected.data.engagement_forecast_confidence}%`}
                       </span>
                     )}
                     <span className="px-2 py-0.5 rounded-full text-[10px] font-bold border border-white/15 bg-white/5 text-gray-300">
@@ -1371,8 +1278,6 @@ export default function AnalysisPanel({
                         ))}
                       </div>
                     </div>
-
-                    <CTARecommendationStrip goal={selected.data.goal || campaignGoal} detected={selected.data.cta_text || null} />
 
                     <SectionContainer
                       title="Core Scoring Layers"
@@ -1453,51 +1358,8 @@ export default function AnalysisPanel({
                             {s}
                           </div>
                         ))}
-                        {selected.data.fix_blocks?.length > 0 && (
-                          <button onClick={() => setTab("fixes")} className="text-xs text-fuchsia-400 hover:text-fuchsia-300 flex items-center gap-1 mt-1 transition">
-                            <Zap size={10} /> View {selected.data.fix_blocks.length} detailed Fix Blocks →
-                          </button>
-                        )}
                       </div>
                     )}
-                  </motion.div>
-                )}
-
-
-                {/* ── FIX BLOCKS TAB ───────────────────────────── */}
-                {tab === "fixes" && (
-                  <motion.div key="fixes" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <p className="text-[10px] text-gray-500">Click any card to expand. Sorted by severity.</p>
-                      {selected.data.fix_blocks?.length > 0 && (
-                        <div className="flex gap-1.5">
-                          {["CRITICAL", "HIGH", "MEDIUM"].map(sev => {
-                            const count = selected.data.fix_blocks.filter(f => f.severity === sev).length;
-                            if (!count) return null;
-                            const sevCfg = SEVERITY_CONFIG[sev];
-                            return (
-                              <span key={sev} className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${sevCfg.badge}`}>
-                                {count} {sev}
-                              </span>
-                            );
-                          })}
-                        </div>
-                      )}
-                    </div>
-                    {selected.data.fix_blocks?.length > 0
-                      ? [...selected.data.fix_blocks]
-                        .sort((a, b) => {
-                          const order = { CRITICAL: 0, HIGH: 1, MEDIUM: 2, LOW: 3 };
-                          return order[a.severity] - order[b.severity];
-                        })
-                        .map((fix, i) => <FixBlockCard key={`${fix.dimension}-${i}-${fix.problem || ""}`} fix={fix} index={i} />)
-                      : (
-                        <div className="p-6 rounded-xl bg-emerald-500/5 border border-emerald-500/20 text-center">
-                          <p className="text-emerald-400 font-bold text-sm">🚀 No fixes needed!</p>
-                          <p className="text-xs text-gray-400 mt-1">All dimensions scored above 75. Ready to scale.</p>
-                        </div>
-                      )
-                    }
                   </motion.div>
                 )}
 
@@ -1518,107 +1380,11 @@ export default function AnalysisPanel({
                   </motion.div>
                 )}
 
-                {/* ── CTA TAB ──────────────────────────────────── */}
-                {tab === "cta" && (
-                  <motion.div key="cta" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-4">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      {selected.data.analysis_state === "ocr_failure" || selected.data.analysis_state === "pipeline_failure" || selected.data.analysis_state === "insufficient_evidence" ? (
-                        <span className="px-3 py-1.5 rounded-full text-xs font-bold border bg-slate-500/15 border-slate-500/40 text-slate-300">
-                          ℹ️ CTA analysis unavailable
-                        </span>
-                      ) : (
-                      <span className={`px-3 py-1.5 rounded-full text-xs font-bold border ${selected.data.cta_detected ? "bg-emerald-500/15 border-emerald-500/40 text-emerald-300" : "bg-red-500/15 border-red-500/40 text-red-300"
-                        }`}>{selected.data.cta_detected ? "✅ CTA Detected" : "❌ No CTA Found"}</span>
-                      )}
-                      {selected.data.cta_text && (
-                        <span className="px-3 py-1.5 rounded-full text-xs font-bold bg-white/10 border border-white/20 text-white">"{selected.data.cta_text}"</span>
-                      )}
-                      {selected.data.cta_type && selected.data.cta_type !== "None" && (
-                        <span className={`px-3 py-1.5 rounded-full text-xs font-bold border ${selected.data.cta_type === "Hard" ? "bg-orange-500/15 border-orange-500/40 text-orange-300" :
-                          selected.data.cta_type === "Medium" ? "bg-purple-500/15 border-purple-500/40 text-purple-300" :
-                            "bg-blue-500/15 border-blue-500/40 text-blue-300"
-                          }`}>{selected.data.cta_type} CTA</span>
-                      )}
-                      {selected.data.cta_goal_fit && selected.data.cta_goal_fit !== "None" && (
-                        <span className={`px-3 py-1.5 rounded-full text-xs font-bold border ${selected.data.cta_goal_fit === "Perfect Match" ? "bg-emerald-500/15 border-emerald-500/40 text-emerald-300" :
-                          selected.data.cta_goal_fit === "Acceptable" ? "bg-yellow-500/15 border-yellow-500/40 text-yellow-300" :
-                            "bg-red-500/15 border-red-500/40 text-red-300"
-                          }`}>
-                          {selected.data.cta_goal_fit === "Perfect Match" ? "✓" : selected.data.cta_goal_fit === "Mismatch" ? "⚠" : "~"} {selected.data.cta_goal_fit}
-                        </span>
-                      )}
-                      {selected.data.performance?.ctaGoalFit && (
-                        <span className={`px-3 py-1.5 rounded-full text-xs font-bold border ${selected.data.performance.ctaGoalFit === "good" ? "bg-emerald-500/15 border-emerald-500/40 text-emerald-300" :
-                          selected.data.performance.ctaGoalFit === "too strong" ? "bg-orange-500/15 border-orange-500/40 text-orange-300" :
-                            selected.data.performance.ctaGoalFit === "missing" ? "bg-red-500/15 border-red-500/40 text-red-300" :
-                              "bg-yellow-500/15 border-yellow-500/40 text-yellow-300"
-                          }`}>
-                          Goal Fit: {selected.data.performance.ctaGoalFit}
-                        </span>
-                      )}
-                    </div>
-
-                    {selected.data.cta_detected && (
-                      <div className="p-4 rounded-xl bg-white/5 border border-white/10 space-y-3">
-                        <p className="text-[10px] font-bold text-gray-300 uppercase tracking-wider">CTA Quality Breakdown</p>
-                        {[
-                          { label: "Visibility", value: (selected.data.cta?.visibilityScore ?? 0) / 10, color: "bg-sky-400", desc: "Can users notice CTA quickly?" },
-                          { label: "Contrast", value: (selected.data.cta?.contrastScore ?? 0) / 10, color: "bg-orange-400", desc: "CTA contrast against background" },
-                          { label: "Position", value: (selected.data.cta?.positionScore ?? 0) / 10, color: "bg-emerald-400", desc: "CTA placement effectiveness" },
-                          { label: "Urgency", value: (selected.data.cta?.urgencyScore ?? 0) / 10, color: "bg-purple-400", desc: "Action urgency signal" },
-                        ].map(({ label, value, color, desc }) => (
-                          <div key={label} title={desc}>
-                            <div className="flex justify-between text-xs mb-1">
-                              <span className="text-gray-400">{label} <span className="text-gray-600 text-[10px]">— {desc}</span></span>
-                              <span className="text-white font-bold tabular-nums">{value ?? 0}/10</span>
-                            </div>
-                            <AnimBar value={(value ?? 0) * 10} color={color} />
-                          </div>
-                        ))}
-                        <div className="mt-3 pt-3 border-t border-white/10 flex items-center justify-between">
-                          <p className="text-xs font-bold text-white">Overall CTA Strength</p>
-                          <span className={`text-2xl font-black ${(selected.data.cta_scores?.overall ?? 0) >= 7 ? "text-emerald-400" : (selected.data.cta_scores?.overall ?? 0) >= 4.5 ? "text-yellow-400" : "text-red-400"}`}>
-                            {selected.data.cta_scores?.overall ?? 0}/10
-                          </span>
-                        </div>
-                      </div>
-                    )}
-
-                    {!selected.data.cta_detected && (
-                      <div className="p-4 rounded-xl bg-red-500/5 border border-red-500/20">
-                        <p className="text-sm text-red-300 font-medium">
-                          {selected.data.analysis_state === "ocr_failure" || selected.data.analysis_state === "pipeline_failure" || selected.data.analysis_state === "insufficient_evidence"
-                            ? "CTA signal unavailable due to analysis state."
-                            : "No CTA — scores not applicable."}
-                        </p>
-                        <p className="text-xs text-gray-400 mt-1">
-                          {selected.data.analysis_state === "ocr_failure" || selected.data.analysis_state === "pipeline_failure" || selected.data.analysis_state === "insufficient_evidence"
-                            ? "System failure or insufficient evidence prevented CTA validation."
-                            : "A missing CTA significantly reduces click-through potential."}
-                        </p>
-                      </div>
-                    )}
-
-                    {selected.data.improved_ctas?.length > 0 && (
-                      <div className="p-4 rounded-xl bg-emerald-500/5 border border-emerald-500/20 space-y-2">
-                        <p className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider">🚀 Suggested CTAs for {selected.data.goal}</p>
-                        <div className="flex flex-wrap gap-2">
-                          {selected.data.improved_ctas.map((cta, i) => (
-                            <span key={i} className="px-3 py-1.5 rounded-full text-xs font-bold bg-emerald-500/15 border border-emerald-500/30 text-emerald-300">
-                              {cta}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </motion.div>
-                )}
-
                 {/* ── PLATFORM TAB ─────────────────────────────── */}
                 {tab === "platform" && (
                   <motion.div key="platform" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-4">
                     <p className="text-[10px] text-gray-500">
-                      Platform checks for <span className="text-white font-semibold capitalize">{platform}</span>
+                      Device-fit checks for <span className="text-white font-semibold capitalize">{platform}</span>
                     </p>
                     <PlatformCheckGrid platformChecks={selected.data.platformChecks} />
                   </motion.div>

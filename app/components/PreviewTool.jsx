@@ -564,6 +564,24 @@ export default function PreviewTool() {
     }
   }, [step, uploadedCreatives.length, pathname, router]);
 
+  // Auto-start analysis when entering Step 3 so users don't need an extra click.
+  useEffect(() => {
+    if (step !== 3) return;
+    if (analysisLoading || analysisResult) return;
+    if (validCreatives.length === 0) return;
+    if (!campaignGoal || !platform || !campaignVertical) return;
+    runAnalysis();
+  }, [
+    step,
+    analysisLoading,
+    analysisResult,
+    validCreatives.length,
+    campaignGoal,
+    platform,
+    campaignVertical,
+    runAnalysis,
+  ]);
+
   const getUser = useCallback(async () => {
     if (userRef.current) return userRef.current;
     const { data: { session } } = await supabase.auth.getSession();
@@ -1216,11 +1234,10 @@ export default function PreviewTool() {
                   <div className="w-20 h-20 mb-6 bg-linear-to-br from-fuchsia-500/20 to-purple-600/20 rounded-full flex items-center justify-center border border-fuchsia-500/30">
                     <span className="text-4xl">🧠</span>
                   </div>
-                  <h3 className="text-xl font-bold text-white mb-3">Ready to Analyze</h3>
+                  <h3 className="text-xl font-bold text-white mb-3">Starting Analysis</h3>
                   <p className="text-sm text-gray-400 mb-8 max-w-md">
-                    We will run 6 core checks and platform-specific metrics for <strong>{validCreatives.length} valid creative(s)</strong>.
+                    Analysis starts automatically for <strong>{validCreatives.length} valid creative(s)</strong>.
                   </p>
-                  <NavBtn onClick={runAnalysis} className="px-8 shadow-lg shadow-purple-500/30">Run Full Analysis ✨</NavBtn>
                 </div>
               )}
 
