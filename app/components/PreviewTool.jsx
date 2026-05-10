@@ -135,10 +135,126 @@ const VALID_VERTICALS = new Set([
   "news_media", "real_estate", "sports", "technology", "travel",
 ]);
 
+function clamp(value, min, max) {
+  return Math.min(max, Math.max(min, value));
+}
+
+function toHex(n) {
+  return n.toString(16).padStart(2, "0");
+}
+
+function rgbToHex(r, g, b) {
+  return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+}
+
+function rgbToHue(r, g, b) {
+  const rn = r / 255;
+  const gn = g / 255;
+  const bn = b / 255;
+  const max = Math.max(rn, gn, bn);
+  const min = Math.min(rn, gn, bn);
+  const d = max - min;
+  if (d === 0) return 0;
+  let h = 0;
+  if (max === rn) h = ((gn - bn) / d) % 6;
+  else if (max === gn) h = (bn - rn) / d + 2;
+  else h = (rn - gn) / d + 4;
+  h *= 60;
+  if (h < 0) h += 360;
+  return h;
+}
+
+function circularHueDistance(a, b) {
+  const d = Math.abs(a - b);
+  return Math.min(d, 360 - d);
+}
+
+async function extractColorMetricsFromBlob(blob) {
+  try {
+    const objectUrl = URL.createObjectURL(blob);
+    const img = await new Promise((resolve, reject) => {
+      const el = new Image();
+      el.onload = () => resolve(el);
+      el.onerror = reject;
+      el.src = objectUrl;
+    });
+
+    const canvas = document.createElement("canvas");
+    const ctx = canvas.getContext("2d", { willReadFrequently: true });
+    if (!ctx) {
+      URL.revokeObjectURL(objectUrl);
+      return null;
+    }
+
+    const targetW = 64;
+    const ratio = img.height / img.width;
+    canvas.width = targetW;
+    canvas.height = Math.max(16, Math.round(targetW * ratio));
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    const { data } = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    URL.revokeObjectURL(objectUrl);
+
+    const buckets = new Map();
+    let warmPixels = 0;
+    let sampled = 0;
+
+    for (let i = 0; i < data.length; i += 16) {
+      const r = data[i];
+      const g = data[i + 1];
+      const b = data[i + 2];
+      const a = data[i + 3];
+      if (a < 30) continue;
+
+      const qr = (r >> 5) << 5;
+      const qg = (g >> 5) << 5;
+      const qb = (b >> 5) << 5;
+      const key = `${qr}|${qg}|${qb}`;
+
+      const current = buckets.get(key) || { count: 0, r: qr, g: qg, b: qb };
+      current.count += 1;
+      buckets.set(key, current);
+
+      const hue = rgbToHue(r, g, b);
+      if (hue <= 60 || hue >= 300) warmPixels += 1;
+      sampled += 1;
+    }
+
+    const top = [...buckets.values()]
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 5);
+
+    if (top.length === 0) return null;
+
+    const palette = top.map((c) => rgbToHex(c.r, c.g, c.b));
+    const hues = top.map((c) => rgbToHue(c.r, c.g, c.b));
+    const dominantHue = Math.round(hues[0]);
+    const avgHueDistance = hues.length > 1
+      ? Math.round(hues.slice(1).reduce((sum, h) => sum + circularHueDistance(dominantHue, h), 0) / (hues.length - 1))
+      : 0;
+
+    const colorHarmony = avgHueDistance <= 40
+      ? "HARMONIOUS"
+      : avgHueDistance <= 80
+        ? "ACCEPTABLE"
+        : "DISCORDANT";
+
+    const warmthScore = sampled > 0 ? Math.round((warmPixels / sampled) * 100) : 50;
+
+    return {
+      palette,
+      colorHarmony,
+      warmthScore,
+      dominantHue,
+    };
+  } catch {
+    return null;
+  }
+}
+
 // ── OpenAI-Only Normalizer ───────────────────────────────────────────────────
 // Maps the clean OpenAI Vision JSON → the shape AnalysisPanel expects.
 
-function normalizeOpenAIAnalysis(ai, goal, vertical) {
+function normalizeOpenAIAnalysis(ai, goal, vertical, visualMetrics = null) {
   const s = ai?.subscores || {};
   const overallScore = Number.isFinite(Number(ai?.overall_score)) ? Number(ai.overall_score) : null;
   const conversionScore = Number.isFinite(Number(ai?.conversion_score)) ? Number(ai.conversion_score) : overallScore;
@@ -196,6 +312,36 @@ function normalizeOpenAIAnalysis(ai, goal, vertical) {
       : "MEDIUM"
   );
 
+  const visualClarity = Number(s.visual_clarity) || null;
+  const messageClarity = Number(s.message_clarity) || null;
+  const layoutHierarchy = Number(s.layout_hierarchy) || null;
+  const clutterSignal = Number.isFinite(visualClarity) && Number.isFinite(messageClarity) && Number.isFinite(layoutHierarchy)
+    ? Math.round(100 - (visualClarity * 0.45 + messageClarity * 0.25 + layoutHierarchy * 0.30))
+    : null;
+  const clutterIndex = Number.isFinite(clutterSignal) ? clamp(Math.round(clutterSignal / 10), 1, 10) : null;
+  const clutterLabel = !Number.isFinite(clutterIndex)
+    ? null
+    : clutterIndex <= 3
+      ? "CLEAN"
+      : clutterIndex <= 5
+        ? "MODERATE"
+        : clutterIndex <= 7
+          ? "CLUTTERED"
+          : "CHAOTIC";
+
+  const stopRateEstimate = engagementForecast === "HIGH"
+    ? (clutterIndex && clutterIndex >= 7 ? "2.3%-3.1%" : "3.4%-5.2%")
+    : engagementForecast === "MEDIUM"
+      ? (clutterIndex && clutterIndex >= 7 ? "1.4%-2.0%" : "2.0%-3.2%")
+      : "0.8%-1.5%";
+
+  const engagementDrivers = [
+    ...(Array.isArray(ai?.strengths) ? ai.strengths.slice(0, 2) : []),
+    Number.isFinite(visualClarity) ? `Visual clarity score: ${visualClarity}/100` : null,
+    Number.isFinite(messageClarity) ? `Message clarity score: ${messageClarity}/100` : null,
+    Number.isFinite(ctaStrengthScore) ? `CTA strength score: ${ctaStrengthScore}/100` : null,
+  ].filter(Boolean).slice(0, 4);
+
   const platformFit = ai?.platform_fit || {};
 
   return {
@@ -215,23 +361,24 @@ function normalizeOpenAIAnalysis(ai, goal, vertical) {
     emotional_appeal: engagementForecast,
     creative_archetype: goal === "conversion" ? "Direct Response" : goal === "consideration" ? "Proof-led Consideration" : "Brand Awareness",
     emotion_signature: ai?.emotion_trigger || null,
-    visual_hierarchy: Number(s.layout_hierarchy) >= 70 ? "STRONG" : Number(s.layout_hierarchy) >= 50 ? "MODERATE" : "WEAK",
+    visual_hierarchy: Number(layoutHierarchy) >= 70 ? "STRONG" : Number(layoutHierarchy) >= 50 ? "MODERATE" : "WEAK",
     headlineDetected: Boolean(ai?.headline),
     readingFlow: ai?.layout_hierarchy?.attention_flow ? "LINEAR" : "SCATTERED",
-    focalPointStrength: Number(s.visual_clarity) || null,
+    focalPointStrength: visualClarity,
     cta_presence: ctaPresent,
     cta_text: ctaText,
     cta_detected: ctaPresent,
     cta_goal_fit: ctaPresent
       ? (Number(s.cta_strength) >= 75 ? "Perfect Match" : Number(s.cta_strength) >= 55 ? "Acceptable" : "Mismatch")
       : "None",
-    clutter_index: null,
-    clutter_label: null,
-    stop_rate_estimate: "Insufficient data",
-    colorPalette: [],
-    colorHarmony: null,
-    warmthScore: null,
-    dominantHue: null,
+    clutter_index: clutterIndex,
+    clutter_label: clutterLabel,
+    stop_rate_estimate: stopRateEstimate,
+    engagement_drivers: engagementDrivers,
+    colorPalette: visualMetrics?.palette || [],
+    colorHarmony: visualMetrics?.colorHarmony || null,
+    warmthScore: visualMetrics?.warmthScore || null,
+    dominantHue: visualMetrics?.dominantHue || null,
     intelligenceGraph: null,
     lockedContext: { goal, selectedVertical: vertical },
     signalAvailability: {},
@@ -260,9 +407,9 @@ function normalizeOpenAIAnalysis(ai, goal, vertical) {
     attention: {
       score: Number(s.visual_clarity) || overallScore,
       breakdown: {
-        visualClarity: Number(s.visual_clarity) || null,
-        layoutAlignment: Number(s.layout_hierarchy) || null,
-        readabilityScore: Number(s.message_clarity) || null,
+        visualClarity,
+        layoutAlignment: layoutHierarchy,
+        readabilityScore: messageClarity,
         strategyAlignment: Number(s.audience_alignment) || null,
       },
     },
@@ -280,11 +427,16 @@ function normalizeOpenAIAnalysis(ai, goal, vertical) {
         : "missing",
     },
     coreChecks: {
-      noticeability: { score: Number(s.visual_clarity) || null, label: Number(s.visual_clarity) >= 60 ? "Pass" : "Needs improvement", pass: Number(s.visual_clarity) >= 60, available: true },
-      messageClarity: { score: Number(s.message_clarity) || null, label: Number(s.message_clarity) >= 60 ? "Pass" : "Needs improvement", pass: Number(s.message_clarity) >= 60, available: true },
+      noticeability: { score: visualClarity, label: visualClarity >= 60 ? "Pass" : "Needs improvement", pass: visualClarity >= 60, available: true },
+      messageClarity: { score: messageClarity, label: messageClarity >= 60 ? "Pass" : "Needs improvement", pass: messageClarity >= 60, available: true },
       ctaStrength: { score: ctaStrengthScore, label: ctaStrengthScore >= 55 ? "Pass" : "Needs improvement", pass: ctaStrengthScore >= 55, available: ctaPresent },
       brandPresence: { score: Number(s.brand_presence) || null, label: Number(s.brand_presence) >= 55 ? "Pass" : "Needs improvement", pass: Number(s.brand_presence) >= 55, available: true },
-      crowding: { score: null, label: "Signal unavailable", pass: false, available: false },
+      crowding: {
+        score: Number.isFinite(clutterSignal) ? clamp(100 - clutterSignal, 0, 100) : null,
+        label: clutterLabel ? `${clutterLabel} density` : "Signal unavailable",
+        pass: Number.isFinite(clutterIndex) ? clutterIndex <= 5 : false,
+        available: Number.isFinite(clutterIndex),
+      },
       formatFit: { score: Number(s.platform_fit_score) || null, label: Number(s.platform_fit_score) >= 55 ? "Pass" : "Needs improvement", pass: Number(s.platform_fit_score) >= 55, available: true },
     },
     cta: {
@@ -361,6 +513,7 @@ async function analyzeAllCreatives(creatives, goal, platform, vertical) {
       const imageRes = await fetch(creative.url);
       if (!imageRes.ok) throw new Error(`Failed to fetch image: ${creative.url}`);
       const imageBlob = await imageRes.blob();
+      const visualMetrics = await extractColorMetricsFromBlob(imageBlob);
 
       const formData = new FormData();
       formData.append("image", imageBlob, "creative.jpg");
@@ -379,18 +532,18 @@ async function analyzeAllCreatives(creatives, goal, platform, vertical) {
           const body = await analysisRes.json();
           apiError = body?.error || apiError;
         } catch { /* noop */ }
-        const data = normalizeOpenAIAnalysis({ overall_score: null }, goal, verticalForApi);
+        const data = normalizeOpenAIAnalysis({ overall_score: null }, goal, verticalForApi, visualMetrics);
         results.push({ creative, data: { ...data, error: apiError } });
         continue;
       }
 
       const aiJson = await analysisRes.json();
-      const data = normalizeOpenAIAnalysis(aiJson, goal, verticalForApi);
+      const data = normalizeOpenAIAnalysis(aiJson, goal, verticalForApi, visualMetrics);
       results.push({ creative, data });
     } catch (err) {
       const errMessage = err instanceof Error ? err.message : "Analysis failed";
       console.error(`Analysis failed for ${creative.url}:`, err);
-      const data = normalizeOpenAIAnalysis({ overall_score: null }, goal, verticalForApi);
+      const data = normalizeOpenAIAnalysis({ overall_score: null }, goal, verticalForApi, null);
       results.push({ creative, data: { ...data, error: errMessage } });
     }
   }
