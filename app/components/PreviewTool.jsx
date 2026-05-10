@@ -564,24 +564,6 @@ export default function PreviewTool() {
     }
   }, [step, uploadedCreatives.length, pathname, router]);
 
-  // Auto-start analysis when entering Step 3 so users don't need an extra click.
-  useEffect(() => {
-    if (step !== 3) return;
-    if (analysisLoading || analysisResult) return;
-    if (validCreatives.length === 0) return;
-    if (!campaignGoal || !platform || !campaignVertical) return;
-    runAnalysis();
-  }, [
-    step,
-    analysisLoading,
-    analysisResult,
-    validCreatives.length,
-    campaignGoal,
-    platform,
-    campaignVertical,
-    runAnalysis,
-  ]);
-
   const getUser = useCallback(async () => {
     if (userRef.current) return userRef.current;
     const { data: { session } } = await supabase.auth.getSession();
@@ -738,6 +720,24 @@ export default function PreviewTool() {
       setAnalysisLoading(false);
     }
   }, [validCreatives, campaignGoal, platform, campaignVertical, addToast]);
+
+  // Auto-start analysis when entering Step 3 so users don't need an extra click.
+  useEffect(() => {
+    if (step !== 3) return;
+    if (analysisLoading || analysisResult) return;
+    if (validCreatives.length === 0) return;
+    if (!campaignGoal || !platform || !campaignVertical) return;
+    runAnalysis();
+  }, [
+    step,
+    analysisLoading,
+    analysisResult,
+    validCreatives.length,
+    campaignGoal,
+    platform,
+    campaignVertical,
+    runAnalysis,
+  ]);
 
   const handleGoalChange = (newGoal) => {
     setCampaignGoal(newGoal);
