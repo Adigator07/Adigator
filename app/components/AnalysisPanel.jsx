@@ -1040,6 +1040,10 @@ export default function AnalysisPanel({
   const needsWork = scoreAvailable.filter((r) => r.data.overall_score < 70);
   const selected = analysisResult.find((r) => r.creative.id === selectedId);
   const selectedRank = selected ? getRank(selected.creative.id) : -1;
+  const goalAligned = analysisResult.filter((r) => r?.data?.goal_alignment?.is_aligned !== false);
+  const verticalAligned = analysisResult.filter((r) => r?.data?.vertical_alignment?.is_aligned !== false);
+  const goalMisaligned = analysisResult.filter((r) => r?.data?.goal_alignment?.is_aligned === false);
+  const verticalMisaligned = analysisResult.filter((r) => r?.data?.vertical_alignment?.is_aligned === false);
 
   const CORE_CHECK_CONFIG = [
     { key: "noticeability", icon: Eye, label: "Noticeable in Environment" },
@@ -1069,12 +1073,14 @@ export default function AnalysisPanel({
           </span>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-2">
+        <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-8 gap-2">
           {[
             { label: "Analyzed", value: analysisResult.length, color: "bg-blue-500/10 border-blue-500/20 text-blue-400" },
             { label: "Launch Ready", value: perfect.length, color: "bg-emerald-500/10 border-emerald-500/20 text-emerald-400" },
             { label: "Needs Work", value: needsWork.length, color: "bg-yellow-500/10 border-yellow-500/20 text-yellow-400" },
             { label: "Unavailable", value: unavailable.length, color: "bg-slate-500/10 border-slate-500/20 text-slate-300" },
+            { label: "Goal Aligned", value: `${goalAligned.length}/${analysisResult.length}`, color: "bg-cyan-500/10 border-cyan-500/20 text-cyan-300" },
+            { label: "Vertical Aligned", value: `${verticalAligned.length}/${analysisResult.length}`, color: "bg-indigo-500/10 border-indigo-500/20 text-indigo-300" },
             { label: "High Forecast", value: analysisResult.filter(r => ["HIGH"].includes(r.data.engagement_forecast)).length, color: "bg-fuchsia-500/10 border-fuchsia-500/20 text-fuchsia-400" },
             { label: "Top Ranked", value: perfect.length > 0 ? perfect[0]?.creative?.name || "-" : "-", color: "bg-orange-500/10 border-orange-500/20 text-orange-400" },
           ].map(({ label, value, color }) => (
@@ -1099,6 +1105,16 @@ export default function AnalysisPanel({
           {unavailable.length > 0 && (
             <p className="text-xs text-slate-300">
               ℹ️ <strong>{unavailable.map(r => r.creative.name).join(", ")}</strong> {unavailable.length === 1 ? "has" : "have"} unavailable or insufficient evidence states.
+            </p>
+          )}
+          {goalMisaligned.length > 0 && (
+            <p className="text-xs text-red-300">
+              ❌ <strong>{goalMisaligned.map(r => r.creative.name).join(", ")}</strong> {goalMisaligned.length === 1 ? "is" : "are"} not aligned with selected campaign goal.
+            </p>
+          )}
+          {verticalMisaligned.length > 0 && (
+            <p className="text-xs text-red-300">
+              ❌ <strong>{verticalMisaligned.map(r => r.creative.name).join(", ")}</strong> {verticalMisaligned.length === 1 ? "is" : "are"} not aligned with selected industry vertical.
             </p>
           )}
         </div>
@@ -1134,6 +1150,12 @@ export default function AnalysisPanel({
                     {forecast && <span className="text-[9px]">{forecast === "HIGH" ? "🟢" : forecast === "MEDIUM" ? "🟡" : "🔴"}</span>}
                     {criticalFixes > 0 && (
                       <span className="text-[9px] font-bold text-red-400">⚠ {criticalFixes} critical</span>
+                    )}
+                    {res?.data?.goal_alignment?.is_aligned === false && (
+                      <span className="text-[9px] font-bold text-red-300">Goal mismatch</span>
+                    )}
+                    {res?.data?.vertical_alignment?.is_aligned === false && (
+                      <span className="text-[9px] font-bold text-red-300">Vertical mismatch</span>
                     )}
                   </div>
                 </div>
@@ -1217,6 +1239,16 @@ export default function AnalysisPanel({
                     {selected.data.stop_rate_estimate && (
                       <span className="px-2 py-0.5 rounded-full text-[10px] font-bold border border-fuchsia-500/30 bg-fuchsia-500/10 text-fuchsia-300">
                         Stop Rate {selected.data.stop_rate_estimate}
+                      </span>
+                    )}
+                    {selected?.data?.goal_alignment?.is_aligned === false && (
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold border border-red-500/40 bg-red-500/15 text-red-200">
+                        Campaign goal not aligned
+                      </span>
+                    )}
+                    {selected?.data?.vertical_alignment?.is_aligned === false && (
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold border border-red-500/40 bg-red-500/15 text-red-200">
+                        Vertical not aligned
                       </span>
                     )}
                   </div>

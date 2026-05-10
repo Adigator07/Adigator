@@ -64,12 +64,70 @@ export interface UIModule {
   data?: Record<string, unknown>;
 }
 
+export interface LandingHeroSection {
+  headline: string;
+  subheadline: string;
+  primaryCta: string;
+  secondaryCta: string;
+  supportingBullets: string[];
+  trustIndicators: string[];
+}
+
+export interface LandingFeatureBlock {
+  title: string;
+  description: string;
+  iconIdea: string;
+}
+
+export interface LandingSocialProofItem {
+  quote: string;
+  name: string;
+  role: string;
+}
+
+export interface LandingHowItWorksStep {
+  title: string;
+  description: string;
+}
+
+export interface LandingPageContent {
+  hero: LandingHeroSection;
+  valueProposition: {
+    sectionTitle: string;
+    features: LandingFeatureBlock[];
+  };
+  socialProof: {
+    testimonials: LandingSocialProofItem[];
+    ratingSummary: string;
+    trustStatement: string;
+  };
+  offerPromotion: {
+    headline: string;
+    explanation: string;
+    urgency: string;
+    ctaText: string;
+  };
+  howItWorks: LandingHowItWorksStep[];
+  benefits: string[];
+  finalConversion: {
+    headline: string;
+    valueStatement: string;
+    ctaText: string;
+  };
+  footer: {
+    companyDescription: string;
+    navigationLinks: string[];
+    legalMessaging: string;
+  };
+}
+
 export interface GeneratedEnvironment {
   layoutType: string;
   pageTitle: string;
   publisherName?: string;
   contextBlocks: ContentBlock[];
   uiModules: UIModule[];
+  landingPage?: LandingPageContent;
 }
 
 export interface PreviewDecision {

@@ -17,6 +17,7 @@ import type {
   PreviewEngineInput,
   GeneratedEnvironment,
   EnvironmentFamily,
+  LandingPageContent,
 } from "@/app/lib/preview-engine/types";
 
 export const runtime = "nodejs";
@@ -27,11 +28,217 @@ function getClient(): OpenAI {
   return new OpenAI({ apiKey });
 }
 
+type PromptHints = {
+  audience: string;
+  creativeMessage: string;
+  offerType: string;
+  tone: string;
+  platform: string;
+  headline: string;
+  ctaText: string;
+  brand: string;
+};
+
+function cleanText(value: unknown, fallback: string): string {
+  if (typeof value !== "string") return fallback;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : fallback;
+}
+
+function cleanList(value: unknown, fallback: string[]): string[] {
+  if (!Array.isArray(value)) return fallback;
+  const items = value
+    .filter((item): item is string => typeof item === "string")
+    .map((item) => item.trim())
+    .filter(Boolean);
+  return items.length > 0 ? items : fallback;
+}
+
+function buildPromptHints(input: PreviewEngineInput): PromptHints {
+  const analyzer = input.analyzerOutput ?? {};
+  const goalOfferMap: Record<PreviewEngineInput["goal"], string> = {
+    awareness: "brand awareness offer",
+    consideration: "demo, consultation, or comparison offer",
+    conversion: "direct purchase, signup, or claim-now offer",
+  };
+
+  return {
+    audience: cleanText(analyzer.target_audience, `${input.vertical} buyers evaluating solutions`),
+    creativeMessage: cleanText(analyzer.primary_message, input.headline ?? `${input.vertical} growth value proposition`),
+    offerType: cleanText(input.ctaText, goalOfferMap[input.goal]),
+    tone: input.goal === "awareness" ? "brand-forward and modern" : input.goal === "consideration" ? "credible and persuasive" : "urgent and conversion-focused",
+    platform: cleanText(analyzer.platform, "display advertising"),
+    headline: cleanText(input.headline, `Built for ${input.vertical} performance`),
+    ctaText: cleanText(input.ctaText, input.goal === "conversion" ? "Get Started" : "Learn More"),
+    brand: cleanText(analyzer.brand, ""),
+  };
+}
+
+function buildFallbackLandingPage(vertical: string, goal: PreviewEngineInput["goal"], hints: PromptHints): LandingPageContent {
+  const primaryCta = hints.ctaText;
+  const secondaryCta = goal === "conversion" ? "View Pricing" : "See How It Works";
+
+  return {
+    hero: {
+      headline: cleanText(hints.headline, `Drive better ${vertical} performance with a sharper landing flow`),
+      subheadline: `${hints.creativeMessage}. Built for ${hints.audience} with a clean conversion path that feels like a real commercial destination.`,
+      primaryCta,
+      secondaryCta,
+      supportingBullets: [
+        "Clear above-the-fold value proposition",
+        "Proof-led page structure that reduces bounce",
+        "Conversion journey aligned to real buyer intent",
+      ],
+      trustIndicators: [
+        `Trusted by leading ${vertical} teams`,
+        "High-converting page architecture",
+        "Launch-ready commercial messaging",
+      ],
+    },
+    valueProposition: {
+      sectionTitle: `Why ${hints.audience} convert faster here`,
+      features: [
+        { title: "Sharper message match", description: "Align creative intent with the page promise in seconds.", iconIdea: "Target with spark accent" },
+        { title: "Proof at the right moment", description: "Use trust blocks and outcome signals before hesitation starts.", iconIdea: "Shield with rating star" },
+        { title: "Lower-friction action", description: "Move visitors from interest to action with cleaner CTA hierarchy.", iconIdea: "Arrow moving through funnel" },
+      ],
+    },
+    socialProof: {
+      testimonials: [
+        { quote: `“This feels like a real ${vertical} destination page, not a mockup. Our team could use it immediately.”`, name: "Ava Chen", role: "Growth Lead" },
+        { quote: "“The page structure made the offer clearer and improved trust instantly.”", name: "Marcus Reed", role: "Performance Manager" },
+        { quote: "“The conversion path is cleaner, faster, and much easier to evaluate.”", name: "Priya Sinha", role: "Digital Marketing Director" },
+      ],
+      ratingSummary: "4.8/5 average satisfaction from commercial design reviews",
+      trustStatement: `Built to feel native inside live ${vertical} website experiences.`,
+    },
+    offerPromotion: {
+      headline: goal === "conversion" ? "Launch your highest-converting page faster" : "Turn attention into qualified intent",
+      explanation: `Use ${hints.offerType} messaging with a commercial landing structure designed for ${hints.audience}.`,
+      urgency: goal === "conversion" ? "Limited launch window for peak campaign demand." : "Early movers capture attention before the category gets crowded.",
+      ctaText: primaryCta,
+    },
+    howItWorks: [
+      { title: "Connect the message", description: "Match the page headline to the creative promise." },
+      { title: "Build trust quickly", description: "Surface proof, outcomes, and relevance above hesitation points." },
+      { title: "Drive the action", description: "Guide users to one clear CTA with minimal friction." },
+    ],
+    benefits: [
+      "Increase qualified engagement",
+      "Reduce bounce from message mismatch",
+      "Make offers feel more credible",
+      "Improve conversion confidence",
+    ],
+    finalConversion: {
+      headline: `Ready to turn ${hints.audience} into action?`,
+      valueStatement: `Deploy a commercial landing experience built around clarity, proof, and conversion momentum for ${vertical}.`,
+      ctaText: primaryCta,
+    },
+    footer: {
+      companyDescription: `${vertical} growth platform focused on commercial landing experiences that convert.`,
+      navigationLinks: ["Overview", "Features", "Proof", "Pricing", "Contact"],
+      legalMessaging: "Secure experience. Privacy-first. Trusted commercial platform.",
+    },
+  };
+}
+
+function normalizeGeneratedEnvironment(
+  raw: Partial<GeneratedEnvironment> & { landingPage?: Partial<LandingPageContent> },
+  env: EnvironmentFamily,
+  vertical: string,
+  goal: PreviewEngineInput["goal"],
+  hints: PromptHints
+): GeneratedEnvironment {
+  const fallbackLandingPage = buildFallbackLandingPage(vertical, goal, hints);
+  const landingPage: LandingPageContent = {
+    hero: {
+      headline: cleanText(raw.landingPage?.hero?.headline, fallbackLandingPage.hero.headline),
+      subheadline: cleanText(raw.landingPage?.hero?.subheadline, fallbackLandingPage.hero.subheadline),
+      primaryCta: cleanText(raw.landingPage?.hero?.primaryCta, fallbackLandingPage.hero.primaryCta),
+      secondaryCta: cleanText(raw.landingPage?.hero?.secondaryCta, fallbackLandingPage.hero.secondaryCta),
+      supportingBullets: cleanList(raw.landingPage?.hero?.supportingBullets, fallbackLandingPage.hero.supportingBullets),
+      trustIndicators: cleanList(raw.landingPage?.hero?.trustIndicators, fallbackLandingPage.hero.trustIndicators),
+    },
+    valueProposition: {
+      sectionTitle: cleanText(raw.landingPage?.valueProposition?.sectionTitle, fallbackLandingPage.valueProposition.sectionTitle),
+      features: Array.isArray(raw.landingPage?.valueProposition?.features) && raw.landingPage?.valueProposition?.features.length > 0
+        ? raw.landingPage.valueProposition.features.map((feature, index) => ({
+            title: cleanText(feature?.title, fallbackLandingPage.valueProposition.features[index]?.title ?? fallbackLandingPage.valueProposition.features[0].title),
+            description: cleanText(feature?.description, fallbackLandingPage.valueProposition.features[index]?.description ?? fallbackLandingPage.valueProposition.features[0].description),
+            iconIdea: cleanText(feature?.iconIdea, fallbackLandingPage.valueProposition.features[index]?.iconIdea ?? fallbackLandingPage.valueProposition.features[0].iconIdea),
+          })).slice(0, 6)
+        : fallbackLandingPage.valueProposition.features,
+    },
+    socialProof: {
+      testimonials: Array.isArray(raw.landingPage?.socialProof?.testimonials) && raw.landingPage?.socialProof?.testimonials.length > 0
+        ? raw.landingPage.socialProof.testimonials.map((item, index) => ({
+            quote: cleanText(item?.quote, fallbackLandingPage.socialProof.testimonials[index]?.quote ?? fallbackLandingPage.socialProof.testimonials[0].quote),
+            name: cleanText(item?.name, fallbackLandingPage.socialProof.testimonials[index]?.name ?? fallbackLandingPage.socialProof.testimonials[0].name),
+            role: cleanText(item?.role, fallbackLandingPage.socialProof.testimonials[index]?.role ?? fallbackLandingPage.socialProof.testimonials[0].role),
+          })).slice(0, 3)
+        : fallbackLandingPage.socialProof.testimonials,
+      ratingSummary: cleanText(raw.landingPage?.socialProof?.ratingSummary, fallbackLandingPage.socialProof.ratingSummary),
+      trustStatement: cleanText(raw.landingPage?.socialProof?.trustStatement, fallbackLandingPage.socialProof.trustStatement),
+    },
+    offerPromotion: {
+      headline: cleanText(raw.landingPage?.offerPromotion?.headline, fallbackLandingPage.offerPromotion.headline),
+      explanation: cleanText(raw.landingPage?.offerPromotion?.explanation, fallbackLandingPage.offerPromotion.explanation),
+      urgency: cleanText(raw.landingPage?.offerPromotion?.urgency, fallbackLandingPage.offerPromotion.urgency),
+      ctaText: cleanText(raw.landingPage?.offerPromotion?.ctaText, fallbackLandingPage.offerPromotion.ctaText),
+    },
+    howItWorks: Array.isArray(raw.landingPage?.howItWorks) && raw.landingPage?.howItWorks.length > 0
+      ? raw.landingPage.howItWorks.map((step, index) => ({
+          title: cleanText(step?.title, fallbackLandingPage.howItWorks[index]?.title ?? fallbackLandingPage.howItWorks[0].title),
+          description: cleanText(step?.description, fallbackLandingPage.howItWorks[index]?.description ?? fallbackLandingPage.howItWorks[0].description),
+        })).slice(0, 3)
+      : fallbackLandingPage.howItWorks,
+    benefits: cleanList(raw.landingPage?.benefits, fallbackLandingPage.benefits),
+    finalConversion: {
+      headline: cleanText(raw.landingPage?.finalConversion?.headline, fallbackLandingPage.finalConversion.headline),
+      valueStatement: cleanText(raw.landingPage?.finalConversion?.valueStatement, fallbackLandingPage.finalConversion.valueStatement),
+      ctaText: cleanText(raw.landingPage?.finalConversion?.ctaText, fallbackLandingPage.finalConversion.ctaText),
+    },
+    footer: {
+      companyDescription: cleanText(raw.landingPage?.footer?.companyDescription, fallbackLandingPage.footer.companyDescription),
+      navigationLinks: cleanList(raw.landingPage?.footer?.navigationLinks, fallbackLandingPage.footer.navigationLinks),
+      legalMessaging: cleanText(raw.landingPage?.footer?.legalMessaging, fallbackLandingPage.footer.legalMessaging),
+    },
+  };
+
+  return {
+    layoutType: cleanText(raw.layoutType, `landing-${env}`),
+    pageTitle: cleanText(raw.pageTitle, landingPage.hero.headline),
+    publisherName: cleanText(raw.publisherName, hints.brand || `${vertical} Studio`),
+    landingPage,
+    contextBlocks: [
+      { type: "label", text: landingPage.valueProposition.sectionTitle },
+      { type: "headline", text: landingPage.hero.headline },
+      { type: "body", text: landingPage.hero.subheadline },
+      { type: "body", text: landingPage.finalConversion.valueStatement },
+      ...landingPage.hero.trustIndicators.slice(0, 3).map((item) => ({ type: "stat" as const, text: item })),
+      ...landingPage.benefits.slice(0, 3).map((item) => ({ type: "list-item" as const, text: item })),
+    ],
+    uiModules: [
+      {
+        type: "trending",
+        label: "Hero support",
+        items: landingPage.hero.supportingBullets.slice(0, 4).map((item) => ({ type: "list-item", text: item })),
+      },
+      {
+        type: "sidebar-widget",
+        label: "Social proof",
+        items: landingPage.socialProof.testimonials.slice(0, 3).map((item) => ({ type: "card", text: item.name, secondary: `${item.role} • ${item.quote}` })),
+      },
+    ],
+  };
+}
+
 // ── Environment content prompt ─────────────────────────────────────────────────
 function buildContentPrompt(
   env: EnvironmentFamily,
   vertical: string,
-  goal: string
+  goal: string,
+  hints: PromptHints
 ): string {
   const envDescriptions: Record<EnvironmentFamily, string> = {
     news: "a news/editorial publication website",
@@ -46,64 +253,115 @@ function buildContentPrompt(
     booking: "a local services or booking platform",
   };
 
-  return `You are a contextual advertising environment content generator.
+  return `ROLE:
+You are an expert Conversion Copywriter, UX Strategist, and Commercial Landing Page Designer.
 
-Generate realistic, specific, believable content for ${envDescriptions[env]}.
-The website is hosting an advertisement from the ${vertical} industry.
-Campaign goal: ${goal}.
+Your job is NOT to write articles or blog posts.
+Your job is to generate REAL WEBSITE LANDING PAGE CONTENT designed for marketing conversion.
+
+IMPORTANT RULES:
+- NEVER create article-style content.
+- NEVER write long paragraphs like a blog.
+- NEVER use editorial or news tone.
+- ALWAYS create commercial website content.
+- Content must look like a modern SaaS, E-commerce, Finance, Healthcare, or Brand landing page.
+- Write concise, high-conversion copy.
+- Use marketing psychology and UX hierarchy.
+
+INPUT CONTEXT:
+- Website environment: ${envDescriptions[env]}
+- Industry Vertical: ${vertical}
+- Campaign Goal: ${goal}
+- Target Audience: ${hints.audience}
+- Creative Message: ${hints.creativeMessage}
+- Offer Type: ${hints.offerType}
+- Tone: ${hints.tone}
+- Platform Source: ${hints.platform}
+- Detected Headline: ${hints.headline}
+- Detected CTA: ${hints.ctaText}
+
+OUTPUT REQUIREMENT:
+Generate structured LANDING PAGE CONTENT following REAL WEBSITE hierarchy.
 
 Return ONLY a valid JSON object with this exact structure:
 {
-  "layoutType": "<type of layout, e.g. 'article', 'product-grid', 'feed', 'dashboard'>",
-  "pageTitle": "<realistic page title for this environment>",
-  "publisherName": "<realistic publisher or platform name>",
-  "contextBlocks": [
-    { "type": "headline", "text": "<main content headline>" },
-    { "type": "body", "text": "<2-3 sentence body paragraph matching the vertical>" },
-    { "type": "body", "text": "<2nd body paragraph>" },
-    { "type": "byline", "text": "<Author Name · Date · Read time>" },
-    { "type": "label", "text": "<section label e.g. 'Technology' or 'Finance'>"}
-  ],
-  "uiModules": [
-    {
-      "type": "trending",
-      "label": "Trending Now",
-      "items": [
-        { "type": "list-item", "text": "<trending headline 1>", "secondary": "<meta e.g. '3h ago'>" },
-        { "type": "list-item", "text": "<trending headline 2>", "secondary": "<meta>" },
-        { "type": "list-item", "text": "<trending headline 3>", "secondary": "<meta>" },
-        { "type": "list-item", "text": "<trending headline 4>", "secondary": "<meta>" }
+  "layoutType": "<landing-page layout name>",
+  "pageTitle": "<realistic commercial landing page title>",
+  "publisherName": "<realistic brand or platform name>",
+  "landingPage": {
+    "hero": {
+      "headline": "<powerful, benefit-driven headline>",
+      "subheadline": "<clarifies value>",
+      "primaryCta": "<primary CTA text>",
+      "secondaryCta": "<secondary CTA text>",
+      "supportingBullets": ["<bullet 1>", "<bullet 2>", "<bullet 3>"],
+      "trustIndicators": ["<indicator 1>", "<indicator 2>", "<indicator 3>"]
+    },
+    "valueProposition": {
+      "sectionTitle": "<section title>",
+      "features": [
+        { "title": "<feature title>", "description": "<short benefit description>", "iconIdea": "<icon idea>" },
+        { "title": "<feature title>", "description": "<short benefit description>", "iconIdea": "<icon idea>" },
+        { "title": "<feature title>", "description": "<short benefit description>", "iconIdea": "<icon idea>" }
       ]
     },
-    {
-      "type": "sidebar-widget",
-      "label": "Related Content",
-      "items": [
-        { "type": "card", "text": "<related article or item 1>", "secondary": "<subtitle or price>" },
-        { "type": "card", "text": "<related article or item 2>", "secondary": "<subtitle or price>" },
-        { "type": "card", "text": "<related article or item 3>", "secondary": "<subtitle or price>" }
-      ]
+    "socialProof": {
+      "testimonials": [
+        { "quote": "<testimonial>", "name": "<customer name>", "role": "<role>" },
+        { "quote": "<testimonial>", "name": "<customer name>", "role": "<role>" },
+        { "quote": "<testimonial>", "name": "<customer name>", "role": "<role>" }
+      ],
+      "ratingSummary": "<rating summary>",
+      "trustStatement": "<trust statement>"
+    },
+    "offerPromotion": {
+      "headline": "<offer headline>",
+      "explanation": "<offer explanation>",
+      "urgency": "<urgency element>",
+      "ctaText": "<CTA button text>"
+    },
+    "howItWorks": [
+      { "title": "<step 1>", "description": "<short explanation>" },
+      { "title": "<step 2>", "description": "<short explanation>" },
+      { "title": "<step 3>", "description": "<short explanation>" }
+    ],
+    "benefits": ["<benefit 1>", "<benefit 2>", "<benefit 3>", "<benefit 4>"],
+    "finalConversion": {
+      "headline": "<strong closing headline>",
+      "valueStatement": "<reinforced value statement>",
+      "ctaText": "<final CTA text>"
+    },
+    "footer": {
+      "companyDescription": "<short company description>",
+      "navigationLinks": ["<link 1>", "<link 2>", "<link 3>", "<link 4>"],
+      "legalMessaging": "<legal/trust messaging>"
     }
-  ]
+  }
 }
 
-RULES:
-- All content must be specific to the ${vertical} industry — no generic placeholders
-- For news: generate real-sounding article headlines and body text about ${vertical} topics
-- For commerce: generate product names, prices, ratings
-- For social: generate feed posts, handles, engagement counts
-- For finance: generate market data, financial headlines
-- For travel: generate destination names, prices, availability
-- For sports: generate match scores, team names, standings
-- Never use lorem ipsum
-- Make the publisher name realistic (e.g. "TechInsight Daily", "SportsPulse", "MarketWatch Pro")
-- Return valid JSON only, no markdown, no explanation`;
+STYLE GUIDELINES:
+- Short blocks of text
+- Marketing-focused language
+- Conversion optimized
+- Clear hierarchy
+- Realistic website tone
+- Modern startup or brand voice
+- Avoid filler words
+- Avoid storytelling articles
+
+VERY IMPORTANT:
+- Content must feel like it belongs inside a LIVE commercial website where ads or creatives naturally exist.
+- Even for news-like environments, generate a conversion-focused commercial landing page or branded microsite, never a news article.
+- Do not add explanations.
+- Return valid JSON only.`;
 }
 
 // ── Fallback content generator (no AI needed) ─────────────────────────────────
 function buildFallbackContent(
   env: EnvironmentFamily,
-  vertical: string
+  vertical: string,
+  goal: PreviewEngineInput["goal"],
+  hints: PromptHints
 ): GeneratedEnvironment {
   const publisherNames: Record<EnvironmentFamily, string> = {
     news: "The Digital Post",
@@ -118,51 +376,12 @@ function buildFallbackContent(
     booking: "ReserveNow",
   };
 
-  return {
-    layoutType: env === "commerce" ? "product-grid" : env === "social" ? "feed" : "article",
-    pageTitle: `${vertical} News & Insights — ${publisherNames[env]}`,
+  return normalizeGeneratedEnvironment({
+    layoutType: env === "commerce" ? "landing-commerce" : env === "social" ? "landing-social" : env === "saas" ? "landing-saas" : "landing-page",
+    pageTitle: `${vertical} Growth Platform — ${publisherNames[env]}`,
     publisherName: publisherNames[env],
-    contextBlocks: [
-      { type: "label", text: vertical },
-      {
-        type: "headline",
-        text: `How ${vertical} leaders are transforming operations in 2026`,
-      },
-      {
-        type: "byline",
-        text: "Editorial Team · May 9, 2026 · 4 min read",
-      },
-      {
-        type: "body",
-        text: `The ${vertical} industry is experiencing unprecedented shifts driven by new technologies and changing consumer expectations. Leading brands are investing heavily in digital transformation to maintain competitive advantage.`,
-      },
-      {
-        type: "body",
-        text: `Experts point to data-driven decision making and intelligent automation as key differentiators for high-performing ${vertical} organizations. Companies that embrace these shifts are reporting significantly faster cycle times.`,
-      },
-    ],
-    uiModules: [
-      {
-        type: "trending",
-        label: "Trending Now",
-        items: [
-          { type: "list-item", text: `${vertical} sector hits record quarterly growth`, secondary: "2h ago" },
-          { type: "list-item", text: `Top 10 ${vertical} innovations to watch this year`, secondary: "4h ago" },
-          { type: "list-item", text: `How AI is reshaping ${vertical} workflows`, secondary: "6h ago" },
-          { type: "list-item", text: `${vertical} investment outlook: what analysts say`, secondary: "8h ago" },
-        ],
-      },
-      {
-        type: "sidebar-widget",
-        label: "You May Also Like",
-        items: [
-          { type: "card", text: `The future of ${vertical}: a 2026 deep dive`, secondary: "Sponsored" },
-          { type: "card", text: `${vertical} buyer's guide: what to look for`, secondary: "5 min read" },
-          { type: "card", text: `Industry benchmarks every ${vertical} pro needs`, secondary: "3 min read" },
-        ],
-      },
-    ],
-  };
+    landingPage: buildFallbackLandingPage(vertical, goal, hints),
+  }, env, vertical, goal, hints);
 }
 
 // ── Main POST handler ──────────────────────────────────────────────────────────
@@ -179,12 +398,13 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     }
 
     const environment = preferredEnvironment ?? selectEnvironmentFamily(vertical, goal);
+  const promptHints = buildPromptHints(body);
     let generatedEnv: GeneratedEnvironment;
 
     // Try AI content generation, fall back to deterministic content
     try {
       const client = getClient();
-      const prompt = buildContentPrompt(environment, vertical, goal);
+      const prompt = buildContentPrompt(environment, vertical, goal, promptHints);
 
       const completion = await client.chat.completions.create({
         model: process.env.OPENAI_MODEL || "gpt-4o",
@@ -195,11 +415,11 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       });
 
       const raw = completion.choices[0]?.message?.content ?? "{}";
-      const parsed = JSON.parse(raw) as GeneratedEnvironment;
-      generatedEnv = parsed;
+      const parsed = JSON.parse(raw) as Partial<GeneratedEnvironment> & { landingPage?: Partial<LandingPageContent> };
+      generatedEnv = normalizeGeneratedEnvironment(parsed, environment, vertical, goal, promptHints);
     } catch (aiErr) {
       console.warn("[preview-engine] AI content generation failed, using fallback:", aiErr);
-      generatedEnv = buildFallbackContent(environment, vertical);
+      generatedEnv = buildFallbackContent(environment, vertical, goal, promptHints);
     }
 
     const output = buildPreviewEngineOutput(

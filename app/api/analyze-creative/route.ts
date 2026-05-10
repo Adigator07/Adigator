@@ -27,6 +27,119 @@ function createOpenAIClient(): OpenAI | null {
   return new OpenAI({ apiKey });
 }
 
+const GOAL_STAGE_RULES: Record<string, string> = {
+  awareness: "Awareness creatives should prioritize emotional engagement, brand recall, low CTA pressure, low urgency, minimal information load.",
+  consideration: "Consideration creatives should prioritize information clarity, trust signals, comparison support, medium CTA pressure, moderate urgency.",
+  conversion: "Conversion creatives should prioritize direct CTA clarity, urgency/scarcity, offer clarity, friction reduction, and high action pressure.",
+};
+
+const VERTICAL_DETECTION_HINTS: Record<string, string[]> = {
+  healthcare: ["hospital", "clinic", "doctor", "medical", "patient", "wellness", "care", "treatment", "pharma", "health"],
+  technology: ["software", "saas", "platform", "cloud", "ai", "app", "tech", "automation", "digital"],
+  automotive: ["car", "vehicle", "suv", "sedan", "drive", "engine", "mileage", "test drive", "dealership", "auto"],
+  news_media: ["news", "headline", "breaking", "journal", "editorial", "media", "publisher"],
+  sports: ["sports", "team", "match", "league", "athlete", "fitness", "score", "stadium"],
+  finance: ["finance", "business", "investment", "portfolio", "market", "b2b", "enterprise", "profit", "revenue"],
+  luxury: ["luxury", "premium", "exclusive", "craftsmanship", "heritage", "elite", "high-end"],
+  travel: ["travel", "destination", "trip", "vacation", "holiday", "flight", "journey", "tour"],
+  hotels: ["hotel", "resort", "suite", "booking", "stay", "hospitality", "check-in"],
+  food: ["restaurant", "food", "menu", "dining", "meal", "chef", "delivery", "cuisine"],
+  banking: ["bank", "fintech", "account", "loan", "credit", "debit", "apy", "secure", "payment", "wallet"],
+  real_estate: ["real estate", "property", "home", "mortgage", "apartment", "listing", "broker", "rent"],
+  education: ["education", "edtech", "course", "learn", "student", "academy", "school", "training", "certification"],
+  gaming: ["game", "gaming", "play", "level", "esports", "console", "battle", "stream"],
+  entertainment: ["streaming", "ott", "entertainment", "show", "movie", "series", "music", "watch"],
+  ecommerce: ["shop", "store", "cart", "checkout", "sale", "discount", "product", "retail", "buy"],
+};
+
+const KNOWN_GOALS = new Set(["awareness", "consideration", "conversion"]);
+const KNOWN_VERTICALS = new Set(Object.keys(VERTICAL_DETECTION_HINTS));
+
+function normalizeGoal(goal: string): string {
+  const cleaned = (goal || "").toLowerCase().trim();
+  return KNOWN_GOALS.has(cleaned) ? cleaned : "awareness";
+}
+
+function normalizeVertical(vertical: string): string {
+  const cleaned = (vertical || "").toLowerCase().trim();
+  return KNOWN_VERTICALS.has(cleaned) ? cleaned : "technology";
+}
+
+function buildAlignmentGuidance(goal: string, vertical: string): string {
+  const goalRule = GOAL_STAGE_RULES[goal] || GOAL_STAGE_RULES.awareness;
+  const verticalHints = VERTICAL_DETECTION_HINTS[vertical] || VERTICAL_DETECTION_HINTS.technology;
+  return [
+    `Goal logic (from archived intelligence): ${goalRule}`,
+    `Vertical detection anchors (from archived intelligence): ${verticalHints.join(", ")}.`,
+    "If the detected stage differs from selected goal, mark goal alignment as false.",
+    "If the creative's domain/category evidence does not support selected vertical, mark vertical alignment as false.",
+  ].join("\n");
+}
+
+function inferDetectedVerticalFromText(vertical: string, corpus: string): string {
+  const normalizedCorpus = corpus.toLowerCase();
+  let bestVertical = vertical;
+  let bestScore = -1;
+
+  for (const [candidate, hints] of Object.entries(VERTICAL_DETECTION_HINTS)) {
+    const score = hints.reduce((acc, keyword) => (normalizedCorpus.includes(keyword) ? acc + 1 : acc), 0);
+    if (score > bestScore) {
+      bestScore = score;
+      bestVertical = candidate;
+    }
+  }
+
+  return bestScore <= 0 ? "unknown" : bestVertical;
+}
+
+function buildServerSideAlignment(
+  analysis: Record<string, unknown>,
+  selectedGoal: string,
+  selectedVertical: string
+): {
+  goal_alignment: Record<string, unknown>;
+  vertical_alignment: Record<string, unknown>;
+} {
+  const detectedGoalRaw = typeof analysis.funnel_stage === "string"
+    ? analysis.funnel_stage.toLowerCase().trim()
+    : "unknown";
+  const detectedGoal = KNOWN_GOALS.has(detectedGoalRaw) ? detectedGoalRaw : "unknown";
+
+  const corpus = [
+    typeof analysis.headline === "string" ? analysis.headline : "",
+    typeof analysis.primary_message === "string" ? analysis.primary_message : "",
+    typeof analysis.target_audience === "string" ? analysis.target_audience : "",
+    typeof analysis.brand === "string" ? analysis.brand : "",
+    typeof analysis.emotion_trigger === "string" ? analysis.emotion_trigger : "",
+    Array.isArray(analysis.visual_elements) ? analysis.visual_elements.join(" ") : "",
+  ].join(" ");
+
+  const detectedVertical = inferDetectedVerticalFromText(selectedVertical, corpus);
+  const goalAligned = detectedGoal === "unknown" ? false : detectedGoal === selectedGoal;
+  const verticalAligned = detectedVertical === "unknown" ? false : detectedVertical === selectedVertical;
+
+  return {
+    goal_alignment: {
+      selected_goal: selectedGoal,
+      detected_goal: detectedGoal,
+      is_aligned: goalAligned,
+      confidence: goalAligned ? 70 : 60,
+      reason: goalAligned
+        ? "Creative signals align with selected campaign goal."
+        : "Creative signals do not align with selected campaign goal.",
+    },
+    vertical_alignment: {
+      selected_vertical: selectedVertical,
+      detected_vertical: detectedVertical,
+      is_aligned: verticalAligned,
+      confidence: verticalAligned ? 70 : 60,
+      reason: verticalAligned
+        ? "Creative signals align with selected industry vertical."
+        : "Creative signals do not align with selected industry vertical.",
+    },
+  };
+}
+
 const SYSTEM_PROMPT = `You are a Senior Advertising Intelligence Analyst with deep expertise in digital marketing, conversion optimization, and consumer psychology.
 
 You will receive an ad creative image and analyze it using the following 10-step chain-of-thought reasoning:
@@ -97,12 +210,27 @@ After your analysis, respond ONLY with valid JSON matching this exact schema (no
   },
   "grade": "Elite Creative|Strong Performer|Needs Optimization|High Risk Creative",
   "funnel_stage": "awareness|consideration|conversion",
-  "engagement_forecast": "HIGH|MEDIUM|LOW"
+  "engagement_forecast": "HIGH|MEDIUM|LOW",
+  "goal_alignment": {
+    "selected_goal": "awareness|consideration|conversion",
+    "detected_goal": "awareness|consideration|conversion|unknown",
+    "is_aligned": true,
+    "confidence": 0,
+    "reason": "brief reason"
+  },
+  "vertical_alignment": {
+    "selected_vertical": "healthcare|technology|automotive|news_media|sports|finance|luxury|travel|hotels|food|banking|real_estate|education|gaming|entertainment|ecommerce",
+    "detected_vertical": "healthcare|technology|automotive|news_media|sports|finance|luxury|travel|hotels|food|banking|real_estate|education|gaming|entertainment|ecommerce|unknown",
+    "is_aligned": true,
+    "confidence": 0,
+    "reason": "brief reason"
+  }
 }
 
 All numeric scores must be integers from 0 to 100.
 overall_score is the weighted composite: (visual_clarity * 0.2) + (message_clarity * 0.2) + (cta_strength * 0.2) + (emotional_resonance * 0.15) + (brand_presence * 0.1) + (layout_hierarchy * 0.1) + (platform_fit_score * 0.05).
-grade must match: overall_score >= 82 → "Elite Creative", >= 70 → "Strong Performer", >= 55 → "Needs Optimization", else → "High Risk Creative".`;
+grade must match: overall_score >= 82 → "Elite Creative", >= 70 → "Strong Performer", >= 55 → "Needs Optimization", else → "High Risk Creative".
+goal_alignment and vertical_alignment must be evaluated strictly against selected goal and selected vertical.`;
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
@@ -116,8 +244,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     const formData = await request.formData();
     const file = formData.get("image") as File | null;
-    const goal = (formData.get("goal") as string) || "awareness";
-    const vertical = (formData.get("vertical") as string) || "technology";
+    const goal = normalizeGoal((formData.get("goal") as string) || "awareness");
+    const vertical = normalizeVertical((formData.get("vertical") as string) || "technology");
     const platform = (formData.get("platform") as string) || "display_ads";
 
     if (!file) {
@@ -138,11 +266,16 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const base64 = Buffer.from(arrayBuffer).toString("base64");
     const mimeType = file.type as "image/jpeg" | "image/png" | "image/gif" | "image/webp";
 
+    const alignmentGuidance = buildAlignmentGuidance(goal, vertical);
+
     const userPrompt = `Analyze this ad creative.
 
 Campaign goal: ${goal}
 Industry vertical: ${vertical}
 Primary platform: ${platform}
+
+  Alignment logic:
+  ${alignmentGuidance}
 
 Apply all 10 analysis steps and return the JSON schema exactly.`;
 
@@ -184,6 +317,25 @@ Apply all 10 analysis steps and return the JSON schema exactly.`;
     analysis.goal = goal;
     analysis.vertical = vertical;
     analysis.platform = platform;
+
+    const aiGoalAlignment = typeof analysis.goal_alignment === "object" && analysis.goal_alignment !== null
+      ? analysis.goal_alignment as Record<string, unknown>
+      : null;
+    const aiVerticalAlignment = typeof analysis.vertical_alignment === "object" && analysis.vertical_alignment !== null
+      ? analysis.vertical_alignment as Record<string, unknown>
+      : null;
+
+    const fallbackAlignment = buildServerSideAlignment(analysis, goal, vertical);
+    analysis.goal_alignment = {
+      ...fallbackAlignment.goal_alignment,
+      ...(aiGoalAlignment || {}),
+      selected_goal: goal,
+    };
+    analysis.vertical_alignment = {
+      ...fallbackAlignment.vertical_alignment,
+      ...(aiVerticalAlignment || {}),
+      selected_vertical: vertical,
+    };
 
     return NextResponse.json(analysis);
   } catch (err) {

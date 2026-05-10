@@ -125,6 +125,8 @@ const VERTICALS = [
   { id: "ecommerce", title: "E-commerce / Retail" }
 ];
 
+const VERTICAL_TITLE_MAP = Object.fromEntries(VERTICALS.map((v) => [v.id, v.title]));
+
 
 const containerVariants = { hidden: { opacity: 0 }, visible: { opacity: 1, transition: { staggerChildren: 0.1 } } };
 const itemVariants = { hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } };
@@ -343,6 +345,29 @@ function normalizeOpenAIAnalysis(ai, goal, vertical, visualMetrics = null) {
   ].filter(Boolean).slice(0, 4);
 
   const platformFit = ai?.platform_fit || {};
+  const goalAlignmentRaw = ai?.goal_alignment || {};
+  const verticalAlignmentRaw = ai?.vertical_alignment || {};
+
+  const detectedGoal = typeof goalAlignmentRaw?.detected_goal === "string"
+    ? goalAlignmentRaw.detected_goal
+    : (typeof ai?.funnel_stage === "string" ? ai.funnel_stage : "unknown");
+  const goalAligned = typeof goalAlignmentRaw?.is_aligned === "boolean"
+    ? goalAlignmentRaw.is_aligned
+    : detectedGoal === goal;
+
+  const detectedVertical = typeof verticalAlignmentRaw?.detected_vertical === "string"
+    ? verticalAlignmentRaw.detected_vertical
+    : "unknown";
+  const verticalAligned = typeof verticalAlignmentRaw?.is_aligned === "boolean"
+    ? verticalAlignmentRaw.is_aligned
+    : detectedVertical === vertical;
+
+  const goalAlignmentMessage = goalAligned
+    ? `Creative aligns with selected ${goal} campaign goal.`
+    : `Creative is not aligned with selected ${goal} campaign goal.`;
+  const verticalAlignmentMessage = verticalAligned
+    ? `Creative aligns with selected ${VERTICAL_TITLE_MAP[vertical] || vertical} vertical.`
+    : `Creative is not aligned with selected ${VERTICAL_TITLE_MAP[vertical] || vertical} vertical.`;
 
   return {
     goal,
@@ -449,6 +474,22 @@ function normalizeOpenAIAnalysis(ai, goal, vertical, visualMetrics = null) {
     adVisibilityScore: Number(s.visual_clarity) || overallScore,
     goalAlignmentIndicator: Number(s.audience_alignment) || overallScore,
     cta_strength: ctaStrengthScore,
+    goal_alignment: {
+      selected_goal: goal,
+      detected_goal: detectedGoal || "unknown",
+      is_aligned: Boolean(goalAligned),
+      confidence: Number(goalAlignmentRaw?.confidence) || null,
+      reason: goalAlignmentRaw?.reason || goalAlignmentMessage,
+      message: goalAlignmentMessage,
+    },
+    vertical_alignment: {
+      selected_vertical: vertical,
+      detected_vertical: detectedVertical || "unknown",
+      is_aligned: Boolean(verticalAligned),
+      confidence: Number(verticalAlignmentRaw?.confidence) || null,
+      reason: verticalAlignmentRaw?.reason || verticalAlignmentMessage,
+      message: verticalAlignmentMessage,
+    },
     brightness: null,
     contrast: null,
     aiData: {
@@ -456,6 +497,20 @@ function normalizeOpenAIAnalysis(ai, goal, vertical, visualMetrics = null) {
       verticalFitScore: Number(s.platform_fit_score) || overallScore,
       campaign_goal: goal,
       vertical,
+      goal_alignment: {
+        selected_goal: goal,
+        detected_goal: detectedGoal || "unknown",
+        is_aligned: Boolean(goalAligned),
+        confidence: Number(goalAlignmentRaw?.confidence) || null,
+        reason: goalAlignmentRaw?.reason || goalAlignmentMessage,
+      },
+      vertical_alignment: {
+        selected_vertical: vertical,
+        detected_vertical: detectedVertical || "unknown",
+        is_aligned: Boolean(verticalAligned),
+        confidence: Number(verticalAlignmentRaw?.confidence) || null,
+        reason: verticalAlignmentRaw?.reason || verticalAlignmentMessage,
+      },
       cta_state: ctaPresent ? "Strong" : "Missing",
       overall_score: overallScore,
       confidence: 98,
@@ -866,31 +921,24 @@ export default function PreviewTool() {
       if (results.length > 0 && results[0].data.recommendedTemplates?.length > 0) {
         setSelectedTemplate(results[0].data.recommendedTemplates[0]);
       }
-      addToast(`Analyzed ${results.length} creative${results.length !== 1 ? "s" : ""} ✨`, "success");
+
+      const goalMisaligned = results.filter((r) => r?.data?.goal_alignment?.is_aligned === false);
+      const verticalMisaligned = results.filter((r) => r?.data?.vertical_alignment?.is_aligned === false);
+
+      if (goalMisaligned.length === 0 && verticalMisaligned.length === 0) {
+        addToast(`Analyzed ${results.length} creative${results.length !== 1 ? "s" : ""}. All creatives align with selected goal and vertical.`, "success");
+      } else {
+        addToast(
+          `Analyzed ${results.length} creative${results.length !== 1 ? "s" : ""}. Goal mismatches: ${goalMisaligned.length}, Vertical mismatches: ${verticalMisaligned.length}.`,
+          "error"
+        );
+      }
     } catch (err) {
       addToast(err.message || "Analysis failed.", "error");
     } finally {
       setAnalysisLoading(false);
     }
   }, [validCreatives, campaignGoal, platform, campaignVertical, addToast]);
-
-  // Auto-start analysis when entering Step 3 so users don't need an extra click.
-  useEffect(() => {
-    if (step !== 3) return;
-    if (analysisLoading || analysisResult) return;
-    if (validCreatives.length === 0) return;
-    if (!campaignGoal || !platform || !campaignVertical) return;
-    runAnalysis();
-  }, [
-    step,
-    analysisLoading,
-    analysisResult,
-    validCreatives.length,
-    campaignGoal,
-    platform,
-    campaignVertical,
-    runAnalysis,
-  ]);
 
   const handleDownloadReport = useCallback(async () => {
     if (!analysisResult) return;
@@ -1376,6 +1424,9 @@ export default function PreviewTool() {
               <div>
                 <h2 className="text-4xl font-bold text-white mb-2">Step 3: AI Analysis</h2>
                 <p className="text-gray-400">Analyze your creatives against {PLATFORMS.find(p => p.id === platform)?.title} standards.</p>
+                <p className="text-gray-500 text-sm mt-2">
+                  Selected goal: <span className="text-white font-semibold capitalize">{campaignGoal}</span> · Selected vertical: <span className="text-white font-semibold">{VERTICAL_TITLE_MAP[campaignVertical] || campaignVertical}</span>
+                </p>
               </div>
 
               {!analysisResult && !analysisLoading && (
@@ -1383,10 +1434,11 @@ export default function PreviewTool() {
                   <div className="w-20 h-20 mb-6 bg-linear-to-br from-fuchsia-500/20 to-purple-600/20 rounded-full flex items-center justify-center border border-fuchsia-500/30">
                     <span className="text-4xl">🧠</span>
                   </div>
-                  <h3 className="text-xl font-bold text-white mb-3">Starting Analysis</h3>
+                  <h3 className="text-xl font-bold text-white mb-3">Ready to Analyze</h3>
                   <p className="text-sm text-gray-400 mb-8 max-w-md">
-                    Analysis starts automatically for <strong>{validCreatives.length} valid creative(s)</strong>.
+                    Run analysis for <strong>{validCreatives.length} valid creative(s)</strong> when you are ready.
                   </p>
+                  <NavBtn onClick={runAnalysis} className="px-8 shadow-lg shadow-purple-500/30">Start Analysis</NavBtn>
                 </div>
               )}
 
