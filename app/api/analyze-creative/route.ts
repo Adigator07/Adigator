@@ -1216,6 +1216,8 @@ Return JSON only.`;
         detected_vertical: detectedVertical.detectedVertical,
         topic_summary: buildCreativeTopicSummary(extraction, detectedVertical.detectedVertical, goal),
       },
+      cta_text: ocrMeta.cta_text,
+      extracted_text: ocrMeta.extracted_text,
       ocr_status: {
         failed: ocrMeta.ocr_failed,
         error: ocrMeta.ocr_error,
