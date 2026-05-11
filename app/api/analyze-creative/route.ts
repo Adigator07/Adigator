@@ -826,6 +826,37 @@ function buildStrategicScore(params: {
   };
 }
 
+function buildCreativeTopicSummary(
+  extraction: ExtractionSignals,
+  detectedVertical: string,
+  goal: CampaignGoal
+): string {
+  const headline = extraction.headline?.trim();
+  const cta = extraction.cta?.trim();
+  const primary = extraction.primary_message?.trim();
+  const verticalName = VERTICAL_DETECTION_HINTS[detectedVertical]
+    ? detectedVertical.replace(/_/g, " ")
+    : null;
+
+  if (headline && detectedVertical !== "unknown" && verticalName) {
+    return `This creative promotes ${verticalName} content${primary ? ` — "${primary}"` : ""}. Headline: "${headline}".${cta ? ` CTA: "${cta}".` : ""}`;
+  }
+
+  if (headline && cta) {
+    return `This creative features "${headline}" as the primary headline, with "${cta}" as the call-to-action.${primary ? ` Core message: ${primary}.` : ""}`;
+  }
+
+  if (headline) {
+    return `Creative headline: "${headline}".${primary ? ` Core message: ${primary}.` : ""} Campaign intent: ${goal}.`;
+  }
+
+  if (primary) {
+    return `Core message: "${primary}". Campaign intent: ${goal}.`;
+  }
+
+  return "No clear content signal extracted from this creative.";
+}
+
 function buildFinalDecisionIntelligence(params: {
   alignment: CampaignAlignment;
   audienceResponse: AudienceResponse;
@@ -1039,6 +1070,15 @@ Return JSON only.`;
       goal_alignment: goalAlignment,
       vertical_alignment: verticalAlignment,
       business_impact: businessImpact,
+      extraction_signals: {
+        headline: extraction.headline,
+        cta: extraction.cta,
+        brand_presence: extraction.brand_presence,
+        dominant_visual_cue: extraction.visual_elements[0] || "",
+        persuasion_style: psychologyAnalysis.persuasion_style,
+        detected_vertical: detectedVertical.detectedVertical,
+        topic_summary: buildCreativeTopicSummary(extraction, detectedVertical.detectedVertical, goal),
+      },
     };
 
     traceStrategicValidation(responsePayload as Record<string, unknown>);

@@ -206,6 +206,42 @@ export function compareStrategicEntries(left, right) {
   return 0;
 }
 
+export function getGoalAlignment(payload) {
+  const ga = payload?.goal_alignment;
+  if (ga && typeof ga === "object") return ga;
+  return { is_aligned: null, selected_goal: null, detected_goal: null, reason: "" };
+}
+
+export function getVerticalAlignment(payload) {
+  const va = payload?.vertical_alignment;
+  if (va && typeof va === "object") return va;
+  return { is_aligned: null, selected_vertical: null, detected_vertical: null, reason: "", evidence: [], fit_score: null };
+}
+
+export function getExtractionSignals(payload) {
+  const signals = payload?.extraction_signals;
+  if (!signals || typeof signals !== "object") return null;
+  return signals;
+}
+
+export function getCreativeStatusLabel(payload) {
+  if (!isValidStrategicPayload(payload)) return "Needs Revision";
+
+  const alignment = getCampaignAlignment(payload);
+  const status = String(alignment.alignment_status || "unknown").toLowerCase();
+
+  const goalIsAligned = payload?.goal_alignment?.is_aligned;
+  const verticalIsAligned = payload?.vertical_alignment?.is_aligned;
+
+  if (status === "misaligned" || goalIsAligned === false) return "Misaligned";
+  if (status === "partially_aligned" || verticalIsAligned === false) return "Moderate Risk";
+
+  const score = getStrategicAlignmentScore(payload) ?? 0;
+  if (score >= 70) return "Strong Alignment";
+  if (score >= 45) return "Moderate Risk";
+  return "Needs Revision";
+}
+
 export function getStrategicRecommendationText(recommendation) {
   if (!recommendation || typeof recommendation !== "object") {
     return "Strategic recommendation unavailable";

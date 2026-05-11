@@ -1083,6 +1083,7 @@ export default function PreviewTool() {
                   <AnalysisPanel
                     analysisResult={analysisResult}
                     campaignGoal={campaignGoal}
+                    campaignVertical={campaignVertical}
                     platform={platform}
                     onDownloadReport={handleDownloadReport}
                   />
