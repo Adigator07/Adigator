@@ -562,6 +562,30 @@ async function analyzeAllCreatives(creatives, goal, platform, vertical) {
   const results = [];
   const verticalForApi = VALID_VERTICALS.has(vertical) ? vertical : "technology";
 
+  const extractStrategicPayload = (raw) => {
+    const candidate =
+      raw?.data?.analysis ||
+      raw?.data?.result ||
+      raw?.analysis ||
+      raw?.result ||
+      raw;
+
+    if (!candidate || typeof candidate !== "object") {
+      return {
+        main_strategic_problem: undefined,
+        why_audience_may_resist: undefined,
+        business_consequence: undefined,
+        attention_analysis: undefined,
+        behavioral_response: undefined,
+        strategic_recommendations: undefined,
+        expected_improvement: undefined,
+        strategic_alignment_score: undefined,
+      };
+    }
+
+    return candidate;
+  };
+
   for (const creative of creatives) {
     try {
       // Fetch image from URL and convert to Blob
@@ -602,9 +626,9 @@ async function analyzeAllCreatives(creatives, goal, platform, vertical) {
         continue;
       }
 
-      // API now returns new strategic schema — pass directly without transformation
       const aiJson = await analysisRes.json();
-      results.push({ creative, data: aiJson });
+      const payload = extractStrategicPayload(aiJson);
+      results.push({ creative, data: payload });
     } catch (err) {
       const errMessage = err instanceof Error ? err.message : "Analysis failed";
       console.error(`Analysis failed for ${creative.url}:`, err);
