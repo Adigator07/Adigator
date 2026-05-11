@@ -587,19 +587,39 @@ async function analyzeAllCreatives(creatives, goal, platform, vertical) {
           const body = await analysisRes.json();
           apiError = body?.error || apiError;
         } catch { /* noop */ }
-        const data = normalizeOpenAIAnalysis({ overall_score: null }, goal, verticalForApi, visualMetrics);
-        results.push({ creative, data: { ...data, error: apiError } });
+        // Pass minimal error marker with expected schema fields
+        results.push({ 
+          creative, 
+          data: { 
+            error: apiError,
+            main_strategic_problem: undefined,
+            behavioral_response: undefined,
+            attention_analysis: undefined,
+            strategic_recommendations: undefined,
+            strategic_alignment_score: undefined,
+          } 
+        });
         continue;
       }
 
+      // API now returns new strategic schema — pass directly without transformation
       const aiJson = await analysisRes.json();
-      const data = normalizeOpenAIAnalysis(aiJson, goal, verticalForApi, visualMetrics);
-      results.push({ creative, data });
+      results.push({ creative, data: aiJson });
     } catch (err) {
       const errMessage = err instanceof Error ? err.message : "Analysis failed";
       console.error(`Analysis failed for ${creative.url}:`, err);
-      const data = normalizeOpenAIAnalysis({ overall_score: null }, goal, verticalForApi, null);
-      results.push({ creative, data: { ...data, error: errMessage } });
+      // Pass minimal error marker with expected schema fields
+      results.push({ 
+        creative, 
+        data: { 
+          error: errMessage,
+          main_strategic_problem: undefined,
+          behavioral_response: undefined,
+          attention_analysis: undefined,
+          strategic_recommendations: undefined,
+          strategic_alignment_score: undefined,
+        } 
+      });
     }
   }
   return results;
