@@ -221,8 +221,6 @@ export function getStrategicRecommendationText(recommendation) {
 }
 
 export function getStrategicFlow(data) {
-  warnMissingFields(data, "strategic flow");
-
   const behavioral = getBehavioralResponse(data);
   const recommendations = getValidatedRecommendations(data);
   const campaignAlignment = getCampaignAlignment(data);
