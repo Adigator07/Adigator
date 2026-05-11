@@ -1,17 +1,16 @@
-// CORE FIELDS: Required for render eligibility
-const REQUIRED_CORE_FIELDS = [
+const STRATEGIST_CONTRACT_FIELDS = [
   "main_strategic_problem",
-  "business_consequence",
-  "strategic_alignment_score",
-  "behavioral_response",
-];
-
-// OPTIONAL FIELDS: Missing fields fallback gracefully (informational logging only)
-const OPTIONAL_ENHANCEMENT_FIELDS = [
   "why_audience_may_resist",
   "attention_analysis",
-  "strategic_recommendations",
+  "behavioral_response",
+  "business_consequence",
   "expected_improvement",
+  "strategic_recommendations",
+  "strategic_alignment_score",
+  "campaign_alignment",
+  "goal_alignment",
+  "vertical_alignment",
+  "business_impact",
 ];
 
 const REQUIRED_BEHAVIORAL_FIELDS = [
@@ -44,26 +43,32 @@ const BEHAVIORAL_FALLBACKS = {
   commitment_pressure: "Commitment pressure analysis unavailable",
 };
 
-const REQUIRED_RECOMMENDATION_FIELDS = [
-  "issue",
-  "why_it_hurts",
-  "recommended_change",
-  "expected_outcome",
-  "priority",
-  "audience_reaction",
-  "emotional_barrier",
-  "missing_belief",
-  "trust_signal_gap",
-  "behavior_change_after_intervention",
-];
-
 function hasText(value) {
   return typeof value === "string" && value.trim().length > 0;
+}
+
+function isMeaningfulValue(value) {
+  if (hasText(value)) return true;
+  if (Array.isArray(value)) return value.length > 0;
+  if (typeof value === "number") return Number.isFinite(value);
+  if (value && typeof value === "object") return Object.keys(value).length > 0;
+  return false;
 }
 
 function hasAnyMeaningfulBehavioralField(behavioral) {
   if (!behavioral || typeof behavioral !== "object") return false;
   return REQUIRED_BEHAVIORAL_FIELDS.some((field) => hasText(behavioral[field]));
+}
+
+function missingContractFields(payload) {
+  return STRATEGIST_CONTRACT_FIELDS.filter((field) => !isMeaningfulValue(payload?.[field]));
+}
+
+function warnMissingFields(payload, context = "strategic payload") {
+  if (process.env.NODE_ENV === "production") return;
+  const missingFields = missingContractFields(payload);
+  if (missingFields.length === 0) return;
+  console.warn(`[strategic contract] Missing fields in ${context}:`, missingFields);
 }
 
 function buildBehavioralResponseWithFallback(payload) {
@@ -89,127 +94,44 @@ function isValidRecommendation(rec) {
 }
 
 export function isValidStrategicPayload(payload) {
-  const checks = [];
-  const pushToWindow = (record) => {
-    if (typeof window === "undefined") return;
-    const current = Array.isArray(window.__analysisPanelValidationLogs)
-      ? window.__analysisPanelValidationLogs
-      : [];
-    window.__analysisPanelValidationLogs = [...current, record];
-  };
-  const pushCheck = (field, value, passed) => {
-    const record = { field, value, passed };
-    checks.push(record);
-    pushToWindow({ tag: "[AnalysisPanel validation]", ...record });
-    console.log("[AnalysisPanel validation]", record);
-  };
-
   if (!payload || typeof payload !== "object") {
-    pushCheck("payload", payload, false);
-    const summary = {
-      passed: false,
-      failedFields: ["payload"],
-    };
-    pushToWindow({ tag: "[AnalysisPanel validation] FINAL RESULT", ...summary });
-    console.log("[AnalysisPanel validation] FINAL RESULT", summary);
     return false;
   }
 
-  // Resilient AI rendering gate: payload can render when it contains meaningful strategist intelligence.
-  // Missing enhancement fields should never collapse the full experience.
+  warnMissingFields(payload, "analysis entry");
+
   const hasMainProblem = hasText(payload.main_strategic_problem);
   const hasBusinessConsequence = hasText(payload.business_consequence);
   const hasBehavioralReasoning = hasAnyMeaningfulBehavioralField(payload.behavioral_response);
-  const hasMeaningfulStrategicReasoning = hasMainProblem || hasBusinessConsequence || hasBehavioralReasoning;
-
-  pushCheck("main_strategic_problem", payload.main_strategic_problem, hasMainProblem);
-  pushCheck("business_consequence", payload.business_consequence, hasBusinessConsequence);
-  pushCheck(
-    "behavioral_response.has_any_meaningful_field",
-    payload.behavioral_response,
-    hasBehavioralReasoning
+  const hasAnyContractIntelligence = STRATEGIST_CONTRACT_FIELDS.some((field) =>
+    isMeaningfulValue(payload[field])
   );
-  pushCheck("has_meaningful_strategic_reasoning", {
-    hasMainProblem,
-    hasBusinessConsequence,
-    hasBehavioralReasoning,
-  }, hasMeaningfulStrategicReasoning);
 
-  // Core object-presence checks remain for diagnostics, but do not block rendering.
-  const hasRequiredFields = REQUIRED_CORE_FIELDS.every((field) => field in payload);
-  pushCheck("required_core_fields_present", REQUIRED_CORE_FIELDS, hasRequiredFields);
-  REQUIRED_CORE_FIELDS.forEach((field) => {
-    pushCheck(`required_core_field.${field}`, payload[field], field in payload);
-  });
+  return hasAnyContractIntelligence || hasMainProblem || hasBusinessConsequence || hasBehavioralReasoning;
+}
 
-  // OPTIONAL ENHANCEMENT FIELD CHECKS (informational logging only - NOT blocking)
-  // These failures do NOT contribute to failedFields
-  const optionalChecks = [];
-  const logOptionalCheck = (field, value, passed) => {
-    const record = { field, value, passed };
-    optionalChecks.push(record);
-    console.log("[AnalysisPanel validation - optional]", record);
+export function getEntryPayload(entry) {
+  if (!entry || typeof entry !== "object") return null;
+  return entry.data && typeof entry.data === "object" ? entry.data : entry;
+}
+
+export function getCampaignAlignment(payload) {
+  const alignment = payload?.campaign_alignment;
+  if (alignment && typeof alignment === "object") return alignment;
+  return {
+    alignment_status: "unknown",
+    strategic_conflict: "",
+    reasoning: "",
+    severity: "low",
   };
-  
-  logOptionalCheck("why_audience_may_resist", payload.why_audience_may_resist, hasText(payload.why_audience_may_resist));
-  logOptionalCheck(
-    "attention_analysis",
-    payload.attention_analysis,
-    Boolean(payload.attention_analysis && typeof payload.attention_analysis === "object")
-  );
-  if (payload?.attention_analysis) {
-    logOptionalCheck(
-      "attention_analysis.friction_points",
-      payload?.attention_analysis?.friction_points,
-      Array.isArray(payload?.attention_analysis?.friction_points)
-    );
-  }
-  logOptionalCheck(
-    "strategic_recommendations",
-    payload.strategic_recommendations,
-    Array.isArray(payload.strategic_recommendations)
-  );
-  logOptionalCheck("expected_improvement", payload.expected_improvement, hasText(payload.expected_improvement));
+}
 
-  // Strategic score remains a validated signal for ranking, but is not render-blocking.
-  pushCheck(
-    "strategic_alignment_score",
-    payload.strategic_alignment_score,
-    Boolean(payload.strategic_alignment_score && typeof payload.strategic_alignment_score === "object")
-  );
-  const scoreValue = payload?.strategic_alignment_score?.value;
-  pushCheck("strategic_alignment_score.value", scoreValue, Number.isFinite(Number(scoreValue)));
-
-  pushCheck(
-    "behavioral_response",
-    payload.behavioral_response,
-    Boolean(payload.behavioral_response && typeof payload.behavioral_response === "object")
-  );
-
-  // Behavioral fields validate independently; missing fields should fallback in rendering.
-  REQUIRED_BEHAVIORAL_FIELDS.forEach((field) => {
-    pushCheck(
-      `behavioral_response.${field}`,
-      payload?.behavioral_response?.[field],
-      hasText(payload?.behavioral_response?.[field])
-    );
-  });
-
-  const failedFields = checks
-    .filter((entry) => !entry.passed)
-    .map((entry) => entry.field);
-
-  const blockingFailedFields = [];
-
-  const summary = {
-    passed: blockingFailedFields.length === 0,
-    failedFields,
-    blockingFailedFields,
+export function getBusinessImpact(payload) {
+  const businessImpact = payload?.business_impact;
+  if (businessImpact && typeof businessImpact === "object") return businessImpact;
+  return {
+    affected_metrics: [],
   };
-  pushToWindow({ tag: "[AnalysisPanel validation] FINAL RESULT", ...summary });
-  console.log("[AnalysisPanel validation] FINAL RESULT", summary);
-
-  return true;
 }
 
 export function getBehavioralResponse(payload) {
@@ -232,14 +154,15 @@ export function getStrategicRankLabel(payload) {
     return "Needs Strategic Revision";
   }
 
-  const status = String(payload?.campaign_alignment?.alignment_status || "unknown").toLowerCase();
+  const alignment = getCampaignAlignment(payload);
+  const status = String(alignment.alignment_status || "unknown").toLowerCase();
   if (status === "misaligned") {
     return "Needs Strategic Revision";
   }
 
   const score = getStrategicAlignmentScore(payload) ?? 0;
-  const goal = String(payload?.campaign_context?.goal || "awareness").toLowerCase();
-  const vertical = String(payload?.campaign_context?.vertical || "").toLowerCase();
+  const goal = String(payload?.goal_alignment?.selected_goal || "awareness").toLowerCase();
+  const vertical = String(payload?.vertical_alignment?.selected_vertical || "").toLowerCase();
 
   if (vertical === "luxury" && score >= 70) {
     return "Strong Premium Positioning";
@@ -258,14 +181,14 @@ export function getStrategicRankLabel(payload) {
 }
 
 export function compareStrategicEntries(left, right) {
-  const leftData = left?.data || left || {};
-  const rightData = right?.data || right || {};
+  const leftData = getEntryPayload(left) || {};
+  const rightData = getEntryPayload(right) || {};
 
   const leftScore = getStrategicAlignmentScore(leftData) ?? -1;
   const rightScore = getStrategicAlignmentScore(rightData) ?? -1;
 
-  const leftStatus = String(leftData?.campaign_alignment?.alignment_status || "unknown").toLowerCase();
-  const rightStatus = String(rightData?.campaign_alignment?.alignment_status || "unknown").toLowerCase();
+  const leftStatus = String(getCampaignAlignment(leftData).alignment_status || "unknown").toLowerCase();
+  const rightStatus = String(getCampaignAlignment(rightData).alignment_status || "unknown").toLowerCase();
 
   const statusWeight = {
     aligned: 3,
@@ -298,8 +221,11 @@ export function getStrategicRecommendationText(recommendation) {
 }
 
 export function getStrategicFlow(data) {
+  warnMissingFields(data, "strategic flow");
+
   const behavioral = getBehavioralResponse(data);
   const recommendations = getValidatedRecommendations(data);
+  const campaignAlignment = getCampaignAlignment(data);
 
   return {
     mainStrategicProblem: data?.main_strategic_problem || "Strategic analysis incomplete",
@@ -310,7 +236,8 @@ export function getStrategicFlow(data) {
     strategicRecommendations: recommendations,
     expectedImprovement: data?.expected_improvement || "Strategic analysis incomplete",
     strategicAlignmentSummary:
-      data?.final_decision_intelligence?.decision_summary ||
+      data?.strategic_summary ||
+      campaignAlignment.reasoning ||
       data?.strategic_alignment_score?.rationale ||
       "Strategic alignment summary unavailable",
   };

@@ -5,6 +5,9 @@ import { motion } from "framer-motion";
 import { AlertTriangle, ArrowUpRight, Brain, Download, Eye, Heart, TrendingUp, Shield } from "lucide-react";
 import {
   compareStrategicEntries,
+  getBusinessImpact,
+  getCampaignAlignment,
+  getEntryPayload,
   getStrategicAlignmentScore,
   getStrategicFlow,
   getStrategicRankLabel,
@@ -21,7 +24,7 @@ function scoreTone(score) {
 }
 
 function alignmentStatus(data) {
-  return data?.campaign_alignment?.alignment_status || "unknown";
+  return getCampaignAlignment(data).alignment_status || "unknown";
 }
 
 function getMismatchState(data, campaignGoal) {
@@ -35,9 +38,9 @@ function getMismatchState(data, campaignGoal) {
   const campaignGoalMismatch =
     typeof campaignGoal === "string" &&
     campaignGoal.trim().length > 0 &&
-    typeof data?.campaign_context?.goal === "string" &&
-    data.campaign_context.goal.trim().length > 0 &&
-    data.campaign_context.goal.toLowerCase() !== campaignGoal.toLowerCase();
+    typeof data?.goal_alignment?.selected_goal === "string" &&
+    data.goal_alignment.selected_goal.trim().length > 0 &&
+    data.goal_alignment.selected_goal.toLowerCase() !== campaignGoal.toLowerCase();
 
   const hasMismatch = goalMismatch || verticalMismatch || statusMismatch || campaignGoalMismatch;
 
@@ -172,17 +175,8 @@ function BehavioralInterventionCard({ rec, index }) {
 }
 
 export default function AnalysisPanel({ analysisResult, campaignGoal, platform, onDownloadReport }) {
-  const getEntryPayload = (entry) => {
-    if (!entry || typeof entry !== "object") return null;
-    return entry.data ?? entry;
-  };
-
   const strategicEntries = useMemo(() => {
     const entries = Array.isArray(analysisResult) ? [...analysisResult] : [];
-
-    if (typeof window !== "undefined") {
-      window.__analysisPanelRawEntries = entries;
-    }
 
     return entries.map((entry) => {
       const payload = getEntryPayload(entry);
@@ -194,13 +188,12 @@ export default function AnalysisPanel({ analysisResult, campaignGoal, platform, 
 
       return entry;
     });
-  }, [analysisResult, campaignGoal]);
+  }, [analysisResult]);
 
   const sorted = useMemo(() => {
     return [...strategicEntries].sort(compareStrategicEntries);
   }, [strategicEntries]);
 
-  const invalidCount = 0;
   const [selectedId, setSelectedId] = useState(sorted[0]?.creative?.id || null);
 
   if (!sorted.length) {
@@ -224,6 +217,8 @@ export default function AnalysisPanel({ analysisResult, campaignGoal, platform, 
   const behavioral = getBehavioralResponse(data);
   const recommendations = getValidatedRecommendations(data);
   const strategicScore = getStrategicAlignmentScore(data);
+  const campaignAlignment = getCampaignAlignment(data);
+  const businessImpact = getBusinessImpact(data);
   const selectedMismatch = getMismatchState(data, campaignGoal);
 
   return (
@@ -235,17 +230,13 @@ export default function AnalysisPanel({ analysisResult, campaignGoal, platform, 
           <h3 className="text-sm font-semibold text-white">Strategic Advertising Decision Interface</h3>
         </div>
 
-        {invalidCount > 0 && (
-          <p className="mb-3 text-xs text-amber-200">
-            {invalidCount} creative{invalidCount !== 1 ? "s were" : " was"} excluded — behavioral contract invalid.
-          </p>
-        )}
-
         <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
           {sorted.map((entry, index) => {
             const isActive = selectedId === entry.creative.id;
-            const category = getStrategicRankLabel(entry.data);
-            const mismatch = getMismatchState(getEntryPayload(entry), campaignGoal);
+            const payload = getEntryPayload(entry) || {};
+            const category = getStrategicRankLabel(payload);
+            const mismatch = getMismatchState(payload, campaignGoal);
+            const entryScore = getStrategicAlignmentScore(payload);
 
             return (
               <button
@@ -260,8 +251,8 @@ export default function AnalysisPanel({ analysisResult, campaignGoal, platform, 
                     <p className="text-xs font-semibold text-slate-300">#{index + 1}</p>
                     <p className="mt-1 truncate text-sm font-semibold text-white">{entry.creative.name}</p>
                   </div>
-                  <span className={`text-sm font-bold ${scoreTone(getStrategicAlignmentScore(entry.data))}`}>
-                    {getStrategicAlignmentScore(entry.data) ?? "--"}
+                  <span className={`text-sm font-bold ${scoreTone(entryScore)}`}>
+                    {entryScore ?? "--"}
                   </span>
                 </div>
                 <p className="mt-2 text-xs text-slate-300">{category}</p>
@@ -281,7 +272,7 @@ export default function AnalysisPanel({ analysisResult, campaignGoal, platform, 
         <div className="flex items-start justify-between gap-4">
           <div>
             <h4 className="text-lg font-semibold text-white">{selected.creative.name}</h4>
-            <p className="mt-1 text-xs text-slate-400">Platform: {data?.campaign_context?.platform || platform || "display_ads"}</p>
+            <p className="mt-1 text-xs text-slate-400">Platform: {platform || "display_ads"}</p>
           </div>
           <div className="text-right">
             <p className="text-xs text-slate-400">Strategic Alignment</p>
@@ -295,8 +286,8 @@ export default function AnalysisPanel({ analysisResult, campaignGoal, platform, 
             <p className="mt-1 text-sm text-amber-100">
               Creative-campaign mismatch detected. Analysis remains active so this misalignment can be diagnosed and corrected.
             </p>
-            {data?.campaign_alignment?.reasoning && (
-              <p className="mt-2 text-xs text-amber-100/90">Context: {data.campaign_alignment.reasoning}</p>
+            {campaignAlignment.reasoning && (
+              <p className="mt-2 text-xs text-amber-100/90">Context: {campaignAlignment.reasoning}</p>
             )}
             {recommendations[0]?.recommended_change && (
               <p className="mt-1 text-xs text-amber-100/90">Intervention: {recommendations[0].recommended_change}</p>
@@ -318,32 +309,39 @@ export default function AnalysisPanel({ analysisResult, campaignGoal, platform, 
 
           {behavioral && (
             <div className="space-y-3">
-              <BehavioralField label="Perceived Message" value={behavioral.perceived_message} icon={Eye} />
               <BehavioralField label="Emotional State" value={behavioral.emotional_state} icon={Heart} />
               <BehavioralField label="Likely Objection" value={behavioral.likely_objection} icon={AlertTriangle} />
               <BehavioralField label="Trust Gap" value={behavioral.trust_gap} icon={Shield} />
-              <BehavioralField label="Identity Alignment" value={behavioral.identity_alignment} icon={TrendingUp} />
-              <BehavioralField label="Commitment Readiness" value={behavioral.commitment_readiness} icon={Brain} />
-              <BehavioralField label="Resistance Trigger" value={behavioral.resistance_trigger} icon={AlertTriangle} />
               <BehavioralField label="Likely Behavior" value={behavioral.likely_behavior} icon={Eye} />
-              <BehavioralField label="Curiosity vs Intent Balance" value={behavioral.curiosity_vs_intent_balance} />
-              <BehavioralField label="Risk Aversion" value={behavioral.risk_aversion} />
-              <BehavioralField label="Confidence Building" value={behavioral.confidence_building} />
               <BehavioralField label="Commitment Pressure" value={behavioral.commitment_pressure} />
+              <details className="rounded-lg border border-white/10 bg-slate-950/40 p-3">
+                <summary className="cursor-pointer text-xs font-semibold uppercase tracking-wider text-slate-300">
+                  Advanced Behavioral Intelligence
+                </summary>
+                <div className="mt-3 space-y-3">
+                  <BehavioralField label="Perceived Message" value={behavioral.perceived_message} icon={Eye} />
+                  <BehavioralField label="Identity Alignment" value={behavioral.identity_alignment} icon={TrendingUp} />
+                  <BehavioralField label="Commitment Readiness" value={behavioral.commitment_readiness} icon={Brain} />
+                  <BehavioralField label="Resistance Trigger" value={behavioral.resistance_trigger} icon={AlertTriangle} />
+                  <BehavioralField label="Curiosity vs Intent Balance" value={behavioral.curiosity_vs_intent_balance} />
+                  <BehavioralField label="Risk Aversion" value={behavioral.risk_aversion} />
+                  <BehavioralField label="Confidence Building" value={behavioral.confidence_building} />
+                </div>
+              </details>
             </div>
           )}
         </div>
 
         {/* 3. ATTENTION FLOW WITH EMOTIONAL CONTEXT */}
         <Section icon={Eye} title="3. Attention Flow Analysis" subtitle="How users scan, where attention drops, emotional impact">
-          <AttentionFlow attention={data.attention_analysis} emotional_state={behavioral?.emotional_state} />
+          <AttentionFlow attention={flow.attentionAnalysis} emotional_state={behavioral?.emotional_state} />
         </Section>
 
         {/* 4. BUSINESS CONSEQUENCE */}
         <Section icon={ArrowUpRight} title="4. Business Consequence">
           {flow.businessConsequence}
-          {Array.isArray(data?.business_impact?.affected_metrics) && data.business_impact.affected_metrics.length > 0 && (
-            <p className="mt-3 text-xs text-slate-400">Affected metrics: {data.business_impact.affected_metrics.slice(0, 4).join(", ")}</p>
+          {Array.isArray(businessImpact.affected_metrics) && businessImpact.affected_metrics.length > 0 && (
+            <p className="mt-3 text-xs text-slate-400">Affected metrics: {businessImpact.affected_metrics.slice(0, 4).join(", ")}</p>
           )}
         </Section>
 
@@ -368,8 +366,8 @@ export default function AnalysisPanel({ analysisResult, campaignGoal, platform, 
         {/* 7. STRATEGIC ALIGNMENT SUMMARY */}
         <Section icon={Brain} title="7. Strategic Alignment Summary">
           {flow.strategicAlignmentSummary}
-          {data?.campaign_alignment?.reasoning && (
-            <p className="mt-3 text-xs text-slate-400">Campaign context: {data.campaign_alignment.reasoning}</p>
+          {campaignAlignment.reasoning && (
+            <p className="mt-3 text-xs text-slate-400">Campaign context: {campaignAlignment.reasoning}</p>
           )}
         </Section>
       </div>

@@ -8,6 +8,7 @@
 import pptxgen from "pptxgenjs";
 import {
   compareStrategicEntries,
+  getEntryPayload,
   getStrategicAlignmentScore,
   getStrategicFlow,
   getStrategicRankLabel,
@@ -176,8 +177,9 @@ function addRankingSlide(prs, entries, meta, totalSlides) {
 
   let y = 1.4;
   entries.forEach((entry, index) => {
-    const label = getStrategicRankLabel(entry.data);
-    const score = getStrategicAlignmentScore(entry.data);
+    const payload = getEntryPayload(entry) || {};
+    const label = getStrategicRankLabel(payload);
+    const score = getStrategicAlignmentScore(payload);
 
     slide.addShape(prs.ShapeType.roundRect, {
       x: 0.6,
@@ -230,12 +232,13 @@ function addRankingSlide(prs, entries, meta, totalSlides) {
 function addCreativeSlide(prs, entry, index, totalCreatives) {
   const slide = prs.addSlide();
   addSlideBackground(slide);
+  const payload = getEntryPayload(entry) || {};
 
-  const flow = getStrategicFlow(entry.data);
-  const behavioral = getBehavioralResponse(entry.data);
-  const recommendations = getValidatedRecommendations(entry.data);
-  const rankLabel = getStrategicRankLabel(entry.data);
-  const score = getStrategicAlignmentScore(entry.data);
+  const flow = getStrategicFlow(payload);
+  const behavioral = getBehavioralResponse(payload);
+  const recommendations = getValidatedRecommendations(payload);
+  const rankLabel = getStrategicRankLabel(payload);
+  const score = getStrategicAlignmentScore(payload);
 
   addHeader(prs, slide, `${entry.creative.name || `Creative ${index + 1}`}`, `${rankLabel}  |  Strategic Alignment: ${score ?? "N/A"}/100`);
 
@@ -345,10 +348,11 @@ function addCreativeSlide(prs, entry, index, totalCreatives) {
 function addBehavioralInterventionsSlide(prs, entry, index, totalCreatives) {
   const slide = prs.addSlide();
   addSlideBackground(slide);
+  const payload = getEntryPayload(entry) || {};
 
-  const recommendations = getValidatedRecommendations(entry.data);
-  const rankLabel = getStrategicRankLabel(entry.data);
-  const score = getStrategicAlignmentScore(entry.data);
+  const recommendations = getValidatedRecommendations(payload);
+  const rankLabel = getStrategicRankLabel(payload);
+  const score = getStrategicAlignmentScore(payload);
 
   addHeader(prs, slide, `Behavioral Interventions: ${entry.creative.name || `Creative ${index + 1}`}`, `Priority Interventions (Top 3)`);
 
