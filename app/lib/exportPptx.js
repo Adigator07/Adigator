@@ -1,46 +1,42 @@
 /**
  * exportPptx.js
- * Exports the slide preview as a real .pptx file using pptxgenjs.
+ * Exports orchestrator-driven strategic intelligence reports as .pptx.
  *
- * viewMode: "single"   → 1 slide with all creatives in a grid
- * viewMode: "multiple" → 1 slide per creative
+ * All exported slides use orchestrator fields only.
  */
 
 import pptxgen from "pptxgenjs";
+import {
+  compareStrategicEntries,
+  getStrategicAlignmentScore,
+  getStrategicFlow,
+  getStrategicRankLabel,
+  getStrategicRecommendationText,
+  isValidStrategicPayload,
+  getBehavioralResponse,
+  getValidatedRecommendations,
+} from "./strategicPresentation";
 
-// Slide dimensions (16:9 widescreen in inches)
 const SLIDE_W = 13.33;
 const SLIDE_H = 7.5;
-
-// Theme colours
 const BG_COLOR = "0F172A";
-const ACCENT_COLOR = "7C3AED";
+const ACCENT_COLOR = "0EA5E9";
 const TEXT_COLOR = "FFFFFF";
 const MUTED_COLOR = "94A3B8";
 
-/**
- * Convert a data-URL or http URL to a usable pptxgenjs image src.
- * pptxgenjs accepts data-URLs directly.
- */
 function imgSrc(url) {
-  return url; // data:image/... URLs work fine
+  return url;
 }
 
-/**
- * Draw a rounded rectangle background on a slide (approximated with a filled rect).
- */
 function addSlideBackground(slide) {
   slide.background = { color: BG_COLOR };
 }
 
-/**
- * Add Adigator branding footer on every slide.
- */
 function addFooter(slide, slideNum, totalSlides) {
-  slide.addText("Adigator Creative Studio", {
+  slide.addText("Adigator Advertising Intelligence System", {
     x: 0.3,
     y: SLIDE_H - 0.4,
-    w: 4,
+    w: 5,
     h: 0.3,
     fontSize: 8,
     color: MUTED_COLOR,
@@ -58,284 +54,389 @@ function addFooter(slide, slideNum, totalSlides) {
   });
 }
 
-/**
- * Single-slide export: All creatives integrated into a mock template layout.
- */
-function buildSingleSlide(prs, validCreatives, templateName) {
-  const slide = prs.addSlide();
-  
-  // Set light background for template feel
-  slide.background = { color: "F8FAFC" }; 
-
-  // ── MOCK TEMPLATE HEADER ──
+function addHeader(prs, slide, title, subtitle) {
   slide.addShape(prs.ShapeType.rect, {
-    x: 0, y: 0, w: SLIDE_W, h: 0.8,
-    fill: { color: "0F172A" },
-  });
-  
-  slide.addText(`ADIGATOR ${templateName.toUpperCase()}`, {
-    x: 0.5, y: 0.15, w: 5, h: 0.5,
-    fontSize: 24, bold: true, color: "3B82F6", fontFace: "Arial",
-  });
-  
-  slide.addText("HOME      ABOUT      SERVICES      CONTACT", {
-    x: SLIDE_W - 4.5, y: 0.25, w: 4, h: 0.3,
-    fontSize: 10, bold: true, color: "94A3B8", align: "right", fontFace: "Arial",
+    x: 0,
+    y: 0,
+    w: SLIDE_W,
+    h: 0.08,
+    fill: { color: ACCENT_COLOR },
+    line: { color: ACCENT_COLOR },
   });
 
-  const count = validCreatives.length;
-  if (count === 0) {
-    slide.addText("No valid creatives to display.", {
-      x: 1, y: 3, w: SLIDE_W - 2, h: 1,
-      fontSize: 14, color: "64748B", align: "center"
+  slide.addText(title, {
+    x: 0.5,
+    y: 0.22,
+    w: SLIDE_W - 1,
+    h: 0.45,
+    fontSize: 20,
+    bold: true,
+    color: TEXT_COLOR,
+    fontFace: "Arial",
+  });
+
+  if (subtitle) {
+    slide.addText(subtitle, {
+      x: 0.5,
+      y: 0.68,
+      w: SLIDE_W - 1,
+      h: 0.35,
+      fontSize: 10,
+      color: MUTED_COLOR,
+      fontFace: "Arial",
     });
+  }
+}
+
+function addWrappedLine(slide, label, value, y) {
+  const text = `${label}: ${value || "Strategic analysis incomplete"}`;
+  slide.addText(text, {
+    x: 0.6,
+    y,
+    w: SLIDE_W - 1.2,
+    h: 0.42,
+    fontSize: 10,
+    color: "CBD5E1",
+    fontFace: "Arial",
+    breakLine: true,
+  });
+}
+
+function addCoverSlide(prs, entries, meta, totalSlides) {
+  const slide = prs.addSlide();
+  addSlideBackground(slide);
+  addHeader(
+    prs,
+    slide,
+    "Behavioral Intelligence Report",
+    `Campaign Goal: ${meta?.goal || "awareness"}  |  Platform: ${meta?.platform || "programmatic"}`
+  );
+
+  slide.addText("Enterprise Behavioral Advertising Intelligence System", {
+    x: 0.6,
+    y: 1.6,
+    w: 6.5,
+    h: 0.5,
+    fontSize: 16,
+    bold: true,
+    color: "67E8F9",
+    fontFace: "Arial",
+  });
+
+  slide.addText(`Validated strategic reviews: ${entries.length}`, {
+    x: 0.6,
+    y: 2.1,
+    w: 6.5,
+    h: 0.35,
+    fontSize: 11,
+    color: "E2E8F0",
+    fontFace: "Arial",
+  });
+
+  slide.addText("Intelligence Flow", {
+    x: 0.6,
+    y: 2.8,
+    w: 4,
+    h: 0.35,
+    fontSize: 12,
+    bold: true,
+    color: "FFFFFF",
+    fontFace: "Arial",
+  });
+
+  const flowLines = [
+    "1. Audience Psychology & Mental State",
+    "2. Strategic Context & Problem",
+    "3. Business Impact Analysis",
+    "4. Attention Flow Dynamics",
+    "5. Behavioral Interventions",
+    "6. Expected Improvement",
+    "7. Strategic Alignment Summary",
+  ];
+
+  flowLines.forEach((line, index) => {
+    slide.addText(line, {
+      x: 0.8,
+      y: 3.2 + index * 0.36,
+      w: 6.4,
+      h: 0.3,
+      fontSize: 10,
+      color: "CBD5E1",
+      fontFace: "Arial",
+    });
+  });
+
+  addFooter(slide, 1, totalSlides);
+}
+
+function addRankingSlide(prs, entries, meta, totalSlides) {
+  const slide = prs.addSlide();
+  addSlideBackground(slide);
+  addHeader(prs, slide, "Strategic Alignment Priority", `Template Context: ${meta?.templateName || "Strategic"}`);
+
+  let y = 1.4;
+  entries.forEach((entry, index) => {
+    const label = getStrategicRankLabel(entry.data);
+    const score = getStrategicAlignmentScore(entry.data);
+
+    slide.addShape(prs.ShapeType.roundRect, {
+      x: 0.6,
+      y,
+      w: SLIDE_W - 1.2,
+      h: 0.62,
+      fill: { color: "111827", transparency: 10 },
+      line: { color: "334155" },
+      radius: 0.06,
+    });
+
+    slide.addText(`${index + 1}. ${entry.creative.name || `Creative ${index + 1}`}`, {
+      x: 0.85,
+      y: y + 0.14,
+      w: 6.2,
+      h: 0.22,
+      fontSize: 11,
+      bold: true,
+      color: "FFFFFF",
+      fontFace: "Arial",
+    });
+
+    slide.addText(label, {
+      x: 7.2,
+      y: y + 0.14,
+      w: 3.1,
+      h: 0.22,
+      fontSize: 9,
+      color: "A5F3FC",
+      fontFace: "Arial",
+    });
+
+    slide.addText(`Strategic Alignment: ${score ?? "N/A"}/100`, {
+      x: 10.4,
+      y: y + 0.14,
+      w: 2.3,
+      h: 0.22,
+      fontSize: 9,
+      align: "right",
+      color: "E2E8F0",
+      fontFace: "Arial",
+    });
+
+    y += 0.74;
+  });
+
+  addFooter(slide, 2, totalSlides);
+}
+
+function addCreativeSlide(prs, entry, index, totalCreatives) {
+  const slide = prs.addSlide();
+  addSlideBackground(slide);
+
+  const flow = getStrategicFlow(entry.data);
+  const behavioral = getBehavioralResponse(entry.data);
+  const recommendations = getValidatedRecommendations(entry.data);
+  const rankLabel = getStrategicRankLabel(entry.data);
+  const score = getStrategicAlignmentScore(entry.data);
+
+  addHeader(prs, slide, `${entry.creative.name || `Creative ${index + 1}`}`, `${rankLabel}  |  Strategic Alignment: ${score ?? "N/A"}/100`);
+
+  const imageW = 4.6;
+  const imageH = 3.1;
+  const imageX = 0.6;
+  const imageY = 1.2;
+
+  if (entry.creative.url) {
+    try {
+      slide.addImage({
+        data: imgSrc(entry.creative.url),
+        x: imageX,
+        y: imageY,
+        w: imageW,
+        h: imageH,
+        sizing: { type: "contain", w: imageW, h: imageH },
+      });
+    } catch {
+      slide.addText("Creative image unavailable", {
+        x: imageX,
+        y: imageY + 1.2,
+        w: imageW,
+        h: 0.4,
+        fontSize: 10,
+        color: "94A3B8",
+      });
+    }
+  }
+
+  let y = 1.2;
+
+  // AUDIENCE PSYCHOLOGY
+  slide.addText("AUDIENCE PSYCHOLOGY", {
+    x: 5.4,
+    y,
+    w: 7.4,
+    h: 0.3,
+    fontSize: 11,
+    bold: true,
+    color: "FFFFFF",
+    fontFace: "Arial",
+  });
+  y += 0.42;
+
+  if (behavioral) {
+    const psychFields = [
+      [`Emotional State`, behavioral.emotional_state],
+      [`Likely Objection`, behavioral.likely_objection],
+      [`Trust Gap`, behavioral.trust_gap],
+      [`Expected Behavior`, behavioral.likely_behavior],
+    ];
+
+    for (const [label, value] of psychFields) {
+      slide.addText(`${label}:`, {
+        x: 5.4,
+        y,
+        w: 1.8,
+        h: 0.25,
+        fontSize: 9,
+        bold: true,
+        color: "67E8F9",
+        fontFace: "Arial",
+      });
+      slide.addText(value || "Analysis unavailable", {
+        x: 7.4,
+        y,
+        w: 5.4,
+        h: 0.25,
+        fontSize: 8,
+        color: "CBD5E1",
+        fontFace: "Arial",
+      });
+      y += 0.35;
+    }
+  }
+
+  y += 0.15;
+
+  // STRATEGIC PROBLEM
+  slide.addText("STRATEGIC PROBLEM", {
+    x: 5.4,
+    y,
+    w: 7.4,
+    h: 0.3,
+    fontSize: 11,
+    bold: true,
+    color: "FFFFFF",
+    fontFace: "Arial",
+  });
+  y += 0.42;
+
+  slide.addText(flow.mainStrategicProblem || "Analysis incomplete", {
+    x: 5.4,
+    y,
+    w: 7.4,
+    h: 0.6,
+    fontSize: 8,
+    color: "CBD5E1",
+    fontFace: "Arial",
+    breakLine: true,
+  });
+
+  addFooter(slide, index + 3, totalCreatives + 2);
+}
+
+function addBehavioralInterventionsSlide(prs, entry, index, totalCreatives) {
+  const slide = prs.addSlide();
+  addSlideBackground(slide);
+
+  const recommendations = getValidatedRecommendations(entry.data);
+  const rankLabel = getStrategicRankLabel(entry.data);
+  const score = getStrategicAlignmentScore(entry.data);
+
+  addHeader(prs, slide, `Behavioral Interventions: ${entry.creative.name || `Creative ${index + 1}`}`, `Priority Interventions (Top 3)`);
+
+  let y = 1.3;
+
+  if (recommendations.length === 0) {
+    slide.addText("No behavioral interventions available for this creative.", {
+      x: 0.6,
+      y: 2.5,
+      w: SLIDE_W - 1.2,
+      h: 0.5,
+      fontSize: 11,
+      color: "94A3B8",
+      fontFace: "Arial",
+    });
+  } else {
+    for (const rec of recommendations.slice(0, 3)) {
+      slide.addShape(prs.ShapeType.roundRect, {
+        x: 0.6,
+        y,
+        w: SLIDE_W - 1.2,
+        h: 1.2,
+        fill: { color: "111827", transparency: 10 },
+        line: { color: "334155" },
+        radius: 0.06,
+      });
+
+      slide.addText(`Issue: ${rec.issue || "N/A"}`, {
+        x: 0.8,
+        y: y + 0.1,
+        w: SLIDE_W - 1.6,
+        h: 0.24,
+        fontSize: 10,
+        bold: true,
+        color: "FFFFFF",
+        fontFace: "Arial",
+      });
+
+      slide.addText(`Barrier: ${rec.emotional_barrier || rec.why_it_hurts || "N/A"}`, {
+        x: 0.8,
+        y: y + 0.38,
+        w: SLIDE_W - 1.6,
+        h: 0.22,
+        fontSize: 8,
+        color: "FCA5A5",
+        fontFace: "Arial",
+        breakLine: true,
+      });
+
+      slide.addText(`Intervention: ${rec.recommended_change || rec.action || "N/A"}`, {
+        x: 0.8,
+        y: y + 0.64,
+        w: SLIDE_W - 1.6,
+        h: 0.22,
+        fontSize: 8,
+        color: "86EFAC",
+        fontFace: "Arial",
+        breakLine: true,
+      });
+
+      y += 1.4;
+    }
+  }
+
+  addFooter(slide, index + 4, totalCreatives + 3);
+}
+
+function buildStrategicDeck(prs, validCreatives, templateName, meta = {}) {
+  const entries = validCreatives
+    .filter((creative) => isValidStrategicPayload(creative?.analysisData))
+    .map((creative) => ({ creative, data: creative.analysisData }))
+    .sort(compareStrategicEntries);
+
+  if (entries.length === 0) {
+    const slide = prs.addSlide();
+    addSlideBackground(slide);
+    addHeader(prs, slide, "Behavioral Intelligence Report", "No valid orchestrator payloads were available for export");
     addFooter(slide, 1, 1);
     return;
   }
 
-  // ── DYNAMIC TEMPLATE LAYOUT ENGINE ──
-  // We place creatives into logical zones (Top Banner, Sidebar, Main Content)
-  
-  // 1. Top Banner Zone (e.g. 728x90, 970x250)
-  const topBanner = validCreatives.find(c => c.size.includes("728") || c.size.includes("970"));
-  
-  // 2. Sidebar Zone (e.g. 160x600, 300x600)
-  const sidebarAd = validCreatives.find(c => c !== topBanner && (c.size.includes("160") || c.size.includes("600") || c.size.includes("1050")));
-  
-  // 3. Main Content Zone (the rest, usually 300x250, 320x50, etc)
-  const remainingAds = validCreatives.filter(c => c !== topBanner && c !== sidebarAd);
+  const totalSlides = entries.length * 2 + 2;
+  addCoverSlide(prs, entries, { ...meta, templateName }, totalSlides);
+  addRankingSlide(prs, entries, { ...meta, templateName }, totalSlides);
 
-  let currentY = 1.0;
-
-  // Render Top Banner if exists
-  if (topBanner) {
-    const w = 7.28;
-    const h = 0.90;
-    slide.addText("Advertisement", { x: (SLIDE_W - w) / 2, y: currentY, w, h: 0.15, fontSize: 8, color: "94A3B8", align: "center" });
-    try {
-      slide.addImage({ data: imgSrc(topBanner.url), x: (SLIDE_W - w) / 2, y: currentY + 0.15, w, h, sizing: { type: "contain" } });
-    } catch (e) {}
-    currentY += h + 0.4;
-  }
-
-  // Render Layout Split (Left Main Content, Right Sidebar)
-  const leftW = sidebarAd ? SLIDE_W - 3.5 : SLIDE_W - 1.0;
-  
-  // Mock Article Content in Main Zone
-  slide.addText("Featured Content & News", {
-    x: 0.5, y: currentY, w: leftW - 1, h: 0.4,
-    fontSize: 20, bold: true, color: "0F172A"
-  });
-  slide.addShape(prs.ShapeType.rect, {
-    x: 0.5, y: currentY + 0.4, w: leftW - 1, h: 0.02,
-    fill: { color: "CBD5E1" }
-  });
-
-  // Distribute remaining ads in the content area
-  if (remainingAds.length > 0) {
-    const startX = 0.5;
-    const startY = currentY + 0.6;
-    let rx = startX;
-    let ry = startY;
-    
-    remainingAds.forEach((ad, i) => {
-      const [nw, nh] = ad.size.split("x").map(Number);
-      // Scale down so it fits
-      const maxW = 3.0; 
-      const scale = Math.min(maxW / (nw || 300), 1);
-      const w = (nw || 300) * scale * 0.01; // rough inch conversion
-      const h = (nh || 250) * scale * 0.01;
-      
-      slide.addText("Sponsored", { x: rx, y: ry, w, h: 0.15, fontSize: 8, color: "94A3B8" });
-      try {
-        slide.addImage({ data: imgSrc(ad.url), x: rx, y: ry + 0.15, w, h, sizing: { type: "contain" } });
-      } catch (e) {}
-      
-      rx += w + 0.5;
-      if (rx + w > leftW) {
-        rx = startX;
-        ry += h + 0.3;
-      }
-    });
-  }
-
-  // Render Sidebar Ad
-  if (sidebarAd) {
-    const sx = SLIDE_W - 3.0;
-    const sy = currentY;
-    const [nw, nh] = sidebarAd.size.split("x").map(Number);
-    const maxW = 2.5;
-    const scale = Math.min(maxW / (nw || 300), 1);
-    const w = (nw || 300) * scale * 0.01;
-    const h = (nh || 600) * scale * 0.01;
-    
-    slide.addShape(prs.ShapeType.rect, {
-      x: sx - 0.2, y: sy - 0.2, w: maxW, h: SLIDE_H - sy,
-      fill: { color: "F1F5F9" } // Sidebar background
-    });
-    
-    slide.addText("Advertisement", { x: sx, y: sy, w, h: 0.15, fontSize: 8, color: "94A3B8", align: "center" });
-    try {
-      slide.addImage({ data: imgSrc(sidebarAd.url), x: sx, y: sy + 0.15, w, h, sizing: { type: "contain" } });
-    } catch (e) {}
-  }
-
-  addFooter(slide, 1, 1);
-}
-
-/**
- * Build a cover / executive summary slide
- */
-function buildCoverSlide(prs, { templateName, goal, platform, total }) {
-  const slide = prs.addSlide();
-  addSlideBackground(slide);
-
-  // Purple accent bar
-  slide.addShape(prs.ShapeType.rect, { x: 0, y: 0, w: SLIDE_W, h: 0.06, fill: { color: ACCENT_COLOR } });
-
-  // Adigator logo text
-  slide.addText("ADIGATOR", {
-    x: 0.5, y: 0.4, w: 4, h: 0.5,
-    fontSize: 28, bold: true, color: "7C3AED", fontFace: "Arial",
-  });
-  slide.addText("Creative Analysis Report", {
-    x: 0.5, y: 0.9, w: 6, h: 0.35,
-    fontSize: 14, color: "94A3B8", fontFace: "Arial",
-  });
-
-  // Divider
-  slide.addShape(prs.ShapeType.rect, { x: 0.5, y: 1.35, w: SLIDE_W - 1, h: 0.02, fill: { color: "334155" } });
-
-  // Campaign details
-  const details = [
-    ["Campaign Goal",  (goal || "—").charAt(0).toUpperCase() + (goal || "").slice(1)],
-    ["Platform",      (platform || "—").charAt(0).toUpperCase() + (platform || "").slice(1)],
-    ["Template",      templateName],
-    ["Creatives",     `${total} uploaded`],
-  ];
-
-  details.forEach(([label, value], i) => {
-    const y = 1.6 + i * 0.5;
-    slide.addText(label, { x: 0.5, y, w: 3, h: 0.35, fontSize: 11, color: "94A3B8", fontFace: "Arial" });
-    slide.addText(value, { x: 3.5, y, w: 5, h: 0.35, fontSize: 13, bold: true, color: TEXT_COLOR, fontFace: "Arial" });
-  });
-
-  // Generated date
-  slide.addText(`Generated: ${new Date().toLocaleDateString("en-US", { dateStyle: "long" })}`, {
-    x: 0.5, y: SLIDE_H - 0.6, w: SLIDE_W - 1, h: 0.3,
-    fontSize: 9, color: "475569", fontFace: "Arial",
-  });
-
-  addFooter(slide, 1, total + 2);
-}
-
-/**
- * Multiple-slides export: cover + one insight slide per creative.
- */
-function buildMultipleSlides(prs, validCreatives, templateName, meta = {}) {
-  const total = validCreatives.length;
-
-  // Slide 1: Cover
-  buildCoverSlide(prs, { templateName, ...meta, total });
-
-  validCreatives.forEach((creative, i) => {
-    const slide = prs.addSlide();
-    addSlideBackground(slide);
-
-    const data = creative.analysisData || {};
-
-    // Accent bar
-    slide.addShape(prs.ShapeType.rect, { x: 0, y: 0, w: 0.06, h: SLIDE_H, fill: { color: ACCENT_COLOR }, line: { color: ACCENT_COLOR } });
-
-    // Creative name + size
-    slide.addText(creative.name || `Creative ${i + 1}`, {
-      x: 0.4, y: 0.2, w: SLIDE_W - 2, h: 0.5,
-      fontSize: 20, bold: true, color: TEXT_COLOR, fontFace: "Arial",
-    });
-    slide.addText(`${creative.size}  ·  ${templateName}`, {
-      x: 0.4, y: 0.68, w: SLIDE_W - 1, h: 0.3,
-      fontSize: 10, color: MUTED_COLOR, fontFace: "Arial",
-    });
-
-    // BestFor badge text
-    const bestFor = data.bestFor;
-    if (bestFor) {
-      slide.addText(`Best for: ${bestFor}`, {
-        x: SLIDE_W - 3.5, y: 0.25, w: 3, h: 0.3,
-        fontSize: 10, bold: true, color: "A78BFA", fontFace: "Arial", align: "right",
-      });
-    }
-
-    // Separator
-    slide.addShape(prs.ShapeType.rect, { x: 0.4, y: 1.0, w: SLIDE_W - 0.8, h: 0.02, fill: { color: "334155" } });
-
-    // Left side — creative image (60% width)
-    const imgAreaW = SLIDE_W * 0.55;
-    const imgAreaH = SLIDE_H - 2.0;
-    if (creative.url) {
-      try {
-        const [natW, natH] = creative.size.split("x").map(Number);
-        let imgW = imgAreaW;
-        let imgH = natH ? (natH / natW) * imgW : imgAreaH;
-        if (imgH > imgAreaH) { imgH = imgAreaH; imgW = natW ? (natW / natH) * imgH : imgAreaW; }
-        const imgX = 0.4 + (imgAreaW - imgW) / 2;
-        const imgY = 1.15 + (imgAreaH - imgH) / 2;
-        slide.addImage({ data: imgSrc(creative.url), x: imgX, y: imgY, w: imgW, h: imgH, sizing: { type: "contain", w: imgW, h: imgH } });
-      } catch {}
-    }
-
-    // Right side — insights panel
-    const rx = SLIDE_W * 0.6;
-    const rw = SLIDE_W - rx - 0.3;
-    let ry = 1.15;
-
-    // Overall score
-    const score = data.overall_score ?? "—";
-    slide.addText("Overall Score", { x: rx, y: ry, w: rw, h: 0.22, fontSize: 9, color: MUTED_COLOR, fontFace: "Arial" });
-    slide.addText(`${score}/100`, { x: rx, y: ry + 0.2, w: rw, h: 0.38, fontSize: 26, bold: true, color: score >= 70 ? "34D399" : score >= 45 ? "FBBF24" : "F87171", fontFace: "Arial" });
-    ry += 0.7;
-
-    // Key metrics
-    const metrics = [
-      ["Goal Fit",       data.goal_fit],
-      ["Visibility",     data.adVisibilityScore],
-      ["Visual Quality", data.visual_quality],
-    ];
-    metrics.forEach(([label, val]) => {
-      if (val == null) return;
-      slide.addText(`${label}: ${val}/100`, { x: rx, y: ry, w: rw, h: 0.25, fontSize: 9, color: MUTED_COLOR, fontFace: "Arial" });
-      ry += 0.25;
-    });
-
-    ry += 0.15;
-
-    // AI Reasoning
-    if (data.funnelReasoning) {
-      slide.addText("AI Analysis", { x: rx, y: ry, w: rw, h: 0.2, fontSize: 9, bold: true, color: "7C3AED", fontFace: "Arial" });
-      ry += 0.22;
-      slide.addText(data.funnelReasoning.slice(0, 200), {
-        x: rx, y: ry, w: rw, h: 0.8,
-        fontSize: 8, color: "CBD5E1", fontFace: "Arial", wrap: true,
-      });
-      ry += 0.85;
-    }
-
-    // Improvement suggestions
-    const suggestions = data.improvement_suggestions || data.suggestions || [];
-    if (suggestions.length > 0) {
-      slide.addText("Key Recommendations", { x: rx, y: ry, w: rw, h: 0.2, fontSize: 9, bold: true, color: "FBBF24", fontFace: "Arial" });
-      ry += 0.22;
-      suggestions.slice(0, 3).forEach((s) => {
-        const safeText = typeof s === "string" ? s.slice(0, 120) : "";
-        slide.addText(`• ${safeText}`, {
-          x: rx, y: ry, w: rw, h: 0.3,
-          fontSize: 7.5, color: "94A3B8", fontFace: "Arial", wrap: true,
-        });
-        ry += 0.32;
-      });
-    }
-
-    addFooter(slide, i + 2, total + 2);
+  entries.forEach((entry, index) => {
+    addCreativeSlide(prs, entry, index, entries.length);
+    addBehavioralInterventionsSlide(prs, entry, index, entries.length);
   });
 }
 
@@ -350,18 +451,14 @@ function buildMultipleSlides(prs, validCreatives, templateName, meta = {}) {
 export async function exportToPptx(validCreatives, viewMode = "multiple", templateName = "Template", meta = {}) {
   const prs = new pptxgen();
   prs.layout   = "LAYOUT_WIDE";
-  prs.author   = "Adigator Creative Studio";
+  prs.author   = "Adigator Advertising Intelligence";
   prs.company  = "Adigator";
-  prs.subject  = "Creative Analysis Report";
-  prs.title    = `Adigator — ${templateName} Report`;
+  prs.subject  = "Advertising Intelligence Report";
+  prs.title    = `Adigator Behavioral Intelligence Report — ${templateName}`;
 
-  if (viewMode === "single") {
-    buildSingleSlide(prs, validCreatives, templateName);
-  } else {
-    buildMultipleSlides(prs, validCreatives, templateName, meta);
-  }
+  buildStrategicDeck(prs, validCreatives, templateName, meta);
 
-  const filename = `Adigator_${templateName}_${viewMode === "single" ? "SingleSlide" : `${validCreatives.length}Slides`}.pptx`;
+  const filename = `Adigator_Advertising_Intelligence_${viewMode === "single" ? "Single" : `${validCreatives.length}Creatives`}.pptx`;
   await prs.writeFile({ fileName: filename });
   return filename;
 }

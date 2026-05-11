@@ -1,0 +1,317 @@
+--- Running Test: Payload with all CORE fields but missing OPTIONAL fields ---
+[AnalysisPanel validation] {
+  field: 'required_core_fields_present',
+  value: [
+    'main_strategic_problem',
+    'business_consequence',
+    'strategic_alignment_score',
+    'behavioral_response'
+  ],
+  passed: true
+}
+[AnalysisPanel validation] {
+  field: 'required_core_field.main_strategic_problem',
+  value: 'Audience is skeptical of claims',
+  passed: true
+}
+[AnalysisPanel validation] {
+  field: 'required_core_field.business_consequence',
+  value: 'Low conversion rates',
+  passed: true
+}
+[AnalysisPanel validation] {
+  field: 'required_core_field.strategic_alignment_score',
+  value: { value: 75 },
+  passed: true
+}
+[AnalysisPanel validation] {
+  field: 'required_core_field.behavioral_response',
+  value: {
+    internal_narrative: 'They believe they are already efficient.',
+    perceived_obstacles: 'Lack of budget and time.',
+    emotional_state: 'Anxious about change.',
+    identity_conflict: 'Professional identity tied to old tools.',
+    decision_drivers: 'Efficiency and cost-saving.',
+    authority_dynamics: 'Manager makes final call.',
+    cultural_norms: 'Standardized processes are valued.',
+    informal_influence: 'Peer recommendations matter.',
+    risk_aversion: 'Medium risk tolerance.',
+    social_validation: "Look for industry leaders' success.",
+    status_quo_bias: 'High resistance to new workflows.',
+    psychological_safety: 'Need to feel safe in reporting errors.'
+  },
+  passed: true
+}
+[AnalysisPanel validation] {
+  field: 'main_strategic_problem',
+  value: 'Audience is skeptical of claims',
+  passed: true
+}
+[AnalysisPanel validation] {
+  field: 'business_consequence',
+  value: 'Low conversion rates',
+  passed: true
+}
+[AnalysisPanel validation - optional] { field: 'why_audience_may_resist', value: undefined, passed: false }
+[AnalysisPanel validation - optional] { field: 'attention_analysis', value: undefined, passed: false }
+[AnalysisPanel validation - optional] { field: 'strategic_recommendations', value: undefined, passed: false }
+[AnalysisPanel validation - optional] { field: 'expected_improvement', value: undefined, passed: false }
+[AnalysisPanel validation] {
+  field: 'strategic_alignment_score',
+  value: { value: 75 },
+  passed: true
+}
+[AnalysisPanel validation] { field: 'strategic_alignment_score.value', value: 75, passed: true }
+[AnalysisPanel validation] {
+  field: 'behavioral_response',
+  value: {
+    internal_narrative: 'They believe they are already efficient.',
+    perceived_obstacles: 'Lack of budget and time.',
+    emotional_state: 'Anxious about change.',
+    identity_conflict: 'Professional identity tied to old tools.',
+    decision_drivers: 'Efficiency and cost-saving.',
+    authority_dynamics: 'Manager makes final call.',
+    cultural_norms: 'Standardized processes are valued.',
+    informal_influence: 'Peer recommendations matter.',
+    risk_aversion: 'Medium risk tolerance.',
+    social_validation: "Look for industry leaders' success.",
+    status_quo_bias: 'High resistance to new workflows.',
+    psychological_safety: 'Need to feel safe in reporting errors.'
+  },
+  passed: true
+}
+[AnalysisPanel validation] {
+  field: 'behavioral_response.perceived_message',
+  value: undefined,
+  passed: false
+}
+[AnalysisPanel validation] {
+  field: 'behavioral_response.emotional_state',
+  value: 'Anxious about change.',
+  passed: true
+}
+[AnalysisPanel validation] {
+  field: 'behavioral_response.likely_objection',
+  value: undefined,
+  passed: false
+}
+[AnalysisPanel validation] {
+  field: 'behavioral_response.trust_gap',
+  value: undefined,
+  passed: false
+}
+[AnalysisPanel validation] {
+  field: 'behavioral_response.identity_alignment',
+  value: undefined,
+  passed: false
+}
+[AnalysisPanel validation] {
+  field: 'behavioral_response.commitment_readiness',
+  value: undefined,
+  passed: false
+}
+[AnalysisPanel validation] {
+  field: 'behavioral_response.resistance_trigger',
+  value: undefined,
+  passed: false
+}
+[AnalysisPanel validation] {
+  field: 'behavioral_response.likely_behavior',
+  value: undefined,
+  passed: false
+}
+[AnalysisPanel validation] {
+  field: 'behavioral_response.curiosity_vs_intent_balance',
+  value: undefined,
+  passed: false
+}
+[AnalysisPanel validation] {
+  field: 'behavioral_response.risk_aversion',
+  value: 'Medium risk tolerance.',
+  passed: true
+}
+[AnalysisPanel validation] {
+  field: 'behavioral_response.confidence_building',
+  value: undefined,
+  passed: false
+}
+[AnalysisPanel validation] {
+  field: 'behavioral_response.commitment_pressure',
+  value: undefined,
+  passed: false
+}
+[AnalysisPanel validation] FINAL RESULT {
+  passed: false,
+  failedFields: [
+    'behavioral_response.perceived_message',
+    'behavioral_response.likely_objection',
+    'behavioral_response.trust_gap',
+    'behavioral_response.identity_alignment',
+    'behavioral_response.commitment_readiness',
+    'behavioral_response.resistance_trigger',
+    'behavioral_response.likely_behavior',
+    'behavioral_response.curiosity_vs_intent_balance',
+    'behavioral_response.confidence_building',
+    'behavioral_response.commitment_pressure'
+  ]
+}
+Result: false
+
+--- Running Test: Payload missing a CORE field (main_strategic_problem) ---
+[AnalysisPanel validation] {
+  field: 'required_core_fields_present',
+  value: [
+    'main_strategic_problem',
+    'business_consequence',
+    'strategic_alignment_score',
+    'behavioral_response'
+  ],
+  passed: false
+}
+[AnalysisPanel validation] {
+  field: 'required_core_field.main_strategic_problem',
+  value: undefined,
+  passed: false
+}
+[AnalysisPanel validation] {
+  field: 'required_core_field.business_consequence',
+  value: 'Low conversion rates',
+  passed: true
+}
+[AnalysisPanel validation] {
+  field: 'required_core_field.strategic_alignment_score',
+  value: { value: 75 },
+  passed: true
+}
+[AnalysisPanel validation] {
+  field: 'required_core_field.behavioral_response',
+  value: {
+    internal_narrative: 'They believe they are already efficient.',
+    perceived_obstacles: 'Lack of budget and time.',
+    emotional_state: 'Anxious about change.',
+    identity_conflict: 'Professional identity tied to old tools.',
+    decision_drivers: 'Efficiency and cost-saving.',
+    authority_dynamics: 'Manager makes final call.',
+    cultural_norms: 'Standardized processes are valued.',
+    informal_influence: 'Peer recommendations matter.',
+    risk_aversion: 'Medium risk tolerance.',
+    social_validation: "Look for industry leaders' success.",
+    status_quo_bias: 'High resistance to new workflows.',
+    psychological_safety: 'Need to feel safe in reporting errors.'
+  },
+  passed: true
+}
+[AnalysisPanel validation] { field: 'main_strategic_problem', value: undefined, passed: false }
+[AnalysisPanel validation] {
+  field: 'business_consequence',
+  value: 'Low conversion rates',
+  passed: true
+}
+[AnalysisPanel validation - optional] { field: 'why_audience_may_resist', value: undefined, passed: false }
+[AnalysisPanel validation - optional] { field: 'attention_analysis', value: undefined, passed: false }
+[AnalysisPanel validation - optional] { field: 'strategic_recommendations', value: undefined, passed: false }
+[AnalysisPanel validation - optional] { field: 'expected_improvement', value: undefined, passed: false }
+[AnalysisPanel validation] {
+  field: 'strategic_alignment_score',
+  value: { value: 75 },
+  passed: true
+}
+[AnalysisPanel validation] { field: 'strategic_alignment_score.value', value: 75, passed: true }
+[AnalysisPanel validation] {
+  field: 'behavioral_response',
+  value: {
+    internal_narrative: 'They believe they are already efficient.',
+    perceived_obstacles: 'Lack of budget and time.',
+    emotional_state: 'Anxious about change.',
+    identity_conflict: 'Professional identity tied to old tools.',
+    decision_drivers: 'Efficiency and cost-saving.',
+    authority_dynamics: 'Manager makes final call.',
+    cultural_norms: 'Standardized processes are valued.',
+    informal_influence: 'Peer recommendations matter.',
+    risk_aversion: 'Medium risk tolerance.',
+    social_validation: "Look for industry leaders' success.",
+    status_quo_bias: 'High resistance to new workflows.',
+    psychological_safety: 'Need to feel safe in reporting errors.'
+  },
+  passed: true
+}
+[AnalysisPanel validation] {
+  field: 'behavioral_response.perceived_message',
+  value: undefined,
+  passed: false
+}
+[AnalysisPanel validation] {
+  field: 'behavioral_response.emotional_state',
+  value: 'Anxious about change.',
+  passed: true
+}
+[AnalysisPanel validation] {
+  field: 'behavioral_response.likely_objection',
+  value: undefined,
+  passed: false
+}
+[AnalysisPanel validation] {
+  field: 'behavioral_response.trust_gap',
+  value: undefined,
+  passed: false
+}
+[AnalysisPanel validation] {
+  field: 'behavioral_response.identity_alignment',
+  value: undefined,
+  passed: false
+}
+[AnalysisPanel validation] {
+  field: 'behavioral_response.commitment_readiness',
+  value: undefined,
+  passed: false
+}
+[AnalysisPanel validation] {
+  field: 'behavioral_response.resistance_trigger',
+  value: undefined,
+  passed: false
+}
+[AnalysisPanel validation] {
+  field: 'behavioral_response.likely_behavior',
+  value: undefined,
+  passed: false
+}
+[AnalysisPanel validation] {
+  field: 'behavioral_response.curiosity_vs_intent_balance',
+  value: undefined,
+  passed: false
+}
+[AnalysisPanel validation] {
+  field: 'behavioral_response.risk_aversion',
+  value: 'Medium risk tolerance.',
+  passed: true
+}
+[AnalysisPanel validation] {
+  field: 'behavioral_response.confidence_building',
+  value: undefined,
+  passed: false
+}
+[AnalysisPanel validation] {
+  field: 'behavioral_response.commitment_pressure',
+  value: undefined,
+  passed: false
+}
+[AnalysisPanel validation] FINAL RESULT {
+  passed: false,
+  failedFields: [
+    'required_core_fields_present',
+    'required_core_field.main_strategic_problem',
+    'main_strategic_problem',
+    'behavioral_response.perceived_message',
+    'behavioral_response.likely_objection',
+    'behavioral_response.trust_gap',
+    'behavioral_response.identity_alignment',
+    'behavioral_response.commitment_readiness',
+    'behavioral_response.resistance_trigger',
+    'behavioral_response.likely_behavior',
+    'behavioral_response.curiosity_vs_intent_balance',
+    'behavioral_response.confidence_building',
+    'behavioral_response.commitment_pressure'
+  ]
+}
+Result: false
+

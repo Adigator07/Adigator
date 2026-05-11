@@ -1,82 +1,74 @@
 "use client";
 import { useEffect, useState } from "react";
 
-interface Metric {
+interface StrategicCardModel {
   label: string;
-  value: number;
-  prefix?: string;
-  suffix?: string;
-  change: number;
+  emphasis: string;
+  summary: string;
+  guidance: string;
   icon: string;
   color: string;
   glow: string;
-  decimals?: number;
 }
 
-const BASE_METRICS: Metric[] = [
+const STRATEGIC_CARDS: StrategicCardModel[] = [
   {
-    label: "Total Users",
-    value: 48291,
-    change: 12.4,
-    icon: "◎",
+    label: "Main Strategic Problem",
+    emphasis: "Clarify primary friction before scale",
+    summary: "Anchor each launch decision on the dominant strategic conflict.",
+    guidance: "Prioritize the top orchestrator issue before creative iteration.",
+    icon: "MS",
     color: "from-violet-600/20 to-violet-800/10",
     glow: "shadow-violet-500/10",
   },
   {
-    label: "Revenue",
-    prefix: "$",
-    value: 128450,
-    change: 8.7,
-    icon: "◆",
+    label: "Audience Resistance",
+    emphasis: "Diagnose why audiences hesitate",
+    summary: "Translate resistance into concrete strategic response changes.",
+    guidance: "Align value framing, trust cues, and action pressure with audience intent.",
+    icon: "AR",
     color: "from-cyan-600/20 to-cyan-800/10",
     glow: "shadow-cyan-500/10",
   },
   {
-    label: "Ad Orders",
-    value: 3842,
-    change: -3.2,
-    icon: "◈",
+    label: "Business Consequence",
+    emphasis: "Connect message behavior to commercial risk",
+    summary: "Every creative issue should map to an expected business outcome.",
+    guidance: "Use consequence mapping to focus revisions that protect spend quality.",
+    icon: "BC",
     color: "from-emerald-600/20 to-emerald-800/10",
     glow: "shadow-emerald-500/10",
   },
   {
-    label: "Avg CTR",
-    value: 4.73,
-    suffix: "%",
-    change: 21.5,
-    icon: "⬡",
+    label: "Strategic Recommendation",
+    emphasis: "Convert intelligence into immediate action",
+    summary: "Use orchestrator recommendations as the execution roadmap.",
+    guidance: "Implement top recommendations and re-evaluate alignment after each change.",
+    icon: "SR",
     color: "from-amber-600/20 to-amber-800/10",
     glow: "shadow-amber-500/10",
-    decimals: 2,
   },
 ];
 
-function useAnimatedValue(target: number, duration = 1200) {
+function useReveal(duration = 500) {
   const [current, setCurrent] = useState(0);
   useEffect(() => {
     let start: number | null = null;
-    const initial = 0;
     function step(ts: number) {
       if (!start) start = ts;
       const progress = Math.min((ts - start) / duration, 1);
       const ease = 1 - Math.pow(1 - progress, 3);
-      setCurrent(initial + (target - initial) * ease);
+      setCurrent(ease);
       if (progress < 1) requestAnimationFrame(step);
     }
     requestAnimationFrame(step);
-  }, [target, duration]);
+  }, [duration]);
   return current;
 }
 
-function KPICard({ metric, index }: { metric: Metric; index: number }) {
-  const animated = useAnimatedValue(metric.value);
+function StrategicCard({ card, index }: { card: StrategicCardModel; index: number }) {
+  const reveal = useReveal(900);
   const [hovered, setHovered] = useState(false);
-  const positive = metric.change >= 0;
-
-  const displayValue =
-    metric.decimals !== undefined
-      ? animated.toFixed(metric.decimals)
-      : Math.round(animated).toLocaleString();
 
   return (
     <div
@@ -85,8 +77,8 @@ function KPICard({ metric, index }: { metric: Metric; index: number }) {
       className={`
         relative rounded-2xl border border-white/10 p-5 cursor-default
         transition-all duration-300 overflow-hidden
-        bg-linear-to-br ${metric.color}
-        ${hovered ? `scale-[1.02] shadow-2xl ${metric.glow} border-white/20` : "scale-100"}
+        bg-linear-to-br ${card.color}
+        ${hovered ? `scale-[1.02] shadow-2xl ${card.glow} border-white/20` : "scale-100"}
       `}
       style={{
         animationDelay: `${index * 100}ms`,
@@ -96,54 +88,44 @@ function KPICard({ metric, index }: { metric: Metric; index: number }) {
       {/* Decorative circle */}
       <div
         className={`absolute -right-4 -top-4 w-24 h-24 rounded-full opacity-10
-        bg-linear-to-br ${metric.color}`}
+        bg-linear-to-br ${card.color}`}
       />
 
-      <div className="flex items-start justify-between mb-4">
+      <div className="flex items-start justify-between mb-3">
         <div
           className="w-9 h-9 rounded-xl flex items-center justify-center text-sm
           bg-white/10 border border-white/10"
         >
-          {metric.icon}
+          {card.icon}
         </div>
-        <span
-          className={`
-          flex items-center gap-1 text-xs font-semibold px-2 py-1 rounded-full
-          ${
-            positive
-              ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
-              : "bg-red-500/10 text-red-400 border border-red-500/20"
-          }
-        `}
-        >
-          {positive ? "↑" : "↓"} {Math.abs(metric.change)}%
+        <span className="text-[10px] font-bold px-2 py-1 rounded-full bg-cyan-500/10 text-cyan-300 border border-cyan-500/25">
+          STRATEGIC
         </span>
       </div>
 
       <div>
         <p
-          className="text-2xl font-bold text-white tracking-tight"
+          className="text-lg font-bold text-white tracking-tight"
           style={{ fontFamily: "'DM Sans', sans-serif" }}
         >
-          {metric.prefix}
-          {displayValue}
-          {metric.suffix}
+          {card.label}
         </p>
         <p
-          className="text-xs text-white/40 mt-1"
+          className="text-xs text-cyan-200/90 mt-1"
           style={{ fontFamily: "'DM Sans', sans-serif" }}
         >
-          {metric.label}
+          {card.emphasis}
         </p>
+        <p className="text-[11px] text-white/70 mt-3 leading-relaxed">{card.summary}</p>
+        <p className="text-[11px] text-white/50 mt-2 leading-relaxed">{card.guidance}</p>
       </div>
 
-      {/* Mini sparkline */}
-      <div className="mt-3 h-8 flex items-end gap-0.5 opacity-30">
-        {[40, 65, 45, 70, 55, 80, 60, 90, 75, 100].map((h, i) => (
+      <div className="mt-3 h-2 flex items-end gap-0.5 opacity-40">
+        {[15, 35, 55, 75, 100].map((h, i) => (
           <div
             key={i}
             className="flex-1 rounded-sm bg-white transition-all duration-500"
-            style={{ height: `${h}%`, opacity: hovered ? 0.6 : 0.3 }}
+            style={{ height: `${h * reveal}%`, opacity: hovered ? 0.7 : 0.35 }}
           />
         ))}
       </div>
@@ -154,8 +136,8 @@ function KPICard({ metric, index }: { metric: Metric; index: number }) {
 export default function DashboardCards() {
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-      {BASE_METRICS.map((m, i) => (
-        <KPICard key={m.label} metric={m} index={i} />
+      {STRATEGIC_CARDS.map((card, i) => (
+        <StrategicCard key={card.label} card={card} index={i} />
       ))}
     </div>
   );

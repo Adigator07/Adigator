@@ -29,21 +29,21 @@ interface Props {
 }
 
 const ENV_LABELS: Record<EnvironmentFamily, { label: string; icon: string; color: string }> = {
-  news: { label: "News / Editorial", icon: "??", color: "from-blue-600/20 to-blue-800/10 border-blue-500/30" },
-  commerce: { label: "E-Commerce", icon: "??", color: "from-orange-600/20 to-orange-800/10 border-orange-500/30" },
-  social: { label: "Social Feed", icon: "??", color: "from-purple-600/20 to-purple-800/10 border-purple-500/30" },
-  luxury: { label: "Luxury / Lifestyle", icon: "?", color: "from-amber-600/20 to-amber-800/10 border-amber-500/30" },
-  sports: { label: "Sports", icon: "?", color: "from-yellow-600/20 to-yellow-800/10 border-yellow-500/30" },
-  gaming: { label: "Gaming / App", icon: "??", color: "from-emerald-600/20 to-emerald-800/10 border-emerald-500/30" },
-  finance: { label: "Finance / Data", icon: "??", color: "from-slate-600/20 to-slate-800/10 border-slate-500/30" },
-  travel: { label: "Travel / Booking", icon: "??", color: "from-cyan-600/20 to-cyan-800/10 border-cyan-500/30" },
-  saas: { label: "SaaS / Dashboard", icon: "??", color: "from-violet-600/20 to-violet-800/10 border-violet-500/30" },
-  booking: { label: "Booking / Local", icon: "??", color: "from-rose-600/20 to-rose-800/10 border-rose-500/30" },
+  news: { label: "Editorial Context", icon: "ED", color: "from-blue-600/20 to-blue-800/10 border-blue-500/30" },
+  commerce: { label: "Commerce Context", icon: "CO", color: "from-orange-600/20 to-orange-800/10 border-orange-500/30" },
+  social: { label: "Social Context", icon: "SO", color: "from-purple-600/20 to-purple-800/10 border-purple-500/30" },
+  luxury: { label: "Premium Context", icon: "PR", color: "from-amber-600/20 to-amber-800/10 border-amber-500/30" },
+  sports: { label: "Sports Context", icon: "SP", color: "from-yellow-600/20 to-yellow-800/10 border-yellow-500/30" },
+  gaming: { label: "Gaming Context", icon: "GA", color: "from-emerald-600/20 to-emerald-800/10 border-emerald-500/30" },
+  finance: { label: "Finance Context", icon: "FI", color: "from-slate-600/20 to-slate-800/10 border-slate-500/30" },
+  travel: { label: "Travel Context", icon: "TR", color: "from-cyan-600/20 to-cyan-800/10 border-cyan-500/30" },
+  saas: { label: "Enterprise Context", icon: "EN", color: "from-violet-600/20 to-violet-800/10 border-violet-500/30" },
+  booking: { label: "Booking Context", icon: "BK", color: "from-rose-600/20 to-rose-800/10 border-rose-500/30" },
 };
 
 const DEVICE_OPTIONS: { id: DeviceType; label: string; icon: string; width: string }[] = [
-  { id: "desktop", label: "Desktop", icon: "???", width: "w-full" },
-  { id: "mobile", label: "Mobile", icon: "??", width: "max-w-sm" },
+  { id: "desktop", label: "Desktop", icon: "DS", width: "w-full" },
+  { id: "mobile", label: "Mobile", icon: "MB", width: "max-w-sm" },
 ];
 
 const SIZE_TO_SLOT: Record<string, string> = {
@@ -62,6 +62,35 @@ const SIZE_TO_SLOT: Record<string, string> = {
 function getExpectedSlotForSize(size: string): string | null {
   return SIZE_TO_SLOT[size] ?? null;
 }
+
+const SLOT_LABELS: Record<string, string> = {
+  leaderboard: "Top Attention Placement",
+  sidebar: "Focused Sidebar Placement",
+  feed: "Feed Placement",
+  "feed-card": "Feed Card Placement",
+  "in-feed": "In-Feed Placement",
+  "inline-card": "Inline Placement",
+  interstitial: "Full Attention Placement",
+  "product-tile": "Commerce Tile Placement",
+  "feature-card": "Feature Placement",
+  "dashboard-module": "Enterprise Workspace Placement",
+  "kpi-card": "Insight Card Placement",
+  native: "Native Placement",
+  banner: "Banner Placement",
+};
+
+const TEMPLATE_LABELS: Record<string, string> = {
+  news: "Editorial Template",
+  commerce: "Commerce Template",
+  social: "Social Template",
+  luxury: "Premium Template",
+  sports: "Sports Template",
+  gaming: "Gaming Template",
+  finance: "Finance Template",
+  travel: "Travel Template",
+  saas: "Enterprise Template",
+  booking: "Booking Template",
+};
 
 function EnvironmentRenderer({
   env,
@@ -258,8 +287,8 @@ export default function ContextualPreviewEngine({ creatives, vertical, goal }: P
           <div className="absolute inset-2 border-2 border-transparent border-t-pink-400 rounded-full animate-spin" style={{ animationDirection: "reverse", animationDuration: "0.7s" }} />
         </div>
         <div className="text-center">
-          <p className="text-white font-semibold text-lg">Simulating {vertical} environment...</p>
-          <p className="text-gray-400 text-sm mt-1">AI is generating contextual surroundings for your creative</p>
+          <p className="text-white font-semibold text-lg">Preparing {vertical} context...</p>
+          <p className="text-gray-400 text-sm mt-1">Building contextual intelligence for strategic review</p>
         </div>
       </div>
     );
@@ -286,6 +315,8 @@ export default function ContextualPreviewEngine({ creatives, vertical, goal }: P
   if (!output || !activeCreative) return null;
 
   const { previewDecision, creativeMapping } = output;
+  const slotLabel = SLOT_LABELS[creativeMapping?.slotType] || "Strategic Placement";
+  const templateLabel = TEMPLATE_LABELS[previewDecision?.primaryTemplate] || "Strategic Template";
 
   return (
     <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
@@ -334,7 +365,7 @@ export default function ContextualPreviewEngine({ creatives, vertical, goal }: P
           onClick={() => activeCreative && fetchPreview(activeCreative, true, selectedEnvironment)}
           className="px-4 py-2 bg-white/5 border border-white/10 hover:bg-white/10 text-white text-xs font-semibold rounded-xl transition flex items-center gap-2"
         >
-          Regenerate
+          Refresh Context
         </button>
       </div>
 
@@ -345,8 +376,8 @@ export default function ContextualPreviewEngine({ creatives, vertical, goal }: P
           <p className="text-xs text-gray-400 mt-0.5 truncate">{previewDecision.reason}</p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-xs bg-white/10 text-gray-300 px-2 py-1 rounded-lg font-mono">{creativeMapping.slotType}</span>
-          <span className="text-xs bg-white/10 text-gray-300 px-2 py-1 rounded-lg font-mono">{previewDecision.primaryTemplate}</span>
+          <span className="text-xs bg-white/10 text-gray-300 px-2 py-1 rounded-lg">{slotLabel}</span>
+          <span className="text-xs bg-white/10 text-gray-300 px-2 py-1 rounded-lg">{templateLabel}</span>
         </div>
       </div>
 
@@ -358,7 +389,7 @@ export default function ContextualPreviewEngine({ creatives, vertical, goal }: P
               : "bg-yellow-500/10 border-yellow-500/30 text-yellow-200"
           }`}
         >
-          <p className="font-semibold">Device Compatibility Check</p>
+          <p className="font-semibold">Campaign Alignment Check</p>
           <p className="mt-1">{output.compatibility.message}</p>
           <p className="mt-1 text-xs opacity-90">Suggested sizes: {output.compatibility.suggestedSizes.join(", ")}</p>
         </div>
@@ -383,21 +414,21 @@ export default function ContextualPreviewEngine({ creatives, vertical, goal }: P
         <div className="border-x border-b border-white/10 rounded-b-xl overflow-hidden max-h-175 overflow-y-auto flex">
           <div className="w-1/3 bg-gray-900 border-r border-white/10 p-4 space-y-3">
             <div className="flex items-center justify-between">
-              <p className="text-xs text-gray-500 font-semibold">CREATIVES ({creatives.length})</p>
+              <p className="text-xs text-gray-500 font-semibold">CREATIVE SET ({creatives.length})</p>
               <div className="flex items-center gap-1">
                 <button
                   onClick={() => setActiveCreativeIndex((prev) => (prev - 1 + creatives.length) % creatives.length)}
                   className="px-2 py-1 text-xs rounded bg-white/10 text-gray-300 hover:bg-white/15"
                   disabled={creatives.length <= 1}
                 >
-                  ?
+                  {"<"}
                 </button>
                 <button
                   onClick={() => setActiveCreativeIndex((prev) => (prev + 1) % creatives.length)}
                   className="px-2 py-1 text-xs rounded bg-white/10 text-gray-300 hover:bg-white/15"
                   disabled={creatives.length <= 1}
                 >
-                  ?
+                  {">"}
                 </button>
               </div>
             </div>

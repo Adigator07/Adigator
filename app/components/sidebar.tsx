@@ -12,7 +12,7 @@ const NAV_SECTIONS = [
   {
     label: "Main",
     items: [
-      { icon: LayoutDashboard, label: "Dashboard",       href: "/dashboard" },
+      { icon: LayoutDashboard, label: "Strategic Workspace", href: "/dashboard" },
       { icon: PlusSquare,      label: "Create Template",  href: "/preview",    badge: "NEW" },
       { icon: FolderOpen,      label: "My Projects",      href: "/projects" },
       { icon: Download,        label: "Downloads",        href: "/downloads" },

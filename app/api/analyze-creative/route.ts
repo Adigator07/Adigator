@@ -1,25 +1,175 @@
 /**
- * Adigator v2 — OpenAI-Only Creative Analyzer
+ * Advertising Intelligence Orchestrator
  *
  * POST /api/analyze-creative
  *
- * Single OpenAI Vision call replaces the entire old multi-tool pipeline:
- *   Google Vision + OCR + CTA detector + multiple AI services → ONE agent.
- *
- * Input (multipart/form-data):
- *   image    File   — ad creative image
- *   goal     string — "awareness" | "consideration" | "conversion"
- *   vertical string — industry vertical (e.g. "technology", "ecommerce")
- *   platform string — optional platform hint (e.g. "instagram", "display_ads")
- *
- * Output: OpenAIAnalysisResult JSON
+ * Architecture:
+ * 1) Extraction Layer (OpenAI multimodal extraction only)
+ * 2) Attention Analysis Layer (deterministic)
+ * 3) Psychology Layer (deterministic)
+ * 4) Audience Response Layer (deterministic)
+ * 5) Behavioral Response Layer (deterministic)
+ * 6) Campaign Alignment Layer (deterministic)
+ * 7) Business Consequence Layer (deterministic)
+ * 8) Strategic Recommendation Layer (deterministic)
+ * 9) Weighted Scoring Layer (deterministic)
+ * 10) Final Decision Intelligence Layer (deterministic)
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
+import { buildBehavioralResponse } from "../../lib/behavioralResponse";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
+
+type SignalLevel = "low" | "moderate" | "high";
+type CtaPressure = "soft" | "moderate" | "aggressive";
+type CampaignGoal = "awareness" | "consideration" | "conversion";
+type AlignmentStatus = "aligned" | "partially_aligned" | "misaligned";
+type Severity = "low" | "medium" | "high";
+
+interface ExtractionSignals {
+  headline: string;
+  cta: string;
+  primary_message: string;
+  visual_elements: string[];
+  dominant_colors: string[];
+  text_density: SignalLevel;
+  layout_structure: string;
+  brand_presence: SignalLevel;
+  emotional_cues: string[];
+  readability: SignalLevel;
+  hierarchy_observations: string;
+  trust_markers: string[];
+  urgency_signals: string[];
+  audience_clues: string[];
+}
+
+interface AttentionAnalysis {
+  first_focus: string;
+  attention_path: string;
+  friction_points: string[];
+  cta_visibility: string;
+  mobile_attention_risk: string;
+  attention_retention_risk: string;
+}
+
+interface PsychologyAnalysis {
+  emotional_trigger: string;
+  persuasion_style: string;
+  psychological_conflict: string;
+  trust_signal_strength: string;
+  urgency_fit: string;
+  audience_resistance: string;
+}
+
+interface AudienceResponse {
+  likely_perception: string;
+  emotional_reaction: string;
+  motivation_match: string;
+  resistance_reason: string;
+  engagement_barrier: string;
+}
+
+interface CampaignAlignment {
+  alignment_status: AlignmentStatus;
+  strategic_conflict: string;
+  reasoning: string;
+  severity: Severity;
+}
+
+interface BusinessImpact {
+  likely_effects: string[];
+  affected_metrics: string[];
+  funnel_risk: string;
+  engagement_risk: string;
+  conversion_risk: string;
+  brand_perception_risk: string;
+}
+
+interface StrategicRecommendation {
+  issue: string;
+  why_it_hurts: string;
+  recommended_change: string;
+  expected_outcome: string;
+  audience_reaction: string;
+  emotional_barrier: string;
+  missing_belief: string;
+  trust_signal_gap: string;
+  behavior_change_after_intervention: string;
+  priority: "HIGH" | "MEDIUM" | "LOW";
+}
+
+interface BehavioralResponse {
+  perceived_message: string;
+  emotional_state: string;
+  likely_objection: string;
+  trust_gap: string;
+  identity_alignment: string;
+  commitment_readiness: string;
+  resistance_trigger: string;
+  likely_behavior: string;
+  curiosity_vs_intent_balance: string;
+  risk_aversion: string;
+  confidence_building: string;
+  commitment_pressure: string;
+}
+
+interface StrategicScore {
+  value: number;
+  rationale: string;
+}
+
+interface FinalDecisionIntelligence {
+  main_strategic_problem: string;
+  why_audience_may_resist: string;
+  business_consequence: string;
+  what_should_change_now: string;
+  expected_improvement: string;
+  decision_summary: string;
+}
+
+const KNOWN_GOALS = new Set<CampaignGoal>(["awareness", "consideration", "conversion"]);
+
+const VERTICAL_DETECTION_HINTS: Record<string, string[]> = {
+  healthcare: ["hospital", "clinic", "doctor", "medical", "patient", "wellness", "care", "treatment", "pharma", "health"],
+  technology: ["software", "saas", "platform", "cloud", "ai", "app", "tech", "automation", "digital"],
+  automotive: ["car", "vehicle", "suv", "sedan", "drive", "engine", "mileage", "dealership", "auto"],
+  news_media: ["news", "headline", "breaking", "journal", "editorial", "media", "publisher"],
+  sports: ["sports", "team", "match", "league", "athlete", "fitness", "score", "stadium"],
+  finance: ["finance", "investment", "portfolio", "market", "enterprise", "profit", "revenue"],
+  luxury: ["luxury", "premium", "exclusive", "craftsmanship", "heritage", "elite", "high-end"],
+  travel: ["travel", "destination", "trip", "vacation", "holiday", "flight", "journey", "tour"],
+  hotels: ["hotel", "resort", "suite", "booking", "stay", "hospitality", "check-in"],
+  food: ["restaurant", "food", "menu", "dining", "meal", "chef", "delivery", "cuisine"],
+  banking: ["bank", "fintech", "account", "loan", "credit", "debit", "secure", "payment", "wallet"],
+  real_estate: ["real estate", "property", "home", "mortgage", "apartment", "listing", "broker", "rent"],
+  education: ["education", "course", "learn", "student", "academy", "school", "training", "certification"],
+  gaming: ["game", "gaming", "play", "level", "esports", "console", "battle", "stream"],
+  entertainment: ["streaming", "ott", "entertainment", "show", "movie", "series", "music", "watch"],
+  ecommerce: ["shop", "store", "cart", "checkout", "sale", "discount", "product", "retail", "buy"],
+};
+
+const KNOWN_VERTICALS = new Set(Object.keys(VERTICAL_DETECTION_HINTS));
+
+const GOAL_INTELLIGENCE_PROFILE: Record<CampaignGoal, { expectedCtaPressure: CtaPressure; urgencyTolerance: SignalLevel; preferredEmotions: string[] }> = {
+  awareness: {
+    expectedCtaPressure: "soft",
+    urgencyTolerance: "low",
+    preferredEmotions: ["curiosity", "trust", "aspiration", "confidence"],
+  },
+  consideration: {
+    expectedCtaPressure: "moderate",
+    urgencyTolerance: "moderate",
+    preferredEmotions: ["trust", "confidence", "authority", "clarity"],
+  },
+  conversion: {
+    expectedCtaPressure: "aggressive",
+    urgencyTolerance: "high",
+    preferredEmotions: ["urgency", "confidence", "trust", "action"],
+  },
+};
 
 function createOpenAIClient(): OpenAI | null {
   const apiKey = process.env.OPENAI_API_KEY?.trim();
@@ -27,37 +177,9 @@ function createOpenAIClient(): OpenAI | null {
   return new OpenAI({ apiKey });
 }
 
-const GOAL_STAGE_RULES: Record<string, string> = {
-  awareness: "Awareness creatives should prioritize emotional engagement, brand recall, low CTA pressure, low urgency, minimal information load.",
-  consideration: "Consideration creatives should prioritize information clarity, trust signals, comparison support, medium CTA pressure, moderate urgency.",
-  conversion: "Conversion creatives should prioritize direct CTA clarity, urgency/scarcity, offer clarity, friction reduction, and high action pressure.",
-};
-
-const VERTICAL_DETECTION_HINTS: Record<string, string[]> = {
-  healthcare: ["hospital", "clinic", "doctor", "medical", "patient", "wellness", "care", "treatment", "pharma", "health"],
-  technology: ["software", "saas", "platform", "cloud", "ai", "app", "tech", "automation", "digital"],
-  automotive: ["car", "vehicle", "suv", "sedan", "drive", "engine", "mileage", "test drive", "dealership", "auto"],
-  news_media: ["news", "headline", "breaking", "journal", "editorial", "media", "publisher"],
-  sports: ["sports", "team", "match", "league", "athlete", "fitness", "score", "stadium"],
-  finance: ["finance", "business", "investment", "portfolio", "market", "b2b", "enterprise", "profit", "revenue"],
-  luxury: ["luxury", "premium", "exclusive", "craftsmanship", "heritage", "elite", "high-end"],
-  travel: ["travel", "destination", "trip", "vacation", "holiday", "flight", "journey", "tour"],
-  hotels: ["hotel", "resort", "suite", "booking", "stay", "hospitality", "check-in"],
-  food: ["restaurant", "food", "menu", "dining", "meal", "chef", "delivery", "cuisine"],
-  banking: ["bank", "fintech", "account", "loan", "credit", "debit", "apy", "secure", "payment", "wallet"],
-  real_estate: ["real estate", "property", "home", "mortgage", "apartment", "listing", "broker", "rent"],
-  education: ["education", "edtech", "course", "learn", "student", "academy", "school", "training", "certification"],
-  gaming: ["game", "gaming", "play", "level", "esports", "console", "battle", "stream"],
-  entertainment: ["streaming", "ott", "entertainment", "show", "movie", "series", "music", "watch"],
-  ecommerce: ["shop", "store", "cart", "checkout", "sale", "discount", "product", "retail", "buy"],
-};
-
-const KNOWN_GOALS = new Set(["awareness", "consideration", "conversion"]);
-const KNOWN_VERTICALS = new Set(Object.keys(VERTICAL_DETECTION_HINTS));
-
-function normalizeGoal(goal: string): string {
+function normalizeGoal(goal: string): CampaignGoal {
   const cleaned = (goal || "").toLowerCase().trim();
-  return KNOWN_GOALS.has(cleaned) ? cleaned : "awareness";
+  return KNOWN_GOALS.has(cleaned as CampaignGoal) ? (cleaned as CampaignGoal) : "awareness";
 }
 
 function normalizeVertical(vertical: string): string {
@@ -65,226 +187,725 @@ function normalizeVertical(vertical: string): string {
   return KNOWN_VERTICALS.has(cleaned) ? cleaned : "technology";
 }
 
-function buildAlignmentGuidance(goal: string, vertical: string): string {
-  const goalRule = GOAL_STAGE_RULES[goal] || GOAL_STAGE_RULES.awareness;
-  const verticalHints = VERTICAL_DETECTION_HINTS[vertical] || VERTICAL_DETECTION_HINTS.technology;
-  return [
-    `Goal logic (from archived intelligence): ${goalRule}`,
-    `Vertical detection anchors (from archived intelligence): ${verticalHints.join(", ")}.`,
-    "If the detected stage differs from selected goal, mark goal alignment as false.",
-    "If the creative's domain/category evidence does not support selected vertical, mark vertical alignment as false.",
-  ].join("\n");
+function isNonEmptyString(value: unknown): boolean {
+  return typeof value === "string" && value.trim().length > 0;
 }
 
-function inferDetectedVerticalFromText(vertical: string, corpus: string): string {
-  const normalizedCorpus = corpus.toLowerCase();
-  let bestVertical = vertical;
+function traceStrategicValidation(payload: Record<string, unknown>): void {
+  const behavioral = payload.behavioral_response as Record<string, unknown> | undefined;
+  const attention = payload.attention_analysis as Record<string, unknown> | undefined;
+  const strategicScore = payload.strategic_alignment_score as Record<string, unknown> | undefined;
+
+  const validations = [
+    {
+      field: "main_strategic_problem",
+      value: payload.main_strategic_problem,
+      passed: isNonEmptyString(payload.main_strategic_problem),
+    },
+    {
+      field: "why_audience_may_resist",
+      value: payload.why_audience_may_resist,
+      passed: isNonEmptyString(payload.why_audience_may_resist),
+    },
+    {
+      field: "business_consequence",
+      value: payload.business_consequence,
+      passed: isNonEmptyString(payload.business_consequence),
+    },
+    {
+      field: "attention_analysis",
+      value: payload.attention_analysis,
+      passed: Boolean(payload.attention_analysis && typeof payload.attention_analysis === "object"),
+    },
+    {
+      field: "attention_analysis.friction_points",
+      value: attention?.friction_points,
+      passed: Array.isArray(attention?.friction_points),
+    },
+    {
+      field: "strategic_recommendations",
+      value: payload.strategic_recommendations,
+      passed: Array.isArray(payload.strategic_recommendations),
+    },
+    {
+      field: "expected_improvement",
+      value: payload.expected_improvement,
+      passed: isNonEmptyString(payload.expected_improvement),
+    },
+    {
+      field: "strategic_alignment_score",
+      value: payload.strategic_alignment_score,
+      passed: Boolean(payload.strategic_alignment_score && typeof payload.strategic_alignment_score === "object"),
+    },
+    {
+      field: "strategic_alignment_score.value",
+      value: strategicScore?.value,
+      passed: Number.isFinite(Number(strategicScore?.value)),
+    },
+    {
+      field: "behavioral_response",
+      value: payload.behavioral_response,
+      passed: Boolean(payload.behavioral_response && typeof payload.behavioral_response === "object"),
+    },
+    {
+      field: "behavioral_response.perceived_message",
+      value: behavioral?.perceived_message,
+      passed: isNonEmptyString(behavioral?.perceived_message),
+    },
+    {
+      field: "behavioral_response.emotional_state",
+      value: behavioral?.emotional_state,
+      passed: isNonEmptyString(behavioral?.emotional_state),
+    },
+    {
+      field: "behavioral_response.likely_objection",
+      value: behavioral?.likely_objection,
+      passed: isNonEmptyString(behavioral?.likely_objection),
+    },
+    {
+      field: "behavioral_response.trust_gap",
+      value: behavioral?.trust_gap,
+      passed: isNonEmptyString(behavioral?.trust_gap),
+    },
+    {
+      field: "behavioral_response.identity_alignment",
+      value: behavioral?.identity_alignment,
+      passed: isNonEmptyString(behavioral?.identity_alignment),
+    },
+    {
+      field: "behavioral_response.commitment_readiness",
+      value: behavioral?.commitment_readiness,
+      passed: isNonEmptyString(behavioral?.commitment_readiness),
+    },
+    {
+      field: "behavioral_response.resistance_trigger",
+      value: behavioral?.resistance_trigger,
+      passed: isNonEmptyString(behavioral?.resistance_trigger),
+    },
+    {
+      field: "behavioral_response.likely_behavior",
+      value: behavioral?.likely_behavior,
+      passed: isNonEmptyString(behavioral?.likely_behavior),
+    },
+    {
+      field: "behavioral_response.curiosity_vs_intent_balance",
+      value: behavioral?.curiosity_vs_intent_balance,
+      passed: isNonEmptyString(behavioral?.curiosity_vs_intent_balance),
+    },
+    {
+      field: "behavioral_response.risk_aversion",
+      value: behavioral?.risk_aversion,
+      passed: isNonEmptyString(behavioral?.risk_aversion),
+    },
+    {
+      field: "behavioral_response.confidence_building",
+      value: behavioral?.confidence_building,
+      passed: isNonEmptyString(behavioral?.confidence_building),
+    },
+    {
+      field: "behavioral_response.commitment_pressure",
+      value: behavioral?.commitment_pressure,
+      passed: isNonEmptyString(behavioral?.commitment_pressure),
+    },
+  ];
+
+  validations.forEach((entry) => {
+    console.log("[validation]", entry);
+  });
+
+  const failedFields = validations
+    .filter((entry) => !entry.passed)
+    .map((entry) => entry.field);
+
+  console.log("[validateStrategicResponse] FINAL RESULT", {
+    passed: failedFields.length === 0,
+    failedFields,
+  });
+}
+
+function normalizeSignalLevel(value: unknown, fallback: SignalLevel = "moderate"): SignalLevel {
+  return value === "low" || value === "moderate" || value === "high" ? value : fallback;
+}
+
+function normalizeStringArray(value: unknown): string[] {
+  return Array.isArray(value) ? value.filter((v): v is string => typeof v === "string") : [];
+}
+
+function normalizeExtraction(raw: Record<string, unknown>): ExtractionSignals {
+  return {
+    headline: typeof raw.headline === "string" ? raw.headline : "",
+    cta: typeof raw.cta === "string" ? raw.cta : "",
+    primary_message: typeof raw.primary_message === "string" ? raw.primary_message : "",
+    visual_elements: normalizeStringArray(raw.visual_elements),
+    dominant_colors: normalizeStringArray(raw.dominant_colors),
+    text_density: normalizeSignalLevel(raw.text_density),
+    layout_structure: typeof raw.layout_structure === "string" ? raw.layout_structure : "",
+    brand_presence: normalizeSignalLevel(raw.brand_presence),
+    emotional_cues: normalizeStringArray(raw.emotional_cues),
+    readability: normalizeSignalLevel(raw.readability),
+    hierarchy_observations: typeof raw.hierarchy_observations === "string" ? raw.hierarchy_observations : "",
+    trust_markers: normalizeStringArray(raw.trust_markers),
+    urgency_signals: normalizeStringArray(raw.urgency_signals),
+    audience_clues: normalizeStringArray(raw.audience_clues),
+  };
+}
+
+function classifyCtaPressure(cta: string): CtaPressure {
+  const text = cta.toLowerCase();
+  if (/buy|book|claim|get started|sign up|download now|shop now|apply now/.test(text)) {
+    return "aggressive";
+  }
+  if (/view|compare|see pricing|check|try demo|learn how/.test(text)) {
+    return "moderate";
+  }
+  return "soft";
+}
+
+function inferUrgencyLevel(extraction: ExtractionSignals): SignalLevel {
+  const corpus = [
+    extraction.headline,
+    extraction.primary_message,
+    extraction.cta,
+    extraction.urgency_signals.join(" "),
+    extraction.emotional_cues.join(" "),
+  ].join(" ").toLowerCase();
+
+  if (/limited|ends today|last chance|hurry|only today|countdown|now/.test(corpus)) {
+    return "high";
+  }
+  if (/soon|this week|don.t miss|book early/.test(corpus)) {
+    return "moderate";
+  }
+  return "low";
+}
+
+function detectVerticalFromSignals(selectedVertical: string, extraction: ExtractionSignals): { detectedVertical: string; fitScore: number; evidence: string[] } {
+  const corpus = [
+    extraction.headline,
+    extraction.primary_message,
+    extraction.visual_elements.join(" "),
+    extraction.audience_clues.join(" "),
+  ].join(" ").toLowerCase();
+
+  let bestVertical = selectedVertical;
   let bestScore = -1;
 
   for (const [candidate, hints] of Object.entries(VERTICAL_DETECTION_HINTS)) {
-    const score = hints.reduce((acc, keyword) => (normalizedCorpus.includes(keyword) ? acc + 1 : acc), 0);
+    const score = hints.reduce((acc, keyword) => acc + (corpus.includes(keyword) ? 1 : 0), 0);
     if (score > bestScore) {
       bestScore = score;
       bestVertical = candidate;
     }
   }
 
-  return bestScore <= 0 ? "unknown" : bestVertical;
-}
-
-function buildServerSideAlignment(
-  analysis: Record<string, unknown>,
-  selectedGoal: string,
-  selectedVertical: string
-): {
-  goal_alignment: Record<string, unknown>;
-  vertical_alignment: Record<string, unknown>;
-} {
-  const detectedGoalRaw = typeof analysis.funnel_stage === "string"
-    ? analysis.funnel_stage.toLowerCase().trim()
-    : "unknown";
-  const detectedGoal = KNOWN_GOALS.has(detectedGoalRaw) ? detectedGoalRaw : "unknown";
-
-  const corpus = [
-    typeof analysis.headline === "string" ? analysis.headline : "",
-    typeof analysis.primary_message === "string" ? analysis.primary_message : "",
-    typeof analysis.target_audience === "string" ? analysis.target_audience : "",
-    typeof analysis.brand === "string" ? analysis.brand : "",
-    typeof analysis.emotion_trigger === "string" ? analysis.emotion_trigger : "",
-    Array.isArray(analysis.visual_elements) ? analysis.visual_elements.join(" ") : "",
-  ].join(" ");
-
-  const detectedVertical = inferDetectedVerticalFromText(selectedVertical, corpus);
-  const goalAligned = detectedGoal === "unknown" ? false : detectedGoal === selectedGoal;
-  const verticalAligned = detectedVertical === "unknown" ? false : detectedVertical === selectedVertical;
+  const selectedHints = VERTICAL_DETECTION_HINTS[selectedVertical] ?? [];
+  const matchedEvidence = selectedHints.filter((keyword) => corpus.includes(keyword)).slice(0, 4);
+  const fitScore = selectedHints.length === 0
+    ? 50
+    : Math.round((matchedEvidence.length / selectedHints.length) * 100);
 
   return {
-    goal_alignment: {
-      selected_goal: selectedGoal,
-      detected_goal: detectedGoal,
-      is_aligned: goalAligned,
-      confidence: goalAligned ? 70 : 60,
-      reason: goalAligned
-        ? "Creative signals align with selected campaign goal."
-        : "Creative signals do not align with selected campaign goal.",
-    },
-    vertical_alignment: {
-      selected_vertical: selectedVertical,
-      detected_vertical: detectedVertical,
-      is_aligned: verticalAligned,
-      confidence: verticalAligned ? 70 : 60,
-      reason: verticalAligned
-        ? "Creative signals align with selected industry vertical."
-        : "Creative signals do not align with selected industry vertical.",
-    },
+    detectedVertical: bestScore <= 0 ? "unknown" : bestVertical,
+    fitScore,
+    evidence: matchedEvidence,
   };
 }
 
-const SYSTEM_PROMPT = `You are a Senior Advertising Intelligence Analyst with deep expertise in digital marketing, conversion optimization, and consumer psychology.
+function buildAttentionAnalysis(extraction: ExtractionSignals, ctaPressure: CtaPressure): AttentionAnalysis {
+  const firstFocus = extraction.headline
+    ? "headline"
+    : extraction.brand_presence === "high"
+      ? "brand block"
+      : "primary visual";
 
-You will receive an ad creative image and analyze it using the following 10-step chain-of-thought reasoning:
-
-STEP 1 — Visual Detection
-Identify all visual elements: images, icons, product shots, people, backgrounds, color scheme, visual style.
-
-STEP 2 — Text & Messaging Extraction
-Extract all visible text: headline, subheadline, body copy, taglines, disclaimers, pricing.
-
-STEP 3 — Brand Recognition
-Identify brand name, logo placement, brand colors, visual identity consistency.
-
-STEP 4 — Layout & Hierarchy Analysis
-Analyze visual flow, focal point, information hierarchy, white space usage, composition balance.
-
-STEP 5 — CTA Identification
-Locate and evaluate the call-to-action: text, button style, placement, urgency, clarity.
-
-STEP 6 — Emotional Psychology Analysis
-Identify emotional triggers: fear, desire, aspiration, urgency, social proof, trust signals.
-
-STEP 7 — Audience Targeting
-Determine target demographic, psychographic profile, purchase intent signals.
-
-STEP 8 — Platform Optimization
-Evaluate creative suitability for Instagram, Facebook, display ads, and native ad placements.
-
-STEP 9 — Conversion Strength Evaluation
-Score conversion readiness based on: CTA clarity, value proposition, trust signals, urgency, offer appeal.
-
-STEP 10 — UX Issues Detection + Performance Prediction
-Identify clutter, readability issues, mobile optimization, visual noise. Predict performance tier.
-
-After your analysis, respond ONLY with valid JSON matching this exact schema (no markdown, no explanation):
-
-{
-  "brand": "detected brand name or empty string",
-  "headline": "main headline text or empty string",
-  "cta": "call-to-action text or empty string",
-  "primary_message": "core value proposition in one sentence",
-  "visual_elements": ["list", "of", "detected", "visual", "elements"],
-  "emotion_trigger": "primary emotional trigger (e.g. aspiration, urgency, trust, fear)",
-  "target_audience": "specific audience description",
-  "layout_hierarchy": {
-    "attention_flow": "describe how eye moves through the ad",
-    "visual_focus": "primary focal point description"
-  },
-  "platform_fit": {
-    "instagram": "excellent|good|fair|poor — brief reason",
-    "facebook": "excellent|good|fair|poor — brief reason",
-    "display_ads": "excellent|good|fair|poor — brief reason"
-  },
-  "conversion_score": 0,
-  "overall_score": 0,
-  "strengths": ["strength 1", "strength 2", "strength 3"],
-  "weaknesses": ["weakness 1", "weakness 2"],
-  "improvements": ["specific improvement 1", "specific improvement 2", "specific improvement 3"],
-  "subscores": {
-    "visual_clarity": 0,
-    "message_clarity": 0,
-    "cta_strength": 0,
-    "brand_presence": 0,
-    "emotional_resonance": 0,
-    "layout_hierarchy": 0,
-    "platform_fit_score": 0,
-    "audience_alignment": 0
-  },
-  "grade": "Elite Creative|Strong Performer|Needs Optimization|High Risk Creative",
-  "funnel_stage": "awareness|consideration|conversion",
-  "engagement_forecast": "HIGH|MEDIUM|LOW",
-  "goal_alignment": {
-    "selected_goal": "awareness|consideration|conversion",
-    "detected_goal": "awareness|consideration|conversion|unknown",
-    "is_aligned": true,
-    "confidence": 0,
-    "reason": "brief reason"
-  },
-  "vertical_alignment": {
-    "selected_vertical": "healthcare|technology|automotive|news_media|sports|finance|luxury|travel|hotels|food|banking|real_estate|education|gaming|entertainment|ecommerce",
-    "detected_vertical": "healthcare|technology|automotive|news_media|sports|finance|luxury|travel|hotels|food|banking|real_estate|education|gaming|entertainment|ecommerce|unknown",
-    "is_aligned": true,
-    "confidence": 0,
-    "reason": "brief reason"
+  const frictionPoints: string[] = [];
+  if (extraction.text_density === "high") {
+    frictionPoints.push("Competing copy blocks fragment attention before users reach the CTA.");
   }
+  if (extraction.readability === "low") {
+    frictionPoints.push("Low readability creates early cognitive fatigue on mobile scroll.");
+  }
+  if (extraction.hierarchy_observations.toLowerCase().includes("unclear")) {
+    frictionPoints.push("Hierarchy is unclear, so users cannot identify the next action quickly.");
+  }
+
+  const ctaVisibility = ctaPressure === "aggressive" && extraction.readability !== "low"
+    ? "CTA is visually assertive, but may feel pushy depending on campaign stage."
+    : extraction.readability === "low"
+      ? "CTA visibility is weakened by dense text and low legibility around action elements."
+      : "CTA is visible but competes with nearby message blocks for attention.";
+
+  const mobileRisk = extraction.text_density === "high" || extraction.readability === "low"
+    ? "Elevated mobile attention risk: users may drop before understanding the core value proposition."
+    : "Contained mobile attention risk: structure is readable enough for feed-speed scanning.";
+
+  const retentionRisk = frictionPoints.length >= 2
+    ? "Attention retention risk is significant because users lose directional flow before decision points."
+    : frictionPoints.length === 1
+      ? "Attention retention risk is moderate with one meaningful break in flow."
+      : "Attention retention risk is limited; eye path stays mostly coherent through the CTA.";
+
+  return {
+    first_focus: firstFocus,
+    attention_path: `Users are likely to notice the ${firstFocus} first, then scan supporting content, and finally evaluate the CTA once value clarity is established.`,
+    friction_points: frictionPoints,
+    cta_visibility: ctaVisibility,
+    mobile_attention_risk: mobileRisk,
+    attention_retention_risk: retentionRisk,
+  };
 }
 
-All numeric scores must be integers from 0 to 100.
-overall_score is the weighted composite: (visual_clarity * 0.2) + (message_clarity * 0.2) + (cta_strength * 0.2) + (emotional_resonance * 0.15) + (brand_presence * 0.1) + (layout_hierarchy * 0.1) + (platform_fit_score * 0.05).
-grade must match: overall_score >= 82 → "Elite Creative", >= 70 → "Strong Performer", >= 55 → "Needs Optimization", else → "High Risk Creative".
-goal_alignment and vertical_alignment must be evaluated strictly against selected goal and selected vertical.`;
+function buildPsychologyAnalysis(
+  extraction: ExtractionSignals,
+  goal: CampaignGoal,
+  ctaPressure: CtaPressure,
+  urgencyLevel: SignalLevel
+): PsychologyAnalysis {
+  const emotionalTrigger = extraction.emotional_cues[0] || "neutral";
+  const corpus = [extraction.headline, extraction.primary_message, extraction.cta].join(" ").toLowerCase();
+
+  const persuasionStyle = /discount|save|offer|% off/.test(corpus)
+    ? "discount-driven transactional persuasion"
+    : /premium|exclusive|crafted|signature/.test(corpus)
+      ? "aspirational premium persuasion"
+      : ctaPressure === "aggressive"
+        ? "direct response persuasion"
+        : "informational trust-led persuasion";
+
+  let psychologicalConflict = "No major psychological conflict detected.";
+  if (goal === "awareness" && (ctaPressure === "aggressive" || urgencyLevel === "high")) {
+    psychologicalConflict = "Awareness intent conflicts with high-pressure action cues, which can feel premature for cold audiences.";
+  } else if (goal === "conversion" && ctaPressure === "soft") {
+    psychologicalConflict = "Conversion intent conflicts with a low-pressure CTA, reducing action momentum at decision stage.";
+  }
+
+  const trustSignalStrength = extraction.trust_markers.length >= 3 || extraction.brand_presence === "high"
+    ? "Trust signal strength is solid: credibility cues support decision confidence."
+    : extraction.trust_markers.length > 0
+      ? "Trust signal strength is partial: some reassurance is present but not dominant."
+      : "Trust signal strength is weak: audience reassurance cues are limited or missing.";
+
+  const urgencyFit = goal === "awareness" && urgencyLevel === "high"
+    ? "Urgency is misfit for awareness. Pressure is likely to feel sales-heavy too early."
+    : goal === "conversion" && urgencyLevel === "low"
+      ? "Urgency is underpowered for conversion. Action momentum is likely too weak."
+      : "Urgency pressure is broadly compatible with campaign stage.";
+
+  const audienceResistance = extraction.readability === "low"
+    ? "Audience may resist because effort-to-understand is high relative to perceived reward."
+    : psychologicalConflict !== "No major psychological conflict detected."
+      ? "Audience may resist due to stage-message mismatch and psychological timing friction."
+      : "Audience resistance is more likely to come from competitive alternatives than message friction.";
+
+  return {
+    emotional_trigger: emotionalTrigger,
+    persuasion_style: persuasionStyle,
+    psychological_conflict: psychologicalConflict,
+    trust_signal_strength: trustSignalStrength,
+    urgency_fit: urgencyFit,
+    audience_resistance: audienceResistance,
+  };
+}
+
+function buildAudienceResponse(
+  extraction: ExtractionSignals,
+  psychology: PsychologyAnalysis,
+  goal: CampaignGoal
+): AudienceResponse {
+  const likelyPerception = psychology.persuasion_style.includes("discount")
+    ? "The creative is likely perceived as value-seeking and offer-led rather than brand-led."
+    : psychology.persuasion_style.includes("premium")
+      ? "The creative is likely perceived as premium-oriented if trust and polish remain consistent."
+      : "The creative is likely perceived as informational, with moderate persuasive force.";
+
+  const emotionalReaction = psychology.emotional_trigger === "neutral"
+    ? "Emotional reaction is likely muted, producing limited memorability."
+    : `Primary emotional reaction is likely ${psychology.emotional_trigger}, which shapes early attention and message acceptance.`;
+
+  const motivationMatch = goal === "conversion" && extraction.cta
+    ? "Motivation match depends on action clarity: users with intent can progress if friction remains low."
+    : goal === "awareness"
+      ? "Motivation match depends on curiosity and message relevance rather than immediate action pressure."
+      : "Motivation match depends on trust and evidence depth during evaluation phase.";
+
+  const resistanceReason = psychology.audience_resistance;
+
+  const engagementBarrier = extraction.text_density === "high"
+    ? "Dense information creates a scanning barrier before value is internalized."
+    : extraction.readability === "low"
+      ? "Low readability blocks fluent message uptake, especially in fast-scroll contexts."
+      : "No dominant structural barrier detected, but persuasion depth may still limit engagement.";
+
+  return {
+    likely_perception: likelyPerception,
+    emotional_reaction: emotionalReaction,
+    motivation_match: motivationMatch,
+    resistance_reason: resistanceReason,
+    engagement_barrier: engagementBarrier,
+  };
+}
+
+function buildCampaignAlignment(
+  goal: CampaignGoal,
+  selectedVertical: string,
+  extraction: ExtractionSignals,
+  psychology: PsychologyAnalysis,
+  ctaPressure: CtaPressure,
+  urgencyLevel: SignalLevel
+): CampaignAlignment {
+  const conflicts: string[] = [];
+  const verticalDetection = detectVerticalFromSignals(selectedVertical, extraction);
+  const goalProfile = GOAL_INTELLIGENCE_PROFILE[goal];
+
+  if (goalProfile.expectedCtaPressure === "soft" && ctaPressure === "aggressive") {
+    conflicts.push("CTA pressure is too aggressive for awareness-stage behavior.");
+  }
+  if (goalProfile.expectedCtaPressure === "aggressive" && ctaPressure === "soft") {
+    conflicts.push("CTA pressure is too soft for conversion-stage action goals.");
+  }
+  if (goalProfile.urgencyTolerance === "low" && urgencyLevel === "high") {
+    conflicts.push("Urgency cues are too strong for the selected campaign stage.");
+  }
+  if (selectedVertical === "luxury" && /discount|save|offer|% off/.test([extraction.headline, extraction.primary_message, extraction.cta].join(" ").toLowerCase())) {
+    conflicts.push("Luxury positioning conflicts with discount-heavy message behavior.");
+  }
+  if (verticalDetection.detectedVertical !== "unknown" && verticalDetection.detectedVertical !== selectedVertical && verticalDetection.fitScore < 40) {
+    conflicts.push(`Creative signals resemble ${verticalDetection.detectedVertical} more than ${selectedVertical}.`);
+  }
+  if (extraction.readability === "low") {
+    conflicts.push("Low readability weakens strategic message delivery for the intended audience.");
+  }
+  if (psychology.psychological_conflict !== "No major psychological conflict detected.") {
+    conflicts.push(psychology.psychological_conflict);
+  }
+
+  const alignmentStatus: AlignmentStatus = conflicts.length === 0
+    ? "aligned"
+    : conflicts.length <= 2
+      ? "partially_aligned"
+      : "misaligned";
+
+  const severity: Severity = conflicts.length === 0
+    ? "low"
+    : conflicts.length <= 2
+      ? "medium"
+      : "high";
+
+  const strategicConflict = conflicts.length > 0
+    ? conflicts.slice(0, 2).join(" ")
+    : "No major strategic conflict detected between campaign intent and creative behavior.";
+
+  const reasoning = conflicts.length > 0
+    ? `Campaign alignment is weakened by ${conflicts.length} conflict signal(s). Primary evidence: ${conflicts.join(" ")}`
+    : "Campaign goal, message pressure, and visual behavior are largely consistent with selected context.";
+
+  return {
+    alignment_status: alignmentStatus,
+    strategic_conflict: strategicConflict,
+    reasoning,
+    severity,
+  };
+}
+
+function buildBusinessImpact(alignment: CampaignAlignment, attention: AttentionAnalysis): BusinessImpact {
+  const likelyEffects: string[] = [];
+  const metrics = new Set<string>();
+
+  if (alignment.alignment_status !== "aligned") {
+    likelyEffects.push("Message-market mismatch can lower qualified engagement and reduce downstream conversion efficiency.");
+    metrics.add("CTR quality");
+    metrics.add("Landing page conversion rate");
+  }
+  if (attention.friction_points.length > 0) {
+    likelyEffects.push("Attention drop before CTA can reduce click-through consistency across placements.");
+    metrics.add("Scroll stop rate");
+    metrics.add("CTA interaction rate");
+  }
+  if (alignment.severity === "high") {
+    likelyEffects.push("Strategic conflict can increase wasted spend by attracting low-intent traffic.");
+    metrics.add("CPA");
+    metrics.add("ROAS stability");
+  }
+
+  return {
+    likely_effects: likelyEffects.length > 0 ? likelyEffects : ["No major negative business consequence detected from current signal set."],
+    affected_metrics: Array.from(metrics),
+    funnel_risk: alignment.alignment_status === "misaligned"
+      ? "High funnel risk: creative behavior is out of sync with campaign-stage intent."
+      : alignment.alignment_status === "partially_aligned"
+        ? "Moderate funnel risk: partial mismatch may reduce stage progression consistency."
+        : "Low funnel risk: creative-stage behavior is mostly coherent.",
+    engagement_risk: attention.friction_points.length >= 2
+      ? "Elevated engagement risk: multiple attention breaks can suppress qualified interactions."
+      : attention.friction_points.length === 1
+        ? "Moderate engagement risk: one key friction point may reduce response quality."
+        : "Contained engagement risk based on current attention-path evidence.",
+    conversion_risk: alignment.alignment_status === "misaligned"
+      ? "Conversion risk is substantial due to strategic and message-pressure conflicts."
+      : "Conversion risk is present but manageable if top friction points are corrected.",
+    brand_perception_risk: alignment.strategic_conflict.toLowerCase().includes("luxury")
+      ? "Brand perception risk is elevated because offer language can dilute premium positioning."
+      : "Brand perception risk is moderate and tied to consistency of trust and message clarity.",
+  };
+}
+
+function buildStrategicRecommendations(params: {
+  alignment: CampaignAlignment;
+  attention: AttentionAnalysis;
+  psychology: PsychologyAnalysis;
+  extraction: ExtractionSignals;
+  behavioralResponse: BehavioralResponse;
+}): StrategicRecommendation[] {
+  const { alignment, attention, psychology, extraction, behavioralResponse } = params;
+  const recommendations: StrategicRecommendation[] = [];
+
+  if (alignment.alignment_status !== "aligned") {
+    recommendations.push({
+      issue: "Campaign-to-creative strategic mismatch",
+      why_it_hurts: `${behavioralResponse.perceived_message} ${behavioralResponse.likely_objection}`,
+      recommended_change: `Realign CTA pressure, urgency cues, and message framing so the audience can reach ${behavioralResponse.commitment_readiness.toLowerCase()} before a direct ask appears.`,
+      expected_outcome: `${behavioralResponse.confidence_building} The audience should move with less resistance and better stage fit.`,
+      audience_reaction: behavioralResponse.emotional_state,
+      emotional_barrier: behavioralResponse.risk_aversion,
+      missing_belief: behavioralResponse.trust_gap,
+      trust_signal_gap: behavioralResponse.trust_gap,
+      behavior_change_after_intervention: behavioralResponse.likely_behavior,
+      priority: "HIGH",
+    });
+  }
+
+  if (attention.friction_points.length > 0) {
+    recommendations.push({
+      issue: "Attention flow breaks before CTA",
+      why_it_hurts: `${attention.friction_points.join(" ")} ${behavioralResponse.resistance_trigger}`,
+      recommended_change: "Reduce competing copy, tighten hierarchy, and isolate the strongest value claim near the CTA so the audience stays emotionally engaged long enough to evaluate it.",
+      expected_outcome: "The audience should stay oriented, feel less mental effort, and continue from perception into evaluation instead of dropping out.",
+      audience_reaction: behavioralResponse.emotional_state,
+      emotional_barrier: behavioralResponse.risk_aversion,
+      missing_belief: "The audience does not yet believe the message is worth the cognitive effort.",
+      trust_signal_gap: behavioralResponse.trust_gap,
+      behavior_change_after_intervention: "The audience is more likely to keep scanning, reach the core claim, and evaluate the CTA with less friction.",
+      priority: "HIGH",
+    });
+  }
+
+  if (extraction.readability === "low") {
+    recommendations.push({
+      issue: "Low readability undercuts persuasion",
+      why_it_hurts: `${behavioralResponse.resistance_trigger} ${behavioralResponse.likely_objection}`,
+      recommended_change: "Increase text contrast, shorten copy blocks, and prioritize one dominant claim per frame so the audience can understand the message before emotional fatigue sets in.",
+      expected_outcome: "The audience should decode the message with less effort, which increases confidence and reduces early abandonment.",
+      audience_reaction: behavioralResponse.emotional_state,
+      emotional_barrier: "Cognitive effort is becoming the emotional barrier.",
+      missing_belief: "The audience does not yet believe the message is easy enough to process quickly.",
+      trust_signal_gap: behavioralResponse.trust_gap,
+      behavior_change_after_intervention: "The audience is more likely to read the message, retain the value proposition, and continue toward the next action.",
+      priority: "MEDIUM",
+    });
+  }
+
+  if (psychology.trust_signal_strength.toLowerCase().includes("weak")) {
+    recommendations.push({
+      issue: "Insufficient trust reinforcement",
+      why_it_hurts: `${behavioralResponse.trust_gap} ${behavioralResponse.likely_objection}`,
+      recommended_change: "Add proof elements such as brand credentials, social proof, or concrete reliability markers near the CTA so certainty grows before commitment pressure rises.",
+      expected_outcome: "The audience should feel safer, more certain, and more willing to move from evaluation into action.",
+      audience_reaction: behavioralResponse.emotional_state,
+      emotional_barrier: behavioralResponse.risk_aversion,
+      missing_belief: "The audience still needs a stronger belief that the message is credible and safe to trust.",
+      trust_signal_gap: behavioralResponse.trust_gap,
+      behavior_change_after_intervention: behavioralResponse.confidence_building,
+      priority: "MEDIUM",
+    });
+  }
+
+  if (recommendations.length === 0) {
+    recommendations.push({
+      issue: "No critical structural issue detected",
+      why_it_hurts: `${behavioralResponse.commitment_pressure} ${behavioralResponse.trust_gap}`,
+      recommended_change: "Run controlled A/B tests on headline framing, proof placement, and CTA microcopy to improve behavioral readiness without disrupting strategic alignment.",
+      expected_outcome: "Incremental lift with more confident audience movement from curiosity into intent.",
+      audience_reaction: behavioralResponse.emotional_state,
+      emotional_barrier: behavioralResponse.risk_aversion,
+      missing_belief: behavioralResponse.trust_gap,
+      trust_signal_gap: behavioralResponse.trust_gap,
+      behavior_change_after_intervention: behavioralResponse.likely_behavior,
+      priority: "LOW",
+    });
+  }
+
+  return recommendations.slice(0, 5);
+}
+
+function scoreBehavioralReadiness(commitmentReadiness: string): number {
+  const value = commitmentReadiness.toLowerCase();
+  if (value.includes("high")) return 90;
+  if (value.includes("moderate")) return 70;
+  if (value.includes("low")) return 44;
+  return 60;
+}
+
+function scoreLevel(level: SignalLevel, positive = true): number {
+  if (positive) {
+    return level === "high" ? 90 : level === "moderate" ? 70 : 45;
+  }
+  return level === "high" ? 45 : level === "moderate" ? 70 : 90;
+}
+
+function scoreCtaPressureFit(goal: CampaignGoal, ctaPressure: CtaPressure): number {
+  const expected = GOAL_INTELLIGENCE_PROFILE[goal].expectedCtaPressure;
+  if (expected === ctaPressure) return 92;
+  if ((expected === "moderate" && ctaPressure !== "moderate") || (expected !== "moderate" && ctaPressure === "moderate")) return 68;
+  return 42;
+}
+
+function scoreEmotionalAlignment(goal: CampaignGoal, emotionalCues: string[]): number {
+  const desired = GOAL_INTELLIGENCE_PROFILE[goal].preferredEmotions.map((e) => e.toLowerCase());
+  const normalized = emotionalCues.map((e) => e.toLowerCase());
+  const matches = desired.filter((item) => normalized.some((cue) => cue.includes(item))).length;
+  if (matches >= 2) return 88;
+  if (matches === 1) return 70;
+  return 52;
+}
+
+function buildStrategicScore(params: {
+  extraction: ExtractionSignals;
+  goal: CampaignGoal;
+  ctaPressure: CtaPressure;
+  attention: AttentionAnalysis;
+  alignment: CampaignAlignment;
+  behavioralResponse: BehavioralResponse;
+}): StrategicScore {
+  const { extraction, goal, ctaPressure, attention, alignment, behavioralResponse } = params;
+
+  const visualClarity = Math.round((scoreLevel(extraction.readability, true) + scoreLevel(extraction.text_density, false)) / 2);
+  const ctaPressureFit = scoreCtaPressureFit(goal, ctaPressure);
+  const readability = scoreLevel(extraction.readability, true);
+  const emotionalAlignment = scoreEmotionalAlignment(goal, extraction.emotional_cues);
+  const audienceFit = alignment.alignment_status === "aligned" ? 90 : alignment.alignment_status === "partially_aligned" ? 68 : 42;
+  const attentionRetention = attention.friction_points.length === 0 ? 88 : attention.friction_points.length === 1 ? 68 : 45;
+  const hierarchyQuality = extraction.hierarchy_observations.toLowerCase().includes("strong") ? 88 : extraction.hierarchy_observations ? 68 : 55;
+  const behavioralReadiness = scoreBehavioralReadiness(behavioralResponse.commitment_readiness);
+
+  const score = Math.round(
+    visualClarity * 0.15 +
+      ctaPressureFit * 0.15 +
+      readability * 0.11 +
+      emotionalAlignment * 0.14 +
+      audienceFit * 0.12 +
+      attentionRetention * 0.10 +
+      hierarchyQuality * 0.08 +
+      behavioralReadiness * 0.15
+  );
+
+  const rationale = `Strategic Alignment Score is driven by visual clarity (${visualClarity}), CTA pressure fit (${ctaPressureFit}), readability (${readability}), emotional alignment (${emotionalAlignment}), audience fit (${audienceFit}), attention retention (${attentionRetention}), hierarchy quality (${hierarchyQuality}), and behavioral readiness (${behavioralReadiness}).`;
+
+  return {
+    value: Math.max(0, Math.min(100, score)),
+    rationale,
+  };
+}
+
+function buildFinalDecisionIntelligence(params: {
+  alignment: CampaignAlignment;
+  audienceResponse: AudienceResponse;
+  businessImpact: BusinessImpact;
+  recommendations: StrategicRecommendation[];
+  strategicScore: StrategicScore;
+  behavioralResponse: BehavioralResponse;
+}): FinalDecisionIntelligence {
+  const { alignment, audienceResponse, businessImpact, recommendations, strategicScore, behavioralResponse } = params;
+
+  const mainProblem = alignment.alignment_status === "aligned"
+    ? "No major strategic conflict; optimization opportunity is primarily incremental."
+    : alignment.strategic_conflict;
+
+  const topRecommendation = recommendations[0]?.recommended_change || "Run iterative headline and CTA refinement tests.";
+
+  const expectedImprovement = strategicScore.value < 55
+    ? "Correcting high-priority issues should stabilize message-market fit and reduce wasted spend from low-intent responses."
+    : strategicScore.value < 75
+      ? "Addressing medium-priority friction points should improve response quality and increase qualified engagement consistency."
+      : "Focused iterative optimization should deliver incremental lift while preserving current strategic strengths.";
+
+  return {
+    main_strategic_problem: mainProblem,
+    why_audience_may_resist: behavioralResponse.likely_objection || audienceResponse.resistance_reason,
+    business_consequence: businessImpact.likely_effects[0] || "No significant downside detected from current evidence.",
+    what_should_change_now: topRecommendation,
+    expected_improvement: expectedImprovement,
+    decision_summary: `Current strategic alignment score is ${strategicScore.value}/100. The audience appears ${behavioralResponse.commitment_readiness.toLowerCase()} and the priority should be ${recommendations[0]?.priority || "LOW"}, with intervention focused on the behavioral barrier before scaling spend.`,
+  };
+}
+
+const EXTRACTION_SYSTEM_PROMPT = `You are an advertising signal extraction engine.
+
+Extract observations only.
+Do not generate final scores.
+Do not generate confidence percentages.
+Do not generate forecasts.
+Do not generate final recommendations.
+Do not generate grades.
+
+Return only valid JSON with this schema:
+{
+  "headline": "",
+  "cta": "",
+  "primary_message": "",
+  "visual_elements": [""],
+  "dominant_colors": [""],
+  "text_density": "low|moderate|high",
+  "layout_structure": "",
+  "brand_presence": "low|moderate|high",
+  "emotional_cues": [""],
+  "readability": "low|moderate|high",
+  "hierarchy_observations": "",
+  "trust_markers": [""],
+  "urgency_signals": [""],
+  "audience_clues": [""]
+}`;
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
     const openai = createOpenAIClient();
     if (!openai) {
-      return NextResponse.json(
-        { error: "Server misconfiguration: OPENAI_API_KEY is missing." },
-        { status: 500 }
-      );
+      return NextResponse.json({ error: "Server misconfiguration: OPENAI_API_KEY is missing." }, { status: 500 });
     }
 
     const formData = await request.formData();
     const file = formData.get("image") as File | null;
     const goal = normalizeGoal((formData.get("goal") as string) || "awareness");
     const vertical = normalizeVertical((formData.get("vertical") as string) || "technology");
-    const platform = (formData.get("platform") as string) || "display_ads";
+    const platform = ((formData.get("platform") as string) || "display_ads").toLowerCase();
 
     if (!file) {
       return NextResponse.json({ error: "No image provided" }, { status: 400 });
     }
-
     if (!file.type.startsWith("image/")) {
       return NextResponse.json({ error: "Invalid file type. Upload an image." }, { status: 400 });
     }
-
-    const maxSize = 20 * 1024 * 1024;
-    if (file.size > maxSize) {
+    if (file.size > 20 * 1024 * 1024) {
       return NextResponse.json({ error: "Image too large. Max 20MB." }, { status: 413 });
     }
 
-    // Convert file to base64
-    const arrayBuffer = await file.arrayBuffer();
-    const base64 = Buffer.from(arrayBuffer).toString("base64");
+    const buffer = await file.arrayBuffer();
+    const base64 = Buffer.from(buffer).toString("base64");
     const mimeType = file.type as "image/jpeg" | "image/png" | "image/gif" | "image/webp";
 
-    const alignmentGuidance = buildAlignmentGuidance(goal, vertical);
-
-    const userPrompt = `Analyze this ad creative.
+    const extractionUserPrompt = `Extract structured advertising signals from this creative.
 
 Campaign goal: ${goal}
-Industry vertical: ${vertical}
-Primary platform: ${platform}
+Campaign vertical: ${vertical}
+Platform context: ${platform}
 
-  Alignment logic:
-  ${alignmentGuidance}
+Return JSON only.`;
 
-Apply all 10 analysis steps and return the JSON schema exactly.`;
-
-    const response = await openai.chat.completions.create({
+    const completion = await openai.chat.completions.create({
       model: process.env.OPENAI_MODEL || "gpt-4o",
-      max_tokens: 1500,
+      max_tokens: 900,
       response_format: { type: "json_object" },
       messages: [
-        { role: "system", content: SYSTEM_PROMPT },
+        { role: "system", content: EXTRACTION_SYSTEM_PROMPT },
         {
           role: "user",
           content: [
@@ -295,52 +916,90 @@ Apply all 10 analysis steps and return the JSON schema exactly.`;
                 detail: "high",
               },
             },
-            { type: "text", text: userPrompt },
+            { type: "text", text: extractionUserPrompt },
           ],
         },
       ],
     });
 
-    const rawContent = response.choices[0]?.message?.content;
-    if (!rawContent) {
-      return NextResponse.json({ error: "No response from AI" }, { status: 502 });
+    const raw = completion.choices[0]?.message?.content;
+    if (!raw) {
+      return NextResponse.json({ error: "No extraction output from model" }, { status: 502 });
     }
 
-    let analysis: Record<string, unknown>;
+    let parsed: Record<string, unknown>;
     try {
-      analysis = JSON.parse(rawContent);
+      parsed = JSON.parse(raw) as Record<string, unknown>;
     } catch {
-      return NextResponse.json({ error: "Invalid AI response format" }, { status: 502 });
+      return NextResponse.json({ error: "Invalid extraction JSON from model" }, { status: 502 });
     }
 
-    // Attach meta
-    analysis.goal = goal;
-    analysis.vertical = vertical;
-    analysis.platform = platform;
+    const extraction = normalizeExtraction(parsed);
+    const ctaPressure = classifyCtaPressure(extraction.cta);
+    const urgencyLevel = inferUrgencyLevel(extraction);
 
-    const aiGoalAlignment = typeof analysis.goal_alignment === "object" && analysis.goal_alignment !== null
-      ? analysis.goal_alignment as Record<string, unknown>
-      : null;
-    const aiVerticalAlignment = typeof analysis.vertical_alignment === "object" && analysis.vertical_alignment !== null
-      ? analysis.vertical_alignment as Record<string, unknown>
-      : null;
+    const attentionAnalysis = buildAttentionAnalysis(extraction, ctaPressure);
+    const psychologyAnalysis = buildPsychologyAnalysis(extraction, goal, ctaPressure, urgencyLevel);
+    const audienceResponse = buildAudienceResponse(extraction, psychologyAnalysis, goal);
+    const campaignAlignment = buildCampaignAlignment(goal, vertical, extraction, psychologyAnalysis, ctaPressure, urgencyLevel);
+    const behavioralResponse = buildBehavioralResponse({
+      goal,
+      vertical,
+      ctaPressure,
+      urgencyLevel,
+      extraction,
+      psychology: psychologyAnalysis,
+      audienceResponse,
+      attention: attentionAnalysis,
+      alignment: campaignAlignment,
+    });
+    const businessImpact = buildBusinessImpact(campaignAlignment, attentionAnalysis);
+    const strategicRecommendations = buildStrategicRecommendations({
+      alignment: campaignAlignment,
+      attention: attentionAnalysis,
+      psychology: psychologyAnalysis,
+      extraction,
+      behavioralResponse,
+    });
+    const strategicAlignmentScore = buildStrategicScore({
+      extraction,
+      goal,
+      ctaPressure,
+      attention: attentionAnalysis,
+      alignment: campaignAlignment,
+      behavioralResponse,
+    });
+    const decisionIntelligence = buildFinalDecisionIntelligence({
+      alignment: campaignAlignment,
+      audienceResponse,
+      businessImpact,
+      recommendations: strategicRecommendations,
+      strategicScore: strategicAlignmentScore,
+      behavioralResponse,
+    });
 
-    const fallbackAlignment = buildServerSideAlignment(analysis, goal, vertical);
-    analysis.goal_alignment = {
-      ...fallbackAlignment.goal_alignment,
-      ...(aiGoalAlignment || {}),
-      selected_goal: goal,
+    const responsePayload = {
+      campaign_context: {
+        goal,
+        vertical,
+        platform,
+      },
+      main_strategic_problem: decisionIntelligence.main_strategic_problem,
+      why_audience_may_resist: decisionIntelligence.why_audience_may_resist,
+      business_consequence: decisionIntelligence.business_consequence,
+      attention_analysis: attentionAnalysis,
+      behavioral_response: behavioralResponse,
+      strategic_recommendations: strategicRecommendations,
+      expected_improvement: decisionIntelligence.expected_improvement,
+      strategic_alignment_score: strategicAlignmentScore,
     };
-    analysis.vertical_alignment = {
-      ...fallbackAlignment.vertical_alignment,
-      ...(aiVerticalAlignment || {}),
-      selected_vertical: vertical,
-    };
 
-    return NextResponse.json(analysis);
+    traceStrategicValidation(responsePayload as Record<string, unknown>);
+
+    return NextResponse.json(responsePayload);
   } catch (err) {
     const message = err instanceof Error ? err.message : "Analysis failed";
-    console.error("[analyze-creative]", err);
+    console.error("[analyze-creative orchestrator]", err);
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
