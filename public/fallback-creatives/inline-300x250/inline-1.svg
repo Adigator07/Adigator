@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="300" height="250" viewBox="0 0 300 250">
+  <defs>
+    <linearGradient id="i1" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#1f2937"/>
+      <stop offset="100%" stop-color="#8b5cf6"/>
+    </linearGradient>
+  </defs>
+  <rect width="300" height="250" fill="url(#i1)"/>
+  <text x="20" y="36" fill="#ddd6fe" font-size="11" font-family="Arial" letter-spacing="1">SPONSORED</text>
+  <text x="20" y="88" fill="#ffffff" font-size="28" font-family="Arial" font-weight="700">Build Better Ads</text>
+  <text x="20" y="122" fill="#ede9fe" font-size="16" font-family="Arial">Creative strategy kits</text>
+  <rect x="20" y="176" width="130" height="38" rx="8" fill="#22c55e"/>
+  <text x="85" y="200" text-anchor="middle" fill="#052e16" font-size="15" font-family="Arial" font-weight="700">Learn More</text>
+</svg>

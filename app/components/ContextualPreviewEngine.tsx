@@ -11,6 +11,8 @@ import TravelEnvironment from "./environments/TravelEnvironment";
 import SportsEnvironment from "./environments/SportsEnvironment";
 import GamingEnvironment from "./environments/GamingEnvironment";
 import SaasEnvironment from "./environments/SaasEnvironment";
+import LuxuryEnvironment from "./environments/LuxuryEnvironment";
+import BookingEnvironment from "./environments/BookingEnvironment";
 
 interface Props {
   creatives: Array<{
@@ -44,6 +46,23 @@ const DEVICE_OPTIONS: { id: DeviceType; label: string; icon: string; width: stri
   { id: "mobile", label: "Mobile", icon: "??", width: "max-w-sm" },
 ];
 
+const SIZE_TO_SLOT: Record<string, string> = {
+  "160x600": "sidebar",
+  "300x600": "sidebar",
+  "300x250": "inline",
+  "336x280": "inline",
+  "728x90": "banner",
+  "468x60": "banner",
+  "320x50": "banner",
+  "320x100": "banner",
+  "970x250": "leaderboard",
+  "1080x1080": "feed-card",
+};
+
+function getExpectedSlotForSize(size: string): string | null {
+  return SIZE_TO_SLOT[size] ?? null;
+}
+
 function EnvironmentRenderer({
   env,
   output,
@@ -73,8 +92,8 @@ function EnvironmentRenderer({
     case "sports": return <SportsEnvironment {...props} />;
     case "gaming": return <GamingEnvironment {...props} />;
     case "saas": return <SaasEnvironment {...props} />;
-    case "luxury": return <NewsEnvironment {...props} />;
-    case "booking": return <TravelEnvironment {...props} />;
+    case "luxury": return <LuxuryEnvironment {...props} />;
+    case "booking": return <BookingEnvironment {...props} />;
     default: return <NewsEnvironment {...props} />;
   }
 }
@@ -92,6 +111,7 @@ export default function ContextualPreviewEngine({ creatives, vertical, goal }: P
   const safeCreativeIndex = Math.min(activeCreativeIndex, Math.max(0, creatives.length - 1));
   const activeCreative = creatives[safeCreativeIndex];
   const resolvedCreativeUrl = activeCreative?.url || "";
+  const availableSizes = Array.from(new Set(creatives.map((creative) => creative.size)));
 
   useEffect(() => {
     // Guard against stale local state from hot reloads where "tablet" was previously selected.
@@ -214,6 +234,20 @@ export default function ContextualPreviewEngine({ creatives, vertical, goal }: P
 
   const currentEnv = selectedEnvironment ?? output?.previewDecision.environment ?? "news";
   const envMeta = ENV_LABELS[currentEnv] ?? ENV_LABELS.news;
+  const activeExpectedSlot = getExpectedSlotForSize(activeCreative.size);
+
+  const creativeAlignment = creatives.map((creative) => {
+    const expectedSlot = getExpectedSlotForSize(creative.size);
+    return {
+      key: creative.id ?? creative.name ?? creative.size,
+      size: creative.size,
+      expectedSlot,
+      isSupported: Boolean(expectedSlot),
+    };
+  });
+
+  const alignedCount = creativeAlignment.filter((item) => item.isSupported).length;
+  const unsupportedCount = creativeAlignment.length - alignedCount;
 
   if (loading) {
     return (
@@ -368,21 +402,69 @@ export default function ContextualPreviewEngine({ creatives, vertical, goal }: P
               </div>
             </div>
 
+            <div className="rounded-lg border border-white/10 bg-white/5 p-2.5">
+              <p className="text-[10px] text-gray-500 font-semibold">TEMPLATE ALIGNMENT</p>
+              <p className="text-xs text-white mt-1">{alignedCount}/{creatives.length} creatives mapped to supported placements</p>
+              {unsupportedCount > 0 && (
+                <p className="text-[10px] text-amber-300 mt-1">{unsupportedCount} creative size(s) will use fallback placement logic.</p>
+              )}
+              {activeExpectedSlot && (
+                <p className="text-[10px] text-gray-400 mt-1">Active creative expects slot: <span className="text-white font-mono">{activeExpectedSlot}</span></p>
+              )}
+            </div>
+
+            {availableSizes.length > 1 && (
+              <div>
+                <p className="text-[10px] text-gray-500 font-semibold mb-2">SIZE SELECTOR</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {availableSizes.map((size) => {
+                    const isSelected = activeCreative?.size === size;
+                    return (
+                      <button
+                        key={size}
+                        onClick={() => {
+                          const nextIndex = creatives.findIndex((creative) => creative.size === size);
+                          if (nextIndex >= 0) setActiveCreativeIndex(nextIndex);
+                        }}
+                        className={`px-2 py-1 rounded-md text-[10px] border transition ${
+                          isSelected
+                            ? "border-purple-500/70 bg-purple-500/15 text-white"
+                            : "border-white/10 bg-white/5 text-gray-400 hover:bg-white/10"
+                        }`}
+                      >
+                        {size}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
             <div className="space-y-2 max-h-52 overflow-y-auto pr-1">
-              {creatives.map((creative, index) => (
-                <button
-                  key={creative.id ?? `${creative.name ?? "creative"}-${index}`}
-                  onClick={() => setActiveCreativeIndex(index)}
-                  className={`w-full text-left p-2 rounded-lg border transition ${
-                    safeCreativeIndex === index
-                      ? "border-purple-500 bg-purple-500/10"
-                      : "border-white/10 bg-white/5 hover:bg-white/10"
-                  }`}
-                >
-                  <p className="text-xs text-white truncate font-medium">{creative.name ?? `Creative ${index + 1}`}</p>
-                  <p className="text-[10px] text-gray-400 mt-0.5">{creative.size}</p>
-                </button>
-              ))}
+              {creatives.map((creative, index) => {
+                const expectedSlot = getExpectedSlotForSize(creative.size);
+                const isSupported = Boolean(expectedSlot);
+
+                return (
+                  <button
+                    key={creative.id ?? `${creative.name ?? "creative"}-${index}`}
+                    onClick={() => setActiveCreativeIndex(index)}
+                    className={`w-full text-left p-2 rounded-lg border transition ${
+                      safeCreativeIndex === index
+                        ? "border-purple-500 bg-purple-500/10"
+                        : "border-white/10 bg-white/5 hover:bg-white/10"
+                    }`}
+                  >
+                    <p className="text-xs text-white truncate font-medium">{creative.name ?? `Creative ${index + 1}`}</p>
+                    <div className="flex items-center justify-between gap-2 mt-0.5">
+                      <p className="text-[10px] text-gray-400">{creative.size}</p>
+                      <span className={`text-[10px] px-1.5 py-0.5 rounded ${isSupported ? "bg-emerald-500/20 text-emerald-300" : "bg-amber-500/20 text-amber-300"}`}>
+                        {isSupported ? `aligned: ${expectedSlot}` : "fallback"}
+                      </span>
+                    </div>
+                  </button>
+                );
+              })}
             </div>
 
             <div className="flex items-center justify-center bg-gray-800 rounded-lg overflow-hidden w-full max-w-xs mx-auto">
@@ -403,7 +485,7 @@ export default function ContextualPreviewEngine({ creatives, vertical, goal }: P
           <div className="flex-1">
             <AnimatePresence mode="wait">
               <motion.div
-                key={`${currentEnv}-${device}-${safeCreativeIndex}`}
+                key={`${currentEnv}-${device}`}
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}

@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1080" viewBox="0 0 1080 1080">
+  <defs>
+    <linearGradient id="n1" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#111827"/>
+      <stop offset="100%" stop-color="#9333ea"/>
+    </linearGradient>
+  </defs>
+  <rect width="1080" height="1080" fill="url(#n1)"/>
+  <text x="90" y="130" fill="#ddd6fe" font-size="34" font-family="Arial" letter-spacing="2">SPONSORED</text>
+  <text x="90" y="270" fill="#ffffff" font-size="98" font-family="Arial" font-weight="700">Creative</text>
+  <text x="90" y="370" fill="#ffffff" font-size="98" font-family="Arial" font-weight="700">Studio Pro</text>
+  <text x="90" y="470" fill="#ede9fe" font-size="44" font-family="Arial">Review ads in real website context</text>
+  <rect x="90" y="812" width="350" height="110" rx="20" fill="#22c55e"/>
+  <text x="265" y="880" text-anchor="middle" fill="#052e16" font-size="48" font-family="Arial" font-weight="700">Explore</text>
+</svg>

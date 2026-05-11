@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1080" viewBox="0 0 1080 1080">
+  <defs>
+    <linearGradient id="n2" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#7c2d12"/>
+      <stop offset="100%" stop-color="#ea580c"/>
+    </linearGradient>
+  </defs>
+  <rect width="1080" height="1080" fill="url(#n2)"/>
+  <text x="90" y="130" fill="#fed7aa" font-size="34" font-family="Arial" letter-spacing="2">PROMOTED</text>
+  <text x="90" y="270" fill="#fff7ed" font-size="96" font-family="Arial" font-weight="700">Flavor</text>
+  <text x="90" y="370" fill="#fff7ed" font-size="96" font-family="Arial" font-weight="700">Collection</text>
+  <text x="90" y="470" fill="#ffedd5" font-size="44" font-family="Arial">Trending recipes and kitchen kits</text>
+  <rect x="90" y="812" width="350" height="110" rx="20" fill="#fff7ed"/>
+  <text x="265" y="880" text-anchor="middle" fill="#9a3412" font-size="46" font-family="Arial" font-weight="700">Shop Now</text>
+</svg>

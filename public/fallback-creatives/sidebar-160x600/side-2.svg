@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="160" height="600" viewBox="0 0 160 600">
+  <defs>
+    <linearGradient id="s2" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#7c2d12"/>
+      <stop offset="100%" stop-color="#ea580c"/>
+    </linearGradient>
+  </defs>
+  <rect width="160" height="600" fill="url(#s2)"/>
+  <text x="80" y="50" text-anchor="middle" fill="#ffedd5" font-size="11" font-family="Arial" letter-spacing="1">SPECIAL DEAL</text>
+  <text x="80" y="126" text-anchor="middle" fill="#fff7ed" font-size="30" font-family="Arial" font-weight="700">Save</text>
+  <text x="80" y="160" text-anchor="middle" fill="#fff7ed" font-size="30" font-family="Arial" font-weight="700">Today</text>
+  <text x="80" y="220" text-anchor="middle" fill="#ffedd5" font-size="14" font-family="Arial">Fresh products</text>
+  <text x="80" y="240" text-anchor="middle" fill="#ffedd5" font-size="14" font-family="Arial">delivered fast</text>
+  <rect x="18" y="486" width="124" height="44" rx="8" fill="#fff7ed"/>
+  <text x="80" y="513" text-anchor="middle" fill="#9a3412" font-size="16" font-family="Arial" font-weight="700">Order</text>
+</svg>
