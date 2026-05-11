@@ -224,6 +224,26 @@ function traceStrategicValidation(payload: Record<string, unknown>): void {
       passed: isNonEmptyString(payload.business_consequence),
     },
     {
+      field: "campaign_alignment",
+      value: payload.campaign_alignment,
+      passed: Boolean(payload.campaign_alignment && typeof payload.campaign_alignment === "object"),
+    },
+    {
+      field: "goal_alignment",
+      value: payload.goal_alignment,
+      passed: Boolean(payload.goal_alignment && typeof payload.goal_alignment === "object"),
+    },
+    {
+      field: "vertical_alignment",
+      value: payload.vertical_alignment,
+      passed: Boolean(payload.vertical_alignment && typeof payload.vertical_alignment === "object"),
+    },
+    {
+      field: "business_impact",
+      value: payload.business_impact,
+      passed: Boolean(payload.business_impact && typeof payload.business_impact === "object"),
+    },
+    {
       field: "attention_analysis",
       value: payload.attention_analysis,
       passed: Boolean(payload.attention_analysis && typeof payload.attention_analysis === "object"),
@@ -968,6 +988,37 @@ function buildStrategicScore(params: {
   };
 }
 
+function buildCreativeTopicSummary(
+  extraction: ExtractionSignals,
+  detectedVertical: string,
+  goal: CampaignGoal
+): string {
+  const headline = extraction.headline?.trim();
+  const cta = extraction.cta?.trim();
+  const primary = extraction.primary_message?.trim();
+  const verticalName = VERTICAL_DETECTION_HINTS[detectedVertical]
+    ? detectedVertical.replace(/_/g, " ")
+    : null;
+
+  if (headline && detectedVertical !== "unknown" && verticalName) {
+    return `This creative promotes ${verticalName} content${primary ? ` — "${primary}"` : ""}. Headline: "${headline}".${cta ? ` CTA: "${cta}".` : ""}`;
+  }
+
+  if (headline && cta) {
+    return `This creative features "${headline}" as the primary headline, with "${cta}" as the call-to-action.${primary ? ` Core message: ${primary}.` : ""}`;
+  }
+
+  if (headline) {
+    return `Creative headline: "${headline}".${primary ? ` Core message: ${primary}.` : ""} Campaign intent: ${goal}.`;
+  }
+
+  if (primary) {
+    return `Core message: "${primary}". Campaign intent: ${goal}.`;
+  }
+
+  return "No clear content signal extracted from this creative.";
+}
+
 function buildFinalDecisionIntelligence(params: {
   alignment: CampaignAlignment;
   audienceResponse: AudienceResponse;
@@ -1114,13 +1165,36 @@ Return JSON only.`;
       strategicScore: strategicAlignmentScore,
       behavioralResponse,
     });
+    const detectedVertical = detectVerticalFromSignals(vertical, extraction);
+    const detectedGoal = ctaPressure === "aggressive" || urgencyLevel === "high"
+      ? "conversion"
+      : ctaPressure === "moderate"
+        ? "consideration"
+        : "awareness";
+
+    const goalAlignment = {
+      selected_goal: goal,
+      detected_goal: detectedGoal,
+      is_aligned: detectedGoal === goal,
+      reason: detectedGoal === goal
+        ? "Creative pressure and urgency cues align with selected campaign goal."
+        : "Creative pressure and urgency cues indicate a different campaign-stage intent than selected.",
+    };
+
+    const verticalAlignment = {
+      selected_vertical: vertical,
+      detected_vertical: detectedVertical.detectedVertical,
+      is_aligned: detectedVertical.detectedVertical === "unknown" || detectedVertical.detectedVertical === vertical,
+      reason: detectedVertical.detectedVertical === "unknown"
+        ? "Vertical signal confidence is limited; no contradictory vertical detected."
+        : detectedVertical.detectedVertical === vertical
+          ? "Creative signals align with selected vertical context."
+          : `Creative signals resemble ${detectedVertical.detectedVertical} more than ${vertical}.`,
+      evidence: detectedVertical.evidence,
+      fit_score: detectedVertical.fitScore,
+    };
 
     const responsePayload = {
-      campaign_context: {
-        goal,
-        vertical,
-        platform,
-      },
       main_strategic_problem: decisionIntelligence.main_strategic_problem,
       why_audience_may_resist: decisionIntelligence.why_audience_may_resist,
       business_consequence: decisionIntelligence.business_consequence,
@@ -1129,6 +1203,19 @@ Return JSON only.`;
       strategic_recommendations: strategicRecommendations,
       expected_improvement: decisionIntelligence.expected_improvement,
       strategic_alignment_score: strategicAlignmentScore,
+      campaign_alignment: campaignAlignment,
+      goal_alignment: goalAlignment,
+      vertical_alignment: verticalAlignment,
+      business_impact: businessImpact,
+      extraction_signals: {
+        headline: extraction.headline,
+        cta: extraction.cta,
+        brand_presence: extraction.brand_presence,
+        dominant_visual_cue: extraction.visual_elements[0] || "",
+        persuasion_style: psychologyAnalysis.persuasion_style,
+        detected_vertical: detectedVertical.detectedVertical,
+        topic_summary: buildCreativeTopicSummary(extraction, detectedVertical.detectedVertical, goal),
+      },
       cta_text: ocrMeta.cta_text,
       extracted_text: ocrMeta.extracted_text,
       ocr_status: {

@@ -10,6 +10,13 @@ import CreativeCard from "./CreativeCard";
 import AnalysisPanel from "./AnalysisPanel";
 import { supabase } from "../lib/supabase";
 import {
+  compareStrategicEntries,
+  getEntryPayload,
+  getStrategicAlignmentScore,
+  getStrategicFlow,
+  getValidatedRecommendations,
+} from "../lib/strategicPresentation";
+import {
   validateCreativeAsset,
   buildValidationSummary,
   SUPPORTED_DISPLAY_SIZE_GROUPS,
@@ -137,425 +144,6 @@ const VALID_VERTICALS = new Set([
   "news_media", "real_estate", "sports", "technology", "travel",
 ]);
 
-function clamp(value, min, max) {
-  return Math.min(max, Math.max(min, value));
-}
-
-function toHex(n) {
-  return n.toString(16).padStart(2, "0");
-}
-
-function rgbToHex(r, g, b) {
-  return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
-}
-
-function rgbToHue(r, g, b) {
-  const rn = r / 255;
-  const gn = g / 255;
-  const bn = b / 255;
-  const max = Math.max(rn, gn, bn);
-  const min = Math.min(rn, gn, bn);
-  const d = max - min;
-  if (d === 0) return 0;
-  let h = 0;
-  if (max === rn) h = ((gn - bn) / d) % 6;
-  else if (max === gn) h = (bn - rn) / d + 2;
-  else h = (rn - gn) / d + 4;
-  h *= 60;
-  if (h < 0) h += 360;
-  return h;
-}
-
-function circularHueDistance(a, b) {
-  const d = Math.abs(a - b);
-  return Math.min(d, 360 - d);
-}
-
-async function extractColorMetricsFromBlob(blob) {
-  try {
-    const objectUrl = URL.createObjectURL(blob);
-    const img = await new Promise((resolve, reject) => {
-      const el = new Image();
-      el.onload = () => resolve(el);
-      el.onerror = reject;
-      el.src = objectUrl;
-    });
-
-    const canvas = document.createElement("canvas");
-    const ctx = canvas.getContext("2d", { willReadFrequently: true });
-    if (!ctx) {
-      URL.revokeObjectURL(objectUrl);
-      return null;
-    }
-
-    const targetW = 64;
-    const ratio = img.height / img.width;
-    canvas.width = targetW;
-    canvas.height = Math.max(16, Math.round(targetW * ratio));
-    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-    const { data } = ctx.getImageData(0, 0, canvas.width, canvas.height);
-    URL.revokeObjectURL(objectUrl);
-
-    const buckets = new Map();
-    let warmPixels = 0;
-    let sampled = 0;
-
-    for (let i = 0; i < data.length; i += 16) {
-      const r = data[i];
-      const g = data[i + 1];
-      const b = data[i + 2];
-      const a = data[i + 3];
-      if (a < 30) continue;
-
-      const qr = (r >> 5) << 5;
-      const qg = (g >> 5) << 5;
-      const qb = (b >> 5) << 5;
-      const key = `${qr}|${qg}|${qb}`;
-
-      const current = buckets.get(key) || { count: 0, r: qr, g: qg, b: qb };
-      current.count += 1;
-      buckets.set(key, current);
-
-      const hue = rgbToHue(r, g, b);
-      if (hue <= 60 || hue >= 300) warmPixels += 1;
-      sampled += 1;
-    }
-
-    const top = [...buckets.values()]
-      .sort((a, b) => b.count - a.count)
-      .slice(0, 5);
-
-    if (top.length === 0) return null;
-
-    const palette = top.map((c) => rgbToHex(c.r, c.g, c.b));
-    const hues = top.map((c) => rgbToHue(c.r, c.g, c.b));
-    const dominantHue = Math.round(hues[0]);
-    const avgHueDistance = hues.length > 1
-      ? Math.round(hues.slice(1).reduce((sum, h) => sum + circularHueDistance(dominantHue, h), 0) / (hues.length - 1))
-      : 0;
-
-    const colorHarmony = avgHueDistance <= 40
-      ? "HARMONIOUS"
-      : avgHueDistance <= 80
-        ? "ACCEPTABLE"
-        : "DISCORDANT";
-
-    const warmthScore = sampled > 0 ? Math.round((warmPixels / sampled) * 100) : 50;
-
-    return {
-      palette,
-      colorHarmony,
-      warmthScore,
-      dominantHue,
-    };
-  } catch {
-    return null;
-  }
-}
-
-// ── OpenAI-Only Normalizer ───────────────────────────────────────────────────
-// Maps the clean OpenAI Vision JSON → the shape AnalysisPanel expects.
-
-function normalizeOpenAIAnalysis(ai, goal, vertical, visualMetrics = null) {
-  const s = ai?.subscores || {};
-  const overallScore = Number.isFinite(Number(ai?.overall_score)) ? Number(ai.overall_score) : null;
-  const conversionScore = Number.isFinite(Number(ai?.conversion_score)) ? Number(ai.conversion_score) : overallScore;
-
-  // Derive grade
-  const grade = ai?.grade ||
-    (!Number.isFinite(overallScore)
-      ? "Analysis Unavailable"
-      : overallScore >= 82
-        ? "Elite Creative"
-        : overallScore >= 70
-          ? "Strong Performer"
-          : overallScore >= 55
-            ? "Needs Optimization"
-            : "High Risk Creative");
-
-  // Build fix blocks from improvements
-  const improvements = Array.isArray(ai?.improvements) ? ai.improvements : [];
-  const weaknesses = Array.isArray(ai?.weaknesses) ? ai.weaknesses : [];
-  const fix_blocks = improvements.slice(0, 6).map((text, i) => ({
-    dimension: "creative_optimization",
-    severity: i < 2 ? "HIGH" : "MEDIUM",
-    score: i < 2 ? 45 : 58,
-    problem: weaknesses[i] || "Optimization required",
-    impact: text,
-    fixNow: text,
-    fixDeep: "Test this recommendation in a controlled A/B split.",
-    abTestIdea: `Variant B: ${text}`,
-    datasetNote: "Derived from OpenAI Vision analysis",
-    expectedOutcome: "Improved engagement and conversion rate",
-    timeEstimate: i < 2 ? "20m" : "35m",
-  }));
-
-  const ab_hypotheses = fix_blocks.slice(0, 4).map((fix) => ({
-    dimension: fix.dimension,
-    priority: fix.severity === "HIGH" ? "HIGH" : "MEDIUM",
-    variant_a: fix.problem,
-    variant_b: fix.fixNow,
-    expected_lift: fix.expectedOutcome,
-  }));
-
-  const ctaText = ai?.cta || null;
-  const ctaPresent = Boolean(ctaText && ctaText.trim().length > 0);
-  const ctaStrengthScore = Number(s.cta_strength) || null;
-
-  const recommendedTemplates = goal === "conversion"
-    ? ["ecommerce", "technology"]
-    : goal === "consideration"
-      ? ["business", "technology"]
-      : ["newspaper", "entertainment"];
-
-  const engagementForecast = ai?.engagement_forecast || (
-    Number.isFinite(overallScore)
-      ? overallScore >= 75 ? "HIGH" : overallScore >= 55 ? "MEDIUM" : "LOW"
-      : "MEDIUM"
-  );
-
-  const visualClarity = Number(s.visual_clarity) || null;
-  const messageClarity = Number(s.message_clarity) || null;
-  const layoutHierarchy = Number(s.layout_hierarchy) || null;
-  const clutterSignal = Number.isFinite(visualClarity) && Number.isFinite(messageClarity) && Number.isFinite(layoutHierarchy)
-    ? Math.round(100 - (visualClarity * 0.45 + messageClarity * 0.25 + layoutHierarchy * 0.30))
-    : null;
-  const clutterIndex = Number.isFinite(clutterSignal) ? clamp(Math.round(clutterSignal / 10), 1, 10) : null;
-  const clutterLabel = !Number.isFinite(clutterIndex)
-    ? null
-    : clutterIndex <= 3
-      ? "CLEAN"
-      : clutterIndex <= 5
-        ? "MODERATE"
-        : clutterIndex <= 7
-          ? "CLUTTERED"
-          : "CHAOTIC";
-
-  const stopRateEstimate = engagementForecast === "HIGH"
-    ? (clutterIndex && clutterIndex >= 7 ? "2.3%-3.1%" : "3.4%-5.2%")
-    : engagementForecast === "MEDIUM"
-      ? (clutterIndex && clutterIndex >= 7 ? "1.4%-2.0%" : "2.0%-3.2%")
-      : "0.8%-1.5%";
-
-  const engagementDrivers = [
-    ...(Array.isArray(ai?.strengths) ? ai.strengths.slice(0, 2) : []),
-    Number.isFinite(visualClarity) ? `Visual clarity score: ${visualClarity}/100` : null,
-    Number.isFinite(messageClarity) ? `Message clarity score: ${messageClarity}/100` : null,
-    Number.isFinite(ctaStrengthScore) ? `CTA strength score: ${ctaStrengthScore}/100` : null,
-  ].filter(Boolean).slice(0, 4);
-
-  const platformFit = ai?.platform_fit || {};
-  const goalAlignmentRaw = ai?.goal_alignment || {};
-  const verticalAlignmentRaw = ai?.vertical_alignment || {};
-
-  const detectedGoal = typeof goalAlignmentRaw?.detected_goal === "string"
-    ? goalAlignmentRaw.detected_goal
-    : (typeof ai?.funnel_stage === "string" ? ai.funnel_stage : "unknown");
-  const goalAligned = typeof goalAlignmentRaw?.is_aligned === "boolean"
-    ? goalAlignmentRaw.is_aligned
-    : detectedGoal === goal;
-
-  const detectedVertical = typeof verticalAlignmentRaw?.detected_vertical === "string"
-    ? verticalAlignmentRaw.detected_vertical
-    : "unknown";
-  const verticalAligned = typeof verticalAlignmentRaw?.is_aligned === "boolean"
-    ? verticalAlignmentRaw.is_aligned
-    : detectedVertical === vertical;
-
-  const goalAlignmentMessage = goalAligned
-    ? `Creative aligns with selected ${goal} campaign goal.`
-    : `Creative is not aligned with selected ${goal} campaign goal.`;
-  const verticalAlignmentMessage = verticalAligned
-    ? `Creative aligns with selected ${VERTICAL_TITLE_MAP[vertical] || vertical} vertical.`
-    : `Creative is not aligned with selected ${VERTICAL_TITLE_MAP[vertical] || vertical} vertical.`;
-
-  return {
-    goal,
-    vertical,
-    analysis_state: "success",
-    analysis_state_reason: "openai_vision",
-    analysis_state_message: "OpenAI Vision Analysis",
-    analysis_state_label: "OpenAI Vision Analysis",
-    finalScore: overallScore,
-    score: overallScore,
-    overall_score: overallScore,
-    confidence: "98%",
-    engagement: { level: engagementForecast },
-    engagement_forecast: engagementForecast,
-    engagement_forecast_confidence: 98,
-    emotional_appeal: engagementForecast,
-    creative_archetype: goal === "conversion" ? "Direct Response" : goal === "consideration" ? "Proof-led Consideration" : "Brand Awareness",
-    emotion_signature: ai?.emotion_trigger || null,
-    visual_hierarchy: Number(layoutHierarchy) >= 70 ? "STRONG" : Number(layoutHierarchy) >= 50 ? "MODERATE" : "WEAK",
-    headlineDetected: Boolean(ai?.headline),
-    readingFlow: ai?.layout_hierarchy?.attention_flow ? "LINEAR" : "SCATTERED",
-    focalPointStrength: visualClarity,
-    cta_presence: ctaPresent,
-    cta_text: ctaText,
-    cta_detected: ctaPresent,
-    cta_goal_fit: ctaPresent
-      ? (Number(s.cta_strength) >= 75 ? "Perfect Match" : Number(s.cta_strength) >= 55 ? "Acceptable" : "Mismatch")
-      : "None",
-    clutter_index: clutterIndex,
-    clutter_label: clutterLabel,
-    stop_rate_estimate: stopRateEstimate,
-    engagement_drivers: engagementDrivers,
-    colorPalette: visualMetrics?.palette || [],
-    colorHarmony: visualMetrics?.colorHarmony || null,
-    warmthScore: visualMetrics?.warmthScore || null,
-    dominantHue: visualMetrics?.dominantHue || null,
-    intelligenceGraph: null,
-    lockedContext: { goal, selectedVertical: vertical },
-    signalAvailability: {},
-    suggestions: improvements,
-    fix_blocks,
-    ab_hypotheses,
-    performanceImpact: fix_blocks.slice(0, 5).map((fix) => ({
-      issue: fix.problem,
-      impact: fix.impact,
-      estimatedEffect: fix.expectedOutcome,
-      fix: fix.fixNow,
-      expectedOutcome: fix.expectedOutcome,
-      priority: fix.severity === "HIGH" ? "High" : "Medium",
-    })),
-    recommendedTemplates,
-    eligibility: {
-      score: Number(s.audience_alignment) || overallScore,
-      breakdown: {
-        goalAlignment: Number(s.audience_alignment) || null,
-        verticalRelevance: Number(s.platform_fit_score) || null,
-        trustAlignment: Number(s.brand_presence) || null,
-        mobileReadiness: Number(s.visual_clarity) || null,
-      },
-      issues: [],
-    },
-    attention: {
-      score: Number(s.visual_clarity) || overallScore,
-      breakdown: {
-        visualClarity,
-        layoutAlignment: layoutHierarchy,
-        readabilityScore: messageClarity,
-        strategyAlignment: Number(s.audience_alignment) || null,
-      },
-    },
-    performance: {
-      score: conversionScore,
-      breakdown: {
-        conversionPotential: conversionScore,
-        ctaAlignment: ctaStrengthScore,
-        engagementPotential: Number(s.emotional_resonance) || null,
-        competitiveStrength: Number(s.brand_presence) || null,
-        auctionReadiness: overallScore,
-      },
-      ctaGoalFit: ctaPresent
-        ? (ctaStrengthScore >= 75 ? "good" : ctaStrengthScore >= 55 ? "acceptable" : "too weak")
-        : "missing",
-    },
-    coreChecks: {
-      noticeability: { score: visualClarity, label: visualClarity >= 60 ? "Pass" : "Needs improvement", pass: visualClarity >= 60, available: true },
-      messageClarity: { score: messageClarity, label: messageClarity >= 60 ? "Pass" : "Needs improvement", pass: messageClarity >= 60, available: true },
-      ctaStrength: { score: ctaStrengthScore, label: ctaStrengthScore >= 55 ? "Pass" : "Needs improvement", pass: ctaStrengthScore >= 55, available: ctaPresent },
-      brandPresence: { score: Number(s.brand_presence) || null, label: Number(s.brand_presence) >= 55 ? "Pass" : "Needs improvement", pass: Number(s.brand_presence) >= 55, available: true },
-      crowding: {
-        score: Number.isFinite(clutterSignal) ? clamp(100 - clutterSignal, 0, 100) : null,
-        label: clutterLabel ? `${clutterLabel} density` : "Signal unavailable",
-        pass: Number.isFinite(clutterIndex) ? clutterIndex <= 5 : false,
-        available: Number.isFinite(clutterIndex),
-      },
-      formatFit: { score: Number(s.platform_fit_score) || null, label: Number(s.platform_fit_score) >= 55 ? "Pass" : "Needs improvement", pass: Number(s.platform_fit_score) >= 55, available: true },
-    },
-    cta: {
-      text: ctaText,
-      visibilityScore: ctaStrengthScore,
-      contrastScore: null,
-      positionScore: null,
-      urgencyScore: conversionScore,
-    },
-    adVisibilityScore: Number(s.visual_clarity) || overallScore,
-    goalAlignmentIndicator: Number(s.audience_alignment) || overallScore,
-    cta_strength: ctaStrengthScore,
-    goal_alignment: {
-      selected_goal: goal,
-      detected_goal: detectedGoal || "unknown",
-      is_aligned: Boolean(goalAligned),
-      confidence: Number(goalAlignmentRaw?.confidence) || null,
-      reason: goalAlignmentRaw?.reason || goalAlignmentMessage,
-      message: goalAlignmentMessage,
-    },
-    vertical_alignment: {
-      selected_vertical: vertical,
-      detected_vertical: detectedVertical || "unknown",
-      is_aligned: Boolean(verticalAligned),
-      confidence: Number(verticalAlignmentRaw?.confidence) || null,
-      reason: verticalAlignmentRaw?.reason || verticalAlignmentMessage,
-      message: verticalAlignmentMessage,
-    },
-    brightness: null,
-    contrast: null,
-    aiData: {
-      conversionScore,
-      verticalFitScore: Number(s.platform_fit_score) || overallScore,
-      campaign_goal: goal,
-      vertical,
-      goal_alignment: {
-        selected_goal: goal,
-        detected_goal: detectedGoal || "unknown",
-        is_aligned: Boolean(goalAligned),
-        confidence: Number(goalAlignmentRaw?.confidence) || null,
-        reason: goalAlignmentRaw?.reason || goalAlignmentMessage,
-      },
-      vertical_alignment: {
-        selected_vertical: vertical,
-        detected_vertical: detectedVertical || "unknown",
-        is_aligned: Boolean(verticalAligned),
-        confidence: Number(verticalAlignmentRaw?.confidence) || null,
-        reason: verticalAlignmentRaw?.reason || verticalAlignmentMessage,
-      },
-      cta_state: ctaPresent ? "Strong" : "Missing",
-      overall_score: overallScore,
-      confidence: 98,
-      strengths: Array.isArray(ai?.strengths) ? ai.strengths : [],
-      weaknesses,
-      missingElements: [],
-      brand: ai?.brand || null,
-      headline: ai?.headline || null,
-      primary_message: ai?.primary_message || null,
-      visual_elements: Array.isArray(ai?.visual_elements) ? ai.visual_elements : [],
-      emotion_trigger: ai?.emotion_trigger || null,
-      target_audience: ai?.target_audience || null,
-      layout_hierarchy: ai?.layout_hierarchy || null,
-      platform_fit: platformFit,
-      subscores: {
-        stage_alignment: Number(s.audience_alignment) || null,
-        conversion_readiness: conversionScore,
-        visual_hierarchy: Number(s.layout_hierarchy) || null,
-        readability: Number(s.message_clarity) || null,
-        cognitive_simplicity: Number(s.visual_clarity) || null,
-        emotional_resonance: Number(s.emotional_resonance) || null,
-        trust_signals: Number(s.brand_presence) || null,
-        brand_recall: Number(s.brand_presence) || null,
-        cta_alignment: ctaStrengthScore,
-        offer_clarity: Number(s.message_clarity) || null,
-        urgency_fit: Number(s.emotional_resonance) || null,
-      },
-    },
-    decisionEngine: {
-      grade: {
-        grade,
-        color: !Number.isFinite(overallScore) ? "slate" : overallScore >= 82 ? "emerald" : overallScore >= 70 ? "blue" : overallScore >= 55 ? "yellow" : "red",
-      },
-      optimizations: improvements.slice(0, 6).map((text, i) => ({
-        dimension: "creative_optimization",
-        subscore: overallScore,
-        issue: weaknesses[i] || "Optimization area",
-        recommendation: text,
-        priority: i < 2 ? "High" : "Medium",
-      })),
-    },
-    analysisSignal: { status: "success" },
-  };
-}
-
 // ── OpenAI-Only Analyzer ─────────────────────────────────────────────────────
 
 async function analyzeAllCreatives(creatives, goal, platform, vertical) {
@@ -592,7 +180,6 @@ async function analyzeAllCreatives(creatives, goal, platform, vertical) {
       const imageRes = await fetch(creative.url);
       if (!imageRes.ok) throw new Error(`Failed to fetch image: ${creative.url}`);
       const imageBlob = await imageRes.blob();
-      const visualMetrics = await extractColorMetricsFromBlob(imageBlob);
 
       const formData = new FormData();
       formData.append("image", imageBlob, "creative.jpg");
@@ -731,7 +318,7 @@ export default function PreviewTool() {
   const [analysisResult, setAnalysisResult] = useState(null);
   const [analysisLoading, setAnalysisLoading] = useState(false);
 
-  const [selectedTemplate, setSelectedTemplate] = useState("newspaper");
+  const [selectedTemplate] = useState("newspaper");
   const [viewMode, setViewMode] = useState("multiple");
   const [showSlotLabels, setShowSlotLabels] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
@@ -962,12 +549,9 @@ export default function PreviewTool() {
     try {
       const results = await analyzeAllCreatives(validCreatives, campaignGoal, platform, campaignVertical);
       setAnalysisResult(results);
-      if (results.length > 0 && results[0].data.recommendedTemplates?.length > 0) {
-        setSelectedTemplate(results[0].data.recommendedTemplates[0]);
-      }
 
-      const goalMisaligned = results.filter((r) => r?.data?.goal_alignment?.is_aligned === false);
-      const verticalMisaligned = results.filter((r) => r?.data?.vertical_alignment?.is_aligned === false);
+      const goalMisaligned = results.filter((entry) => getEntryPayload(entry)?.goal_alignment?.is_aligned === false);
+      const verticalMisaligned = results.filter((entry) => getEntryPayload(entry)?.vertical_alignment?.is_aligned === false);
 
       if (goalMisaligned.length === 0 && verticalMisaligned.length === 0) {
         addToast(`Analyzed ${results.length} creative${results.length !== 1 ? "s" : ""}. All creatives align with selected goal and vertical.`, "success");
@@ -999,13 +583,15 @@ export default function PreviewTool() {
       doc.text(`Platform: ${(platform || '').toUpperCase()} | Goal: ${(campaignGoal || '').toUpperCase()}`, 40, 80);
       doc.text(`Date: ${new Date().toLocaleString()}`, 40, 98);
 
-      const sorted = [...analysisResult].sort((a, b) => b.data.overall_score - a.data.overall_score);
+      const sorted = [...analysisResult].sort(compareStrategicEntries);
 
       doc.setFontSize(16); doc.setTextColor(255, 255, 255); doc.text("Creative Ranking", 40, 130);
 
       let currentY = 152;
       sorted.forEach((res, rank) => {
-        const score = res.data.overall_score;
+        const payload = getEntryPayload(res) || {};
+        const score = getStrategicAlignmentScore(payload) ?? 0;
+        const flow = getStrategicFlow(payload);
         if (score >= 70) doc.setTextColor(74, 222, 128);
         else if (score >= 45) doc.setTextColor(250, 204, 21);
         else doc.setTextColor(248, 113, 113);
@@ -1019,11 +605,15 @@ export default function PreviewTool() {
         if (score >= 80) verdict = `"${res.creative.name}" is perfect and strongly aligned with all standards.`;
         else if (score >= 65) verdict = `"${res.creative.name}" meets most standards — minor improvements suggested.`;
         else if (score >= 45) verdict = `"${res.creative.name}" needs work — CTA alignment and visibility require attention.`;
-        else verdict = `"${res.creative.name}" has critical issues — not recommended for launch without revisions.`;
+        else verdict = `"${res.creative.name}" has critical issues — align strategic message before scaling spend.`;
 
         const lines = doc.splitTextToSize(verdict, 515);
         doc.text(lines, 50, currentY);
         currentY += lines.length * 14 + 4;
+
+        const summaryLines = doc.splitTextToSize(`Strategic summary: ${flow.strategicAlignmentSummary}`, 515);
+        doc.text(summaryLines, 50, currentY);
+        currentY += summaryLines.length * 14 + 6;
 
         if (currentY > 760) { doc.addPage(); setBg(); currentY = 40; }
       });
@@ -1035,21 +625,26 @@ export default function PreviewTool() {
         let cy = 72;
         try { doc.addImage(res.creative.url, 40, cy, 200, 130); cy += 145; } catch (e) { }
 
-        const s = res.data.overall_score;
+        const payload = getEntryPayload(res) || {};
+        const flow = getStrategicFlow(payload);
+        const recommendations = getValidatedRecommendations(payload);
+        const s = getStrategicAlignmentScore(payload) ?? 0;
         if (s >= 70) doc.setTextColor(74, 222, 128);
         else if (s >= 45) doc.setTextColor(250, 204, 21);
         else doc.setTextColor(248, 113, 113);
 
-        doc.setFontSize(15); doc.text(`Score: ${s}/100`, 40, cy); cy += 20;
+        doc.setFontSize(15); doc.text(`Strategic Alignment: ${s}/100`, 40, cy); cy += 20;
 
         doc.setTextColor(148, 163, 184); doc.setFontSize(11);
-        doc.text(`Visibility: ${res.data.adVisibilityScore} | Goal Alignment: ${res.data.goalAlignmentIndicator} | CTA: ${res.data.cta_strength}`, 40, cy); cy += 16;
-        doc.text(`Brightness: ${res.data.brightness} | Contrast: ${res.data.contrast}`, 40, cy); cy += 28;
+        const problemLines = doc.splitTextToSize(`Main strategic problem: ${flow.mainStrategicProblem}`, 515);
+        doc.text(problemLines, 40, cy); cy += problemLines.length * 14 + 6;
+        const consequenceLines = doc.splitTextToSize(`Business consequence: ${flow.businessConsequence}`, 515);
+        doc.text(consequenceLines, 40, cy); cy += consequenceLines.length * 14 + 10;
 
-        doc.setTextColor(255, 255, 255); doc.setFontSize(13); doc.text("Suggestions:", 40, cy); cy += 18;
+        doc.setTextColor(255, 255, 255); doc.setFontSize(13); doc.text("Top Interventions:", 40, cy); cy += 18;
         doc.setTextColor(203, 213, 225); doc.setFontSize(11);
-        (res.data.suggestions || []).forEach(sug => {
-          const lines = doc.splitTextToSize(`• ${sug}`, 515);
+        recommendations.slice(0, 3).forEach((rec) => {
+          const lines = doc.splitTextToSize(`• ${rec.recommended_change}`, 515);
           doc.text(lines, 40, cy); cy += lines.length * 14;
         });
       }
@@ -1512,6 +1107,7 @@ export default function PreviewTool() {
                   <AnalysisPanel
                     analysisResult={analysisResult}
                     campaignGoal={campaignGoal}
+                    campaignVertical={campaignVertical}
                     platform={platform}
                     onDownloadReport={handleDownloadReport}
                   />
@@ -1546,9 +1142,9 @@ export default function PreviewTool() {
                     name: creative.name,
                     url: creative.url || creative.imageDataUrl || creative.image || "",
                     size: creative.size,
-                    analyzerOutput: analysisResult?.[index]?.data ?? {},
-                    ctaText: analysisResult?.[index]?.data?.cta?.text ?? "",
-                    headline: analysisResult?.[index]?.data?.headline ?? "",
+                    analyzerOutput: getEntryPayload(analysisResult?.[index]) || {},
+                    ctaText: "",
+                    headline: (getEntryPayload(analysisResult?.[index]) || {}).main_strategic_problem ?? "",
                   }))}
                   vertical={campaignVertical || "general"}
                   goal={campaignGoal || "awareness"}
