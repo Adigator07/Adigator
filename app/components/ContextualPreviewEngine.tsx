@@ -262,6 +262,7 @@ export default function ContextualPreviewEngine({ creatives, vertical, goal }: P
   }, [creatives, safeCreativeIndex, buildCacheKey, fetchPreview, selectedEnvironment]);
 
   const currentEnv = selectedEnvironment ?? output?.previewDecision.environment ?? "news";
+  const isMobilePreview = device === "mobile";
   const envMeta = ENV_LABELS[currentEnv] ?? ENV_LABELS.news;
   const activeExpectedSlot = getExpectedSlotForSize(activeCreative.size);
 
@@ -395,7 +396,7 @@ export default function ContextualPreviewEngine({ creatives, vertical, goal }: P
         </div>
       )}
 
-      <div className={`mx-auto transition-all duration-300 ${DEVICE_OPTIONS.find((d) => d.id === device)?.width ?? "w-full"}`}>
+      <div className={`mx-auto transition-all duration-300 ${isMobilePreview ? "w-full max-w-[460px]" : (DEVICE_OPTIONS.find((d) => d.id === device)?.width ?? "w-full")}`}>
         <div className="bg-[#1c1f27] border border-white/10 rounded-t-xl px-4 py-2.5 flex items-center gap-3">
           <div className="flex gap-1.5">
             <div className="w-3 h-3 rounded-full bg-red-500/60" />
@@ -411,8 +412,8 @@ export default function ContextualPreviewEngine({ creatives, vertical, goal }: P
           </div>
         </div>
 
-        <div className="border-x border-b border-white/10 rounded-b-xl overflow-hidden max-h-175 overflow-y-auto flex">
-          <div className="w-1/3 bg-gray-900 border-r border-white/10 p-4 space-y-3">
+        <div className={`border-x border-b border-white/10 rounded-b-xl overflow-hidden ${isMobilePreview ? "max-h-none" : "max-h-175 overflow-y-auto"} flex ${isMobilePreview ? "flex-col" : ""}`}>
+          <div className={`${isMobilePreview ? "w-full border-b border-white/10" : "w-1/3 border-r border-white/10"} bg-gray-900 p-4 space-y-3`}>
             <div className="flex items-center justify-between">
               <p className="text-xs text-gray-500 font-semibold">CREATIVE SET ({creatives.length})</p>
               <div className="flex items-center gap-1">
@@ -471,7 +472,7 @@ export default function ContextualPreviewEngine({ creatives, vertical, goal }: P
               </div>
             )}
 
-            <div className="space-y-2 max-h-52 overflow-y-auto pr-1">
+            <div className={`space-y-2 pr-1 ${isMobilePreview ? "max-h-40 overflow-y-auto" : "max-h-52 overflow-y-auto"}`}>
               {creatives.map((creative, index) => {
                 const expectedSlot = getExpectedSlotForSize(creative.size);
                 const isSupported = Boolean(expectedSlot);
@@ -498,7 +499,7 @@ export default function ContextualPreviewEngine({ creatives, vertical, goal }: P
               })}
             </div>
 
-            <div className="flex items-center justify-center bg-gray-800 rounded-lg overflow-hidden w-full max-w-xs mx-auto">
+            <div className={`flex items-center justify-center bg-gray-800 rounded-lg overflow-hidden w-full mx-auto ${isMobilePreview ? "max-w-[220px]" : "max-w-xs"}`}>
               {resolvedCreativeUrl ? (
                 <img
                   key={`${safeCreativeIndex}-${currentEnv}-${resolvedCreativeUrl}`}
@@ -513,7 +514,7 @@ export default function ContextualPreviewEngine({ creatives, vertical, goal }: P
             <p className="text-[10px] text-gray-500 text-center font-mono">{activeCreative.size}</p>
           </div>
 
-          <div className="flex-1">
+          <div className="flex-1 min-w-0">
             <AnimatePresence mode="wait">
               <motion.div
                 key={`${currentEnv}-${device}`}
@@ -521,6 +522,7 @@ export default function ContextualPreviewEngine({ creatives, vertical, goal }: P
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
                 transition={{ duration: 0.25 }}
+                className={isMobilePreview ? "max-h-[calc(100vh-320px)] overflow-y-auto" : ""}
               >
                 <EnvironmentRenderer
                   env={currentEnv}

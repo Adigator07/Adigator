@@ -19,6 +19,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
 import { buildBehavioralResponse } from "../../lib/behavioralResponse";
+import sharp from "sharp";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -119,6 +120,16 @@ interface BehavioralResponse {
 interface StrategicScore {
   value: number;
   rationale: string;
+}
+
+interface ExtractionMeta {
+  ocr_failed: boolean;
+  ocr_error: string | null;
+  extracted_text: string;
+  cta_text: string;
+  retry_count: number;
+  timed_out: boolean;
+  text_available: boolean;
 }
 
 interface FinalDecisionIntelligence {
@@ -367,6 +378,154 @@ function normalizeExtraction(raw: Record<string, unknown>): ExtractionSignals {
     trust_markers: normalizeStringArray(raw.trust_markers),
     urgency_signals: normalizeStringArray(raw.urgency_signals),
     audience_clues: normalizeStringArray(raw.audience_clues),
+  };
+}
+
+function fallbackExtractionSignals(reason: string): ExtractionSignals {
+  return {
+    headline: "",
+    cta: "",
+    primary_message: "",
+    visual_elements: ["creative_asset"],
+    dominant_colors: [],
+    text_density: "moderate",
+    layout_structure: `Fallback extraction used: ${reason}`,
+    brand_presence: "moderate",
+    emotional_cues: [],
+    readability: "moderate",
+    hierarchy_observations: "Layout hierarchy inferred without OCR text extraction.",
+    trust_markers: [],
+    urgency_signals: [],
+    audience_clues: [],
+  };
+}
+
+async function normalizeImageForVision(buffer: Buffer): Promise<{ mimeType: "image/png"; base64: string; width: number; height: number }> {
+  const pipeline = sharp(buffer, { failOn: "none" }).rotate();
+  const metadata = await pipeline.metadata();
+
+  const width = metadata.width ?? 0;
+  const shouldUpscale = width > 0 && width < 900;
+  const transformed = shouldUpscale
+    ? pipeline.resize({ width: 900, withoutEnlargement: false })
+    : pipeline;
+
+  const png = await transformed.png({ compressionLevel: 9 }).toBuffer();
+  const normalizedMeta = await sharp(png).metadata();
+
+  return {
+    mimeType: "image/png",
+    base64: png.toString("base64"),
+    width: normalizedMeta.width ?? width,
+    height: normalizedMeta.height ?? (metadata.height ?? 0),
+  };
+}
+
+async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, label: string): Promise<T> {
+  return await new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => {
+      reject(new Error(`${label} timed out after ${timeoutMs}ms`));
+    }, timeoutMs);
+
+    promise
+      .then((result) => {
+        clearTimeout(timer);
+        resolve(result);
+      })
+      .catch((error) => {
+        clearTimeout(timer);
+        reject(error);
+      });
+  });
+}
+
+async function extractSignalsWithRetry(params: {
+  openai: OpenAI;
+  mimeType: "image/png";
+  base64: string;
+  extractionUserPrompt: string;
+}): Promise<{ parsed: Record<string, unknown>; meta: ExtractionMeta }> {
+  const { openai, mimeType, base64, extractionUserPrompt } = params;
+  let lastError: Error | null = null;
+  let timedOut = false;
+
+  for (let attempt = 1; attempt <= 2; attempt += 1) {
+    try {
+      const completion = await withTimeout(
+        openai.chat.completions.create({
+          model: process.env.OPENAI_MODEL || "gpt-4o",
+          max_tokens: 900,
+          response_format: { type: "json_object" },
+          messages: [
+            { role: "system", content: EXTRACTION_SYSTEM_PROMPT },
+            {
+              role: "user",
+              content: [
+                {
+                  type: "image_url",
+                  image_url: {
+                    url: `data:${mimeType};base64,${base64}`,
+                    detail: "high",
+                  },
+                },
+                { type: "text", text: extractionUserPrompt },
+              ],
+            },
+          ],
+        }),
+        10000,
+        "OpenAI vision extraction"
+      );
+
+      const raw = completion.choices[0]?.message?.content;
+      if (!raw) {
+        throw new Error("No extraction output from model");
+      }
+
+      const parsed = JSON.parse(raw) as Record<string, unknown>;
+      const extraction = normalizeExtraction(parsed);
+      const extractedText = [extraction.headline, extraction.primary_message, extraction.cta]
+        .filter((text) => typeof text === "string" && text.trim().length > 0)
+        .join(" ")
+        .trim();
+
+      return {
+        parsed,
+        meta: {
+          ocr_failed: false,
+          ocr_error: null,
+          extracted_text: extractedText,
+          cta_text: extraction.cta?.trim() ? extraction.cta : "unavailable",
+          retry_count: attempt - 1,
+          timed_out: false,
+          text_available: extractedText.length > 0,
+        },
+      };
+    } catch (error) {
+      const err = error instanceof Error ? error : new Error("Unknown OCR extraction error");
+      lastError = err;
+      timedOut = timedOut || /timed out/i.test(err.message);
+      console.error("[ocr] extraction attempt failed", {
+        attempt,
+        error: err.message,
+        stack: err.stack,
+      });
+    }
+  }
+
+  const fallbackMeta: ExtractionMeta = {
+    ocr_failed: true,
+    ocr_error: lastError?.message || "OCR extraction failed",
+    extracted_text: "",
+    cta_text: "unavailable",
+    retry_count: 1,
+    timed_out: timedOut,
+    text_available: false,
+  };
+
+  return {
+    parsed: fallbackExtractionSignals(fallbackMeta.ocr_error || "OCR extraction failed") as unknown as Record<string, unknown>,
+    meta: fallbackMeta,
   };
 }
 
@@ -795,13 +954,14 @@ function buildStrategicScore(params: {
   attention: AttentionAnalysis;
   alignment: CampaignAlignment;
   behavioralResponse: BehavioralResponse;
+  textAvailable: boolean;
 }): StrategicScore {
-  const { extraction, goal, ctaPressure, attention, alignment, behavioralResponse } = params;
+  const { extraction, goal, ctaPressure, attention, alignment, behavioralResponse, textAvailable } = params;
 
-  const visualClarity = Math.round((scoreLevel(extraction.readability, true) + scoreLevel(extraction.text_density, false)) / 2);
-  const ctaPressureFit = scoreCtaPressureFit(goal, ctaPressure);
-  const readability = scoreLevel(extraction.readability, true);
-  const emotionalAlignment = scoreEmotionalAlignment(goal, extraction.emotional_cues);
+  const visualClarity = Math.round((scoreLevel(extraction.brand_presence, true) + scoreLevel(extraction.text_density, false)) / 2);
+  const ctaPressureFit = textAvailable ? scoreCtaPressureFit(goal, ctaPressure) : 0;
+  const readability = textAvailable ? scoreLevel(extraction.readability, true) : 0;
+  const emotionalAlignment = textAvailable ? scoreEmotionalAlignment(goal, extraction.emotional_cues) : 0;
   const audienceFit = alignment.alignment_status === "aligned" ? 90 : alignment.alignment_status === "partially_aligned" ? 68 : 42;
   const attentionRetention = attention.friction_points.length === 0 ? 88 : attention.friction_points.length === 1 ? 68 : 45;
   const hierarchyQuality = extraction.hierarchy_observations.toLowerCase().includes("strong") ? 88 : extraction.hierarchy_observations ? 68 : 55;
@@ -818,7 +978,9 @@ function buildStrategicScore(params: {
       behavioralReadiness * 0.15
   );
 
-  const rationale = `Strategic Alignment Score is driven by visual clarity (${visualClarity}), CTA pressure fit (${ctaPressureFit}), readability (${readability}), emotional alignment (${emotionalAlignment}), audience fit (${audienceFit}), attention retention (${attentionRetention}), hierarchy quality (${hierarchyQuality}), and behavioral readiness (${behavioralReadiness}).`;
+  const rationale = textAvailable
+    ? `Strategic Alignment Score is driven by visual clarity (${visualClarity}), CTA pressure fit (${ctaPressureFit}), readability (${readability}), emotional alignment (${emotionalAlignment}), audience fit (${audienceFit}), attention retention (${attentionRetention}), hierarchy quality (${hierarchyQuality}), and behavioral readiness (${behavioralReadiness}).`
+    : `Strategic Alignment Score uses visual/layout and behavioral signals while text-dependent subscores are set to 0 because OCR extraction was unavailable. Visual clarity (${visualClarity}), audience fit (${audienceFit}), attention retention (${attentionRetention}), hierarchy quality (${hierarchyQuality}), behavioral readiness (${behavioralReadiness}).`;
 
   return {
     value: Math.max(0, Math.min(100, score)),
@@ -939,9 +1101,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       return NextResponse.json({ error: "Image too large. Max 20MB." }, { status: 413 });
     }
 
-    const buffer = await file.arrayBuffer();
-    const base64 = Buffer.from(buffer).toString("base64");
-    const mimeType = file.type as "image/jpeg" | "image/png" | "image/gif" | "image/webp";
+    const arrayBuffer = await file.arrayBuffer();
+    const inputBuffer = Buffer.from(arrayBuffer);
+    const normalized = await normalizeImageForVision(inputBuffer);
 
     const extractionUserPrompt = `Extract structured advertising signals from this creative.
 
@@ -951,41 +1113,15 @@ Platform context: ${platform}
 
 Return JSON only.`;
 
-    const completion = await openai.chat.completions.create({
-      model: process.env.OPENAI_MODEL || "gpt-4o",
-      max_tokens: 900,
-      response_format: { type: "json_object" },
-      messages: [
-        { role: "system", content: EXTRACTION_SYSTEM_PROMPT },
-        {
-          role: "user",
-          content: [
-            {
-              type: "image_url",
-              image_url: {
-                url: `data:${mimeType};base64,${base64}`,
-                detail: "high",
-              },
-            },
-            { type: "text", text: extractionUserPrompt },
-          ],
-        },
-      ],
+    const extractionResult = await extractSignalsWithRetry({
+      openai,
+      mimeType: normalized.mimeType,
+      base64: normalized.base64,
+      extractionUserPrompt,
     });
 
-    const raw = completion.choices[0]?.message?.content;
-    if (!raw) {
-      return NextResponse.json({ error: "No extraction output from model" }, { status: 502 });
-    }
-
-    let parsed: Record<string, unknown>;
-    try {
-      parsed = JSON.parse(raw) as Record<string, unknown>;
-    } catch {
-      return NextResponse.json({ error: "Invalid extraction JSON from model" }, { status: 502 });
-    }
-
-    const extraction = normalizeExtraction(parsed);
+    const extraction = normalizeExtraction(extractionResult.parsed);
+    const ocrMeta = extractionResult.meta;
     const ctaPressure = classifyCtaPressure(extraction.cta);
     const urgencyLevel = inferUrgencyLevel(extraction);
 
@@ -1019,6 +1155,7 @@ Return JSON only.`;
       attention: attentionAnalysis,
       alignment: campaignAlignment,
       behavioralResponse,
+      textAvailable: ocrMeta.text_available,
     });
     const decisionIntelligence = buildFinalDecisionIntelligence({
       alignment: campaignAlignment,
@@ -1078,6 +1215,17 @@ Return JSON only.`;
         persuasion_style: psychologyAnalysis.persuasion_style,
         detected_vertical: detectedVertical.detectedVertical,
         topic_summary: buildCreativeTopicSummary(extraction, detectedVertical.detectedVertical, goal),
+      },
+      ocr_status: {
+        failed: ocrMeta.ocr_failed,
+        error: ocrMeta.ocr_error,
+        retry_count: ocrMeta.retry_count,
+        timed_out: ocrMeta.timed_out,
+        normalized_image: {
+          mime_type: normalized.mimeType,
+          width: normalized.width,
+          height: normalized.height,
+        },
       },
     };
 
