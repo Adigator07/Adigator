@@ -1019,6 +1019,106 @@ function buildCreativeTopicSummary(
   return "No clear content signal extracted from this creative.";
 }
 
+const PRODUCT_LABEL_PATTERNS: Array<{ pattern: RegExp; label: string }> = [
+  // Food & Beverage
+  { pattern: /burger|hamburger/i, label: "Burger Meal" },
+  { pattern: /pizza/i, label: "Pizza" },
+  { pattern: /iced coffee|cold brew/i, label: "Iced Coffee" },
+  { pattern: /coffee|latte|espresso|cappuccino/i, label: "Coffee Beverage" },
+  { pattern: /sandwich|sub\b/i, label: "Sandwich" },
+  { pattern: /sushi|ramen|noodle/i, label: "Asian Cuisine" },
+  { pattern: /food delivery/i, label: "Food Delivery" },
+  { pattern: /restaurant|menu|dining|cuisine/i, label: "Restaurant Service" },
+  { pattern: /meal\b/i, label: "Meal Deal" },
+  // Fashion & Apparel
+  { pattern: /sneaker|shoe|footwear/i, label: "Fashion Sneakers" },
+  { pattern: /dress|fashion|clothing|apparel|outfit/i, label: "Fashion Apparel" },
+  { pattern: /watch|jewelry|jewellery|accessory/i, label: "Fashion Accessory" },
+  // Education
+  { pattern: /certification|bootcamp/i, label: "Certification Course" },
+  { pattern: /course\b|class\b/i, label: "Online Course" },
+  { pattern: /school|academy|university|college/i, label: "Education Program" },
+  { pattern: /learning\b/i, label: "Online Learning" },
+  // Automotive
+  { pattern: /suv\b|sedan\b/i, label: "Car / SUV" },
+  { pattern: /car\b|truck\b|vehicle\b|automobile/i, label: "Automotive Vehicle" },
+  { pattern: /dealership|lease\b|test drive/i, label: "Car Dealership" },
+  // Technology / SaaS
+  { pattern: /saas\b|software\b|platform\b|automation/i, label: "Software Platform" },
+  { pattern: /cloud\b|ai\b|api\b/i, label: "Cloud Service" },
+  { pattern: /app\b|mobile app/i, label: "Mobile App" },
+  // Healthcare
+  { pattern: /hospital|clinic\b|doctor\b/i, label: "Healthcare Service" },
+  { pattern: /wellness|treatment\b|pharma|medicine/i, label: "Wellness Product" },
+  // Travel
+  { pattern: /flight\b|airline\b/i, label: "Flight Booking" },
+  { pattern: /vacation|holiday\b|tour\b|trip\b/i, label: "Travel Package" },
+  { pattern: /hotel\b|resort\b|suite\b/i, label: "Hotel Booking" },
+  // Finance
+  { pattern: /investment\b|portfolio\b|stock\b|fund\b/i, label: "Investment Service" },
+  { pattern: /loan\b|mortgage\b|credit card/i, label: "Loan Product" },
+  { pattern: /bank\b|fintech\b|payment\b|wallet\b/i, label: "Banking Service" },
+  // Real Estate
+  { pattern: /real estate|property\b|apartment\b|mortgage\b/i, label: "Property Listing" },
+  // Gaming
+  { pattern: /game\b|gaming\b|console\b|esports/i, label: "Gaming Product" },
+  // Entertainment
+  { pattern: /streaming\b|movie\b|show\b|series\b|music\b/i, label: "Entertainment Content" },
+  // E-commerce
+  { pattern: /gift card|voucher\b/i, label: "Gift Card" },
+  { pattern: /limited offer|exclusive offer|flash sale/i, label: "Limited Offer" },
+  { pattern: /sale\b|discount\b|deal\b|off\b/i, label: "Discount Offer" },
+  { pattern: /shop\b|store\b|retail\b/i, label: "Retail Product" },
+  // News/Media
+  { pattern: /news\b|breaking\b|headline\b|journal\b|media\b/i, label: "News Content" },
+  // Sports
+  { pattern: /fitness\b|gym\b|workout\b|athlete\b/i, label: "Fitness Product" },
+  { pattern: /sports?\b|league\b|stadium\b/i, label: "Sports Content" },
+  // Luxury
+  { pattern: /luxury\b|premium\b|exclusive\b|elite\b|high-end/i, label: "Luxury Product" },
+];
+
+const VERTICAL_PRODUCT_FALLBACKS: Record<string, string> = {
+  healthcare: "Healthcare Service",
+  technology: "Software Platform",
+  automotive: "Automotive Vehicle",
+  news_media: "News Content",
+  sports: "Sports Product",
+  finance: "Finance Service",
+  luxury: "Luxury Product",
+  travel: "Travel Package",
+  hotels: "Hotel Stay",
+  food: "Food Service",
+  banking: "Banking Service",
+  real_estate: "Property Listing",
+  education: "Education Course",
+  gaming: "Gaming Product",
+  entertainment: "Media Content",
+  ecommerce: "Retail Product",
+};
+
+function buildProductServiceLabel(extraction: ExtractionSignals, detectedVertical: string): string {
+  // Detection priority: dominant visual → headline → primary message → CTA → audience clues
+  const sources = [
+    extraction.visual_elements[0] || "",
+    extraction.headline || "",
+    extraction.primary_message || "",
+    extraction.cta || "",
+    extraction.audience_clues.join(" "),
+  ];
+
+  for (const source of sources) {
+    if (!source.trim()) continue;
+    for (const { pattern, label } of PRODUCT_LABEL_PATTERNS) {
+      if (pattern.test(source)) {
+        return label;
+      }
+    }
+  }
+
+  return VERTICAL_PRODUCT_FALLBACKS[detectedVertical] || "Product / Service";
+}
+
 function buildFinalDecisionIntelligence(params: {
   alignment: CampaignAlignment;
   audienceResponse: AudienceResponse;
@@ -1215,6 +1315,7 @@ Return JSON only.`;
         persuasion_style: psychologyAnalysis.persuasion_style,
         detected_vertical: detectedVertical.detectedVertical,
         topic_summary: buildCreativeTopicSummary(extraction, detectedVertical.detectedVertical, goal),
+        product_service_label: buildProductServiceLabel(extraction, detectedVertical.detectedVertical),
       },
       cta_text: ocrMeta.cta_text,
       extracted_text: ocrMeta.extracted_text,

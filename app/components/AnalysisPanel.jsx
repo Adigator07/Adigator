@@ -490,13 +490,10 @@ export default function AnalysisPanel({
   const detectedBusinessCategory = labelVertical(
     verticalAlignment?.detected_vertical || extractionSignals?.detected_vertical || "unknown"
   );
-  const productOrService = [
-    extractionSignals?.topic_summary,
-    extractionSignals?.headline,
-    extractionSignals?.dominant_visual_cue,
-  ]
-    .map((value) => (typeof value === "string" ? value.trim() : ""))
-    .find(Boolean) || "No clear product or service identified from this creative.";
+  const productOrService =
+    (typeof extractionSignals?.product_service_label === "string" && extractionSignals.product_service_label.trim())
+      ? extractionSignals.product_service_label.trim()
+      : "—";
 
   // Calculate alignment statistics for all creatives
   const alignmentStats = useMemo(() => {
@@ -1155,19 +1152,25 @@ export default function AnalysisPanel({
               <Brain size={15} className="text-purple-300" />
               <h4 className="text-sm font-semibold text-white">2. Vertical Alignment</h4>
             </div>
-            <div className="space-y-2 text-sm">
-              <p className="text-slate-300">
-                <span className="text-slate-400">Selected Vertical:</span>{" "}
-                <span className="font-semibold text-white">{selectedVerticalLabel}</span>
-              </p>
-              <p className="text-slate-300">
-                <span className="text-slate-400">Product/Service in Creative:</span>{" "}
-                <span className="text-slate-100">{productOrService}</span>
-              </p>
-              <p className="text-slate-300">
-                <span className="text-slate-400">Business Category:</span>{" "}
-                <span className="font-semibold text-purple-200">{detectedBusinessCategory}</span>
-              </p>
+            <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+              <div>
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 mb-0.5">Selected Vertical</p>
+                <p className="font-semibold text-white">{selectedVerticalLabel}</p>
+              </div>
+              <div>
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 mb-0.5">Alignment Status</p>
+                <p className={`font-semibold ${verticalAlignment?.is_aligned === false ? "text-amber-300" : "text-emerald-300"}`}>
+                  {verticalAlignment?.is_aligned === false ? "Not Aligned" : "Aligned"}
+                </p>
+              </div>
+              <div>
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 mb-0.5">Detected Product / Service</p>
+                <p className="text-slate-100">{productOrService}</p>
+              </div>
+              <div>
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 mb-0.5">Detected Business Vertical</p>
+                <p className="text-purple-200 font-semibold">{detectedBusinessCategory}</p>
+              </div>
             </div>
           </div>
 
