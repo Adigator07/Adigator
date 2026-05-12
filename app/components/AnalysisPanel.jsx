@@ -490,12 +490,13 @@ export default function AnalysisPanel({
   const detectedBusinessCategory = labelVertical(
     verticalAlignment?.detected_vertical || extractionSignals?.detected_vertical || "unknown"
   );
-  const productOrService = (
-    extractionSignals?.topic_summary ||
-    extractionSignals?.headline ||
-    extractionSignals?.dominant_visual_cue ||
-    "No clear product or service identified from this creative."
-  ).trim();
+  const productOrService = [
+    extractionSignals?.topic_summary,
+    extractionSignals?.headline,
+    extractionSignals?.dominant_visual_cue,
+  ]
+    .map((value) => (typeof value === "string" ? value.trim() : ""))
+    .find(Boolean) || "No clear product or service identified from this creative.";
 
   // Calculate alignment statistics for all creatives
   const alignmentStats = useMemo(() => {
