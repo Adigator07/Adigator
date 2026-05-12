@@ -162,6 +162,7 @@ interface ProductCategory {
 }
 
 interface AdvertisingBehavior {
+  code: string;
   label: string;
   confidence: "strong" | "moderate" | "weak";
   reason: string;
@@ -217,7 +218,18 @@ const PRODUCT_CATEGORY_LABELS: Record<string, string> = {
   automotive: "Automotive",
   finance: "Finance / Banking",
   software: "Software / SaaS",
+  general: "General Consumer Product",
 };
+
+const CONFIDENCE_STRONG_THRESHOLD = 75;
+const CONFIDENCE_MODERATE_THRESHOLD = 45;
+
+const SCORE_PENALTY_MISALIGNED = 16;
+const SCORE_PENALTY_PARTIAL = 7;
+const SCORE_PENALTY_FRICTION_HIGH = 10;
+const SCORE_PENALTY_FRICTION_MEDIUM = 5;
+const SCORE_PENALTY_STAGE_MISMATCH = 8;
+const SCORE_BONUS_CLARITY = 4;
 
 const GOAL_INTELLIGENCE_PROFILE: Record<CampaignGoal, { expectedCtaPressure: CtaPressure; urgencyTolerance: SignalLevel; preferredEmotions: string[] }> = {
   awareness: {
@@ -646,10 +658,13 @@ function detectVerticalFromSignals(selectedVertical: string, extraction: Extract
 }
 
 function confidenceFromEvidence(evidenceCount: number, score?: number): "strong" | "moderate" | "weak" {
-  if (typeof score === "number" && score >= 75) return "strong";
-  if (typeof score === "number" && score >= 45) return "moderate";
-  if (evidenceCount >= 3) return "strong";
-  if (evidenceCount >= 1) return "moderate";
+  const scoreSignal = typeof score === "number"
+    ? (score >= CONFIDENCE_STRONG_THRESHOLD ? 2 : score >= CONFIDENCE_MODERATE_THRESHOLD ? 1 : 0)
+    : 0;
+  const evidenceSignal = evidenceCount >= 3 ? 2 : evidenceCount >= 1 ? 1 : 0;
+  const combined = Math.max(scoreSignal, evidenceSignal);
+  if (combined >= 2) return "strong";
+  if (combined >= 1) return "moderate";
   return "weak";
 }
 
@@ -687,7 +702,7 @@ function detectProductCategory(extraction: ExtractionSignals, selectedVertical: 
     ecommerce: "fashion",
   };
 
-  const selectedFallback = verticalFallback[selectedVertical] || "software";
+  const selectedFallback = verticalFallback[selectedVertical] || "general";
   const finalKey = bestScore > 0 ? bestKey : selectedFallback;
   const evidence = (evidenceByKey[finalKey] || []).slice(0, 4);
 
@@ -714,6 +729,7 @@ function detectAdvertisingBehavior(params: {
 
   if (hasDiscount && (ctaPressure === "aggressive" || hasUrgency)) {
     return {
+      code: "discount_led_dtc",
       label: "Discount-led DTC promotion",
       confidence: "strong",
       reason: "Offer-first and urgency cues dominate the hierarchy.",
@@ -722,6 +738,7 @@ function detectAdvertisingBehavior(params: {
 
   if (goal === "conversion" && ctaPressure === "aggressive") {
     return {
+      code: "ecommerce_conversion",
       label: "Ecommerce conversion advertising",
       confidence: "strong",
       reason: "Direct response CTA pressure drives immediate transaction behavior.",
@@ -730,6 +747,7 @@ function detectAdvertisingBehavior(params: {
 
   if ((selectedVertical === "food" || selectedVertical === "hotels" || selectedVertical === "travel") && ctaPressure !== "aggressive") {
     return {
+      code: "hospitality_storytelling",
       label: "Hospitality storytelling",
       confidence: "moderate",
       reason: "Category cues are foregrounded before direct transactional pressure.",
@@ -738,6 +756,7 @@ function detectAdvertisingBehavior(params: {
 
   if ((selectedVertical === "education" || selectedVertical === "finance" || selectedVertical === "banking") && hasAuthority) {
     return {
+      code: "authority_led_education",
       label: "Authority-led education marketing",
       confidence: "moderate",
       reason: "Trust markers and credibility framing lead the message behavior.",
@@ -746,6 +765,7 @@ function detectAdvertisingBehavior(params: {
 
   if (hasLifestyle && selectedVertical === "luxury") {
     return {
+      code: "lifestyle_aspiration",
       label: "Lifestyle aspiration advertising",
       confidence: "moderate",
       reason: "Premium identity framing is prioritized over direct transaction messaging.",
@@ -754,6 +774,7 @@ function detectAdvertisingBehavior(params: {
 
   if (productCategory.label === "Coffee / Beverage" && ctaPressure === "aggressive") {
     return {
+      code: "impulse_purchase",
       label: "Impulse-purchase promotion",
       confidence: "moderate",
       reason: "Product appetite cues are paired with immediate action pressure.",
@@ -761,6 +782,7 @@ function detectAdvertisingBehavior(params: {
   }
 
   return {
+    code: "informational_promotion",
     label: "Informational category promotion",
     confidence: "weak",
     reason: "Creative signals do not strongly resolve to a single commercial behavior type.",
@@ -986,8 +1008,9 @@ function buildPersuasionFriction(params: {
   alignment: CampaignAlignment;
   attention: AttentionAnalysis;
   advertisingBehavior: AdvertisingBehavior;
+  selectedVertical: string;
 }): { primary: string; items: string[]; confidence: "strong" | "moderate" | "weak" } {
-  const { extraction, goal, alignment, attention, advertisingBehavior } = params;
+  const { extraction, goal, alignment, attention, advertisingBehavior, selectedVertical } = params;
   const items: string[] = [];
   const ctaAggressive = /buy|shop|claim|book|apply|sign up|get started/.test(extraction.cta.toLowerCase());
 
@@ -995,7 +1018,7 @@ function buildPersuasionFriction(params: {
   if (alignment.alignment_status === "misaligned") items.push("Campaign intent and message behavior are misaligned.");
   if (attention.friction_points.length > 0) items.push(...attention.friction_points);
   if (extraction.readability === "low") items.push("Typography clarity is insufficient at feed-speed scanning.");
-  if (advertisingBehavior.label.includes("Discount-led") && /luxury/.test(advertisingBehavior.reason.toLowerCase())) {
+  if (selectedVertical === "luxury" && advertisingBehavior.code === "discount_led_dtc") {
     items.push("Discount framing conflicts with premium identity expectations.");
   }
   if (items.length === 0) items.push("No major persuasion friction detected.");
@@ -1136,7 +1159,17 @@ function buildStrategicRecommendations(params: {
   const coreProblem = alignment.alignment_status === "aligned"
     ? `${productCategory.label} creative needs structural optimization for cleaner execution.`
     : `Creative behaves as ${advertisingBehavior.label.toLowerCase()} instead of selected campaign intent.`;
-  const whyItHappens = `${attention.image_dominance || "Visual entry point is mixed."} ${attention.cta_placement || "CTA placement is unclear."} ${persuasionFriction.primary}`;
+  const whyItHappens = [
+    attention.image_dominance || "Visual entry point is mixed.",
+    attention.cta_placement || "CTA placement is unclear.",
+    persuasionFriction.primary,
+  ]
+    .filter(Boolean)
+    .map((part) => {
+      const trimmed = String(part).trim();
+      return /[.!?]$/.test(trimmed) ? trimmed : `${trimmed}.`;
+    })
+    .join(" ");
   const businessRisk = alignment.alignment_status === "misaligned"
     ? "Risk of low-quality traffic and weaker launch-readiness confidence."
     : attention.friction_points.length > 0
@@ -1235,13 +1268,13 @@ function buildStrategicScore(params: {
       behavioralReadiness * 0.15
   );
 
-  if (alignment.alignment_status === "misaligned") score -= 16;
-  else if (alignment.alignment_status === "partially_aligned") score -= 7;
-  if (attention.friction_points.length >= 3) score -= 10;
-  else if (attention.friction_points.length === 2) score -= 5;
-  if (goal === "conversion" && ctaPressure === "soft") score -= 8;
-  if (goal === "awareness" && ctaPressure === "aggressive") score -= 8;
-  if (textAvailable && extraction.readability === "high" && extraction.text_density !== "high") score += 4;
+  if (alignment.alignment_status === "misaligned") score -= SCORE_PENALTY_MISALIGNED;
+  else if (alignment.alignment_status === "partially_aligned") score -= SCORE_PENALTY_PARTIAL;
+  if (attention.friction_points.length >= 3) score -= SCORE_PENALTY_FRICTION_HIGH;
+  else if (attention.friction_points.length === 2) score -= SCORE_PENALTY_FRICTION_MEDIUM;
+  if (goal === "conversion" && ctaPressure === "soft") score -= SCORE_PENALTY_STAGE_MISMATCH;
+  if (goal === "awareness" && ctaPressure === "aggressive") score -= SCORE_PENALTY_STAGE_MISMATCH;
+  if (textAvailable && extraction.readability === "high" && extraction.text_density !== "high") score += SCORE_BONUS_CLARITY;
 
   const rationale = textAvailable
     ? `Score factors — visual clarity ${visualClarity}, CTA-stage fit ${ctaPressureFit}, readability ${readability}, emotional alignment ${emotionalAlignment}, audience fit ${audienceFit}, retention ${attentionRetention}, hierarchy ${hierarchyQuality}, readiness ${behavioralReadiness}.`
@@ -1423,6 +1456,7 @@ Return JSON only.`;
       alignment: campaignAlignment,
       attention: attentionAnalysis,
       advertisingBehavior,
+      selectedVertical: vertical,
     });
     const businessImpact = buildBusinessImpact(campaignAlignment, attentionAnalysis);
     const strategicRecommendations = buildStrategicRecommendations({

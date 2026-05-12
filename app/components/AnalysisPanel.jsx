@@ -152,6 +152,8 @@ export default function AnalysisPanel({
   const score = getStrategicAlignmentScore(payload);
 
   const goalAlignment = getGoalAlignment(payload);
+  const goalAlignmentLevel = goalAlignment?.alignment_level ||
+    (goalAlignment?.is_aligned === true ? "aligned" : goalAlignment?.is_aligned === false ? "misaligned" : "inconclusive");
   const productCategory = getProductCategory(payload);
   const advertisingBehavior = getAdvertisingBehavior(payload);
   const audienceInterpretation = getAudienceInterpretation(payload);
@@ -331,7 +333,7 @@ export default function AnalysisPanel({
 
               <SectionCard icon={Target} title="1. Goal Alignment">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5">
-                  <Field label="Alignment Level" value={goalAlignment?.alignment_level || (goalAlignment?.is_aligned ? "aligned" : "misaligned")} confidence={goalAlignment?.confidence} />
+                  <Field label="Alignment Level" value={goalAlignmentLevel} confidence={goalAlignment?.confidence} />
                   <Field label="Business Impact" value={goalAlignment?.business_impact || "Business impact unavailable."} confidence={goalAlignment?.confidence} />
                   <Field label="Exact Reason" value={goalAlignment?.reason} confidence={goalAlignment?.confidence} />
                 </div>

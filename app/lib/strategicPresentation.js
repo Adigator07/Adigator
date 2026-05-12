@@ -227,7 +227,6 @@ export function getStrategicRecommendationText(recommendation) {
   return (
     recommendation.exact_fix ||
     recommendation.recommended_change ||
-    recommendation.core_problem ||
     "Strategic recommendation unavailable"
   );
 }
@@ -266,7 +265,7 @@ export function getProductCategory(payload) {
 export function getAdvertisingBehavior(payload) {
   const behavior = payload?.advertising_behavior;
   if (behavior && typeof behavior === "object") return behavior;
-  return { label: "Unclassified behavior", confidence: "weak", reason: "Behavior signal unavailable." };
+  return { code: "unclassified", label: "Unclassified behavior", confidence: "weak", reason: "Behavior signal unavailable." };
 }
 
 export function getAudienceInterpretation(payload) {
@@ -299,7 +298,8 @@ export function getRankingRationale(payload) {
     return `Ranked above peers with strong strategic fit; main watch item: ${friction.primary}`;
   }
   if (score >= 60) {
-    return `Ranked mid-pack: optimization required on ${friction.primary.toLowerCase()}`;
+    const frictionText = typeof friction.primary === "string" ? friction.primary.toLowerCase() : "friction data unavailable";
+    return `Ranked mid-pack: optimization required on ${frictionText}`;
   }
   if (goalAlignment?.is_aligned === false) {
     return "Ranked lower due to campaign-goal misalignment and high persuasion friction.";
