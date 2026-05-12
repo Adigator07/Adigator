@@ -143,23 +143,26 @@ interface FinalDecisionIntelligence {
 
 const KNOWN_GOALS = new Set<CampaignGoal>(["awareness", "consideration", "conversion"]);
 
+// "app", "digital", "platform", "tech" are intentionally excluded from technology —
+// these words appear across all verticals (food delivery apps, hotel booking platforms,
+// digital menus, etc.) and cause false-positive technology detections.
 const VERTICAL_DETECTION_HINTS: Record<string, string[]> = {
-  healthcare: ["hospital", "clinic", "doctor", "medical", "patient", "wellness", "care", "treatment", "pharma", "health"],
-  technology: ["software", "saas", "platform", "cloud", "ai", "app", "tech", "automation", "digital"],
-  automotive: ["car", "vehicle", "suv", "sedan", "drive", "engine", "mileage", "dealership", "auto"],
-  news_media: ["news", "headline", "breaking", "journal", "editorial", "media", "publisher"],
-  sports: ["sports", "team", "match", "league", "athlete", "fitness", "score", "stadium"],
-  finance: ["finance", "investment", "portfolio", "market", "enterprise", "profit", "revenue"],
-  luxury: ["luxury", "premium", "exclusive", "craftsmanship", "heritage", "elite", "high-end"],
-  travel: ["travel", "destination", "trip", "vacation", "holiday", "flight", "journey", "tour"],
-  hotels: ["hotel", "resort", "suite", "booking", "stay", "hospitality", "check-in"],
-  food: ["restaurant", "food", "menu", "dining", "meal", "chef", "delivery", "cuisine"],
-  banking: ["bank", "fintech", "account", "loan", "credit", "debit", "secure", "payment", "wallet"],
-  real_estate: ["real estate", "property", "home", "mortgage", "apartment", "listing", "broker", "rent"],
-  education: ["education", "course", "learn", "student", "academy", "school", "training", "certification"],
-  gaming: ["game", "gaming", "play", "level", "esports", "console", "battle", "stream"],
-  entertainment: ["streaming", "ott", "entertainment", "show", "movie", "series", "music", "watch"],
-  ecommerce: ["shop", "store", "cart", "checkout", "sale", "discount", "product", "retail", "buy"],
+  healthcare: ["hospital", "clinic", "doctor", "medical", "patient", "wellness", "care", "treatment", "pharma", "health", "prescription", "therapy", "diagnosis", "specialist"],
+  technology: ["software", "saas", "cloud", "api", "developer", "cybersecurity", "infrastructure", "machine learning", "algorithm", "data center", "enterprise software", "automation", "server", "open source", "devops"],
+  automotive: ["car", "vehicle", "suv", "sedan", "drive", "engine", "mileage", "dealership", "auto", "horsepower", "test drive", "lease", "fuel", "electric vehicle", "ev"],
+  news_media: ["news", "headline", "breaking", "journal", "editorial", "media", "publisher", "article", "reporter", "coverage", "press", "broadcast"],
+  sports: ["sports", "team", "match", "league", "athlete", "fitness", "score", "stadium", "championship", "training", "workout", "coach", "trophy"],
+  finance: ["finance", "investment", "portfolio", "market", "profit", "revenue", "trading", "stocks", "bonds", "hedge", "equity", "dividend", "wealth management"],
+  luxury: ["luxury", "premium", "exclusive", "craftsmanship", "heritage", "elite", "high-end", "bespoke", "artisan", "couture", "prestige", "opulent"],
+  travel: ["travel", "destination", "trip", "vacation", "holiday", "flight", "journey", "tour", "adventure", "explore", "passport", "itinerary", "getaway"],
+  hotels: ["hotel", "resort", "suite", "booking", "stay", "hospitality", "check-in", "accommodation", "concierge", "amenities", "spa", "room service"],
+  food: ["restaurant", "food", "menu", "dining", "meal", "chef", "cuisine", "taste", "delicious", "fresh", "flavor", "eat", "hungry", "pizza", "burger", "coffee", "takeout", "pickup", "recipe", "bakery", "catering", "brunch", "breakfast", "lunch", "dinner", "snack", "drink", "bite", "cook", "appetizer", "dessert", "grilled", "organic", "delivery"],
+  banking: ["bank", "fintech", "account", "loan", "credit", "debit", "payment", "wallet", "transfer", "savings", "interest rate", "mortgage bank", "brokerage", "transaction"],
+  real_estate: ["real estate", "property", "home", "mortgage", "apartment", "listing", "broker", "rent", "square feet", "floor plan", "neighborhood", "open house", "realtor"],
+  education: ["education", "course", "learn", "student", "academy", "school", "training", "certification", "degree", "tuition", "curriculum", "instructor", "enroll", "scholarship"],
+  gaming: ["game", "gaming", "play", "level", "esports", "console", "battle", "stream", "multiplayer", "quest", "character", "loot", "controller", "fps", "rpg"],
+  entertainment: ["streaming", "ott", "entertainment", "show", "movie", "series", "music", "watch", "episode", "cast", "trailer", "subscribe", "binge", "playlist"],
+  ecommerce: ["shop", "store", "cart", "checkout", "sale", "discount", "product", "retail", "buy", "free shipping", "add to cart", "wishlist", "order now", "limited stock"],
 };
 
 const KNOWN_VERTICALS = new Set(Object.keys(VERTICAL_DETECTION_HINTS));
@@ -559,18 +562,35 @@ function inferUrgencyLevel(extraction: ExtractionSignals): SignalLevel {
 }
 
 function detectVerticalFromSignals(selectedVertical: string, extraction: ExtractionSignals): { detectedVertical: string; fitScore: number; evidence: string[] } {
+  // Include ALL extraction fields so AI-returned descriptions (emotional cues,
+  // visual descriptions, trust markers, etc.) contribute to vertical detection.
   const corpus = [
     extraction.headline,
     extraction.primary_message,
+    extraction.cta,
+    extraction.layout_structure,
+    extraction.hierarchy_observations,
     extraction.visual_elements.join(" "),
+    extraction.emotional_cues.join(" "),
+    extraction.trust_markers.join(" "),
+    extraction.urgency_signals.join(" "),
     extraction.audience_clues.join(" "),
   ].join(" ").toLowerCase();
 
-  let bestVertical = selectedVertical;
-  let bestScore = -1;
+  // Sort so the selected vertical is evaluated first — it wins on equal scores (tiebreaker).
+  const orderedEntries = Object.entries(VERTICAL_DETECTION_HINTS).sort(
+    ([a], [b]) => (a === selectedVertical ? -1 : b === selectedVertical ? 1 : 0)
+  );
 
-  for (const [candidate, hints] of Object.entries(VERTICAL_DETECTION_HINTS)) {
-    const score = hints.reduce((acc, keyword) => acc + (corpus.includes(keyword) ? 1 : 0), 0);
+  const hasUsableSignal = corpus.trim().length > 0;
+  let bestVertical = "unknown";
+  let bestScore = 0;
+
+  for (const [candidate, hints] of orderedEntries) {
+    const rawScore = hints.reduce((acc, keyword) => acc + (corpus.includes(keyword) ? 1 : 0), 0);
+    // Campaign-selected vertical gets a small contextual prior so low-signal creatives
+    // can still resolve, while explicit keyword evidence from another vertical can override it.
+    const score = rawScore + (hasUsableSignal && candidate === selectedVertical ? 0.75 : 0);
     if (score > bestScore) {
       bestScore = score;
       bestVertical = candidate;
@@ -584,7 +604,7 @@ function detectVerticalFromSignals(selectedVertical: string, extraction: Extract
     : Math.round((matchedEvidence.length / selectedHints.length) * 100);
 
   return {
-    detectedVertical: bestScore <= 0 ? "unknown" : bestVertical,
+    detectedVertical: hasUsableSignal ? bestVertical : "unknown",
     fitScore,
     evidence: matchedEvidence,
   };
@@ -1184,7 +1204,9 @@ Return JSON only.`;
     const verticalAlignment = {
       selected_vertical: vertical,
       detected_vertical: detectedVertical.detectedVertical,
-      is_aligned: detectedVertical.detectedVertical === "unknown" || detectedVertical.detectedVertical === vertical,
+      is_aligned: detectedVertical.detectedVertical === "unknown"
+        ? null
+        : detectedVertical.detectedVertical === vertical,
       reason: detectedVertical.detectedVertical === "unknown"
         ? "Vertical signal confidence is limited; no contradictory vertical detected."
         : detectedVertical.detectedVertical === vertical

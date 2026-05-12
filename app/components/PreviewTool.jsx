@@ -317,6 +317,7 @@ export default function PreviewTool() {
 
   const [analysisResult, setAnalysisResult] = useState(null);
   const [analysisLoading, setAnalysisLoading] = useState(false);
+  const [viewerName, setViewerName] = useState("");
 
   const [selectedTemplate] = useState("newspaper");
   const [viewMode, setViewMode] = useState("multiple");
@@ -409,6 +410,29 @@ export default function PreviewTool() {
     userRef.current = session?.user || null;
     return userRef.current;
   }, []);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const hydrateViewerName = async () => {
+      try {
+        const user = await getUser();
+        if (!isMounted || !user) return;
+        const meta = user.user_metadata || {};
+        const fullName = String(meta.full_name || meta.name || "").trim();
+        const emailPrefix = String(user.email || "").split("@")[0] || "";
+        setViewerName(fullName || emailPrefix || "");
+      } catch (error) {
+        if (isMounted) setViewerName("");
+      }
+    };
+
+    hydrateViewerName();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [getUser]);
 
   const saveToSupabase = async (creative) => {
     try {
@@ -1109,6 +1133,7 @@ export default function PreviewTool() {
                     campaignGoal={campaignGoal}
                     campaignVertical={campaignVertical}
                     platform={platform}
+                    viewerName={viewerName}
                     onDownloadReport={handleDownloadReport}
                   />
                 </>

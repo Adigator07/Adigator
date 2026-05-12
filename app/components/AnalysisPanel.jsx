@@ -390,6 +390,7 @@ export default function AnalysisPanel({
   campaignGoal,
   campaignVertical,
   platform,
+  viewerName,
   onDownloadReport,
 }) {
   const strategicEntries = useMemo(() => {
@@ -499,13 +500,18 @@ export default function AnalysisPanel({
 
     return {
       verticalAligned: verticalAligned.length,
-      verticalMisaligned: sorted.length - verticalAligned.length,
+      // Only count explicit false — null (inconclusive) is not a mismatch
+      verticalMisaligned: sorted.filter((entry) => {
+        const payload = getEntryPayload(entry) || {};
+        return getVerticalAlignment(payload)?.is_aligned === false;
+      }).length,
       goalAligned: goalAligned.length,
       goalMisaligned: sorted.length - goalAligned.length,
       alignedDetails: sorted.map((entry) => ({
         creativeId: entry.creative?.id,
         creativeName: entry.creative?.name || "Untitled Creative",
-        verticalAligned: getVerticalAlignment(getEntryPayload(entry) || {})?.is_aligned === true,
+        // Keep as tristate: true = aligned, false = misaligned, null = inconclusive
+        verticalIsAligned: getVerticalAlignment(getEntryPayload(entry) || {})?.is_aligned ?? null,
         goalAligned: getGoalAlignment(getEntryPayload(entry) || {})?.is_aligned === true,
       })),
     };
@@ -630,6 +636,53 @@ export default function AnalysisPanel({
     ];
   }, [sorted, topSummaryStats.topMixedVertical, verticalText, topSummaryStats.verticalMisaligned]);
 
+  const greetingName = useMemo(() => {
+    const normalized = String(viewerName || "").trim();
+    return normalized || "Strategist";
+  }, [viewerName]);
+
+  const overviewProblemSummary = useMemo(() => {
+    const identified = [];
+    const resolved = [];
+
+    if (topSummaryStats.goalMisaligned > 0) {
+      identified.push(`${topSummaryStats.goalMisaligned} creative${topSummaryStats.goalMisaligned === 1 ? "" : "s"} with campaign-goal mismatch.`);
+    }
+    if (topSummaryStats.verticalMisaligned > 0) {
+      identified.push(`${topSummaryStats.verticalMisaligned} creative${topSummaryStats.verticalMisaligned === 1 ? "" : "s"} with vertical mismatch.`);
+    }
+    if (topSummaryStats.topMixedVertical) {
+      identified.push(`${topSummaryStats.topMixedVertical[1]} creative${topSummaryStats.topMixedVertical[1] === 1 ? "" : "s"} leaning toward ${labelVertical(topSummaryStats.topMixedVertical[0])}.`);
+    }
+    if (identified.length === 0) {
+      identified.push("No critical campaign-level mismatch patterns detected.");
+    }
+
+    if (topSummaryStats.strategicallyReady > 0) {
+      resolved.push(`${topSummaryStats.strategicallyReady} creative${topSummaryStats.strategicallyReady === 1 ? "" : "s"} currently marked ready to launch.`);
+    }
+    if (alignmentStats.goalAligned > 0) {
+      resolved.push(`${alignmentStats.goalAligned} creative${alignmentStats.goalAligned === 1 ? "" : "s"} aligned to the ${goalText.toLowerCase()} objective.`);
+    }
+    if (alignmentStats.verticalAligned > 0) {
+      resolved.push(`${alignmentStats.verticalAligned} creative${alignmentStats.verticalAligned === 1 ? "" : "s"} aligned to ${verticalText}.`);
+    }
+    if (resolved.length === 0) {
+      resolved.push("No full strategic resolutions detected yet. Prioritize Creative Analysis for fixes.");
+    }
+
+    return { identified, resolved };
+  }, [
+    alignmentStats.goalAligned,
+    alignmentStats.verticalAligned,
+    goalText,
+    topSummaryStats.goalMisaligned,
+    topSummaryStats.strategicallyReady,
+    topSummaryStats.topMixedVertical,
+    topSummaryStats.verticalMisaligned,
+    verticalText,
+  ]);
+
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.04] p-2">
@@ -661,11 +714,29 @@ export default function AnalysisPanel({
         <>
           <div className="space-y-5">
             <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-purple-950/55 via-violet-950/45 to-fuchsia-950/35 p-5">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-cyan-200/80">Campaign Strategic Overview</p>
-              <h3 className="mt-2 text-xl font-black text-white">Executive campaign intelligence before creative inspection.</h3>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-cyan-200/80">Overview Briefing</p>
+              <h3 className="mt-2 text-xl font-black text-white">Welcome back, {greetingName}.</h3>
               <p className="mt-2 max-w-3xl text-sm leading-relaxed text-slate-300">
-                Scan the campaign-level signal first, then move into individual creative analysis only when you need to diagnose a specific asset.
+                Here is a campaign-level summary of the key problems identified and the strategic issues already resolved.
               </p>
+              <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div className="rounded-xl border border-rose-500/35 bg-rose-500/10 p-3.5">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-rose-200/90">Problems Identified</p>
+                  <div className="mt-2 space-y-2">
+                    {overviewProblemSummary.identified.map((item) => (
+                      <p key={item} className="text-sm leading-relaxed text-rose-100">- {item}</p>
+                    ))}
+                  </div>
+                </div>
+                <div className="rounded-xl border border-emerald-500/35 bg-emerald-500/10 p-3.5">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-emerald-100">Problems Resolved</p>
+                  <div className="mt-2 space-y-2">
+                    {overviewProblemSummary.resolved.map((item) => (
+                      <p key={item} className="text-sm leading-relaxed text-emerald-100">- {item}</p>
+                    ))}
+                  </div>
+                </div>
+              </div>
             </div>
 
             {/* ── TOP SUMMARY STRIP ── */}
@@ -732,6 +803,9 @@ export default function AnalysisPanel({
                     </p>
                     <p className="text-sm font-semibold text-white">
                       {alignmentStats.verticalAligned} aligned <span className="text-slate-400 font-normal">/</span> {alignmentStats.verticalMisaligned} not aligned
+                      {(totalCount - alignmentStats.verticalAligned - alignmentStats.verticalMisaligned) > 0 && (
+                        <span className="text-slate-400 font-normal"> / {totalCount - alignmentStats.verticalAligned - alignmentStats.verticalMisaligned} inconclusive</span>
+                      )}
                     </p>
                     <p className="text-xs text-slate-400 mt-1">Out of {totalCount} creatives for {verticalText}</p>
                   </div>
@@ -764,8 +838,8 @@ export default function AnalysisPanel({
                     {alignmentStats.alignedDetails.map((detail) => (
                       <div key={detail.creativeId} className="flex items-center gap-2.5 text-xs p-2 rounded-lg border border-white/5 bg-white/[0.02] hover:bg-white/5 transition">
                         <div className="flex gap-1.5 flex-1">
-                          <span className={`flex items-center gap-1 px-2 py-1 rounded ${detail.verticalAligned ? "bg-emerald-500/20 text-emerald-200" : "bg-red-500/20 text-red-200"}`}>
-                            {detail.verticalAligned ? <CheckCircle size={10} /> : <XCircle size={10} />}
+                          <span className={`flex items-center gap-1 px-2 py-1 rounded ${detail.verticalIsAligned === true ? "bg-emerald-500/20 text-emerald-200" : detail.verticalIsAligned === false ? "bg-red-500/20 text-red-200" : "bg-slate-500/20 text-slate-400"}`}>
+                            {detail.verticalIsAligned === true ? <CheckCircle size={10} /> : detail.verticalIsAligned === false ? <XCircle size={10} /> : <span className="inline-block w-2 h-2 rounded-full bg-slate-500" />}
                             Vertical
                           </span>
                           <span className={`flex items-center gap-1 px-2 py-1 rounded ${detail.goalAligned ? "bg-cyan-500/20 text-cyan-200" : "bg-red-500/20 text-red-200"}`}>
@@ -794,6 +868,29 @@ export default function AnalysisPanel({
                     <p className="mt-1 text-sm leading-relaxed text-slate-100">{insight.body}</p>
                   </div>
                 ))}
+              </div>
+            </div>
+
+            {/* ── TARGET AUDIENCE ── */}
+            <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <Target size={15} className="text-pink-300" />
+                <h4 className="text-sm font-semibold text-white">Target Audience</h4>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5">
+                <div className="rounded-lg border border-white/10 bg-white/[0.03] p-3">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Likely Interpretation</p>
+                  <p className="mt-1 text-sm leading-relaxed text-slate-100">{audienceInterpretation.likelyInterpretation}</p>
+                </div>
+                <div className="rounded-lg border border-white/10 bg-white/[0.03] p-3">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Readiness Stage</p>
+                  <p className="mt-1 text-sm leading-relaxed text-slate-100">{audienceInterpretation.readinessStage}</p>
+                </div>
+                <div className="rounded-lg border border-white/10 bg-white/[0.03] p-3">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Trust Perception</p>
+                  <p className="mt-1 text-sm leading-relaxed text-slate-100">{audienceInterpretation.trustPerception}</p>
+                  <p className="mt-2 text-xs leading-relaxed text-slate-300">Likely audience reaction: {audienceInterpretation.likelyAudienceReaction}</p>
+                </div>
               </div>
             </div>
 
