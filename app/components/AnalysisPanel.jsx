@@ -484,6 +484,18 @@ export default function AnalysisPanel({
     campaignVertical,
     recommendations,
   });
+  const selectedVerticalLabel = labelVertical(
+    verticalAlignment?.selected_vertical || campaignVertical || "unknown"
+  );
+  const detectedBusinessCategory = labelVertical(
+    verticalAlignment?.detected_vertical || extractionSignals?.detected_vertical || "unknown"
+  );
+  const productOrService = (
+    extractionSignals?.topic_summary ||
+    extractionSignals?.headline ||
+    extractionSignals?.dominant_visual_cue ||
+    "No clear product or service identified from this creative."
+  ).trim();
 
   // Calculate alignment statistics for all creatives
   const alignmentStats = useMemo(() => {
@@ -1138,53 +1150,25 @@ export default function AnalysisPanel({
 
           {/* 2. VERTICAL ALIGNMENT */}
           <div className="rounded-xl border border-white/10 bg-white/5 p-4">
-            <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2 mb-3">
               <div className="flex items-center gap-2">
                 <Brain size={15} className="text-purple-300" />
                 <h4 className="text-sm font-semibold text-white">2. Vertical Alignment</h4>
               </div>
-              <AlignmentBadge isAligned={verticalAlignment?.is_aligned} />
             </div>
-            <div className="space-y-2">
-              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-400">
-                <span>
-                  Selected:{" "}
-                  <span className="font-semibold text-white">
-                    {labelVertical(verticalAlignment?.selected_vertical || campaignVertical)}
-                  </span>
-                </span>
-                {verticalAlignment?.detected_vertical &&
-                  verticalAlignment.detected_vertical !== "unknown" && (
-                    <span>
-                      Detected:{" "}
-                      <span
-                        className={`font-semibold ${
-                          verticalAlignment.is_aligned === false
-                            ? "text-amber-300"
-                            : "text-emerald-300"
-                        }`}
-                      >
-                        {labelVertical(verticalAlignment.detected_vertical)}
-                      </span>
-                    </span>
-                  )}
-              </div>
-              {verticalAlignment?.reason && (
-                <p className="text-sm text-slate-200 leading-relaxed">{verticalAlignment.reason}</p>
-              )}
-              {Array.isArray(verticalAlignment?.evidence) &&
-                verticalAlignment.evidence.length > 0 && (
-                  <div className="flex flex-wrap gap-1 mt-1">
-                    {verticalAlignment.evidence.map((kw, i) => (
-                      <span
-                        key={i}
-                        className="rounded-md bg-purple-500/10 border border-purple-500/20 px-1.5 py-0.5 text-[10px] text-purple-300"
-                      >
-                        {kw}
-                      </span>
-                    ))}
-                  </div>
-                )}
+            <div className="space-y-2 text-sm">
+              <p className="text-slate-300">
+                <span className="text-slate-400">Selected Vertical:</span>{" "}
+                <span className="font-semibold text-white">{selectedVerticalLabel}</span>
+              </p>
+              <p className="text-slate-300">
+                <span className="text-slate-400">Product/Service in Creative:</span>{" "}
+                <span className="text-slate-100">{productOrService}</span>
+              </p>
+              <p className="text-slate-300">
+                <span className="text-slate-400">Business Category:</span>{" "}
+                <span className="font-semibold text-purple-200">{detectedBusinessCategory}</span>
+              </p>
             </div>
           </div>
 
