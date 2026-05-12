@@ -187,10 +187,69 @@ function buildStrategistNarrative({
   const useCaseCue = verticalProfile.anchor;
 
   return {
-    wrong: truncateText(`This creative is behaving like ${selectedGoal.toLowerCase()}-stage ${selectedVertical.toLowerCase()} content with ${issueLine}. The headline "${headline}" and CTA "${cta}" are doing too much of the selling before the image can establish ${useCaseCue}.`, 190),
-    why: truncateText(`The eye path starts with ${visualHierarchy.toLowerCase()} and lands on ${firstFocus}, so the message is being read through ${persuasionStyle.toLowerCase()} instead of ${verticalProfile.lens}. Brand emphasis is ${brandPresence}, which is why the creative feels ${emotionalTone.toLowerCase()}.`, 190),
-    effect: truncateText(`The audience is likely to respond through ${verticalProfile.pressure}, with ${curiosity.toLowerCase()} and ${trust.toLowerCase()} shaping whether the ad feels credible or forced. That pushes the creative toward ${detectedGoal.toLowerCase()} behavior instead of the intended ${selectedGoal.toLowerCase()} path.`, 195),
-    fix: truncateText(`Keep the CTA "${cta}" in the background until the headline and image establish ${verticalProfile.anchor}. For ${selectedGoal} on ${selectedVertical}, remove premature conversion pressure, tighten the hierarchy, and shift the opening message toward ${fixSuggestion}.`, 200),
+    coreProblem: truncateText(`Creative behaves like ${detectedGoal.toLowerCase()}-stage ${detectedVertical.toLowerCase()} advertising instead of ${selectedGoal.toLowerCase()} ${selectedVertical.toLowerCase()} storytelling.`, 170),
+    whyItHappens: truncateText(`The eye path starts with ${visualHierarchy.toLowerCase()} and lands on ${firstFocus}, so "${headline}" and "${cta}" pull attention into action before ${useCaseCue} is established.`, 175),
+    businessRisk: truncateText(`This may reduce engagement quality for ${selectedGoal.toLowerCase()} traffic and weaken launch readiness when the campaign needs a cleaner story-to-action sequence.`, 175),
+    exactFix: truncateText(`Delay the CTA "${cta}" until the headline and image establish ${verticalProfile.anchor}; then tighten the hierarchy around ${fixSuggestion}.`, 185),
+  };
+}
+
+function buildAudienceInterpretation({
+  headline,
+  cta,
+  visualDescription,
+  stage,
+  vertical,
+  goalAlignment,
+  verticalAlignment,
+}) {
+  const stageLabel = labelGoal(stage || "awareness");
+  const verticalLabel = labelVertical(vertical || "unknown");
+  const detectedGoal = labelGoal(goalAlignment?.detected_goal || stage || "unknown");
+  const detectedVertical = labelVertical(verticalAlignment?.detected_vertical || vertical || "unknown");
+  const aggressiveCta = /(shop now|buy now|order now|sign up|book now|apply now|get started|claim now|download now|reserve now|purchase now)/i.test(String(cta || ""));
+  const urgencySignal = /(limited|today|now|offer|ends|last chance|discount|sale|save)/i.test(`${headline} ${cta}`);
+  const visualCue = firstSentence(visualDescription) || "the visual";
+
+  const likelyInterpretation = truncateText(
+    goalAlignment?.is_aligned === false || verticalAlignment?.is_aligned === false
+      ? `This creative reads as ${detectedGoal.toLowerCase()}-stage ${detectedVertical.toLowerCase()} advertising, not ${stageLabel.toLowerCase()} ${verticalLabel.toLowerCase()} messaging.`
+      : `This creative reads as ${stageLabel.toLowerCase()} ${verticalLabel.toLowerCase()} messaging, with ${visualCue.toLowerCase()} carrying the main meaning.`,
+    170,
+  );
+
+  const readinessStage = truncateText(
+    stageLabel === "Awareness"
+      ? (aggressiveCta || urgencySignal
+        ? "Cold audiences see a conversion ask before trust is built."
+        : "Cold audiences can read the idea, but they still need a clearer reason to care.")
+      : stageLabel === "Conversion"
+        ? "The creative matches a late-stage decision moment if the proof is strong enough."
+        : "The creative sits in a middle stage where clarity and proof still need to do more work.",
+    150,
+  );
+
+  const trustPerception = truncateText(
+    goalAlignment?.is_aligned === false || verticalAlignment?.is_aligned === false
+      ? `Trust feels thin because ${headline ? `"${headline}"` : "the headline"} and ${cta ? `"${cta}"` : "the CTA"} push intent before the campaign story is stable.`
+      : `Trust feels steadier because the message and action are pointing in the same direction.`,
+    170,
+  );
+
+  const likelyAudienceReaction = truncateText(
+    aggressiveCta && stageLabel === "Awareness"
+      ? "Cold audiences are likely to bounce or skip because the ad asks for action before it earns attention."
+      : verticalAlignment?.is_aligned === false
+        ? "Audiences will likely pause, feel the mismatch, and move on without seeing the creative as relevant."
+        : "Audiences are more likely to scan, understand, and keep moving toward the next step.",
+    155,
+  );
+
+  return {
+    likelyInterpretation,
+    readinessStage,
+    trustPerception,
+    likelyAudienceReaction,
   };
 }
 function labelGoal(id) {
@@ -265,18 +324,6 @@ function riskTone(text) {
   return { label: "Unknown", className: "text-slate-300" };
 }
 
-function buildBehavioralSnapshot(behavioral, vertical) {
-  const profile = getVerticalStrategyProfile(vertical);
-  const likelyBehavior = firstSentence(behavioral?.likely_behavior) || `${profile.lens} should be the primary response lens.`;
-  const commitmentPressure = firstSentence(behavioral?.commitment_pressure) || `${profile.pressure} should be evaluated.`;
-  const likelyObjection = firstSentence(behavioral?.likely_objection) || `The main objection is likely about ${profile.anchor.toLowerCase()}.`;
-
-  return {
-    likelyBehavior: truncateText(likelyBehavior, 135),
-    commitmentPressure: truncateText(commitmentPressure, 135),
-    likelyObjection: truncateText(likelyObjection, 135),
-  };
-}
 
 function isLaunchReady(payload) {
   const score = getStrategicAlignmentScore(payload) ?? -1;
@@ -298,45 +345,15 @@ function buildLayoutClarityAnalysis({ flow, extractionSignals, behavioral, campa
   const ctaVisibility = attention?.cta_visibility || "CTA visibility signal is unavailable.";
   const mobileRisk = attention?.mobile_attention_risk || "Mobile attention risk is not available.";
   const retentionRisk = attention?.attention_retention_risk || "Retention risk is not available.";
-
-  let clarityScore = 70;
-  if (frictionPoints.length > 0) clarityScore -= 18;
-  if (/weakened|compete|unclear|risk|drop|fatigue|fragment/i.test(`${ctaVisibility} ${mobileRisk} ${retentionRisk}`)) clarityScore -= 14;
-  if (/low|weak/i.test(String(brandPresence))) clarityScore -= 8;
-  if (headline) clarityScore += 6;
-  if (cta) clarityScore += 4;
-  if (dominantVisual) clarityScore += 4;
-  clarityScore = Math.max(25, Math.min(95, clarityScore));
-
-  const clarityLabel = clarityScore >= 80 ? "High Clarity" : clarityScore >= 60 ? "Moderate Clarity" : "Low Clarity";
   const goalText = labelGoal(campaignGoal || "awareness");
   const verticalText = labelVertical(campaignVertical || "unknown");
-  const emotionalTone = behavioral?.emotional_state || "emotional response is mixed";
 
-  const clarityNarrative =
-    clarityScore >= 80
-      ? `The visual hierarchy is clear for ${goalText} in ${verticalText}: users are guided through message, image, and action with limited friction.`
-      : clarityScore >= 60
-        ? `The layout provides partial clarity for ${goalText} in ${verticalText}, but competing elements and flow friction may dilute message take-away.`
-        : `The layout currently lacks clear attention control for ${goalText} in ${verticalText}; users may miss core intent before reaching the CTA.`;
-
-  const recommendedAdjustment = frictionPoints[0]
-    ? `Reduce friction by fixing this first: ${frictionPoints[0]}`
-    : /compete|weakened|unclear/i.test(ctaVisibility)
-      ? `Increase CTA contrast and spacing so action appears only after core value is understood.`
-      : `Strengthen visual sequencing so focus starts on the primary message before action cues.`;
+  const flowLine = attention?.attention_path || `Eye path likely starts at the ${headline ? "headline" : dominantVisual ? "visual" : "main message"}, then checks the supporting image, then lands on the CTA.`;
+  const focusLabel = firstFocus === "headline" ? "headline area" : `${String(firstFocus).charAt(0).toUpperCase()}${String(firstFocus).slice(1)} area`;
 
   return {
-    flowLine: path,
-    focusLine: `${String(firstFocus).charAt(0).toUpperCase()}${String(firstFocus).slice(1)} area${headline ? ` (headline: "${headline}")` : ""}`,
-    clarityLabel,
-    clarityScore,
-    clarityNarrative,
-    ctaVisibility,
-    mobileRisk,
-    retentionRisk,
-    emotionalTone,
-    recommendedAdjustment,
+    flowLine,
+    focusLine: `${focusLabel}${headline ? ` (headline: "${headline}")` : ""}`,
   };
 }
 
@@ -384,7 +401,9 @@ export default function AnalysisPanel({
   }, [strategicEntries]);
 
   const [selectedId, setSelectedId] = useState(() => sorted[0]?.creative?.id || null);
+  const [analysisTab, setAnalysisTab] = useState("overview");
   const [utilityTab, setUtilityTab] = useState("score-card");
+  const [showAlignmentDetails, setShowAlignmentDetails] = useState(false);
 
   if (!sorted.length) {
     return (
@@ -425,7 +444,6 @@ export default function AnalysisPanel({
     campaignVertical,
     recommendations,
   });
-  const behavioralSnapshot = buildBehavioralSnapshot(behavioral, campaignVertical);
   const abHypotheses = Array.isArray(data?.ab_hypotheses) && data.ab_hypotheses.length > 0
     ? data.ab_hypotheses.slice(0, 3)
     : buildFallbackAbTests(recommendations);
@@ -434,6 +452,8 @@ export default function AnalysisPanel({
   const readyEntries = sorted.filter((entry) => isLaunchReady(getEntryPayload(entry) || {}));
   const readyCount = readyEntries.length;
   const totalCount = sorted.length;
+  const goalText = labelGoal(campaignGoal || "awareness");
+  const verticalText = labelVertical(campaignVertical || "unknown");
   const launchReadinessText = readyCount === 1
     ? `${readyEntries[0]?.creative?.name || "1 creative"} is ready to launch.`
     : `${readyCount} out of ${totalCount} creatives are ready to launch.`;
@@ -443,19 +463,349 @@ export default function AnalysisPanel({
       ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-200"
       : "border-cyan-500/30 bg-cyan-500/10 text-cyan-200";
 
+  const audienceInterpretation = buildAudienceInterpretation({
+    headline: extractionSignals?.headline || "",
+    cta: extractionSignals?.cta || "",
+    visualDescription: extractionSignals?.topic_summary || extractionSignals?.dominant_visual_cue || "",
+    stage: goalAlignment?.selected_goal || campaignGoal || "awareness",
+    vertical: verticalAlignment?.selected_vertical || campaignVertical || "unknown",
+    goalAlignment,
+    verticalAlignment,
+  });
+
+  const strategistSummary = buildStrategistNarrative({
+    goalAlignment,
+    verticalAlignment,
+    extractionSignals,
+    behavioral,
+    flow,
+    campaignGoal,
+    campaignVertical,
+    recommendations,
+  });
+
+  // Calculate alignment statistics for all creatives
+  const alignmentStats = useMemo(() => {
+    const verticalAligned = sorted.filter((entry) => {
+      const payload = getEntryPayload(entry) || {};
+      const va = getVerticalAlignment(payload);
+      return va?.is_aligned === true;
+    });
+    const goalAligned = sorted.filter((entry) => {
+      const payload = getEntryPayload(entry) || {};
+      const ga = getGoalAlignment(payload);
+      return ga?.is_aligned === true;
+    });
+
+    return {
+      verticalAligned: verticalAligned.length,
+      verticalMisaligned: sorted.length - verticalAligned.length,
+      goalAligned: goalAligned.length,
+      goalMisaligned: sorted.length - goalAligned.length,
+      alignedDetails: sorted.map((entry) => ({
+        creativeId: entry.creative?.id,
+        creativeName: entry.creative?.name || "Untitled Creative",
+        verticalAligned: getVerticalAlignment(getEntryPayload(entry) || {})?.is_aligned === true,
+        goalAligned: getGoalAlignment(getEntryPayload(entry) || {})?.is_aligned === true,
+      })),
+    };
+  }, [sorted]);
+
+  const topSummaryStats = useMemo(() => {
+    const goalMisaligned = sorted.filter((entry) => {
+      const payload = getEntryPayload(entry) || {};
+      return getGoalAlignment(payload)?.is_aligned === false;
+    }).length;
+
+    const verticalMisaligned = sorted.filter((entry) => {
+      const payload = getEntryPayload(entry) || {};
+      return getVerticalAlignment(payload)?.is_aligned === false;
+    }).length;
+
+    const highestAlignedEntry = sorted.reduce((best, entry) => {
+      const payload = getEntryPayload(entry) || {};
+      const score = getStrategicAlignmentScore(payload);
+      if (!best || score > best.score) {
+        return {
+          score,
+          creativeName: entry?.creative?.name || "Untitled Creative",
+          status: getCreativeStatusLabel(payload),
+        };
+      }
+      return best;
+    }, null);
+
+    const scoreValues = sorted
+      .map((entry) => getStrategicAlignmentScore(getEntryPayload(entry) || {}))
+      .filter((score) => Number.isFinite(score));
+    const bothAlignedCount = sorted.filter((entry) => {
+      const payload = getEntryPayload(entry) || {};
+      return payload?.goal_alignment?.is_aligned === true && payload?.vertical_alignment?.is_aligned === true;
+    }).length;
+
+    const cohesionScore = sorted.length > 0
+      ? Math.round(
+        ((scoreValues.length > 0 ? scoreValues.reduce((sum, score) => sum + score, 0) / scoreValues.length : 0)
+          + (bothAlignedCount / sorted.length) * 100) / 2,
+      )
+      : 0;
+
+    const mixedVerticals = sorted
+      .map((entry) => getVerticalAlignment(getEntryPayload(entry) || {})?.detected_vertical)
+      .filter((value) => value && value !== "unknown");
+    const verticalCounts = mixedVerticals.reduce((acc, vertical) => {
+      acc[vertical] = (acc[vertical] || 0) + 1;
+      return acc;
+    }, {});
+    const topMixedVertical = Object.entries(verticalCounts).sort((left, right) => right[1] - left[1])[0] || null;
+
+    return {
+      totalCreatives: sorted.length,
+      strategicallyReady: readyCount,
+      goalMisaligned,
+      verticalMisaligned,
+      highestAlignedEntry,
+      cohesionScore,
+      topMixedVertical,
+    };
+  }, [sorted, readyCount]);
+
+  const campaignInsights = useMemo(() => {
+    const aggressiveCtaCount = sorted.filter((entry) => {
+      const payload = getEntryPayload(entry) || {};
+      const cta = String(getExtractionSignals(payload)?.cta || "");
+      return /(shop now|buy now|order now|sign up|book now|apply now|get started|claim now|download now|reserve now|purchase now)/i.test(cta);
+    }).length;
+
+    const discountLedCount = sorted.filter((entry) => {
+      const payload = getEntryPayload(entry) || {};
+      const text = `${getExtractionSignals(payload)?.headline || ""} ${getExtractionSignals(payload)?.cta || ""}`;
+      return /(discount|save|sale|off|deal|limited|offer)/i.test(text);
+    }).length;
+
+    const uniqueVisuals = new Set(
+      sorted
+        .map((entry) => getExtractionSignals(getEntryPayload(entry) || {})?.dominant_visual_cue)
+        .filter(Boolean),
+    );
+
+    const stageMismatchCount = sorted.filter((entry) => {
+      const payload = getEntryPayload(entry) || {};
+      return payload?.goal_alignment?.is_aligned === false;
+    }).length;
+
+    const verticalConflictText = topSummaryStats.topMixedVertical
+      ? `${topSummaryStats.topMixedVertical[1]} creatives appear closer to ${labelVertical(topSummaryStats.topMixedVertical[0])} than ${verticalText}.`
+      : `${topSummaryStats.verticalMisaligned} creatives do not match ${verticalText}.`;
+
+    return [
+      {
+        title: "CTA Pressure",
+        body: aggressiveCtaCount > 0
+          ? `CTA pressure appears early in ${aggressiveCtaCount} creative${aggressiveCtaCount === 1 ? "" : "s"}.`
+          : "CTA pressure is not dominating the current set.",
+      },
+      {
+        title: "Discount Pattern",
+        body: discountLedCount > 0
+          ? `${discountLedCount} creative${discountLedCount === 1 ? "" : "s"} lean on discount-led persuasion.`
+          : "Discount-led persuasion is not a dominant pattern.",
+      },
+      {
+        title: "Visual Consistency",
+        body: uniqueVisuals.size > 2
+          ? `Visual language is fragmented across ${uniqueVisuals.size} different cues.`
+          : "Visual language is relatively stable across the set.",
+      },
+      {
+        title: "Stage Messaging",
+        body: stageMismatchCount > 0
+          ? `${stageMismatchCount} creative${stageMismatchCount === 1 ? "" : "s"} are pulling against the selected campaign stage.`
+          : "Stage messaging is aligned across the current set.",
+      },
+      {
+        title: "Vertical Bleed",
+        body: verticalConflictText,
+      },
+    ];
+  }, [sorted, topSummaryStats.topMixedVertical, verticalText, topSummaryStats.verticalMisaligned]);
+
   return (
     <div className="space-y-5">
-      {/* ── LAUNCH READINESS STATUS TAB ── */}
-      <div className={`rounded-xl border px-4 py-3 ${launchReadinessTone}`}>
-        <div className="flex items-center gap-2">
-          <Zap size={14} className="shrink-0" />
-          <p className="text-sm font-semibold">Launch Readiness Status</p>
-        </div>
-        <p className="mt-1.5 text-sm leading-relaxed">{launchReadinessText}</p>
+      <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.04] p-2">
+        <button
+          type="button"
+          onClick={() => setAnalysisTab("overview")}
+          className={`rounded-lg px-3 py-2 text-sm font-semibold transition ${
+            analysisTab === "overview"
+              ? "bg-white/12 text-white border border-white/15"
+              : "text-slate-300 hover:bg-white/8 hover:text-white"
+          }`}
+        >
+          Overview
+        </button>
+        <button
+          type="button"
+          onClick={() => setAnalysisTab("creative-analysis")}
+          className={`rounded-lg px-3 py-2 text-sm font-semibold transition ${
+            analysisTab === "creative-analysis"
+              ? "bg-white/12 text-white border border-white/15"
+              : "text-slate-300 hover:bg-white/8 hover:text-white"
+          }`}
+        >
+          Creative Analysis
+        </button>
       </div>
 
-      {/* ── UTILITY TABS ── */}
-      <div className="rounded-2xl border border-purple-500/20 bg-gradient-to-r from-purple-900/25 to-fuchsia-900/20 p-3">
+      {analysisTab === "overview" ? (
+        <>
+          <div className="space-y-5">
+            <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-purple-950/55 via-violet-950/45 to-fuchsia-950/35 p-5">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-cyan-200/80">Campaign Strategic Overview</p>
+              <h3 className="mt-2 text-xl font-black text-white">Executive campaign intelligence before creative inspection.</h3>
+              <p className="mt-2 max-w-3xl text-sm leading-relaxed text-slate-300">
+                Scan the campaign-level signal first, then move into individual creative analysis only when you need to diagnose a specific asset.
+              </p>
+            </div>
+
+            {/* ── TOP SUMMARY STRIP ── */}
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-6 gap-3">
+              <div className="rounded-xl border border-white/10 bg-white/[0.04] p-3.5">
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Total Creatives</p>
+                <p className="mt-1 text-3xl font-black leading-none text-white">{topSummaryStats.totalCreatives}</p>
+                <p className="mt-1 text-xs text-slate-400">Uploaded</p>
+              </div>
+
+              <div className="rounded-xl border border-white/10 bg-white/[0.04] p-3.5">
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Creatives Ready To Launch</p>
+                <p className="mt-1 text-3xl font-black leading-none text-white">{topSummaryStats.strategicallyReady}</p>
+                <p className="mt-1 text-xs text-slate-400">{goalText} goal</p>
+              </div>
+
+              <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-3.5">
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-rose-200/90">Goal Misaligned</p>
+                <p className="mt-1 text-3xl font-black leading-none text-white">{topSummaryStats.goalMisaligned}</p>
+                <p className="mt-1 text-xs text-rose-200/85">vs {goalText}</p>
+              </div>
+
+              <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-3.5">
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-rose-200/90">Vertical Misaligned</p>
+                <p className="mt-1 text-3xl font-black leading-none text-white">{topSummaryStats.verticalMisaligned}</p>
+                <p className="mt-1 text-xs text-rose-200/85">vs {verticalText}</p>
+              </div>
+
+              <div className="rounded-xl border border-cyan-500/30 bg-cyan-500/10 p-3.5">
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-cyan-200/90">Highest Alignment</p>
+                <p className="mt-1 text-3xl font-black leading-none text-white">
+                  {Number.isFinite(topSummaryStats.highestAlignedEntry?.score) ? `${topSummaryStats.highestAlignedEntry.score}/100` : "N/A"}
+                </p>
+                <p className="mt-1 text-xs text-cyan-100/80 truncate">
+                  #{topSummaryStats.highestAlignedEntry?.creativeName || "No creative"} - {topSummaryStats.highestAlignedEntry?.status || "Unknown"}
+                </p>
+              </div>
+
+              <div className="rounded-xl border border-white/10 bg-white/[0.04] p-3.5">
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Campaign Cohesion</p>
+                <p className="mt-1 text-3xl font-black leading-none text-white">{topSummaryStats.cohesionScore}/100</p>
+                <p className="mt-1 text-xs text-slate-400">Consistency across the set</p>
+              </div>
+            </div>
+
+            {/* ── LAUNCH READINESS STATUS ── */}
+            <motion.div
+              className="rounded-xl border border-purple-500/30 bg-gradient-to-r from-purple-900/20 to-fuchsia-900/15 overflow-hidden"
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3 }}
+            >
+              <div className="px-4 py-3">
+                <div className="flex items-center gap-2 mb-3">
+                  <Zap size={14} className="shrink-0 text-purple-300" />
+                  <p className="text-sm font-semibold text-white">Launch Readiness Status</p>
+                </div>
+
+                <div className="space-y-2.5">
+                  <div className="rounded-lg border border-white/10 bg-white/5 p-2.5">
+                    <p className="text-xs font-semibold text-slate-300 mb-1.5 flex items-center gap-1.5">
+                      <CheckCircle size={12} className="text-emerald-400" />
+                      Vertical Alignment
+                    </p>
+                    <p className="text-sm font-semibold text-white">
+                      {alignmentStats.verticalAligned} aligned <span className="text-slate-400 font-normal">/</span> {alignmentStats.verticalMisaligned} not aligned
+                    </p>
+                    <p className="text-xs text-slate-400 mt-1">Out of {totalCount} creatives for {verticalText}</p>
+                  </div>
+
+                  <div className="rounded-lg border border-white/10 bg-white/5 p-2.5">
+                    <p className="text-xs font-semibold text-slate-300 mb-1.5 flex items-center gap-1.5">
+                      <Target size={12} className="text-cyan-400" />
+                      Campaign Goal Alignment
+                    </p>
+                    <p className="text-sm font-semibold text-white">
+                      {alignmentStats.goalAligned} aligned <span className="text-slate-400 font-normal">/</span> {alignmentStats.goalMisaligned} not aligned
+                    </p>
+                    <p className="text-xs text-slate-400 mt-1">For {goalText} objective</p>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => setShowAlignmentDetails(!showAlignmentDetails)}
+                    className="w-full rounded-lg border border-purple-500/40 bg-purple-500/10 px-3 py-2 text-sm font-semibold text-purple-200 transition hover:bg-purple-500/20 hover:border-purple-500/60 flex items-center justify-center gap-2"
+                  >
+                    <Eye size={14} />
+                    {showAlignmentDetails ? "Hide Details" : "View Alignment Details"}
+                  </button>
+                </div>
+              </div>
+
+              {showAlignmentDetails && (
+                <div className="border-t border-purple-500/20 bg-black/20 px-4 py-3">
+                  <div className="space-y-1.5 max-h-64 overflow-y-auto">
+                    {alignmentStats.alignedDetails.map((detail) => (
+                      <div key={detail.creativeId} className="flex items-center gap-2.5 text-xs p-2 rounded-lg border border-white/5 bg-white/[0.02] hover:bg-white/5 transition">
+                        <div className="flex gap-1.5 flex-1">
+                          <span className={`flex items-center gap-1 px-2 py-1 rounded ${detail.verticalAligned ? "bg-emerald-500/20 text-emerald-200" : "bg-red-500/20 text-red-200"}`}>
+                            {detail.verticalAligned ? <CheckCircle size={10} /> : <XCircle size={10} />}
+                            Vertical
+                          </span>
+                          <span className={`flex items-center gap-1 px-2 py-1 rounded ${detail.goalAligned ? "bg-cyan-500/20 text-cyan-200" : "bg-red-500/20 text-red-200"}`}>
+                            {detail.goalAligned ? <CheckCircle size={10} /> : <XCircle size={10} />}
+                            Goal
+                          </span>
+                        </div>
+                        <span className="text-slate-300 font-semibold truncate flex-1">{detail.creativeName}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </motion.div>
+
+            {/* ── CAMPAIGN INSIGHTS ── */}
+            <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <TrendingUp size={15} className="text-cyan-300" />
+                <h4 className="text-sm font-semibold text-white">Campaign Insights</h4>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {campaignInsights.map((insight) => (
+                  <div key={insight.title} className="rounded-lg border border-white/10 bg-white/[0.03] p-3">
+                    <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">{insight.title}</p>
+                    <p className="mt-1 text-sm leading-relaxed text-slate-100">{insight.body}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="rounded-xl border border-white/10 bg-white/5 p-4 text-sm text-slate-300">
+              Open <span className="font-semibold text-white">Creative Analysis</span> to inspect one creative at a time.
+            </div>
+          </div>
+        </>
+      ) : (
+        <>
+          {/* ── UTILITY TABS ── */}
+          <div className="rounded-2xl border border-purple-500/20 bg-gradient-to-r from-purple-900/25 to-fuchsia-900/20 p-3">
         <div className="flex flex-wrap gap-2 rounded-xl border border-white/10 bg-black/10 p-2">
           <button
             type="button"
@@ -789,16 +1139,26 @@ export default function AnalysisPanel({
             </div>
           )}
 
-          {/* 4. AUDIENCE PSYCHOLOGY */}
+          {/* 4. AUDIENCE INTERPRETATION */}
           <div className="rounded-xl border border-white/10 bg-white/5 p-4">
             <div className="flex items-center gap-2 mb-3">
               <TrendingUp size={15} className="text-pink-300" />
-              <h4 className="text-sm font-semibold text-white">4. Audience Psychology</h4>
+              <h4 className="text-sm font-semibold text-white">4. Audience Interpretation</h4>
             </div>
-            <div className="space-y-2">
-              <FieldBlock label="Likely Behavior" value={behavioralSnapshot.likelyBehavior} accent="emerald" />
-              <FieldBlock label="Commitment Pressure" value={behavioralSnapshot.commitmentPressure} accent="amber" />
-              <FieldBlock label="Likely Objection" value={behavioralSnapshot.likelyObjection} accent="red" />
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5">
+              <div className="rounded-lg border border-white/10 bg-white/[0.03] p-3">
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Likely Interpretation</p>
+                <p className="mt-1 text-sm leading-relaxed text-slate-100">{audienceInterpretation.likelyInterpretation}</p>
+              </div>
+              <div className="rounded-lg border border-white/10 bg-white/[0.03] p-3">
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Readiness Stage</p>
+                <p className="mt-1 text-sm leading-relaxed text-slate-100">{audienceInterpretation.readinessStage}</p>
+              </div>
+              <div className="rounded-lg border border-white/10 bg-white/[0.03] p-3">
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Trust Perception</p>
+                <p className="mt-1 text-sm leading-relaxed text-slate-100">{audienceInterpretation.trustPerception}</p>
+                <p className="mt-2 text-xs leading-relaxed text-slate-300">Likely audience reaction: {audienceInterpretation.likelyAudienceReaction}</p>
+              </div>
             </div>
           </div>
 
@@ -816,31 +1176,34 @@ export default function AnalysisPanel({
               <p className="text-sm text-slate-200 leading-relaxed mt-1">
                 <span className="font-semibold text-slate-100">Focus:</span> {layoutClarity.focusLine}
               </p>
-              <p className="text-sm text-slate-200 leading-relaxed mt-2">
-                <span className="font-semibold text-cyan-300">Clarity:</span> {layoutClarity.clarityLabel} ({layoutClarity.clarityScore}/100)
-              </p>
-              <p className="text-sm text-slate-200 leading-relaxed mt-1">{layoutClarity.clarityNarrative}</p>
             </div>
           </div>
 
           {/* 6. STRATEGIC RECOMMENDATION */}
-          {recommendations.length > 0 && (
-            <div className="rounded-xl border border-emerald-500/25 bg-emerald-500/5 p-4">
-              <div className="flex items-center gap-2 mb-2">
-                <Zap size={15} className="text-emerald-300" />
-                <h4 className="text-sm font-semibold text-white">6. Strategic Recommendation</h4>
-              </div>
-              <div className="space-y-3 text-[15px] leading-relaxed">
-                <p className="text-slate-100"><span className="font-semibold text-emerald-300">1. What’s wrong:</span> {strategistNarrative.wrong}</p>
-                <p className="text-slate-100"><span className="font-semibold text-emerald-300">2. Why it happens:</span> {strategistNarrative.why}</p>
-                <p className="text-slate-100"><span className="font-semibold text-emerald-300">3. Audience effect:</span> {strategistNarrative.effect}</p>
-                <p className="text-slate-100"><span className="font-semibold text-emerald-300">4. Exact fix:</span> {strategistNarrative.fix}</p>
-              </div>
-              {recommendations[0]?.priority && (
-                <p className="mt-3 text-xs text-emerald-400 font-semibold">Priority: {recommendations[0].priority}</p>
-              )}
+          <div className="rounded-xl border border-emerald-500/25 bg-emerald-500/5 p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <Zap size={15} className="text-emerald-300" />
+              <h4 className="text-sm font-semibold text-white">6. Strategic Recommendation</h4>
             </div>
-          )}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5 text-sm leading-relaxed">
+              <div className="rounded-lg border border-white/10 bg-white/[0.03] p-3">
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-emerald-200">Core Problem</p>
+                <p className="mt-1 text-slate-100">{strategistSummary.coreProblem}</p>
+              </div>
+              <div className="rounded-lg border border-white/10 bg-white/[0.03] p-3">
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-emerald-200">Why It Happens</p>
+                <p className="mt-1 text-slate-100">{strategistSummary.whyItHappens}</p>
+              </div>
+              <div className="rounded-lg border border-white/10 bg-white/[0.03] p-3">
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-emerald-200">Business Risk</p>
+                <p className="mt-1 text-slate-100">{strategistSummary.businessRisk}</p>
+              </div>
+              <div className="rounded-lg border border-white/10 bg-white/[0.03] p-3">
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-emerald-200">Exact Fix</p>
+                <p className="mt-1 text-slate-100">{strategistSummary.exactFix}</p>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -853,6 +1216,8 @@ export default function AnalysisPanel({
       >
         <Download size={16} /> Download Strategic Report
       </motion.button>
+        </>
+      )}
     </div>
   );
 }

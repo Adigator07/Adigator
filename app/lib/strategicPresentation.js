@@ -276,3 +276,195 @@ export function getStrategicFlow(data) {
       "Strategic alignment summary unavailable",
   };
 }
+
+export function generateAudiencePsychology({
+  headline = "",
+  cta = "",
+  visualDescription = "",
+  stage = "awareness",
+  vertical = "unknown",
+}) {
+  const stageKey = String(stage || "").toLowerCase();
+  const verticalKey = String(vertical || "").toLowerCase();
+
+  // Vertical-specific psychological profiles
+  const verticalProfiles = {
+    food: {
+      emotionalDriver: "appetite and impulse gratification",
+      earlyStageDisposition: "curious but uncommitted",
+      midStageDisposition: "craving-driven but skeptical about quality",
+      lateStageDisposition: "ready to order if friction is removed",
+      objectionPattern: "Is this actually good/worth it?",
+      ctaReadinessFactor: 0.6,
+    },
+    automotive: {
+      emotionalDriver: "identity, aspiration, and ownership pride",
+      earlyStageDisposition: "aspirational but evaluating",
+      midStageDisposition: "interested but comparing alternatives",
+      lateStageDisposition: "ready to commit if value is proven",
+      objectionPattern: "Will this really match my lifestyle/budget?",
+      ctaReadinessFactor: 0.5,
+    },
+    fashion: {
+      emotionalDriver: "self-expression and social validation",
+      earlyStageDisposition: "visually attracted but hesitant",
+      midStageDisposition: "wants it but doubts fit/style alignment",
+      lateStageDisposition: "ready to buy if confidence is confirmed",
+      objectionPattern: "Will I actually feel good wearing this?",
+      ctaReadinessFactor: 0.65,
+    },
+    saas: {
+      emotionalDriver: "clarity, credibility, and workflow efficiency",
+      earlyStageDisposition: "intrigued but needs proof",
+      midStageDisposition: "evaluating against competitors",
+      lateStageDisposition: "ready to try if risk is minimized",
+      objectionPattern: "Is this actually better than what I use now?",
+      ctaReadinessFactor: 0.4,
+    },
+    finance: {
+      emotionalDriver: "security, certainty, and trust",
+      earlyStageDisposition: "cautious and information-seeking",
+      midStageDisposition: "risk-evaluating before commitment",
+      lateStageDisposition: "ready to act if certainty is guaranteed",
+      objectionPattern: "Can I trust this with my money?",
+      ctaReadinessFactor: 0.35,
+    },
+    education: {
+      emotionalDriver: "future outcome and career lift",
+      earlyStageDisposition: "aspirational but uncertain about value",
+      midStageDisposition: "evaluating outcome quality and fit",
+      lateStageDisposition: "ready to enroll if success is credible",
+      objectionPattern: "Will this actually improve my career?",
+      ctaReadinessFactor: 0.45,
+    },
+    ecommerce: {
+      emotionalDriver: "value, convenience, and transaction momentum",
+      earlyStageDisposition: "browsing and comparing value",
+      midStageDisposition: "deciding between options",
+      lateStageDisposition: "ready to purchase if friction is gone",
+      objectionPattern: "Is this worth the price and hassle?",
+      ctaReadinessFactor: 0.75,
+    },
+  };
+
+  const profile = verticalProfiles[verticalKey] || {
+    emotionalDriver: "relevance and category fit",
+    earlyStageDisposition: "curious and exploring",
+    midStageDisposition: "evaluating fit and value",
+    lateStageDisposition: "ready to commit if confidence is high",
+    objectionPattern: "Is this right for me?",
+    ctaReadinessFactor: 0.5,
+  };
+
+  // Determine stage disposition
+  let stageDisposition = profile.earlyStageDisposition;
+  let ctaExpectation = "informational only";
+  if (stageKey === "consideration" || stageKey === "mid") {
+    stageDisposition = profile.midStageDisposition;
+    ctaExpectation = "educational or low-friction next step";
+  } else if (stageKey === "conversion" || stageKey === "late") {
+    stageDisposition = profile.lateStageDisposition;
+    ctaExpectation = "transactional or commitment-level action";
+  }
+
+  // Analyze CTA pressure
+  const aggressiveCtas = [
+    "buy now",
+    "shop now",
+    "order now",
+    "apply now",
+    "sign up now",
+    "claim now",
+    "book now",
+    "download now",
+    "get started",
+    "limited time",
+  ];
+  const isAggressiveCta = aggressiveCtas.some((aggressive) =>
+    cta.toLowerCase().includes(aggressive)
+  );
+
+  // Generate Likely Behavior
+  let likelyBehavior = "";
+  if (stageKey === "awareness") {
+    if (isAggressiveCta) {
+      likelyBehavior = `At awareness stage, users encountering this creative are in a ${profile.emotionalDriver} mindset but feeling pressured by an early CTA. They will likely pause the ad, close it, or scroll past without exploring further because ${stageDisposition.toLowerCase()}. The aggressive ask arrives before the creative can establish why the message matters to them.`;
+    } else {
+      likelyBehavior = `At awareness stage, users encountering this creative are in a ${profile.emotionalDriver} mindset and ${stageDisposition.toLowerCase()}. If the headline and visual clearly signal relevance, they will pause to evaluate. Most will remain browsing without clicking, unless a specific objection is preemptively answered in the copy itself.`;
+    }
+  } else if (stageKey === "consideration" || stageKey === "mid") {
+    likelyBehavior = `At consideration stage, users are ${stageDisposition.toLowerCase()} and their attention will focus on whether this creative reduces the decision friction. They will mentally compare the offer against alternatives and their existing solutions. If the CTA demands action without resolving their primary doubt, they will abandon the creative and revisit during a later research cycle.`;
+  } else {
+    likelyBehavior = `At conversion stage, users are ${stageDisposition.toLowerCase()} and the CTA lands in the moment when they are most ready to act. They will commit if the creative removes the last objection between intention and transaction. Hesitation at this stage means they leave and rarely return.`;
+  }
+
+  // Add stage tag
+  const behaviorTag =
+    stageKey === "consideration"
+      ? "Consideration → intent gap"
+      : stageKey === "conversion"
+        ? "Conversion-ready → friction point"
+        : "Awareness → consideration bridge";
+
+  // Generate Commitment Pressure
+  let commitmentPressure = "";
+  const ctaPressureMatch = isAggressiveCta && stageKey === "awareness" ? "too high" : "aligned";
+
+  if (isAggressiveCta && stageKey === "awareness") {
+    commitmentPressure = `The CTA "${cta}" demands transaction-level action, but the headline "${headline}" and visual only establish awareness-stage context. The user has not yet internalized why this matters, creating a psychological mismatch. The gap between curiosity and commitment will cause abandonment before any consideration happens.`;
+  } else if (isAggressiveCta && (stageKey === "consideration" || stageKey === "mid")) {
+    commitmentPressure = `The CTA "${cta}" is well-timed for consideration stage, but the headline "${headline}" does not yet disarm the user's primary objection about ${profile.objectionPattern.toLowerCase()}. The CTA will convert only if the visual or supporting copy sufficiently bridges the trust gap; otherwise, it feels premature.`;
+  } else if (!isAggressiveCta && stageKey === "conversion") {
+    commitmentPressure = `The CTA "${cta}" is too soft for conversion stage. Users at this funnel moment are ready for a transaction-level ask, but the headline "${headline}" and gentle framing suggest a softer next step. Users may interpret this as indecision or lack of confidence, dampening conversion momentum.`;
+  } else {
+    commitmentPressure = `The CTA "${cta}" and headline "${headline}" are aligned in intensity and stage appropriateness. The psychological pressure matches the user's readiness, though success depends on whether the visual adequately reinforces the message.`;
+  }
+
+  // Add pressure tag
+  const pressureTag =
+    isAggressiveCta && stageKey === "awareness"
+      ? "Too early — CTA fires before desire peaks"
+      : !isAggressiveCta && stageKey === "conversion"
+        ? "Too late — conversion moment under-activated"
+        : "Aligned to stage";
+
+  // Generate Likely Objection
+  let likelyObjection = "";
+  const objectionInnerMonologue = profile.objectionPattern;
+
+  let whichElementFails = "";
+  if (
+    !headline.toLowerCase().includes("proof") &&
+    !headline.toLowerCase().includes("guarantee") &&
+    !headline.toLowerCase().includes("trust")
+  ) {
+    whichElementFails = "the headline does not preempt doubt";
+  } else if (!visualDescription) {
+    whichElementFails = "the visual lacks credibility cues";
+  } else {
+    whichElementFails = "the supporting copy remains vague about the answer";
+  }
+
+  let consequence = "";
+  if (stageKey === "awareness") {
+    consequence =
+      "they will scroll past and move to a competitor ad that addresses their silent question immediately.";
+  } else if (stageKey === "consideration" || stageKey === "mid") {
+    consequence =
+      "they will add the product to a consideration list but will not return to convert until another touchpoint answers the question.";
+  } else {
+    consequence =
+      "they will abandon the purchase mid-transaction and the conversion is lost entirely.";
+  }
+
+  likelyObjection = `The user's internal monologue is: "${objectionInnerMonologue}" In this creative, ${whichElementFails}, leaving the objection unanswered. Without explicit resolution, ${consequence}`;
+
+  // Add objection tag
+  const objectionTag = "Unanswered trigger question";
+
+  return {
+    likelyBehavior: `${likelyBehavior} (${behaviorTag})`,
+    commitmentPressure: `${commitmentPressure} (${pressureTag})`,
+    likelyObjection: `${likelyObjection} (${objectionTag})`,
+  };
+}
