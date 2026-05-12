@@ -1151,10 +1151,8 @@ export default function AnalysisPanel({
           {/* 2. VERTICAL ALIGNMENT */}
           <div className="rounded-xl border border-white/10 bg-white/5 p-4">
             <div className="flex items-center gap-2 mb-3">
-              <div className="flex items-center gap-2">
-                <Brain size={15} className="text-purple-300" />
-                <h4 className="text-sm font-semibold text-white">2. Vertical Alignment</h4>
-              </div>
+              <Brain size={15} className="text-purple-300" />
+              <h4 className="text-sm font-semibold text-white">2. Vertical Alignment</h4>
             </div>
             <div className="space-y-2 text-sm">
               <p className="text-slate-300">
