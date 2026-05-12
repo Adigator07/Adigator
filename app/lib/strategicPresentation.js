@@ -11,6 +11,10 @@ const STRATEGIST_CONTRACT_FIELDS = [
   "goal_alignment",
   "vertical_alignment",
   "business_impact",
+  "product_category",
+  "advertising_behavior",
+  "audience_interpretation",
+  "persuasion_friction",
 ];
 
 const REQUIRED_BEHAVIORAL_FIELDS = [
@@ -82,8 +86,8 @@ function buildBehavioralResponseWithFallback(payload) {
 function isValidRecommendation(rec) {
   if (!rec || typeof rec !== "object") return false;
   const requiredCoreFields = [
-    "issue",
-    "recommended_change",
+    "core_problem",
+    "exact_fix",
     "priority",
   ];
 
@@ -151,33 +155,14 @@ export function getStrategicAlignmentScore(payload) {
 
 export function getStrategicRankLabel(payload) {
   if (!isValidStrategicPayload(payload)) {
-    return "Needs Strategic Revision";
+    return "Insufficient Intelligence";
   }
-
-  const alignment = getCampaignAlignment(payload);
-  const status = String(alignment.alignment_status || "unknown").toLowerCase();
-  if (status === "misaligned") {
-    return "Needs Strategic Revision";
-  }
-
   const score = getStrategicAlignmentScore(payload) ?? 0;
-  const goal = String(payload?.goal_alignment?.selected_goal || "awareness").toLowerCase();
-  const vertical = String(payload?.vertical_alignment?.selected_vertical || "").toLowerCase();
-
-  if (vertical === "luxury" && score >= 70) {
-    return "Strong Premium Positioning";
-  }
-  if (goal === "conversion" && score >= 70) {
-    return "Strong Conversion Readiness";
-  }
-  if (goal === "awareness" && score >= 70) {
-    return "Strong Awareness Alignment";
-  }
-  if (score >= 70) {
-    return "Strong Campaign Alignment";
-  }
-
-  return "Needs Strategic Revision";
+  if (score >= 90) return "Exceptional Strategic Alignment";
+  if (score >= 75) return "Strong Strategic Alignment";
+  if (score >= 60) return "Moderate Optimization Required";
+  if (score >= 40) return "High Strategic Friction";
+  return "Severe Campaign Risk";
 }
 
 export function compareStrategicEntries(left, right) {
@@ -225,21 +210,13 @@ export function getExtractionSignals(payload) {
 }
 
 export function getCreativeStatusLabel(payload) {
-  if (!isValidStrategicPayload(payload)) return "Needs Revision";
-
-  const alignment = getCampaignAlignment(payload);
-  const status = String(alignment.alignment_status || "unknown").toLowerCase();
-
-  const goalIsAligned = payload?.goal_alignment?.is_aligned;
-  const verticalIsAligned = payload?.vertical_alignment?.is_aligned;
-
-  if (status === "misaligned" || goalIsAligned === false) return "Misaligned";
-  if (status === "partially_aligned" || verticalIsAligned === false) return "Moderate Risk";
-
+  if (!isValidStrategicPayload(payload)) return "Insufficient";
   const score = getStrategicAlignmentScore(payload) ?? 0;
-  if (score >= 70) return "Strong Alignment";
-  if (score >= 45) return "Moderate Risk";
-  return "Needs Revision";
+  if (score >= 90) return "Exceptional";
+  if (score >= 75) return "Strong";
+  if (score >= 60) return "Moderate";
+  if (score >= 40) return "High Friction";
+  return "Severe Risk";
 }
 
 export function getStrategicRecommendationText(recommendation) {
@@ -248,10 +225,9 @@ export function getStrategicRecommendationText(recommendation) {
   }
 
   return (
+    recommendation.exact_fix ||
     recommendation.recommended_change ||
-    recommendation.action ||
-    recommendation.tactical_change ||
-    recommendation.issue ||
+    recommendation.core_problem ||
     "Strategic recommendation unavailable"
   );
 }
@@ -274,7 +250,61 @@ export function getStrategicFlow(data) {
       campaignAlignment.reasoning ||
       data?.strategic_alignment_score?.rationale ||
       "Strategic alignment summary unavailable",
+    productCategory: data?.product_category || null,
+    advertisingBehavior: data?.advertising_behavior || null,
+    audienceInterpretation: data?.audience_interpretation || null,
+    persuasionFriction: data?.persuasion_friction || null,
   };
+}
+
+export function getProductCategory(payload) {
+  const category = payload?.product_category;
+  if (category && typeof category === "object") return category;
+  return { label: "Unclassified", confidence: "weak", evidence: [] };
+}
+
+export function getAdvertisingBehavior(payload) {
+  const behavior = payload?.advertising_behavior;
+  if (behavior && typeof behavior === "object") return behavior;
+  return { label: "Unclassified behavior", confidence: "weak", reason: "Behavior signal unavailable." };
+}
+
+export function getAudienceInterpretation(payload) {
+  const interpretation = payload?.audience_interpretation;
+  if (interpretation && typeof interpretation === "object") return interpretation;
+  return {
+    likely_interpretation: "Interpretation unavailable.",
+    readiness_stage: "Readiness unavailable.",
+    trust_perception: "Trust perception unavailable.",
+    confidence: "weak",
+  };
+}
+
+export function getPersuasionFriction(payload) {
+  const friction = payload?.persuasion_friction;
+  if (friction && typeof friction === "object") return friction;
+  return { primary: "Friction unavailable.", items: [], confidence: "weak" };
+}
+
+export function getRankingRationale(payload) {
+  const score = getStrategicAlignmentScore(payload) ?? 0;
+  const friction = getPersuasionFriction(payload);
+  const goalAlignment = getGoalAlignment(payload);
+  const behavior = getAdvertisingBehavior(payload);
+
+  if (score >= 90) {
+    return `Ranked high due to strong goal fit and low structural friction. Behavior: ${behavior.label}.`;
+  }
+  if (score >= 75) {
+    return `Ranked above peers with strong strategic fit; main watch item: ${friction.primary}`;
+  }
+  if (score >= 60) {
+    return `Ranked mid-pack: optimization required on ${friction.primary.toLowerCase()}`;
+  }
+  if (goalAlignment?.is_aligned === false) {
+    return "Ranked lower due to campaign-goal misalignment and high persuasion friction.";
+  }
+  return `Ranked low: ${friction.primary}`;
 }
 
 export function generateAudiencePsychology({

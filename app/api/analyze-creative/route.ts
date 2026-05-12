@@ -54,6 +54,15 @@ interface AttentionAnalysis {
   cta_visibility: string;
   mobile_attention_risk: string;
   attention_retention_risk: string;
+  image_dominance?: string;
+  visual_contrast?: string;
+  object_scale?: string;
+  cta_placement?: string;
+  typography_weight?: string;
+  framing?: string;
+  whitespace_balance?: string;
+  directional_hierarchy?: string;
+  confidence?: "strong" | "moderate" | "weak";
 }
 
 interface PsychologyAnalysis {
@@ -90,6 +99,10 @@ interface BusinessImpact {
 }
 
 interface StrategicRecommendation {
+  core_problem: string;
+  why_it_happens: string;
+  business_risk: string;
+  exact_fix: string;
   issue: string;
   why_it_hurts: string;
   recommended_change: string;
@@ -100,6 +113,7 @@ interface StrategicRecommendation {
   trust_signal_gap: string;
   behavior_change_after_intervention: string;
   priority: "HIGH" | "MEDIUM" | "LOW";
+  confidence: "strong" | "moderate" | "weak";
 }
 
 interface BehavioralResponse {
@@ -141,6 +155,25 @@ interface FinalDecisionIntelligence {
   decision_summary: string;
 }
 
+interface ProductCategory {
+  label: string;
+  confidence: "strong" | "moderate" | "weak";
+  evidence: string[];
+}
+
+interface AdvertisingBehavior {
+  label: string;
+  confidence: "strong" | "moderate" | "weak";
+  reason: string;
+}
+
+interface AudienceInterpretationBlock {
+  likely_interpretation: string;
+  readiness_stage: string;
+  trust_perception: string;
+  confidence: "strong" | "moderate" | "weak";
+}
+
 const KNOWN_GOALS = new Set<CampaignGoal>(["awareness", "consideration", "conversion"]);
 
 const VERTICAL_DETECTION_HINTS: Record<string, string[]> = {
@@ -163,6 +196,28 @@ const VERTICAL_DETECTION_HINTS: Record<string, string[]> = {
 };
 
 const KNOWN_VERTICALS = new Set(Object.keys(VERTICAL_DETECTION_HINTS));
+
+const PRODUCT_CATEGORY_HINTS: Record<string, string[]> = {
+  beverage: ["coffee", "drink", "beverage", "latte", "espresso", "tea", "smoothie"],
+  restaurants_food: ["burger", "pizza", "restaurant", "menu", "dining", "food", "chef"],
+  education: ["course", "academy", "student", "certification", "learn", "education", "training"],
+  fashion: ["fashion", "style", "outfit", "wear", "apparel", "wardrobe"],
+  travel: ["travel", "trip", "destination", "hotel", "flight", "vacation"],
+  automotive: ["car", "vehicle", "suv", "drive", "auto", "dealership"],
+  finance: ["bank", "loan", "credit", "account", "payment", "portfolio", "fintech"],
+  software: ["saas", "platform", "software", "dashboard", "workflow", "automation", "app"],
+};
+
+const PRODUCT_CATEGORY_LABELS: Record<string, string> = {
+  beverage: "Coffee / Beverage",
+  restaurants_food: "Restaurants / Food",
+  education: "Education",
+  fashion: "Fashion",
+  travel: "Travel",
+  automotive: "Automotive",
+  finance: "Finance / Banking",
+  software: "Software / SaaS",
+};
 
 const GOAL_INTELLIGENCE_PROFILE: Record<CampaignGoal, { expectedCtaPressure: CtaPressure; urgencyTolerance: SignalLevel; preferredEmotions: string[] }> = {
   awareness: {
@@ -590,48 +645,217 @@ function detectVerticalFromSignals(selectedVertical: string, extraction: Extract
   };
 }
 
+function confidenceFromEvidence(evidenceCount: number, score?: number): "strong" | "moderate" | "weak" {
+  if (typeof score === "number" && score >= 75) return "strong";
+  if (typeof score === "number" && score >= 45) return "moderate";
+  if (evidenceCount >= 3) return "strong";
+  if (evidenceCount >= 1) return "moderate";
+  return "weak";
+}
+
+function detectProductCategory(extraction: ExtractionSignals, selectedVertical: string): ProductCategory {
+  const corpus = [
+    extraction.headline,
+    extraction.primary_message,
+    extraction.cta,
+    extraction.visual_elements.join(" "),
+    extraction.audience_clues.join(" "),
+  ].join(" ").toLowerCase();
+
+  let bestKey = "";
+  let bestScore = 0;
+  const evidenceByKey: Record<string, string[]> = {};
+
+  for (const [key, hints] of Object.entries(PRODUCT_CATEGORY_HINTS)) {
+    const evidence = hints.filter((hint) => corpus.includes(hint));
+    evidenceByKey[key] = evidence;
+    if (evidence.length > bestScore) {
+      bestScore = evidence.length;
+      bestKey = key;
+    }
+  }
+
+  const verticalFallback: Record<string, string> = {
+    food: "restaurants_food",
+    hotels: "travel",
+    travel: "travel",
+    education: "education",
+    automotive: "automotive",
+    finance: "finance",
+    banking: "finance",
+    technology: "software",
+    ecommerce: "fashion",
+  };
+
+  const selectedFallback = verticalFallback[selectedVertical] || "software";
+  const finalKey = bestScore > 0 ? bestKey : selectedFallback;
+  const evidence = (evidenceByKey[finalKey] || []).slice(0, 4);
+
+  return {
+    label: PRODUCT_CATEGORY_LABELS[finalKey] || "General Consumer Product",
+    confidence: confidenceFromEvidence(evidence.length),
+    evidence,
+  };
+}
+
+function detectAdvertisingBehavior(params: {
+  extraction: ExtractionSignals;
+  goal: CampaignGoal;
+  ctaPressure: CtaPressure;
+  selectedVertical: string;
+  productCategory: ProductCategory;
+}): AdvertisingBehavior {
+  const { extraction, goal, ctaPressure, selectedVertical, productCategory } = params;
+  const corpus = [extraction.headline, extraction.primary_message, extraction.cta].join(" ").toLowerCase();
+  const hasDiscount = /discount|save|offer|% off|sale|deal/.test(corpus);
+  const hasUrgency = /limited|today|now|last chance|hurry/.test(corpus);
+  const hasAuthority = /certified|trusted|expert|official|award|proven/.test(corpus) || extraction.trust_markers.length >= 2;
+  const hasLifestyle = /premium|exclusive|crafted|signature|lifestyle/.test(corpus);
+
+  if (hasDiscount && (ctaPressure === "aggressive" || hasUrgency)) {
+    return {
+      label: "Discount-led DTC promotion",
+      confidence: "strong",
+      reason: "Offer-first and urgency cues dominate the hierarchy.",
+    };
+  }
+
+  if (goal === "conversion" && ctaPressure === "aggressive") {
+    return {
+      label: "Ecommerce conversion advertising",
+      confidence: "strong",
+      reason: "Direct response CTA pressure drives immediate transaction behavior.",
+    };
+  }
+
+  if ((selectedVertical === "food" || selectedVertical === "hotels" || selectedVertical === "travel") && ctaPressure !== "aggressive") {
+    return {
+      label: "Hospitality storytelling",
+      confidence: "moderate",
+      reason: "Category cues are foregrounded before direct transactional pressure.",
+    };
+  }
+
+  if ((selectedVertical === "education" || selectedVertical === "finance" || selectedVertical === "banking") && hasAuthority) {
+    return {
+      label: "Authority-led education marketing",
+      confidence: "moderate",
+      reason: "Trust markers and credibility framing lead the message behavior.",
+    };
+  }
+
+  if (hasLifestyle && selectedVertical === "luxury") {
+    return {
+      label: "Lifestyle aspiration advertising",
+      confidence: "moderate",
+      reason: "Premium identity framing is prioritized over direct transaction messaging.",
+    };
+  }
+
+  if (productCategory.label === "Coffee / Beverage" && ctaPressure === "aggressive") {
+    return {
+      label: "Impulse-purchase promotion",
+      confidence: "moderate",
+      reason: "Product appetite cues are paired with immediate action pressure.",
+    };
+  }
+
+  return {
+    label: "Informational category promotion",
+    confidence: "weak",
+    reason: "Creative signals do not strongly resolve to a single commercial behavior type.",
+  };
+}
+
 function buildAttentionAnalysis(extraction: ExtractionSignals, ctaPressure: CtaPressure): AttentionAnalysis {
-  const firstFocus = extraction.headline
+  const visualCorpus = extraction.visual_elements.join(" ").toLowerCase();
+  const hierarchyCorpus = extraction.hierarchy_observations.toLowerCase();
+  const layoutCorpus = extraction.layout_structure.toLowerCase();
+  const ctaLower = extraction.cta.toLowerCase();
+
+  const imageDominance = visualCorpus.includes("hero") || visualCorpus.includes("product") || visualCorpus.includes("close")
+    ? "Primary product image dominates first fixation."
+    : extraction.headline
+      ? "Headline block is the first dominant anchor."
+      : "No clear dominant element; entry point is split.";
+
+  const visualContrast = extraction.dominant_colors.length >= 3
+    ? "High contrast palette creates multiple competing anchors."
+    : "Contrast profile is restrained and supports single-path scanning.";
+
+  const objectScale = /close|macro|large|full/i.test(visualCorpus)
+    ? "Object scale is oversized relative to supporting copy."
+    : "Object scale is balanced with surrounding copy blocks.";
+
+  const ctaPlacement = /top|above/i.test(`${hierarchyCorpus} ${layoutCorpus}`)
+    ? "CTA appears early in the scan path."
+    : /bottom|footer|below/i.test(`${hierarchyCorpus} ${layoutCorpus}`)
+      ? "CTA appears after message framing."
+      : ctaPressure === "aggressive" || /buy|shop|claim|apply|sign up|book/.test(ctaLower)
+        ? "CTA behaves as a high-salience conversion anchor."
+        : "CTA is present but not clearly anchored to the primary focal zone.";
+
+  const typographyWeight = extraction.text_density === "high"
+    ? "Typography weight is heavy and competes with imagery."
+    : extraction.text_density === "low"
+      ? "Typography footprint is light and image-led."
+      : "Typography and imagery are in moderate balance.";
+
+  const framing = /circle|frame|boxed|card/i.test(layoutCorpus)
+    ? "Framing creates contained attention pockets."
+    : "Open framing with broader visual spread.";
+
+  const whitespace = extraction.text_density === "high"
+    ? "Whitespace is compressed, reducing scan recovery."
+    : extraction.text_density === "low"
+      ? "Whitespace supports clear scanning lanes."
+      : "Whitespace is serviceable but not strongly directional.";
+
+  const directionalHierarchy = hierarchyCorpus.includes("unclear")
+    ? "Directional hierarchy is fragmented."
+    : hierarchyCorpus.includes("strong")
+      ? "Directional hierarchy is coherent from anchor to action."
+      : "Directional hierarchy is moderate with minor scan detours.";
+
+  const firstFocus = imageDominance.toLowerCase().includes("headline")
     ? "headline"
-    : extraction.brand_presence === "high"
-      ? "brand block"
-      : "primary visual";
+    : imageDominance.toLowerCase().includes("product")
+      ? "product image"
+      : "mixed entry point";
 
   const frictionPoints: string[] = [];
-  if (extraction.text_density === "high") {
-    frictionPoints.push("Competing copy blocks fragment attention before users reach the CTA.");
-  }
-  if (extraction.readability === "low") {
-    frictionPoints.push("Low readability creates early cognitive fatigue on mobile scroll.");
-  }
-  if (extraction.hierarchy_observations.toLowerCase().includes("unclear")) {
-    frictionPoints.push("Hierarchy is unclear, so users cannot identify the next action quickly.");
-  }
+  if (extraction.text_density === "high") frictionPoints.push("Copy density fragments hierarchy.");
+  if (extraction.readability === "low") frictionPoints.push("Low legibility slows scanning.");
+  if (ctaPlacement.includes("early") && ctaPressure !== "soft") frictionPoints.push("CTA pressure appears before message context.");
+  if (directionalHierarchy.includes("fragmented")) frictionPoints.push("Directional flow is inconsistent.");
 
-  const ctaVisibility = ctaPressure === "aggressive" && extraction.readability !== "low"
-    ? "CTA is visually assertive, but may feel pushy depending on campaign stage."
-    : extraction.readability === "low"
-      ? "CTA visibility is weakened by dense text and low legibility around action elements."
-      : "CTA is visible but competes with nearby message blocks for attention.";
-
-  const mobileRisk = extraction.text_density === "high" || extraction.readability === "low"
-    ? "Elevated mobile attention risk: users may drop before understanding the core value proposition."
-    : "Contained mobile attention risk: structure is readable enough for feed-speed scanning.";
-
-  const retentionRisk = frictionPoints.length >= 2
-    ? "Attention retention risk is significant because users lose directional flow before decision points."
-    : frictionPoints.length === 1
-      ? "Attention retention risk is moderate with one meaningful break in flow."
-      : "Attention retention risk is limited; eye path stays mostly coherent through the CTA.";
+  const ctaVisibility = ctaPlacement;
+  const mobileRisk = extraction.readability === "low" || extraction.text_density === "high"
+    ? "Mobile scan risk is elevated due to compressed readability."
+    : "Mobile scan risk is controlled.";
+  const retentionRisk = frictionPoints.length >= 3
+    ? "Retention risk is high; multiple hierarchy breaks appear before action."
+    : frictionPoints.length >= 1
+      ? "Retention risk is moderate; one or more hierarchy breaks reduce continuity."
+      : "Retention risk is low; scan continuity is stable.";
 
   return {
     first_focus: firstFocus,
-    attention_path: `Users are likely to notice the ${firstFocus} first, then scan supporting content, and finally evaluate the CTA once value clarity is established.`,
+    attention_path: `${imageDominance} ${visualContrast} ${ctaPlacement}`,
     friction_points: frictionPoints,
     cta_visibility: ctaVisibility,
     mobile_attention_risk: mobileRisk,
     attention_retention_risk: retentionRisk,
-  };
+    image_dominance: imageDominance,
+    visual_contrast: visualContrast,
+    object_scale: objectScale,
+    cta_placement: ctaPlacement,
+    typography_weight: typographyWeight,
+    framing,
+    whitespace_balance: whitespace,
+    directional_hierarchy: directionalHierarchy,
+    confidence: confidenceFromEvidence(3 - Math.min(2, frictionPoints.length)),
+  } as AttentionAnalysis;
 }
 
 function buildPsychologyAnalysis(
@@ -692,28 +916,30 @@ function buildAudienceResponse(
   goal: CampaignGoal
 ): AudienceResponse {
   const likelyPerception = psychology.persuasion_style.includes("discount")
-    ? "The creative is likely perceived as value-seeking and offer-led rather than brand-led."
+    ? "Reads as discount-first conversion advertising."
     : psychology.persuasion_style.includes("premium")
-      ? "The creative is likely perceived as premium-oriented if trust and polish remain consistent."
-      : "The creative is likely perceived as informational, with moderate persuasive force.";
+      ? "Reads as premium-positioned brand advertising."
+      : "Reads as informational promotion with moderate action pressure.";
 
   const emotionalReaction = psychology.emotional_trigger === "neutral"
-    ? "Emotional reaction is likely muted, producing limited memorability."
-    : `Primary emotional reaction is likely ${psychology.emotional_trigger}, which shapes early attention and message acceptance.`;
+    ? "Interpretation is functional, not emotionally differentiated."
+    : `Interpretation is anchored by ${psychology.emotional_trigger} cues.`;
 
   const motivationMatch = goal === "conversion" && extraction.cta
-    ? "Motivation match depends on action clarity: users with intent can progress if friction remains low."
+    ? "Cold audiences will read this as action-oriented if proof appears early."
     : goal === "awareness"
-      ? "Motivation match depends on curiosity and message relevance rather than immediate action pressure."
-      : "Motivation match depends on trust and evidence depth during evaluation phase.";
+      ? "Cold audiences will read this as early-stage discovery if CTA pressure stays controlled."
+      : "Cold audiences will read this as evaluation-stage messaging.";
 
-  const resistanceReason = psychology.audience_resistance;
+  const resistanceReason = extraction.readability === "low"
+    ? "Interpretation weakens because message decoding effort is high."
+    : psychology.audience_resistance;
 
   const engagementBarrier = extraction.text_density === "high"
-    ? "Dense information creates a scanning barrier before value is internalized."
+    ? "High text load breaks scan continuity."
     : extraction.readability === "low"
-      ? "Low readability blocks fluent message uptake, especially in fast-scroll contexts."
-      : "No dominant structural barrier detected, but persuasion depth may still limit engagement.";
+      ? "Low readability blocks fast comprehension."
+      : "Primary barrier is persuasion clarity, not layout breakdown.";
 
   return {
     likely_perception: likelyPerception,
@@ -721,6 +947,63 @@ function buildAudienceResponse(
     motivation_match: motivationMatch,
     resistance_reason: resistanceReason,
     engagement_barrier: engagementBarrier,
+  };
+}
+
+function buildAudienceInterpretation(params: {
+  extraction: ExtractionSignals;
+  goal: CampaignGoal;
+  advertisingBehavior: AdvertisingBehavior;
+  productCategory: ProductCategory;
+  alignment: CampaignAlignment;
+}): AudienceInterpretationBlock {
+  const { extraction, goal, advertisingBehavior, productCategory, alignment } = params;
+  const ctaAggressive = /buy|shop|claim|book|apply|sign up|get started/.test(extraction.cta.toLowerCase());
+
+  const likelyInterpretation = `${productCategory.label} creative behaving as ${advertisingBehavior.label.toLowerCase()}.`;
+  const readinessStage = goal === "awareness"
+    ? (ctaAggressive ? "Cold traffic sees conversion pressure before category framing." : "Cold traffic sees top-funnel category framing.")
+    : goal === "consideration"
+      ? "Cold traffic sees evaluation-stage messaging with moderate action expectation."
+      : "Cold traffic sees transaction-ready messaging.";
+  const trustPerception = extraction.trust_markers.length >= 2 || extraction.brand_presence === "high"
+    ? "Trust cues are visible enough to support first-pass evaluation."
+    : "Trust cues are limited; interpretation relies on offer framing more than proof.";
+
+  return {
+    likely_interpretation: likelyInterpretation,
+    readiness_stage: readinessStage,
+    trust_perception: trustPerception,
+    confidence: confidenceFromEvidence(
+      (productCategory.evidence?.length || 0) + (alignment.alignment_status === "aligned" ? 1 : 0)
+    ),
+  };
+}
+
+function buildPersuasionFriction(params: {
+  extraction: ExtractionSignals;
+  goal: CampaignGoal;
+  alignment: CampaignAlignment;
+  attention: AttentionAnalysis;
+  advertisingBehavior: AdvertisingBehavior;
+}): { primary: string; items: string[]; confidence: "strong" | "moderate" | "weak" } {
+  const { extraction, goal, alignment, attention, advertisingBehavior } = params;
+  const items: string[] = [];
+  const ctaAggressive = /buy|shop|claim|book|apply|sign up|get started/.test(extraction.cta.toLowerCase());
+
+  if (goal === "awareness" && ctaAggressive) items.push("CTA introduced too early for awareness-stage sequencing.");
+  if (alignment.alignment_status === "misaligned") items.push("Campaign intent and message behavior are misaligned.");
+  if (attention.friction_points.length > 0) items.push(...attention.friction_points);
+  if (extraction.readability === "low") items.push("Typography clarity is insufficient at feed-speed scanning.");
+  if (advertisingBehavior.label.includes("Discount-led") && /luxury/.test(advertisingBehavior.reason.toLowerCase())) {
+    items.push("Discount framing conflicts with premium identity expectations.");
+  }
+  if (items.length === 0) items.push("No major persuasion friction detected.");
+
+  return {
+    primary: items[0],
+    items: items.slice(0, 5),
+    confidence: confidenceFromEvidence(Math.min(3, items.length)),
   };
 }
 
@@ -834,86 +1117,60 @@ function buildStrategicRecommendations(params: {
   psychology: PsychologyAnalysis;
   extraction: ExtractionSignals;
   behavioralResponse: BehavioralResponse;
+  audienceInterpretation: AudienceInterpretationBlock;
+  advertisingBehavior: AdvertisingBehavior;
+  productCategory: ProductCategory;
+  persuasionFriction: { primary: string; items: string[]; confidence: "strong" | "moderate" | "weak" };
 }): StrategicRecommendation[] {
-  const { alignment, attention, psychology, extraction, behavioralResponse } = params;
-  const recommendations: StrategicRecommendation[] = [];
+  const {
+    alignment,
+    attention,
+    extraction,
+    behavioralResponse,
+    audienceInterpretation,
+    advertisingBehavior,
+    productCategory,
+    persuasionFriction,
+  } = params;
 
-  if (alignment.alignment_status !== "aligned") {
-    recommendations.push({
-      issue: "Campaign-to-creative strategic mismatch",
-      why_it_hurts: `${behavioralResponse.perceived_message} ${behavioralResponse.likely_objection}`,
-      recommended_change: `Realign CTA pressure, urgency cues, and message framing so the audience can reach ${behavioralResponse.commitment_readiness.toLowerCase()} before a direct ask appears.`,
-      expected_outcome: `${behavioralResponse.confidence_building} The audience should move with less resistance and better stage fit.`,
-      audience_reaction: behavioralResponse.emotional_state,
-      emotional_barrier: behavioralResponse.risk_aversion,
-      missing_belief: behavioralResponse.trust_gap,
-      trust_signal_gap: behavioralResponse.trust_gap,
-      behavior_change_after_intervention: behavioralResponse.likely_behavior,
-      priority: "HIGH",
-    });
-  }
+  const coreProblem = alignment.alignment_status === "aligned"
+    ? `${productCategory.label} creative needs structural optimization for cleaner execution.`
+    : `Creative behaves as ${advertisingBehavior.label.toLowerCase()} instead of selected campaign intent.`;
+  const whyItHappens = `${attention.image_dominance || "Visual entry point is mixed."} ${attention.cta_placement || "CTA placement is unclear."} ${persuasionFriction.primary}`;
+  const businessRisk = alignment.alignment_status === "misaligned"
+    ? "Risk of low-quality traffic and weaker launch-readiness confidence."
+    : attention.friction_points.length > 0
+      ? "Risk of drop-off before the action moment, reducing efficient spend."
+      : "Risk is moderate and tied to incremental hierarchy inefficiencies.";
+  const exactFix = extraction.readability === "low"
+    ? "Reduce text density, strengthen contrast on headline/CTA, and keep CTA adjacent to the strongest visual anchor."
+    : attention.cta_placement?.includes("early")
+      ? "Delay CTA salience until category framing and value proof are established in the first scan zone."
+      : "Unify the visual anchor, remove competing copy blocks, and keep one dominant action path.";
 
-  if (attention.friction_points.length > 0) {
-    recommendations.push({
-      issue: "Attention flow breaks before CTA",
-      why_it_hurts: `${attention.friction_points.join(" ")} ${behavioralResponse.resistance_trigger}`,
-      recommended_change: "Reduce competing copy, tighten hierarchy, and isolate the strongest value claim near the CTA so the audience stays emotionally engaged long enough to evaluate it.",
-      expected_outcome: "The audience should stay oriented, feel less mental effort, and continue from perception into evaluation instead of dropping out.",
-      audience_reaction: behavioralResponse.emotional_state,
-      emotional_barrier: behavioralResponse.risk_aversion,
-      missing_belief: "The audience does not yet believe the message is worth the cognitive effort.",
-      trust_signal_gap: behavioralResponse.trust_gap,
-      behavior_change_after_intervention: "The audience is more likely to keep scanning, reach the core claim, and evaluate the CTA with less friction.",
-      priority: "HIGH",
-    });
-  }
+  const confidence = confidenceFromEvidence(
+    (attention.friction_points.length > 0 ? 1 : 0) +
+    (alignment.alignment_status !== "aligned" ? 1 : 0) +
+    (productCategory.evidence?.length || 0)
+  );
 
-  if (extraction.readability === "low") {
-    recommendations.push({
-      issue: "Low readability undercuts persuasion",
-      why_it_hurts: `${behavioralResponse.resistance_trigger} ${behavioralResponse.likely_objection}`,
-      recommended_change: "Increase text contrast, shorten copy blocks, and prioritize one dominant claim per frame so the audience can understand the message before emotional fatigue sets in.",
-      expected_outcome: "The audience should decode the message with less effort, which increases confidence and reduces early abandonment.",
-      audience_reaction: behavioralResponse.emotional_state,
-      emotional_barrier: "Cognitive effort is becoming the emotional barrier.",
-      missing_belief: "The audience does not yet believe the message is easy enough to process quickly.",
-      trust_signal_gap: behavioralResponse.trust_gap,
-      behavior_change_after_intervention: "The audience is more likely to read the message, retain the value proposition, and continue toward the next action.",
-      priority: "MEDIUM",
-    });
-  }
-
-  if (psychology.trust_signal_strength.toLowerCase().includes("weak")) {
-    recommendations.push({
-      issue: "Insufficient trust reinforcement",
-      why_it_hurts: `${behavioralResponse.trust_gap} ${behavioralResponse.likely_objection}`,
-      recommended_change: "Add proof elements such as brand credentials, social proof, or concrete reliability markers near the CTA so certainty grows before commitment pressure rises.",
-      expected_outcome: "The audience should feel safer, more certain, and more willing to move from evaluation into action.",
-      audience_reaction: behavioralResponse.emotional_state,
-      emotional_barrier: behavioralResponse.risk_aversion,
-      missing_belief: "The audience still needs a stronger belief that the message is credible and safe to trust.",
-      trust_signal_gap: behavioralResponse.trust_gap,
-      behavior_change_after_intervention: behavioralResponse.confidence_building,
-      priority: "MEDIUM",
-    });
-  }
-
-  if (recommendations.length === 0) {
-    recommendations.push({
-      issue: "No critical structural issue detected",
-      why_it_hurts: `${behavioralResponse.commitment_pressure} ${behavioralResponse.trust_gap}`,
-      recommended_change: "Run controlled A/B tests on headline framing, proof placement, and CTA microcopy to improve behavioral readiness without disrupting strategic alignment.",
-      expected_outcome: "Incremental lift with more confident audience movement from curiosity into intent.",
-      audience_reaction: behavioralResponse.emotional_state,
-      emotional_barrier: behavioralResponse.risk_aversion,
-      missing_belief: behavioralResponse.trust_gap,
-      trust_signal_gap: behavioralResponse.trust_gap,
-      behavior_change_after_intervention: behavioralResponse.likely_behavior,
-      priority: "LOW",
-    });
-  }
-
-  return recommendations.slice(0, 5);
+  return [{
+    core_problem: coreProblem,
+    why_it_happens: whyItHappens,
+    business_risk: businessRisk,
+    exact_fix: exactFix,
+    issue: coreProblem,
+    why_it_hurts: whyItHappens,
+    recommended_change: exactFix,
+    expected_outcome: audienceInterpretation.readiness_stage,
+    audience_reaction: audienceInterpretation.likely_interpretation,
+    emotional_barrier: persuasionFriction.primary,
+    missing_belief: audienceInterpretation.trust_perception,
+    trust_signal_gap: behavioralResponse.trust_gap,
+    behavior_change_after_intervention: "Cleaner stage fit and more consistent progression into action.",
+    priority: alignment.alignment_status === "misaligned" ? "HIGH" : attention.friction_points.length > 0 ? "MEDIUM" : "LOW",
+    confidence,
+  }];
 }
 
 function scoreBehavioralReadiness(commitmentReadiness: string): number {
@@ -967,7 +1224,7 @@ function buildStrategicScore(params: {
   const hierarchyQuality = extraction.hierarchy_observations.toLowerCase().includes("strong") ? 88 : extraction.hierarchy_observations ? 68 : 55;
   const behavioralReadiness = scoreBehavioralReadiness(behavioralResponse.commitment_readiness);
 
-  const score = Math.round(
+  let score = Math.round(
     visualClarity * 0.15 +
       ctaPressureFit * 0.15 +
       readability * 0.11 +
@@ -978,9 +1235,17 @@ function buildStrategicScore(params: {
       behavioralReadiness * 0.15
   );
 
+  if (alignment.alignment_status === "misaligned") score -= 16;
+  else if (alignment.alignment_status === "partially_aligned") score -= 7;
+  if (attention.friction_points.length >= 3) score -= 10;
+  else if (attention.friction_points.length === 2) score -= 5;
+  if (goal === "conversion" && ctaPressure === "soft") score -= 8;
+  if (goal === "awareness" && ctaPressure === "aggressive") score -= 8;
+  if (textAvailable && extraction.readability === "high" && extraction.text_density !== "high") score += 4;
+
   const rationale = textAvailable
-    ? `Strategic Alignment Score is driven by visual clarity (${visualClarity}), CTA pressure fit (${ctaPressureFit}), readability (${readability}), emotional alignment (${emotionalAlignment}), audience fit (${audienceFit}), attention retention (${attentionRetention}), hierarchy quality (${hierarchyQuality}), and behavioral readiness (${behavioralReadiness}).`
-    : `Strategic Alignment Score uses visual/layout and behavioral signals while text-dependent subscores are set to 0 because OCR extraction was unavailable. Visual clarity (${visualClarity}), audience fit (${audienceFit}), attention retention (${attentionRetention}), hierarchy quality (${hierarchyQuality}), behavioral readiness (${behavioralReadiness}).`;
+    ? `Score factors — visual clarity ${visualClarity}, CTA-stage fit ${ctaPressureFit}, readability ${readability}, emotional alignment ${emotionalAlignment}, audience fit ${audienceFit}, retention ${attentionRetention}, hierarchy ${hierarchyQuality}, readiness ${behavioralReadiness}.`
+    : `Text extraction unavailable; score based on visual/layout + readiness signals only. Visual clarity ${visualClarity}, audience fit ${audienceFit}, retention ${attentionRetention}, hierarchy ${hierarchyQuality}, readiness ${behavioralReadiness}.`;
 
   return {
     value: Math.max(0, Math.min(100, score)),
@@ -1029,11 +1294,8 @@ function buildFinalDecisionIntelligence(params: {
 }): FinalDecisionIntelligence {
   const { alignment, audienceResponse, businessImpact, recommendations, strategicScore, behavioralResponse } = params;
 
-  const mainProblem = alignment.alignment_status === "aligned"
-    ? "No major strategic conflict; optimization opportunity is primarily incremental."
-    : alignment.strategic_conflict;
-
-  const topRecommendation = recommendations[0]?.recommended_change || "Run iterative headline and CTA refinement tests.";
+  const mainProblem = recommendations[0]?.core_problem || alignment.strategic_conflict || "No major strategic conflict detected.";
+  const topRecommendation = recommendations[0]?.exact_fix || recommendations[0]?.recommended_change || "Run controlled hierarchy optimization test.";
 
   const expectedImprovement = strategicScore.value < 55
     ? "Correcting high-priority issues should stabilize message-market fit and reduce wasted spend from low-intent responses."
@@ -1047,7 +1309,7 @@ function buildFinalDecisionIntelligence(params: {
     business_consequence: businessImpact.likely_effects[0] || "No significant downside detected from current evidence.",
     what_should_change_now: topRecommendation,
     expected_improvement: expectedImprovement,
-    decision_summary: `Current strategic alignment score is ${strategicScore.value}/100. The audience appears ${behavioralResponse.commitment_readiness.toLowerCase()} and the priority should be ${recommendations[0]?.priority || "LOW"}, with intervention focused on the behavioral barrier before scaling spend.`,
+    decision_summary: `Strategic alignment score ${strategicScore.value}/100. Priority ${recommendations[0]?.priority || "LOW"} intervention should target the primary persuasion friction before scaling spend.`,
   };
 }
 
@@ -1127,8 +1389,23 @@ Return JSON only.`;
 
     const attentionAnalysis = buildAttentionAnalysis(extraction, ctaPressure);
     const psychologyAnalysis = buildPsychologyAnalysis(extraction, goal, ctaPressure, urgencyLevel);
-    const audienceResponse = buildAudienceResponse(extraction, psychologyAnalysis, goal);
     const campaignAlignment = buildCampaignAlignment(goal, vertical, extraction, psychologyAnalysis, ctaPressure, urgencyLevel);
+    const productCategory = detectProductCategory(extraction, vertical);
+    const advertisingBehavior = detectAdvertisingBehavior({
+      extraction,
+      goal,
+      ctaPressure,
+      selectedVertical: vertical,
+      productCategory,
+    });
+    const audienceResponse = buildAudienceResponse(extraction, psychologyAnalysis, goal);
+    const audienceInterpretation = buildAudienceInterpretation({
+      extraction,
+      goal,
+      advertisingBehavior,
+      productCategory,
+      alignment: campaignAlignment,
+    });
     const behavioralResponse = buildBehavioralResponse({
       goal,
       vertical,
@@ -1140,6 +1417,13 @@ Return JSON only.`;
       attention: attentionAnalysis,
       alignment: campaignAlignment,
     });
+    const persuasionFriction = buildPersuasionFriction({
+      extraction,
+      goal,
+      alignment: campaignAlignment,
+      attention: attentionAnalysis,
+      advertisingBehavior,
+    });
     const businessImpact = buildBusinessImpact(campaignAlignment, attentionAnalysis);
     const strategicRecommendations = buildStrategicRecommendations({
       alignment: campaignAlignment,
@@ -1147,6 +1431,10 @@ Return JSON only.`;
       psychology: psychologyAnalysis,
       extraction,
       behavioralResponse,
+      audienceInterpretation,
+      advertisingBehavior,
+      productCategory,
+      persuasionFriction,
     });
     const strategicAlignmentScore = buildStrategicScore({
       extraction,
@@ -1176,6 +1464,13 @@ Return JSON only.`;
       selected_goal: goal,
       detected_goal: detectedGoal,
       is_aligned: detectedGoal === goal,
+      confidence: confidenceFromEvidence(
+        (goal === detectedGoal ? 2 : 1) + (ocrMeta.text_available ? 1 : 0)
+      ),
+      alignment_level: detectedGoal === goal ? "aligned" : "misaligned",
+      business_impact: detectedGoal === goal
+        ? "Goal-stage behavior is consistent with selected objective."
+        : "Goal-stage mismatch can reduce qualified response quality.",
       reason: detectedGoal === goal
         ? "Creative pressure and urgency cues align with selected campaign goal."
         : "Creative pressure and urgency cues indicate a different campaign-stage intent than selected.",
@@ -1185,6 +1480,7 @@ Return JSON only.`;
       selected_vertical: vertical,
       detected_vertical: detectedVertical.detectedVertical,
       is_aligned: detectedVertical.detectedVertical === "unknown" || detectedVertical.detectedVertical === vertical,
+      confidence: confidenceFromEvidence(detectedVertical.evidence.length, detectedVertical.fitScore),
       reason: detectedVertical.detectedVertical === "unknown"
         ? "Vertical signal confidence is limited; no contradictory vertical detected."
         : detectedVertical.detectedVertical === vertical
@@ -1207,6 +1503,18 @@ Return JSON only.`;
       goal_alignment: goalAlignment,
       vertical_alignment: verticalAlignment,
       business_impact: businessImpact,
+      product_category: productCategory,
+      advertising_behavior: advertisingBehavior,
+      audience_interpretation: audienceInterpretation,
+      persuasion_friction: persuasionFriction,
+      insight_confidence: {
+        goal_alignment: goalAlignment.confidence,
+        product_category: productCategory.confidence,
+        advertising_behavior: advertisingBehavior.confidence,
+        audience_interpretation: audienceInterpretation.confidence,
+        attention_flow: attentionAnalysis.confidence || "moderate",
+        persuasion_friction: persuasionFriction.confidence,
+      },
       extraction_signals: {
         headline: extraction.headline,
         cta: extraction.cta,
