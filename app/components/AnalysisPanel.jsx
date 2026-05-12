@@ -5,7 +5,6 @@ import { motion } from "framer-motion";
 import {
   AlertTriangle,
   Brain,
-  CheckCircle,
   Download,
   Eye,
   Target,
@@ -18,7 +17,6 @@ import {
   getGoalAlignment,
   getStrategicAlignmentScore,
   getCreativeStatusLabel,
-  getVerticalAlignment,
   getProductCategory,
   getAdvertisingBehavior,
   getAudienceInterpretation,
@@ -152,10 +150,8 @@ export default function AnalysisPanel({
   const selected = sorted.find((entry) => entry.creative?.id === selectedId) || sorted[0];
   const payload = getEntryPayload(selected) || {};
   const score = getStrategicAlignmentScore(payload);
-  const statusLabel = getCreativeStatusLabel(payload);
 
   const goalAlignment = getGoalAlignment(payload);
-  const verticalAlignment = getVerticalAlignment(payload);
   const productCategory = getProductCategory(payload);
   const advertisingBehavior = getAdvertisingBehavior(payload);
   const audienceInterpretation = getAudienceInterpretation(payload);
