@@ -61,6 +61,75 @@ function labelVertical(id) {
   return VERTICAL_LABELS[id] || id.charAt(0).toUpperCase() + id.slice(1).replace(/_/g, " ");
 }
 
+function getVerticalStrategyProfile(vertical) {
+  const key = String(vertical || "").toLowerCase();
+
+  const profiles = {
+    food: {
+      lens: "sensory appetite and impulse",
+      pressure: "appetite-driven urgency",
+      anchor: "taste, craving, and immediacy",
+      caution: "Avoid turning the ad into a generic offer blast.",
+    },
+    automotive: {
+      lens: "identity, ownership pride, and status",
+      pressure: "identity-led consideration",
+      anchor: "aspiration, design, and lifestyle signaling",
+      caution: "Avoid collapsing the message into retail-style transaction language.",
+    },
+    fashion: {
+      lens: "self-expression and social perception",
+      pressure: "style-led intent",
+      anchor: "fit, trend alignment, and visual confidence",
+      caution: "Avoid sounding like a coupon-driven commerce ad.",
+    },
+    saas: {
+      lens: "clarity, credibility, and efficiency",
+      pressure: "friction-sensitive evaluation",
+      anchor: "proof, workflow value, and trust",
+      caution: "Avoid overloading the message with hype or urgency.",
+    },
+    finance: {
+      lens: "risk, certainty, and credibility",
+      pressure: "risk-managed decision making",
+      anchor: "security, clarity, and confidence",
+      caution: "Avoid language that raises uncertainty without adding proof.",
+    },
+    education: {
+      lens: "future outcome and career lift",
+      pressure: "future-state consideration",
+      anchor: "growth, authority, and progression",
+      caution: "Avoid sounding like a hard-sell recruitment ad.",
+    },
+    ecommerce: {
+      lens: "value, convenience, and purchase momentum",
+      pressure: "transaction-ready intent",
+      anchor: "product utility and offer clarity",
+      caution: "Avoid generic messaging that hides the actual offer.",
+    },
+  };
+
+  return profiles[key] || {
+    lens: "relevance and category fit",
+    pressure: "campaign-stage alignment",
+    anchor: "brand meaning and value clarity",
+    caution: "Avoid using a one-size-fits-all psychology pattern.",
+  };
+}
+
+function firstSentence(text) {
+  const value = String(text || "").trim();
+  if (!value) return "";
+  const match = value.match(/^[^.!?]+[.!?]?/);
+  return (match?.[0] || value).trim();
+}
+
+function truncateText(text, maxLength) {
+  const value = String(text || "").trim();
+  if (value.length <= maxLength) return value;
+  return `${value.slice(0, Math.max(0, maxLength - 1)).trimEnd()}…`;
+}
+
 function buildStrategistNarrative({
   goalAlignment,
   verticalAlignment,
@@ -71,6 +140,7 @@ function buildStrategistNarrative({
   campaignVertical,
   recommendations,
 }) {
+  const verticalProfile = getVerticalStrategyProfile(verticalAlignment?.selected_vertical || campaignVertical);
   const selectedGoal = labelGoal(goalAlignment?.selected_goal || campaignGoal || "awareness");
   const selectedVertical = labelVertical(verticalAlignment?.selected_vertical || campaignVertical || "unknown");
   const detectedGoal = labelGoal(goalAlignment?.detected_goal || "unknown");
@@ -79,14 +149,14 @@ function buildStrategistNarrative({
   const headline = extractionSignals?.headline?.trim() || "headline unavailable";
   const cta = extractionSignals?.cta?.trim() || "CTA unavailable";
   const imageMeaning = extractionSignals?.topic_summary?.trim() || extractionSignals?.dominant_visual_cue?.trim() || "image meaning unavailable";
-  const visualHierarchy = flow?.attentionAnalysis?.attention_path?.trim() || "scan flow signal is limited";
+  const visualHierarchy = firstSentence(flow?.attentionAnalysis?.attention_path) || "scan flow signal is limited";
   const firstFocus = flow?.attentionAnalysis?.first_focus?.trim() || "primary focus is unclear";
-  const emotionalTone = behavioral?.emotional_state?.trim() || "emotional tone is unclear";
-  const commitmentPressure = behavioral?.commitment_pressure?.trim() || "commitment pressure signal unavailable";
-  const curiosity = behavioral?.curiosity_vs_intent_balance?.trim() || "curiosity-intent signal unavailable";
-  const trust = behavioral?.trust_gap?.trim() || "trust signal unavailable";
-  const hesitation = behavioral?.likely_objection?.trim() || "hesitation signal unavailable";
-  const readiness = behavioral?.commitment_readiness?.trim() || "readiness signal unavailable";
+  const emotionalTone = firstSentence(behavioral?.emotional_state) || "emotional tone is unclear";
+  const commitmentPressure = firstSentence(behavioral?.commitment_pressure) || "commitment pressure signal unavailable";
+  const curiosity = firstSentence(behavioral?.curiosity_vs_intent_balance) || "curiosity-intent signal unavailable";
+  const trust = firstSentence(behavioral?.trust_gap) || "trust signal unavailable";
+  const hesitation = firstSentence(behavioral?.likely_objection) || "hesitation signal unavailable";
+  const readiness = firstSentence(behavioral?.commitment_readiness) || "readiness signal unavailable";
   const brandPresence = extractionSignals?.brand_presence || "unknown";
   const persuasionStyle = extractionSignals?.persuasion_style || "general persuasion";
 
@@ -109,16 +179,18 @@ function buildStrategistNarrative({
 
   const issueLine = mismatchReasons.length > 0
     ? mismatchReasons.join(", ")
-    : "a subtle alignment gap between strategy intent and creative execution";
+    : "a strategy-to-creative gap";
 
-  const fixSuggestion = recommendations?.[0]?.recommended_change?.trim() ||
-    `Reframe the headline around ${selectedVertical.toLowerCase()} identity and desired ${selectedGoal.toLowerCase()} intent, soften CTA pressure, and rebalance hierarchy so brand meaning lands before action.`;
+  const fixSuggestion = firstSentence(recommendations?.[0]?.recommended_change) ||
+    `Reframe the headline around ${selectedVertical.toLowerCase()} identity, ease CTA pressure, and move brand meaning ahead of action.`;
+
+  const useCaseCue = verticalProfile.anchor;
 
   return {
-    wrong: `The creative for ${selectedVertical} under a ${selectedGoal} goal is showing ${issueLine}. It currently uses headline "${headline}", CTA "${cta}", and image interpretation "${imageMeaning}".` ,
-    why: `This happens because the visual hierarchy makes users read ${visualHierarchy}, with first focus on ${firstFocus}, while persuasion style (${persuasionStyle}) and urgency cues can introduce action pressure before message absorption. Brand emphasis is ${brandPresence}, and emotional tone signals that ${emotionalTone}.`,
-    effect: `Audience interpretation shifts based on commitment pressure (${commitmentPressure}), curiosity pattern (${curiosity}), trust context (${trust}), and likely hesitation (${hesitation}). Net effect: users may stay in ${detectedGoal} mode instead of the intended ${selectedGoal} journey, especially when vertical cues drift toward ${detectedVertical}.`,
-    fix: `For the selected ${selectedGoal} goal in ${selectedVertical}, keep CTA "${cta}" only after narrative context from headline "${headline}" and the core image. Strengthen brand anchoring before urgency, reduce premature conversion cues, and align emotional readiness (${readiness}) with the campaign stage. Exact fix: ${fixSuggestion}`,
+    wrong: truncateText(`This creative is behaving like ${selectedGoal.toLowerCase()}-stage ${selectedVertical.toLowerCase()} content with ${issueLine}. The headline "${headline}" and CTA "${cta}" are doing too much of the selling before the image can establish ${useCaseCue}.`, 190),
+    why: truncateText(`The eye path starts with ${visualHierarchy.toLowerCase()} and lands on ${firstFocus}, so the message is being read through ${persuasionStyle.toLowerCase()} instead of ${verticalProfile.lens}. Brand emphasis is ${brandPresence}, which is why the creative feels ${emotionalTone.toLowerCase()}.`, 190),
+    effect: truncateText(`The audience is likely to respond through ${verticalProfile.pressure}, with ${curiosity.toLowerCase()} and ${trust.toLowerCase()} shaping whether the ad feels credible or forced. That pushes the creative toward ${detectedGoal.toLowerCase()} behavior instead of the intended ${selectedGoal.toLowerCase()} path.`, 195),
+    fix: truncateText(`Keep the CTA "${cta}" in the background until the headline and image establish ${verticalProfile.anchor}. For ${selectedGoal} on ${selectedVertical}, remove premature conversion pressure, tighten the hierarchy, and shift the opening message toward ${fixSuggestion}.`, 200),
   };
 }
 function labelGoal(id) {
@@ -191,6 +263,19 @@ function riskTone(text) {
     return { label: "Stable", className: "text-emerald-300" };
   }
   return { label: "Unknown", className: "text-slate-300" };
+}
+
+function buildBehavioralSnapshot(behavioral, vertical) {
+  const profile = getVerticalStrategyProfile(vertical);
+  const likelyBehavior = firstSentence(behavioral?.likely_behavior) || `${profile.lens} should be the primary response lens.`;
+  const commitmentPressure = firstSentence(behavioral?.commitment_pressure) || `${profile.pressure} should be evaluated.`;
+  const likelyObjection = firstSentence(behavioral?.likely_objection) || `The main objection is likely about ${profile.anchor.toLowerCase()}.`;
+
+  return {
+    likelyBehavior: truncateText(likelyBehavior, 135),
+    commitmentPressure: truncateText(commitmentPressure, 135),
+    likelyObjection: truncateText(likelyObjection, 135),
+  };
 }
 
 function isLaunchReady(payload) {
@@ -299,6 +384,7 @@ export default function AnalysisPanel({
   }, [strategicEntries]);
 
   const [selectedId, setSelectedId] = useState(() => sorted[0]?.creative?.id || null);
+  const [utilityTab, setUtilityTab] = useState("score-card");
 
   if (!sorted.length) {
     return (
@@ -339,6 +425,7 @@ export default function AnalysisPanel({
     campaignVertical,
     recommendations,
   });
+  const behavioralSnapshot = buildBehavioralSnapshot(behavioral, campaignVertical);
   const abHypotheses = Array.isArray(data?.ab_hypotheses) && data.ab_hypotheses.length > 0
     ? data.ab_hypotheses.slice(0, 3)
     : buildFallbackAbTests(recommendations);
@@ -367,75 +454,116 @@ export default function AnalysisPanel({
         <p className="mt-1.5 text-sm leading-relaxed">{launchReadinessText}</p>
       </div>
 
-      {/* ── FINAL SCORE + ENGAGEMENT CARDS ── */}
+      {/* ── UTILITY TABS ── */}
       <div className="rounded-2xl border border-purple-500/20 bg-gradient-to-r from-purple-900/25 to-fuchsia-900/20 p-3">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          <div className="rounded-xl border border-purple-500/35 bg-purple-950/35 p-4">
-            <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-300">Final Score</p>
-            <p className="mt-1 text-4xl font-black text-white leading-none">
-              {Number.isFinite(strategicScore) ? `${strategicScore}/100` : "N/A"}
-            </p>
-            <p className="mt-2 text-xs text-slate-400">Weighted score from Eligibility, Attention, and Performance layers</p>
-          </div>
-          <div className="rounded-xl border border-amber-500/30 bg-amber-950/25 p-4">
-            <p className="text-[10px] font-semibold uppercase tracking-wider text-amber-300">Engagement</p>
-            <p className={`mt-1 text-4xl font-black leading-none ${engagementBand === "HIGH" ? "text-emerald-300" : engagementBand === "MEDIUM" ? "text-amber-300" : engagementBand === "LOW" ? "text-red-300" : "text-slate-300"}`}>
-              {engagementBand}
-            </p>
-            <p className="mt-2 text-xs text-amber-200/80">Derived from attention and performance layers</p>
-          </div>
+        <div className="flex flex-wrap gap-2 rounded-xl border border-white/10 bg-black/10 p-2">
+          <button
+            type="button"
+            onClick={() => setUtilityTab("score-card")}
+            className={`inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold transition ${
+              utilityTab === "score-card"
+                ? "bg-white/12 text-white border border-white/15"
+                : "text-slate-300 hover:bg-white/8 hover:text-white"
+            }`}
+          >
+            <Target size={14} /> Score Card
+          </button>
+          <button
+            type="button"
+            onClick={() => setUtilityTab("ab-testing")}
+            className={`inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold transition ${
+              utilityTab === "ab-testing"
+                ? "bg-white/12 text-white border border-white/15"
+                : "text-slate-300 hover:bg-white/8 hover:text-white"
+            }`}
+          >
+            <FlaskConical size={14} /> A/B Testing
+          </button>
+          <button
+            type="button"
+            onClick={() => setUtilityTab("device-platform")}
+            className={`inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold transition ${
+              utilityTab === "device-platform"
+                ? "bg-white/12 text-white border border-white/15"
+                : "text-slate-300 hover:bg-white/8 hover:text-white"
+            }`}
+          >
+            <Monitor size={14} /> Device Platform
+          </button>
         </div>
-      </div>
 
-      {/* ── RESTORED: A/B TESTING + DEVICE PLATFORM ── */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-        <div className="rounded-xl border border-fuchsia-500/25 bg-fuchsia-950/20 p-4">
-          <div className="flex items-center gap-2 mb-3">
-            <FlaskConical size={14} className="text-fuchsia-300" />
-            <h4 className="text-sm font-semibold text-white">A/B Testing</h4>
-          </div>
-
-          {abHypotheses.length > 0 ? (
-            <div className="space-y-2">
-              {abHypotheses.map((hyp, i) => (
-                <div key={`${hyp.dimension || "hyp"}-${i}`} className="rounded-lg border border-fuchsia-500/20 bg-fuchsia-500/5 p-2.5">
-                  <p className="text-[10px] uppercase tracking-wider text-fuchsia-300 font-semibold">Test {i + 1}: {hyp.dimension || "Variant"}</p>
-                  <p className="text-[11px] text-slate-300 mt-1"><span className="font-semibold text-slate-200">A:</span> {hyp.variant_a || "Control variant"}</p>
-                  <p className="text-[11px] text-white mt-0.5"><span className="font-semibold text-fuchsia-300">B:</span> {hyp.variant_b || "Test variant"}</p>
-                  <p className="text-[10px] text-fuchsia-200/80 mt-1">Expected lift: {hyp.expected_lift || "Improve strategic alignment"}</p>
-                </div>
-              ))}
+        <div className="mt-3">
+          {utilityTab === "score-card" && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="rounded-xl border border-purple-500/30 bg-purple-950/25 p-4">
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-purple-200">Score Card</p>
+                <p className={`mt-1 text-4xl font-black leading-none ${scoreTone(strategicScore)}`}>
+                  {Number.isFinite(strategicScore) ? `${strategicScore}/100` : "N/A"}
+                </p>
+                <p className="mt-2 text-xs text-purple-100/80">Weighted score from alignment, attention, and performance layers</p>
+              </div>
+              <div className="rounded-xl border border-amber-500/30 bg-amber-950/25 p-4">
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-amber-300">Engagement</p>
+                <p className={`mt-1 text-4xl font-black leading-none ${engagementBand === "HIGH" ? "text-emerald-300" : engagementBand === "MEDIUM" ? "text-amber-300" : engagementBand === "LOW" ? "text-red-300" : "text-slate-300"}`}>
+                  {engagementBand}
+                </p>
+                <p className="mt-2 text-xs text-amber-200/80">Derived from attention and performance layers</p>
+              </div>
             </div>
-          ) : (
-            <p className="text-xs text-slate-400">No A/B tests available for this creative.</p>
           )}
-        </div>
 
-        <div className="rounded-xl border border-cyan-500/25 bg-cyan-950/20 p-4">
-          <div className="flex items-center gap-2 mb-3">
-            <Monitor size={14} className="text-cyan-300" />
-            <h4 className="text-sm font-semibold text-white">Device Platform</h4>
-          </div>
-
-          <div className="space-y-2.5">
-            <div className="rounded-lg border border-white/10 bg-white/5 p-3">
-              <div className="flex items-center justify-between gap-2">
-                <p className="text-xs font-semibold text-slate-200 flex items-center gap-1.5"><Monitor size={12} /> Desktop</p>
-                <span className={`text-[10px] font-bold ${desktopRisk.className}`}>{desktopRisk.label}</span>
+          {utilityTab === "ab-testing" && (
+            <div className="rounded-xl border border-fuchsia-500/25 bg-fuchsia-950/20 p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <FlaskConical size={14} className="text-fuchsia-300" />
+                <h4 className="text-sm font-semibold text-white">A/B Testing</h4>
               </div>
-              <p className="text-[11px] text-slate-300 mt-1">{flow?.attentionAnalysis?.attention_retention_risk || "Desktop platform signal unavailable."}</p>
-            </div>
 
-            <div className="rounded-lg border border-white/10 bg-white/5 p-3">
-              <div className="flex items-center justify-between gap-2">
-                <p className="text-xs font-semibold text-slate-200 flex items-center gap-1.5"><Smartphone size={12} /> Mobile</p>
-                <span className={`text-[10px] font-bold ${mobileRisk.className}`}>{mobileRisk.label}</span>
+              {abHypotheses.length > 0 ? (
+                <div className="space-y-2">
+                  {abHypotheses.map((hyp, i) => (
+                    <div key={`${hyp.dimension || "hyp"}-${i}`} className="rounded-lg border border-fuchsia-500/20 bg-fuchsia-500/5 p-2.5">
+                      <p className="text-[10px] uppercase tracking-wider text-fuchsia-300 font-semibold">Test {i + 1}: {hyp.dimension || "Variant"}</p>
+                      <p className="text-[11px] text-slate-300 mt-1"><span className="font-semibold text-slate-200">A:</span> {hyp.variant_a || "Control variant"}</p>
+                      <p className="text-[11px] text-white mt-0.5"><span className="font-semibold text-fuchsia-300">B:</span> {hyp.variant_b || "Test variant"}</p>
+                      <p className="text-[10px] text-fuchsia-200/80 mt-1">Expected lift: {hyp.expected_lift || "Improve strategic alignment"}</p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-xs text-slate-400">No A/B tests available for this creative.</p>
+              )}
+            </div>
+          )}
+
+          {utilityTab === "device-platform" && (
+            <div className="rounded-xl border border-cyan-500/25 bg-cyan-950/20 p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <Monitor size={14} className="text-cyan-300" />
+                <h4 className="text-sm font-semibold text-white">Device Platform</h4>
               </div>
-              <p className="text-[11px] text-slate-300 mt-1">{flow?.attentionAnalysis?.mobile_attention_risk || "Mobile platform signal unavailable."}</p>
-            </div>
 
-            <p className="text-[10px] text-cyan-200/80">Platform context: <span className="font-semibold text-cyan-200">{platform || "display_ads"}</span></p>
-          </div>
+              <div className="space-y-2.5">
+                <div className="rounded-lg border border-white/10 bg-white/5 p-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-xs font-semibold text-slate-200 flex items-center gap-1.5"><Monitor size={12} /> Desktop</p>
+                    <span className={`text-[10px] font-bold ${desktopRisk.className}`}>{desktopRisk.label}</span>
+                  </div>
+                  <p className="text-[11px] text-slate-300 mt-1">{flow?.attentionAnalysis?.attention_retention_risk || "Desktop platform signal unavailable."}</p>
+                </div>
+
+                <div className="rounded-lg border border-white/10 bg-white/5 p-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-xs font-semibold text-slate-200 flex items-center gap-1.5"><Smartphone size={12} /> Mobile</p>
+                    <span className={`text-[10px] font-bold ${mobileRisk.className}`}>{mobileRisk.label}</span>
+                  </div>
+                  <p className="text-[11px] text-slate-300 mt-1">{flow?.attentionAnalysis?.mobile_attention_risk || "Mobile platform signal unavailable."}</p>
+                </div>
+
+                <p className="text-[10px] text-cyan-200/80">Platform context: <span className="font-semibold text-cyan-200">{platform || "display_ads"}</span></p>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -668,24 +796,9 @@ export default function AnalysisPanel({
               <h4 className="text-sm font-semibold text-white">4. Audience Psychology</h4>
             </div>
             <div className="space-y-2">
-              <FieldBlock
-                label="Likely Behavior"
-                value={behavioral?.likely_behavior}
-                accent="emerald"
-              />
-              <FieldBlock
-                label="Commitment Pressure"
-                value={behavioral?.commitment_pressure}
-                accent="amber"
-              />
-              {behavioral?.likely_objection &&
-                !behavioral.likely_objection.includes("unavailable") && (
-                  <FieldBlock
-                    label="Likely Objection"
-                    value={behavioral.likely_objection}
-                    accent="red"
-                  />
-                )}
+              <FieldBlock label="Likely Behavior" value={behavioralSnapshot.likelyBehavior} accent="emerald" />
+              <FieldBlock label="Commitment Pressure" value={behavioralSnapshot.commitmentPressure} accent="amber" />
+              <FieldBlock label="Likely Objection" value={behavioralSnapshot.likelyObjection} accent="red" />
             </div>
           </div>
 
@@ -706,24 +819,7 @@ export default function AnalysisPanel({
               <p className="text-sm text-slate-200 leading-relaxed mt-2">
                 <span className="font-semibold text-cyan-300">Clarity:</span> {layoutClarity.clarityLabel} ({layoutClarity.clarityScore}/100)
               </p>
-              <p className="text-sm text-slate-200 leading-relaxed mt-1">
-                {layoutClarity.clarityNarrative}
-              </p>
-              <p className="text-xs text-slate-300 leading-relaxed mt-2">
-                <span className="font-semibold text-slate-200">CTA visibility:</span> {layoutClarity.ctaVisibility}
-              </p>
-              <p className="text-xs text-slate-300 leading-relaxed mt-1">
-                <span className="font-semibold text-slate-200">Mobile risk:</span> {layoutClarity.mobileRisk}
-              </p>
-              <p className="text-xs text-slate-300 leading-relaxed mt-1">
-                <span className="font-semibold text-slate-200">Retention risk:</span> {layoutClarity.retentionRisk}
-              </p>
-              <p className="text-xs text-slate-300 leading-relaxed mt-1">
-                <span className="font-semibold text-slate-200">Emotional context:</span> {layoutClarity.emotionalTone}
-              </p>
-              <p className="text-xs text-cyan-200 leading-relaxed mt-2">
-                <span className="font-semibold">Recommended adjustment:</span> {layoutClarity.recommendedAdjustment}
-              </p>
+              <p className="text-sm text-slate-200 leading-relaxed mt-1">{layoutClarity.clarityNarrative}</p>
             </div>
           </div>
 
