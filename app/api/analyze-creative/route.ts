@@ -1100,11 +1100,11 @@ const VERTICAL_PRODUCT_FALLBACKS: Record<string, string> = {
 function buildProductServiceLabel(extraction: ExtractionSignals, detectedVertical: string): string {
   // Detection priority: dominant visual → headline → primary message → CTA → audience clues
   const sources = [
-    extraction.visual_elements[0] || "",
+    Array.isArray(extraction.visual_elements) ? (extraction.visual_elements[0] || "") : "",
     extraction.headline || "",
     extraction.primary_message || "",
     extraction.cta || "",
-    extraction.audience_clues.join(" "),
+    Array.isArray(extraction.audience_clues) ? extraction.audience_clues.join(" ") : "",
   ];
 
   for (const source of sources) {
@@ -1116,7 +1116,7 @@ function buildProductServiceLabel(extraction: ExtractionSignals, detectedVertica
     }
   }
 
-  return VERTICAL_PRODUCT_FALLBACKS[detectedVertical] || "Product / Service";
+  return VERTICAL_PRODUCT_FALLBACKS[detectedVertical] || "General Product";
 }
 
 function buildFinalDecisionIntelligence(params: {

@@ -490,10 +490,10 @@ export default function AnalysisPanel({
   const detectedBusinessCategory = labelVertical(
     verticalAlignment?.detected_vertical || extractionSignals?.detected_vertical || "unknown"
   );
-  const productOrService =
-    (typeof extractionSignals?.product_service_label === "string" && extractionSignals.product_service_label.trim())
-      ? extractionSignals.product_service_label.trim()
-      : "—";
+  const productServiceLabel = typeof extractionSignals?.product_service_label === "string"
+    ? extractionSignals.product_service_label.trim()
+    : "";
+  const productOrService = productServiceLabel || "—";
 
   // Calculate alignment statistics for all creatives
   const alignmentStats = useMemo(() => {
