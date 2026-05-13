@@ -337,23 +337,42 @@ function buildLayoutClarityAnalysis({ flow, extractionSignals, behavioral, campa
   const headline = extractionSignals?.headline?.trim() || null;
   const cta = extractionSignals?.cta?.trim() || null;
   const dominantVisual = extractionSignals?.dominant_visual_cue?.trim() || null;
-  const brandPresence = extractionSignals?.brand_presence || "unknown";
+  const productCategory = extractionSignals?.product_category || "the product";
 
   const firstFocus = attention?.first_focus || (headline ? "headline" : dominantVisual ? "image" : "primary visual");
-  const path = attention?.attention_path || "Attention path signal is limited for this creative.";
   const frictionPoints = Array.isArray(attention?.friction_points) ? attention.friction_points.filter(Boolean) : [];
-  const ctaVisibility = attention?.cta_visibility || "CTA visibility signal is unavailable.";
-  const mobileRisk = attention?.mobile_attention_risk || "Mobile attention risk is not available.";
-  const retentionRisk = attention?.attention_retention_risk || "Retention risk is not available.";
-  const goalText = labelGoal(campaignGoal || "awareness");
+  const goalText = labelGoal(campaignGoal || "awareness").toLowerCase();
   const verticalText = labelVertical(campaignVertical || "unknown");
 
-  const flowLine = attention?.attention_path || `Eye path likely starts at the ${headline ? "headline" : dominantVisual ? "visual" : "main message"}, then checks the supporting image, then lands on the CTA.`;
+  const scanStages = Array.isArray(attention?.scan_stages) && attention.scan_stages.length > 0
+    ? attention.scan_stages
+    : [
+      headline
+        ? `First glance: people lock on \"${headline}\" before checking details.`
+        : `First glance: people orient to the ${dominantVisual ? "dominant visual" : "strongest visual block"}.`,
+      `Meaning pass: they verify whether the visual and copy actually describe ${productCategory.toLowerCase()}.`,
+      cta
+        ? `Decision pass: they decide whether \"${cta}\" feels earned for a ${goalText} ask.`
+        : "Decision pass: they look for a clear next step once message meaning is stable.",
+    ];
+
+  const flowLine = attention?.attention_path || `Eye path starts at the ${headline ? "headline" : dominantVisual ? "visual" : "main message"}, then checks supporting context, then evaluates action intent.`;
   const focusLabel = firstFocus === "headline" ? "headline area" : `${String(firstFocus).charAt(0).toUpperCase()}${String(firstFocus).slice(1)} area`;
+  const frictionLine = frictionPoints.length > 0
+    ? frictionPoints[0]
+    : attention?.attention_conflict || "No major scan conflict detected; hierarchy appears coherent for a fast human read.";
+  const psychologyLine = attention?.viewing_psychology || `For ${verticalText} creatives, people need immediate category clarity before they trust the final action cue.`;
+  const actionReadiness = cta
+    ? `Action readiness: viewers are most likely to act only after ${headline ? "the headline promise" : "the core visual meaning"} feels credible enough to justify \"${cta}\".`
+    : "Action readiness: viewers need a clearer action target after message comprehension.";
 
   return {
     flowLine,
     focusLine: `${focusLabel}${headline ? ` (headline: "${headline}")` : ""}`,
+    scanStages,
+    frictionLine,
+    psychologyLine,
+    actionReadiness,
   };
 }
 
@@ -636,6 +655,59 @@ export default function AnalysisPanel({
     ];
   }, [sorted, topSummaryStats.topMixedVertical, verticalText, topSummaryStats.verticalMisaligned]);
 
+  const overviewAudienceInterpretation = useMemo(() => {
+    const total = sorted.length;
+    const goalMismatchCount = sorted.filter((entry) => {
+      const payload = getEntryPayload(entry) || {};
+      return getGoalAlignment(payload)?.is_aligned === false;
+    }).length;
+
+    const verticalMismatchCount = sorted.filter((entry) => {
+      const payload = getEntryPayload(entry) || {};
+      return getVerticalAlignment(payload)?.is_aligned === false;
+    }).length;
+
+    const aggressiveAskCount = sorted.filter((entry) => {
+      const payload = getEntryPayload(entry) || {};
+      const cta = String(getExtractionSignals(payload)?.cta || "");
+      return /(shop now|buy now|order now|sign up|book now|apply now|get started|claim now|download now|reserve now|purchase now)/i.test(cta);
+    }).length;
+
+    const trustGapCount = sorted.filter((entry) => {
+      const payload = getEntryPayload(entry) || {};
+      const trustGap = String(getBehavioralResponse(payload)?.trust_gap || "").toLowerCase();
+      return /thin|weak|unclear|missing|limited|skeptic|hesitat/.test(trustGap);
+    }).length;
+
+    const alignedBothCount = sorted.filter((entry) => {
+      const payload = getEntryPayload(entry) || {};
+      return getGoalAlignment(payload)?.is_aligned === true && getVerticalAlignment(payload)?.is_aligned === true;
+    }).length;
+
+    const likelyInterpretation = goalMismatchCount > 0 || verticalMismatchCount > 0
+      ? `${goalMismatchCount + verticalMismatchCount} combined goal/vertical mismatch signal${goalMismatchCount + verticalMismatchCount === 1 ? "" : "s"} suggest parts of the audience will interpret this campaign inconsistently across creatives.`
+      : `Most creatives present a coherent ${goalText.toLowerCase()} ${verticalText.toLowerCase()} narrative, so audiences are likely to interpret the campaign consistently.`;
+
+    const readinessStage = aggressiveAskCount > Math.ceil(total / 2)
+      ? `The campaign leans action-heavy in ${aggressiveAskCount} of ${total} creatives, so it reads closer to late-stage intent than broad discovery.`
+      : `Action pressure is moderated across the set, which supports earlier-stage evaluation before commitment.`;
+
+    const trustPerception = trustGapCount > 0
+      ? `${trustGapCount} creative${trustGapCount === 1 ? " shows" : "s show"} trust friction, so credibility signals are uneven at campaign level.`
+      : "Trust signaling appears stable across the set, with no dominant credibility gap pattern.";
+
+    const likelyAudienceReaction = alignedBothCount === total
+      ? "Audiences are more likely to move smoothly from impression to action because message and targeting cues stay consistent."
+      : "Audiences may respond unevenly across placements because campaign cues do not resolve to a single stage-and-vertical story.";
+
+    return {
+      likelyInterpretation,
+      readinessStage,
+      trustPerception,
+      likelyAudienceReaction,
+    };
+  }, [sorted, goalText, verticalText]);
+
   const greetingName = useMemo(() => {
     const normalized = String(viewerName || "").trim();
     return normalized || "Strategist";
@@ -880,16 +952,16 @@ export default function AnalysisPanel({
               <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5">
                 <div className="rounded-lg border border-white/10 bg-white/[0.03] p-3">
                   <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Likely Interpretation</p>
-                  <p className="mt-1 text-sm leading-relaxed text-slate-100">{audienceInterpretation.likelyInterpretation}</p>
+                  <p className="mt-1 text-sm leading-relaxed text-slate-100">{overviewAudienceInterpretation.likelyInterpretation}</p>
                 </div>
                 <div className="rounded-lg border border-white/10 bg-white/[0.03] p-3">
                   <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Readiness Stage</p>
-                  <p className="mt-1 text-sm leading-relaxed text-slate-100">{audienceInterpretation.readinessStage}</p>
+                  <p className="mt-1 text-sm leading-relaxed text-slate-100">{overviewAudienceInterpretation.readinessStage}</p>
                 </div>
                 <div className="rounded-lg border border-white/10 bg-white/[0.03] p-3">
                   <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Trust Perception</p>
-                  <p className="mt-1 text-sm leading-relaxed text-slate-100">{audienceInterpretation.trustPerception}</p>
-                  <p className="mt-2 text-xs leading-relaxed text-slate-300">Likely audience reaction: {audienceInterpretation.likelyAudienceReaction}</p>
+                  <p className="mt-1 text-sm leading-relaxed text-slate-100">{overviewAudienceInterpretation.trustPerception}</p>
+                  <p className="mt-2 text-xs leading-relaxed text-slate-300">Likely audience reaction: {overviewAudienceInterpretation.likelyAudienceReaction}</p>
                 </div>
               </div>
             </div>
@@ -1172,6 +1244,21 @@ export default function AnalysisPanel({
               {verticalAlignment?.reason && (
                 <p className="text-sm text-slate-200 leading-relaxed">{verticalAlignment.reason}</p>
               )}
+              {verticalAlignment?.product_category && (
+                <p className="text-sm text-slate-200 leading-relaxed">
+                  Product Category: <span className="font-semibold text-white">{verticalAlignment.product_category}</span>
+                </p>
+              )}
+              {verticalAlignment?.advertising_behavior && (
+                <p className="text-sm text-slate-200 leading-relaxed">
+                  Advertising Behavior: <span className="font-semibold text-white">{verticalAlignment.advertising_behavior}</span>
+                </p>
+              )}
+              {verticalAlignment?.strategic_interpretation && (
+                <p className="text-sm text-slate-200 leading-relaxed">
+                  {verticalAlignment.strategic_interpretation}
+                </p>
+              )}
               {Array.isArray(verticalAlignment?.evidence) &&
                 verticalAlignment.evidence.length > 0 && (
                   <div className="flex flex-wrap gap-1 mt-1">
@@ -1215,13 +1302,14 @@ export default function AnalysisPanel({
                   label="Persuasion Style"
                   value={extractionSignals.persuasion_style}
                 />
-                {extractionSignals.detected_vertical &&
-                  extractionSignals.detected_vertical !== "unknown" && (
-                    <FieldBlock
-                      label="Detected Vertical"
-                      value={labelVertical(extractionSignals.detected_vertical)}
-                    />
-                  )}
+                <FieldBlock
+                  label="Product Category"
+                  value={extractionSignals.product_category || (extractionSignals.detected_vertical && extractionSignals.detected_vertical !== "unknown" ? labelVertical(extractionSignals.detected_vertical) : null)}
+                />
+                <FieldBlock
+                  label="Advertising Behavior"
+                  value={extractionSignals.advertising_behavior}
+                />
               </div>
               {extractionSignals.topic_summary && (
                 <div className="mt-2 rounded-lg bg-blue-500/5 border border-blue-500/20 p-3">
@@ -1265,14 +1353,36 @@ export default function AnalysisPanel({
               <Eye size={15} className="text-cyan-300" />
               <h4 className="text-sm font-semibold text-white">5. Layout &amp; Attention Flow</h4>
             </div>
-            <div className="rounded-lg border border-white/10 bg-white/[0.03] p-3">
-              <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-1.5">Layout &amp; Attention Flow</p>
-              <p className="text-sm text-slate-200 leading-relaxed">
-                <span className="font-semibold text-slate-100">Flow:</span> {layoutClarity.flowLine}
-              </p>
-              <p className="text-sm text-slate-200 leading-relaxed mt-1">
-                <span className="font-semibold text-slate-100">Focus:</span> {layoutClarity.focusLine}
-              </p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+              <div className="rounded-lg border border-white/10 bg-white/[0.03] p-3 md:col-span-2">
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-1.5">Human Visual Scan</p>
+                {Array.isArray(layoutClarity.scanStages) && layoutClarity.scanStages.map((stage, idx) => (
+                  <p key={`${stage}-${idx}`} className="text-sm text-slate-200 leading-relaxed">
+                    {stage}
+                  </p>
+                ))}
+              </div>
+
+              <div className="rounded-lg border border-white/10 bg-white/[0.03] p-3">
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-1.5">Perceptual Flow</p>
+                <p className="text-sm text-slate-200 leading-relaxed">
+                  <span className="font-semibold text-slate-100">Flow:</span> {layoutClarity.flowLine}
+                </p>
+                <p className="text-sm text-slate-200 leading-relaxed mt-1">
+                  <span className="font-semibold text-slate-100">Focus:</span> {layoutClarity.focusLine}
+                </p>
+              </div>
+
+              <div className="rounded-lg border border-white/10 bg-white/[0.03] p-3">
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-1.5">Human Friction</p>
+                <p className="text-sm text-slate-200 leading-relaxed">{layoutClarity.frictionLine}</p>
+                <p className="text-sm text-slate-200 leading-relaxed mt-1">{layoutClarity.psychologyLine}</p>
+              </div>
+
+              <div className="rounded-lg border border-cyan-500/20 bg-cyan-500/5 p-3 md:col-span-2">
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-cyan-300 mb-1.5">Decision Moment</p>
+                <p className="text-sm text-slate-100 leading-relaxed">{layoutClarity.actionReadiness}</p>
+              </div>
             </div>
           </div>
 

@@ -54,6 +54,9 @@ interface AttentionAnalysis {
   cta_visibility: string;
   mobile_attention_risk: string;
   attention_retention_risk: string;
+  scan_stages: string[];
+  attention_conflict: string;
+  viewing_psychology: string;
 }
 
 interface PsychologyAnalysis {
@@ -141,9 +144,29 @@ interface FinalDecisionIntelligence {
   decision_summary: string;
 }
 
+interface ProductCategoryDetection {
+  id: string;
+  label: string;
+  fitScore: number;
+  evidence: string[];
+}
+
+interface AdvertisingBehaviorDetection {
+  label: string;
+  evidence: string[];
+}
+
+interface VerticalIntelligence {
+  productCategory: ProductCategoryDetection;
+  advertisingBehavior: AdvertisingBehaviorDetection;
+  strategicInterpretation: string;
+  behaviorAlignedToGoal: boolean;
+  behaviorAlignmentReason: string;
+}
+
 const KNOWN_GOALS = new Set<CampaignGoal>(["awareness", "consideration", "conversion"]);
 
-const VERTICAL_DETECTION_HINTS: Record<string, string[]> = {
+const PRODUCT_CATEGORY_HINTS: Record<string, string[]> = {
   healthcare: ["hospital", "clinic", "doctor", "medical", "patient", "wellness", "care", "treatment", "pharma", "health"],
   technology: ["software", "saas", "platform", "cloud", "ai", "app", "tech", "automation", "digital"],
   automotive: ["car", "vehicle", "suv", "sedan", "drive", "engine", "mileage", "dealership", "auto"],
@@ -153,16 +176,83 @@ const VERTICAL_DETECTION_HINTS: Record<string, string[]> = {
   luxury: ["luxury", "premium", "exclusive", "craftsmanship", "heritage", "elite", "high-end"],
   travel: ["travel", "destination", "trip", "vacation", "holiday", "flight", "journey", "tour"],
   hotels: ["hotel", "resort", "suite", "booking", "stay", "hospitality", "check-in"],
-  food: ["restaurant", "food", "menu", "dining", "meal", "chef", "delivery", "cuisine"],
+  food: ["restaurant", "food", "menu", "dining", "meal", "chef", "delivery", "cuisine", "coffee", "cafe", "latte", "espresso", "beverage", "cup"],
   banking: ["bank", "fintech", "account", "loan", "credit", "debit", "secure", "payment", "wallet"],
   real_estate: ["real estate", "property", "home", "mortgage", "apartment", "listing", "broker", "rent"],
   education: ["education", "course", "learn", "student", "academy", "school", "training", "certification"],
   gaming: ["game", "gaming", "play", "level", "esports", "console", "battle", "stream"],
   entertainment: ["streaming", "ott", "entertainment", "show", "movie", "series", "music", "watch"],
-  ecommerce: ["shop", "store", "cart", "checkout", "sale", "discount", "product", "retail", "buy"],
+  ecommerce: ["shop", "store", "cart", "checkout", "sale", "discount", "buy", "purchase"],
 };
 
-const KNOWN_VERTICALS = new Set(Object.keys(VERTICAL_DETECTION_HINTS));
+const PRODUCT_CATEGORY_LABELS: Record<string, string> = {
+  healthcare: "Healthcare / Medical Services",
+  technology: "Technology / Software",
+  automotive: "Automotive / Vehicles",
+  news_media: "News / Media",
+  sports: "Sports / Fitness",
+  finance: "Business / Finance",
+  luxury: "Luxury / Premium Goods",
+  travel: "Travel / Hospitality",
+  hotels: "Hotels / Accommodation",
+  food: "Restaurants / Food",
+  banking: "Banking / Fintech",
+  real_estate: "Real Estate / Property",
+  education: "Higher Education / Professional Certification",
+  gaming: "Gaming / Entertainment",
+  entertainment: "Entertainment / OTT",
+  ecommerce: "Retail / E-commerce",
+  unknown: "Unclear / Mixed Category",
+};
+
+const PRODUCT_CATEGORY_GROUNDING_RULES = `## PRODUCT CATEGORY DETECTION - GROUNDING RULES
+
+Before assigning a Product Category, you must cross-reference ALL of the following signals together. Never assign category from a single visual element alone.
+
+SIGNAL CHECKLIST (run all four before deciding):
+
+1. TEXT SIGNALS
+Read every visible word in the creative.
+Words like "coffee", "burger", "register", "enroll", "drive", "skin", "invest" are primary category anchors.
+Text signals override visual ambiguity. Always.
+
+2. PRODUCT VISUAL SIGNALS
+Identify the physical object shown.
+A glass with liquid + brown tones + cafe context = Beverage / Coffee.
+Do NOT abstract a product visual into a metaphor.
+A coffee glass is NOT a technology signal.
+A burger is NOT a lifestyle signal.
+Read objects literally before reading them symbolically.
+
+3. PRICE + OFFER SIGNALS
+If price badges, discount percentages, or "GET X% OFF" language appears:
+- The creative is performing direct-response or ecommerce behavior
+- This does NOT change the product category - it changes the Advertising Behavior only
+
+4. CTA SIGNALS
+"ORDER NOW" -> Ecommerce / food ordering behavior
+"REGISTER NOW" -> Education / enrollment behavior
+"BOOK NOW" -> Hospitality / travel behavior
+"SHOP NOW" -> Retail / ecommerce behavior
+CTA language confirms Advertising Behavior, not Product Category.
+
+## CONFLICT PREVENTION RULE
+
+If your detected Product Category does NOT match any of the following:
+- The primary text headline
+- The physical product shown
+- The price/offer context
+
+Then your category detection is WRONG. Re-evaluate.
+
+## FINAL RULE
+
+Product Category = what is literally being sold (read text + product visual together)
+Advertising Behavior = how it is being sold (read offer structure + CTA + persuasion pattern)
+
+These are two separate decisions. Never let Advertising Behavior contaminate Product Category detection.`;
+
+const KNOWN_VERTICALS = new Set(Object.keys(PRODUCT_CATEGORY_HINTS));
 
 const GOAL_INTELLIGENCE_PROFILE: Record<CampaignGoal, { expectedCtaPressure: CtaPressure; urgencyTolerance: SignalLevel; preferredEmotions: string[] }> = {
   awareness: {
@@ -558,44 +648,236 @@ function inferUrgencyLevel(extraction: ExtractionSignals): SignalLevel {
   return "low";
 }
 
-function detectVerticalFromSignals(selectedVertical: string, extraction: ExtractionSignals): { detectedVertical: string; fitScore: number; evidence: string[] } {
+function buildSignalCorpus(extraction: ExtractionSignals): string {
   const corpus = [
     extraction.headline,
     extraction.primary_message,
+    extraction.cta,
     extraction.visual_elements.join(" "),
     extraction.audience_clues.join(" "),
+    extraction.urgency_signals.join(" "),
+    extraction.trust_markers.join(" "),
+    extraction.emotional_cues.join(" "),
   ].join(" ").toLowerCase();
+
+  return corpus;
+}
+
+function deriveProductCategoryLabel(id: string, corpus: string): string {
+  if (id === "food") {
+    if (/coffee|cafe|latte|espresso|brew|beverage|iced coffee|americano|cappuccino/.test(corpus)) {
+      return "Coffee / Beverage";
+    }
+    if (/burger|fries|combo|meal|sandwich|chicken burger|qsr|fast food/.test(corpus)) {
+      return "Quick-Service Restaurant / Burger";
+    }
+    if (/pizza|slice|pepperoni|margherita/.test(corpus)) {
+      return "Quick-Service Restaurant / Pizza";
+    }
+    return "Restaurants / Food";
+  }
+
+  return PRODUCT_CATEGORY_LABELS[id] || PRODUCT_CATEGORY_LABELS.unknown;
+}
+
+function detectProductCategoryFromSignals(selectedVertical: string, extraction: ExtractionSignals): ProductCategoryDetection {
+  const textCorpus = [extraction.headline, extraction.primary_message, extraction.cta].join(" ").toLowerCase();
+  const visualCorpus = [
+    extraction.visual_elements.join(" "),
+    extraction.audience_clues.join(" "),
+    extraction.urgency_signals.join(" "),
+    extraction.trust_markers.join(" "),
+    extraction.emotional_cues.join(" "),
+  ].join(" ").toLowerCase();
+  const corpus = `${textCorpus} ${visualCorpus}`;
 
   let bestVertical = selectedVertical;
   let bestScore = -1;
 
-  for (const [candidate, hints] of Object.entries(VERTICAL_DETECTION_HINTS)) {
-    const score = hints.reduce((acc, keyword) => acc + (corpus.includes(keyword) ? 1 : 0), 0);
+  for (const [candidate, hints] of Object.entries(PRODUCT_CATEGORY_HINTS)) {
+    const score = hints.reduce((acc, keyword) => {
+      const textMatch = textCorpus.includes(keyword) ? 3 : 0;
+      const visualMatch = visualCorpus.includes(keyword) ? 1 : 0;
+      return acc + textMatch + visualMatch;
+    }, 0);
     if (score > bestScore) {
       bestScore = score;
       bestVertical = candidate;
     }
   }
 
-  const selectedHints = VERTICAL_DETECTION_HINTS[selectedVertical] ?? [];
+  const selectedHints = PRODUCT_CATEGORY_HINTS[selectedVertical] ?? [];
   const matchedEvidence = selectedHints.filter((keyword) => corpus.includes(keyword)).slice(0, 4);
   const fitScore = selectedHints.length === 0
     ? 50
     : Math.round((matchedEvidence.length / selectedHints.length) * 100);
 
+  const detectedId = bestScore <= 0 ? "unknown" : bestVertical;
+
   return {
-    detectedVertical: bestScore <= 0 ? "unknown" : bestVertical,
+    id: detectedId,
+    label: deriveProductCategoryLabel(detectedId, corpus),
     fitScore,
     evidence: matchedEvidence,
   };
 }
 
+function detectAdvertisingBehaviorFromSignals(
+  extraction: ExtractionSignals,
+  ctaPressure: CtaPressure,
+  urgencyLevel: SignalLevel,
+  goal: CampaignGoal,
+  productCategoryId: string
+): AdvertisingBehaviorDetection {
+  const corpus = buildSignalCorpus(extraction);
+  const behaviorEvidence = [extraction.cta, extraction.headline, extraction.primary_message]
+    .filter((value) => typeof value === "string" && value.trim().length > 0)
+    .slice(0, 2);
+
+  const hasDiscount = /discount|save|sale|offer|% off|deal|limited/.test(corpus);
+  const hasRetailAction = /shop now|buy now|order now|add to cart|checkout|buy|purchase/.test(corpus);
+  const hasHospitalityStory = /cafe|coffee|restaurant|dining|chef|ambiance|experience|crafted/.test(corpus);
+  const hasAuthoritySignal = /certification|course|academy|expert|professional|credential|enroll/.test(corpus);
+  const hasLeadGenSignal = /book demo|request demo|consultation|contact us|talk to|schedule/.test(corpus);
+
+  if (hasDiscount && (ctaPressure === "aggressive" || hasRetailAction)) {
+    return {
+      label: "Discount-led direct-response promotion",
+      evidence: behaviorEvidence,
+    };
+  }
+
+  if (hasRetailAction || (ctaPressure === "aggressive" && productCategoryId === "ecommerce")) {
+    return {
+      label: "Retail-style ecommerce conversion advertising",
+      evidence: behaviorEvidence,
+    };
+  }
+
+  if (productCategoryId === "food" && (hasRetailAction || /menu|delivery|order/.test(corpus))) {
+    return {
+      label: "Impulse-purchase fast-food advertising",
+      evidence: behaviorEvidence,
+    };
+  }
+
+  if ((productCategoryId === "food" || productCategoryId === "hotels" || productCategoryId === "travel") && hasHospitalityStory && ctaPressure !== "aggressive") {
+    return {
+      label: "Hospitality storytelling and lifestyle branding",
+      evidence: behaviorEvidence,
+    };
+  }
+
+  if (productCategoryId === "education" && (hasAuthoritySignal || urgencyLevel === "high")) {
+    return {
+      label: urgencyLevel === "high"
+        ? "Urgency-driven enrollment marketing"
+        : "Authority-led professional education marketing",
+      evidence: behaviorEvidence,
+    };
+  }
+
+  if (hasLeadGenSignal) {
+    return {
+      label: "Trust-building B2B lead generation",
+      evidence: behaviorEvidence,
+    };
+  }
+
+  if (goal === "awareness") {
+    return {
+      label: "Aspirational brand awareness advertising",
+      evidence: behaviorEvidence,
+    };
+  }
+
+  return {
+    label: "Informational consideration-stage persuasion",
+    evidence: behaviorEvidence,
+  };
+}
+
+function buildBehaviorAlignmentReason(goal: CampaignGoal, behaviorLabel: string): { aligned: boolean; reason: string } {
+  const normalized = behaviorLabel.toLowerCase();
+  const awarenessLike = /awareness|storytelling|aspirational/.test(normalized);
+  const considerationLike = /consideration|authority|trust-building|informational/.test(normalized);
+  const conversionLike = /conversion|direct-response|discount|impulse-purchase|enrollment/.test(normalized);
+
+  if (goal === "awareness") {
+    return awarenessLike
+      ? { aligned: true, reason: "Behavior supports top-of-funnel attention building without premature transaction pressure." }
+      : { aligned: false, reason: "Behavior is conversion-leaning for an awareness-stage objective." };
+  }
+
+  if (goal === "consideration") {
+    return considerationLike || awarenessLike
+      ? { aligned: true, reason: "Behavior supports evaluation and trust-building for mid-funnel audiences." }
+      : { aligned: false, reason: "Behavior over-indexes on transaction pressure before evaluation is established." };
+  }
+
+  return conversionLike
+    ? { aligned: true, reason: "Behavior matches late-stage intent and action-oriented campaign goals." }
+    : { aligned: false, reason: "Behavior is too soft for a conversion-stage objective." };
+}
+
+function buildStrategicInterpretation(
+  extraction: ExtractionSignals,
+  productCategory: ProductCategoryDetection,
+  behavior: AdvertisingBehaviorDetection,
+  behaviorAlignmentReason: string,
+  selectedVertical: string
+): string {
+  const visualEvidence = extraction.visual_elements[0] || extraction.primary_message || extraction.headline || "the creative framing";
+
+  if (productCategory.id !== "unknown" && productCategory.id !== selectedVertical) {
+    return `The visual signal \"${visualEvidence}\" indicates a ${productCategory.label.toLowerCase()} category, while campaign setup expects ${selectedVertical.replace(/_/g, " ")}. This creates a category-level identity conflict before persuasion effects are considered.`;
+  }
+
+  return `The visual signal \"${visualEvidence}\" frames this as ${behavior.label.toLowerCase()}, and ${behaviorAlignmentReason.toLowerCase()}`;
+}
+
+function buildVerticalIntelligence(
+  selectedVertical: string,
+  extraction: ExtractionSignals,
+  goal: CampaignGoal,
+  ctaPressure: CtaPressure,
+  urgencyLevel: SignalLevel
+): VerticalIntelligence {
+  const productCategory = detectProductCategoryFromSignals(selectedVertical, extraction);
+  const advertisingBehavior = detectAdvertisingBehaviorFromSignals(
+    extraction,
+    ctaPressure,
+    urgencyLevel,
+    goal,
+    productCategory.id,
+  );
+  const behaviorAlignment = buildBehaviorAlignmentReason(goal, advertisingBehavior.label);
+
+  return {
+    productCategory,
+    advertisingBehavior,
+    strategicInterpretation: buildStrategicInterpretation(
+      extraction,
+      productCategory,
+      advertisingBehavior,
+      behaviorAlignment.reason,
+      selectedVertical,
+    ),
+    behaviorAlignedToGoal: behaviorAlignment.aligned,
+    behaviorAlignmentReason: behaviorAlignment.reason,
+  };
+}
+
 function buildAttentionAnalysis(extraction: ExtractionSignals, ctaPressure: CtaPressure): AttentionAnalysis {
-  const firstFocus = extraction.headline
+  const headline = extraction.headline?.trim();
+  const cta = extraction.cta?.trim();
+  const visualCue = extraction.visual_elements[0] || "primary visual";
+
+  const firstFocus = headline
     ? "headline"
     : extraction.brand_presence === "high"
       ? "brand block"
-      : "primary visual";
+      : visualCue;
 
   const frictionPoints: string[] = [];
   if (extraction.text_density === "high") {
@@ -624,6 +906,28 @@ function buildAttentionAnalysis(extraction: ExtractionSignals, ctaPressure: CtaP
       ? "Attention retention risk is moderate with one meaningful break in flow."
       : "Attention retention risk is limited; eye path stays mostly coherent through the CTA.";
 
+  const scanStages = [
+    headline
+      ? `First glance (~0.3s): the eye lands on "${headline}" before processing anything else.`
+      : `First glance (~0.3s): the eye lands on the ${firstFocus}, which sets initial meaning.` ,
+    `Meaning pass (~1s): users test whether ${visualCue} and supporting copy tell the same story.`,
+    cta
+      ? `Decision pass (~2s): users evaluate "${cta}" only after they decide the message feels relevant and credible.`
+      : "Decision pass (~2s): users look for an obvious next action after meaning is clear.",
+  ];
+
+  const attentionConflict = extraction.text_density === "high"
+    ? "Human viewers split attention across too many elements, so the offer meaning arrives late."
+    : extraction.readability === "low"
+      ? "Human viewers notice the idea but slow down because readability creates friction before intent forms."
+      : ctaPressure === "aggressive" && !headline
+        ? "The action cue appears before enough context, so viewers may feel pushed before convinced."
+        : "Visual hierarchy mostly matches how people naturally scan: hook, meaning, then action.";
+
+  const viewingPsychology = ctaPressure === "aggressive"
+    ? "People perceive this as a high-intent ask; if trust cues are thin, they may defer instead of clicking."
+    : "People can absorb the core message first, which supports steadier trust-building before action.";
+
   return {
     first_focus: firstFocus,
     attention_path: `Users are likely to notice the ${firstFocus} first, then scan supporting content, and finally evaluate the CTA once value clarity is established.`,
@@ -631,6 +935,9 @@ function buildAttentionAnalysis(extraction: ExtractionSignals, ctaPressure: CtaP
     cta_visibility: ctaVisibility,
     mobile_attention_risk: mobileRisk,
     attention_retention_risk: retentionRisk,
+    scan_stages: scanStages,
+    attention_conflict: attentionConflict,
+    viewing_psychology: viewingPsychology,
   };
 }
 
@@ -730,10 +1037,10 @@ function buildCampaignAlignment(
   extraction: ExtractionSignals,
   psychology: PsychologyAnalysis,
   ctaPressure: CtaPressure,
-  urgencyLevel: SignalLevel
+  urgencyLevel: SignalLevel,
+  verticalIntelligence: VerticalIntelligence
 ): CampaignAlignment {
   const conflicts: string[] = [];
-  const verticalDetection = detectVerticalFromSignals(selectedVertical, extraction);
   const goalProfile = GOAL_INTELLIGENCE_PROFILE[goal];
 
   if (goalProfile.expectedCtaPressure === "soft" && ctaPressure === "aggressive") {
@@ -748,8 +1055,17 @@ function buildCampaignAlignment(
   if (selectedVertical === "luxury" && /discount|save|offer|% off/.test([extraction.headline, extraction.primary_message, extraction.cta].join(" ").toLowerCase())) {
     conflicts.push("Luxury positioning conflicts with discount-heavy message behavior.");
   }
-  if (verticalDetection.detectedVertical !== "unknown" && verticalDetection.detectedVertical !== selectedVertical && verticalDetection.fitScore < 40) {
-    conflicts.push(`Creative signals resemble ${verticalDetection.detectedVertical} more than ${selectedVertical}.`);
+  if (
+    verticalIntelligence.productCategory.id !== "unknown" &&
+    verticalIntelligence.productCategory.id !== selectedVertical &&
+    verticalIntelligence.productCategory.fitScore < 50
+  ) {
+    conflicts.push(
+      `Product category appears closer to ${verticalIntelligence.productCategory.label} than ${selectedVertical.replace(/_/g, " ")} context.`
+    );
+  }
+  if (!verticalIntelligence.behaviorAlignedToGoal) {
+    conflicts.push(verticalIntelligence.behaviorAlignmentReason);
   }
   if (extraction.readability === "low") {
     conflicts.push("Low readability weakens strategic message delivery for the intended audience.");
@@ -954,9 +1270,21 @@ function buildStrategicScore(params: {
   attention: AttentionAnalysis;
   alignment: CampaignAlignment;
   behavioralResponse: BehavioralResponse;
+  goalAligned: boolean;
+  verticalAligned: boolean;
   textAvailable: boolean;
 }): StrategicScore {
-  const { extraction, goal, ctaPressure, attention, alignment, behavioralResponse, textAvailable } = params;
+  const {
+    extraction,
+    goal,
+    ctaPressure,
+    attention,
+    alignment,
+    behavioralResponse,
+    goalAligned,
+    verticalAligned,
+    textAvailable,
+  } = params;
 
   const visualClarity = Math.round((scoreLevel(extraction.brand_presence, true) + scoreLevel(extraction.text_density, false)) / 2);
   const ctaPressureFit = textAvailable ? scoreCtaPressureFit(goal, ctaPressure) : 0;
@@ -966,42 +1294,62 @@ function buildStrategicScore(params: {
   const attentionRetention = attention.friction_points.length === 0 ? 88 : attention.friction_points.length === 1 ? 68 : 45;
   const hierarchyQuality = extraction.hierarchy_observations.toLowerCase().includes("strong") ? 88 : extraction.hierarchy_observations ? 68 : 55;
   const behavioralReadiness = scoreBehavioralReadiness(behavioralResponse.commitment_readiness);
+  const alignmentTier = goalAligned && verticalAligned
+    ? 3
+    : goalAligned || verticalAligned
+      ? 2
+      : 1;
 
   const score = Math.round(
-    visualClarity * 0.15 +
-      ctaPressureFit * 0.15 +
-      readability * 0.11 +
-      emotionalAlignment * 0.14 +
-      audienceFit * 0.12 +
+    visualClarity * 0.13 +
+      ctaPressureFit * 0.12 +
+      readability * 0.10 +
+      emotionalAlignment * 0.10 +
+      audienceFit * 0.10 +
       attentionRetention * 0.10 +
-      hierarchyQuality * 0.08 +
-      behavioralReadiness * 0.15
+      hierarchyQuality * 0.07 +
+      behavioralReadiness * 0.13 +
+      (alignmentTier === 3 ? 100 : alignmentTier === 2 ? 60 : 20) * 0.15
   );
 
+  // Alignment-first normalization so numeric scores always respect campaign fit priority.
+  // Tier 3: both goal + vertical aligned, Tier 2: one aligned, Tier 1: none aligned.
+  const boundedScore = Math.max(0, Math.min(100, score));
+  const normalized = boundedScore / 100;
+  const bandedScore = alignmentTier === 3
+    ? Math.round(70 + normalized * 30)
+    : alignmentTier === 2
+      ? Math.round(45 + normalized * 24)
+      : Math.round(20 + normalized * 24);
+
+  const alignmentBand = alignmentTier === 3
+    ? "Tier 3 (goal + vertical aligned, score band 70-100)"
+    : alignmentTier === 2
+      ? "Tier 2 (partial alignment, score band 45-69)"
+      : "Tier 1 (misaligned, score band 20-44)";
+
   const rationale = textAvailable
-    ? `Strategic Alignment Score is driven by visual clarity (${visualClarity}), CTA pressure fit (${ctaPressureFit}), readability (${readability}), emotional alignment (${emotionalAlignment}), audience fit (${audienceFit}), attention retention (${attentionRetention}), hierarchy quality (${hierarchyQuality}), and behavioral readiness (${behavioralReadiness}).`
-    : `Strategic Alignment Score uses visual/layout and behavioral signals while text-dependent subscores are set to 0 because OCR extraction was unavailable. Visual clarity (${visualClarity}), audience fit (${audienceFit}), attention retention (${attentionRetention}), hierarchy quality (${hierarchyQuality}), behavioral readiness (${behavioralReadiness}).`;
+    ? `Strategic Alignment Score uses ${alignmentBand}. Within this band, score is driven by visual clarity (${visualClarity}), CTA pressure fit (${ctaPressureFit}), readability (${readability}), emotional alignment (${emotionalAlignment}), audience fit (${audienceFit}), attention retention (${attentionRetention}), hierarchy quality (${hierarchyQuality}), and behavioral readiness (${behavioralReadiness}).`
+    : `Strategic Alignment Score uses ${alignmentBand}. Text-dependent subscores are set to 0 because OCR extraction was unavailable; remaining inputs are visual clarity (${visualClarity}), audience fit (${audienceFit}), attention retention (${attentionRetention}), hierarchy quality (${hierarchyQuality}), and behavioral readiness (${behavioralReadiness}).`;
 
   return {
-    value: Math.max(0, Math.min(100, score)),
+    value: Math.max(0, Math.min(100, bandedScore)),
     rationale,
   };
 }
 
 function buildCreativeTopicSummary(
   extraction: ExtractionSignals,
-  detectedVertical: string,
+  productCategory: ProductCategoryDetection,
   goal: CampaignGoal
 ): string {
   const headline = extraction.headline?.trim();
   const cta = extraction.cta?.trim();
   const primary = extraction.primary_message?.trim();
-  const verticalName = VERTICAL_DETECTION_HINTS[detectedVertical]
-    ? detectedVertical.replace(/_/g, " ")
-    : null;
+  const categoryName = productCategory?.label || null;
 
-  if (headline && detectedVertical !== "unknown" && verticalName) {
-    return `This creative promotes ${verticalName} content${primary ? ` — "${primary}"` : ""}. Headline: "${headline}".${cta ? ` CTA: "${cta}".` : ""}`;
+  if (headline && productCategory.id !== "unknown" && categoryName) {
+    return `This creative presents ${categoryName.toLowerCase()} cues${primary ? ` — "${primary}"` : ""}. Headline: "${headline}".${cta ? ` CTA: "${cta}".` : ""}`;
   }
 
   if (headline && cta) {
@@ -1111,6 +1459,8 @@ Campaign goal: ${goal}
 Campaign vertical: ${vertical}
 Platform context: ${platform}
 
+  ${PRODUCT_CATEGORY_GROUNDING_RULES}
+
 Return JSON only.`;
 
     const extractionResult = await extractSignalsWithRetry({
@@ -1124,11 +1474,28 @@ Return JSON only.`;
     const ocrMeta = extractionResult.meta;
     const ctaPressure = classifyCtaPressure(extraction.cta);
     const urgencyLevel = inferUrgencyLevel(extraction);
+    const verticalIntelligence = buildVerticalIntelligence(vertical, extraction, goal, ctaPressure, urgencyLevel);
+
+    const detectedGoal = ctaPressure === "aggressive" || urgencyLevel === "high"
+      ? "conversion"
+      : ctaPressure === "moderate"
+        ? "consideration"
+        : "awareness";
+    const goalAligned = detectedGoal === goal;
+    const verticalAligned = verticalIntelligence.productCategory.id === vertical;
 
     const attentionAnalysis = buildAttentionAnalysis(extraction, ctaPressure);
     const psychologyAnalysis = buildPsychologyAnalysis(extraction, goal, ctaPressure, urgencyLevel);
     const audienceResponse = buildAudienceResponse(extraction, psychologyAnalysis, goal);
-    const campaignAlignment = buildCampaignAlignment(goal, vertical, extraction, psychologyAnalysis, ctaPressure, urgencyLevel);
+    const campaignAlignment = buildCampaignAlignment(
+      goal,
+      vertical,
+      extraction,
+      psychologyAnalysis,
+      ctaPressure,
+      urgencyLevel,
+      verticalIntelligence,
+    );
     const behavioralResponse = buildBehavioralResponse({
       goal,
       vertical,
@@ -1155,6 +1522,8 @@ Return JSON only.`;
       attention: attentionAnalysis,
       alignment: campaignAlignment,
       behavioralResponse,
+      goalAligned,
+      verticalAligned,
       textAvailable: ocrMeta.text_available,
     });
     const decisionIntelligence = buildFinalDecisionIntelligence({
@@ -1165,13 +1534,6 @@ Return JSON only.`;
       strategicScore: strategicAlignmentScore,
       behavioralResponse,
     });
-    const detectedVertical = detectVerticalFromSignals(vertical, extraction);
-    const detectedGoal = ctaPressure === "aggressive" || urgencyLevel === "high"
-      ? "conversion"
-      : ctaPressure === "moderate"
-        ? "consideration"
-        : "awareness";
-
     const goalAlignment = {
       selected_goal: goal,
       detected_goal: detectedGoal,
@@ -1183,15 +1545,28 @@ Return JSON only.`;
 
     const verticalAlignment = {
       selected_vertical: vertical,
-      detected_vertical: detectedVertical.detectedVertical,
-      is_aligned: detectedVertical.detectedVertical === "unknown" || detectedVertical.detectedVertical === vertical,
-      reason: detectedVertical.detectedVertical === "unknown"
-        ? "Vertical signal confidence is limited; no contradictory vertical detected."
-        : detectedVertical.detectedVertical === vertical
-          ? "Creative signals align with selected vertical context."
-          : `Creative signals resemble ${detectedVertical.detectedVertical} more than ${vertical}.`,
-      evidence: detectedVertical.evidence,
-      fit_score: detectedVertical.fitScore,
+      detected_vertical: verticalIntelligence.productCategory.id,
+      is_aligned: verticalIntelligence.productCategory.id === "unknown"
+        ? null
+        : verticalIntelligence.productCategory.id === vertical,
+      reason: verticalIntelligence.productCategory.id === "unknown"
+        ? "Product category confidence is limited; no contradictory category detected."
+        : verticalIntelligence.productCategory.id === vertical
+          ? "Product category aligns with selected vertical context."
+          : `Product category reads as ${verticalIntelligence.productCategory.label} instead of ${vertical.replace(/_/g, " ")}.`,
+      evidence: [
+        ...verticalIntelligence.productCategory.evidence,
+        ...verticalIntelligence.advertisingBehavior.evidence,
+      ].filter(Boolean).slice(0, 6),
+      fit_score: verticalIntelligence.productCategory.fitScore,
+      product_category: verticalIntelligence.productCategory.label,
+      advertising_behavior: verticalIntelligence.advertisingBehavior.label,
+      strategic_interpretation: verticalIntelligence.strategicInterpretation,
+      behavior_goal_alignment: {
+        is_aligned: verticalIntelligence.behaviorAlignedToGoal,
+        reason: verticalIntelligence.behaviorAlignmentReason,
+      },
+      vertical_intelligence_block: `PRODUCT CATEGORY:\n${verticalIntelligence.productCategory.label}\n\nADVERTISING BEHAVIOR:\n${verticalIntelligence.advertisingBehavior.label}\n\nSTRATEGIC INTERPRETATION:\n${verticalIntelligence.strategicInterpretation}`,
     };
 
     const responsePayload = {
@@ -1213,8 +1588,11 @@ Return JSON only.`;
         brand_presence: extraction.brand_presence,
         dominant_visual_cue: extraction.visual_elements[0] || "",
         persuasion_style: psychologyAnalysis.persuasion_style,
-        detected_vertical: detectedVertical.detectedVertical,
-        topic_summary: buildCreativeTopicSummary(extraction, detectedVertical.detectedVertical, goal),
+        detected_vertical: verticalIntelligence.productCategory.id,
+        product_category: verticalIntelligence.productCategory.label,
+        advertising_behavior: verticalIntelligence.advertisingBehavior.label,
+        strategic_interpretation: verticalIntelligence.strategicInterpretation,
+        topic_summary: buildCreativeTopicSummary(extraction, verticalIntelligence.productCategory, goal),
       },
       cta_text: ocrMeta.cta_text,
       extracted_text: ocrMeta.extracted_text,

@@ -184,6 +184,22 @@ export function compareStrategicEntries(left, right) {
   const leftData = getEntryPayload(left) || {};
   const rightData = getEntryPayload(right) || {};
 
+  const leftGoalAligned = leftData?.goal_alignment?.is_aligned === true;
+  const rightGoalAligned = rightData?.goal_alignment?.is_aligned === true;
+  const leftVerticalAligned = leftData?.vertical_alignment?.is_aligned === true;
+  const rightVerticalAligned = rightData?.vertical_alignment?.is_aligned === true;
+
+  const alignmentTier = (goalAligned, verticalAligned) => {
+    if (goalAligned && verticalAligned) return 3;
+    if (goalAligned || verticalAligned) return 2;
+    return 1;
+  };
+
+  const leftTier = alignmentTier(leftGoalAligned, leftVerticalAligned);
+  const rightTier = alignmentTier(rightGoalAligned, rightVerticalAligned);
+
+  if (rightTier !== leftTier) return rightTier - leftTier;
+
   const leftScore = getStrategicAlignmentScore(leftData) ?? -1;
   const rightScore = getStrategicAlignmentScore(rightData) ?? -1;
 
