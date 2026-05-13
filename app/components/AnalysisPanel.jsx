@@ -130,6 +130,61 @@ function truncateText(text, maxLength) {
   return `${value.slice(0, Math.max(0, maxLength - 1)).trimEnd()}…`;
 }
 
+function normalizeContextText(value) {
+  return String(value || "")
+    .toLowerCase()
+    .replace(/\b\d{2,4}x\d{2,4}\b/g, "")
+    .replace(/[^a-z0-9\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function inferCreativeAudienceIntent(signals, payload, goalText, verticalText) {
+  const headline = String(signals?.headline || "");
+  const cta = String(signals?.cta || "");
+  const visual = String(signals?.dominant_visual_cue || "");
+  const topic = String(signals?.topic_summary || "");
+  const category = String(signals?.product_category || signals?.detected_vertical || "");
+  const behavior = String(signals?.advertising_behavior || "");
+  const behavioral = getBehavioralResponse(payload) || {};
+  const likelyObjection = String(behavioral?.likely_objection || "");
+  const trustGap = String(behavioral?.trust_gap || "");
+  const corpus = `${headline} ${cta} ${visual} ${topic} ${category} ${behavior} ${likelyObjection} ${trustGap}`.toLowerCase();
+
+  const hasGiftSignal = /gift|gifting|present/.test(corpus);
+  const hasMenSignal = /for men|male|him|husband|boyfriend/.test(corpus);
+  const hasWomenSignal = /for women|female|her|wife|girlfriend/.test(corpus);
+  const hasBikeSignal = /bike|bicycle|motorbike|cycling/.test(corpus);
+  const hasBurgerSignal = /burger|fries|fast food|meal|restaurant|food|qsr/.test(corpus);
+  const hasCoffeeSignal = /coffee|latte|espresso|cafe|beverage/.test(corpus);
+  const audienceBase = (() => {
+    if (hasGiftSignal && hasBikeSignal && hasMenSignal && hasWomenSignal) {
+      return "Women purchasing gifts for men interested in bikes.";
+    }
+    if (hasGiftSignal && hasBikeSignal && hasMenSignal) {
+      return "Gift buyers purchasing for men interested in bikes.";
+    }
+    if (hasBurgerSignal) {
+      return "Food consumers with quick-meal intent, including impulse QSR buyers.";
+    }
+    if (hasCoffeeSignal) {
+      return "Coffee and beverage consumers responding to taste/value-led offers.";
+    }
+
+    const normalizedCategory = category.toLowerCase();
+    if (normalizedCategory.includes("education")) return "Learners evaluating enrollment and career-outcome value.";
+    if (normalizedCategory.includes("automotive")) return "Auto shoppers comparing design, value, and purchase timing.";
+    if (normalizedCategory.includes("real estate")) return "Property seekers evaluating trust, value, and location relevance.";
+    if (normalizedCategory.includes("finance") || normalizedCategory.includes("bank")) return "Financial decision-makers focused on trust, security, and returns.";
+    if (normalizedCategory.includes("travel") || normalizedCategory.includes("hotel")) return "Travel and hospitality audiences planning stays or bookings.";
+    if (normalizedCategory.includes("technology") || normalizedCategory.includes("software")) return "Tech buyers evaluating utility, proof, and workflow relevance.";
+
+    return `${String(verticalText || "campaign").replace(/\.$/, "")} audiences.`;
+  })();
+
+  return audienceBase;
+}
+
 function buildStrategistNarrative({
   goalAlignment,
   verticalAlignment,
@@ -182,15 +237,15 @@ function buildStrategistNarrative({
     : "a strategy-to-creative gap";
 
   const fixSuggestion = firstSentence(recommendations?.[0]?.recommended_change) ||
-    `Reframe the headline around ${selectedVertical.toLowerCase()} identity, ease CTA pressure, and move brand meaning ahead of action.`;
+    `Recommendation: Review alignment to ${selectedVertical.toLowerCase()} messaging, then ease CTA pressure and strengthen brand meaning before launch.`;
 
   const useCaseCue = verticalProfile.anchor;
 
   return {
-    coreProblem: truncateText(`Creative behaves like ${detectedGoal.toLowerCase()}-stage ${detectedVertical.toLowerCase()} advertising instead of ${selectedGoal.toLowerCase()} ${selectedVertical.toLowerCase()} storytelling.`, 170),
+    coreProblem: truncateText(`Detected issue: ${issueLine}. The creative currently behaves like ${detectedGoal.toLowerCase()}-stage ${detectedVertical.toLowerCase()} advertising instead of the selected ${selectedGoal.toLowerCase()} ${selectedVertical.toLowerCase()} direction.`, 190),
     whyItHappens: truncateText(`The eye path starts with ${visualHierarchy.toLowerCase()} and lands on ${firstFocus}, so "${headline}" and "${cta}" pull attention into action before ${useCaseCue} is established.`, 175),
-    businessRisk: truncateText(`This may reduce engagement quality for ${selectedGoal.toLowerCase()} traffic and weaken launch readiness when the campaign needs a cleaner story-to-action sequence.`, 175),
-    exactFix: truncateText(`Delay the CTA "${cta}" until the headline and image establish ${verticalProfile.anchor}; then tighten the hierarchy around ${fixSuggestion}.`, 185),
+    businessRisk: truncateText(`If launched without revision, this mismatch may reduce engagement quality for ${selectedGoal.toLowerCase()} traffic and create inconsistent audience interpretation.`, 175),
+    exactFix: truncateText(`Advisory recommendation: before launch, review this creative's goal/vertical alignment and consider sequencing message-first then action. ${fixSuggestion}`, 195),
   };
 }
 
@@ -332,47 +387,78 @@ function isLaunchReady(payload) {
   return score >= 70 && goalAligned && verticalAligned;
 }
 
+function detectElementPosition(layoutText, elementKeywords, fallback) {
+  const positions = [
+    { label: "top-left", pattern: "top(?:\\s|-)?left|upper(?:\\s|-)?left" },
+    { label: "top-right", pattern: "top(?:\\s|-)?right|upper(?:\\s|-)?right" },
+    { label: "bottom-left", pattern: "bottom(?:\\s|-)?left|lower(?:\\s|-)?left" },
+    { label: "bottom-right", pattern: "bottom(?:\\s|-)?right|lower(?:\\s|-)?right" },
+    { label: "center", pattern: "center|middle" },
+    { label: "left", pattern: "\\bleft\\b" },
+    { label: "right", pattern: "\\bright\\b" },
+  ];
+
+  for (const position of positions) {
+    for (const keyword of elementKeywords) {
+      const nearPattern = new RegExp(`(${position.pattern})[^.\\n]{0,48}(${keyword})|(${keyword})[^.\\n]{0,48}(${position.pattern})`, "i");
+      if (nearPattern.test(layoutText)) {
+        return position.label;
+      }
+    }
+  }
+
+  return fallback;
+}
+
+function formatPosArticle(position) {
+  if (!position) return "";
+  if (position === "center") return "in the center";
+  return `on the ${position}`;
+}
+
 function buildLayoutClarityAnalysis({ flow, extractionSignals, behavioral, campaignGoal, campaignVertical }) {
   const attention = flow?.attentionAnalysis || null;
   const headline = extractionSignals?.headline?.trim() || null;
   const cta = extractionSignals?.cta?.trim() || null;
   const dominantVisual = extractionSignals?.dominant_visual_cue?.trim() || null;
   const productCategory = extractionSignals?.product_category || "the product";
+  const layoutStructure = String(extractionSignals?.layout_structure || "");
+  const hierarchyObservations = String(extractionSignals?.hierarchy_observations || "");
+  const attentionPath = String(attention?.attention_path || "");
+  const layoutText = `${layoutStructure} ${hierarchyObservations} ${attentionPath}`.toLowerCase();
 
   const firstFocus = attention?.first_focus || (headline ? "headline" : dominantVisual ? "image" : "primary visual");
   const frictionPoints = Array.isArray(attention?.friction_points) ? attention.friction_points.filter(Boolean) : [];
   const goalText = labelGoal(campaignGoal || "awareness").toLowerCase();
   const verticalText = labelVertical(campaignVertical || "unknown");
 
-  const scanStages = Array.isArray(attention?.scan_stages) && attention.scan_stages.length > 0
-    ? attention.scan_stages
-    : [
-      headline
-        ? `First glance: people lock on \"${headline}\" before checking details.`
-        : `First glance: people orient to the ${dominantVisual ? "dominant visual" : "strongest visual block"}.`,
-      `Meaning pass: they verify whether the visual and copy actually describe ${productCategory.toLowerCase()}.`,
-      cta
-        ? `Decision pass: they decide whether \"${cta}\" feels earned for a ${goalText} ask.`
-        : "Decision pass: they look for a clear next step once message meaning is stable.",
-    ];
+  const headlinePos = detectElementPosition(layoutText, ["headline", "title", "heading"], "top-left");
+  const visualPos = detectElementPosition(layoutText, ["image", "visual", "photo", "product", "hero"], "right");
+  const ctaPos = detectElementPosition(layoutText, ["cta", "button", "call to action", "order", "shop", "register", "book"], "bottom-left");
 
-  const flowLine = attention?.attention_path || `Eye path starts at the ${headline ? "headline" : dominantVisual ? "visual" : "main message"}, then checks supporting context, then evaluates action intent.`;
+  const visualLabel = dominantVisual || "main visual";
+
+  const flowLine = `Read from the ${headlinePos} headline to the ${visualLabel} ${formatPosArticle(visualPos)} and then to the ${ctaPos} CTA.`;
   const focusLabel = firstFocus === "headline" ? "headline area" : `${String(firstFocus).charAt(0).toUpperCase()}${String(firstFocus).slice(1)} area`;
-  const frictionLine = frictionPoints.length > 0
+  const firstColor = Array.isArray(extractionSignals?.dominant_colors) && extractionSignals.dominant_colors.length > 0
+    ? String(extractionSignals.dominant_colors[0]).toLowerCase()
+    : null;
+  const colorPhrase = firstColor ? `${firstColor} ` : "";
+
+  const focusLine = firstFocus === "headline"
+    ? `${colorPhrase}headline ${formatPosArticle(headlinePos)}.`.replace(/\s+/g, " ").trim()
+    : firstFocus.toLowerCase().includes("visual") || firstFocus.toLowerCase().includes("image")
+      ? `${visualLabel} ${formatPosArticle(visualPos)}.`
+      : `${focusLabel}${headline ? ` anchored by \"${headline}\"` : ""}.`;
+
+  const humanNote = frictionPoints.length > 0
     ? frictionPoints[0]
-    : attention?.attention_conflict || "No major scan conflict detected; hierarchy appears coherent for a fast human read.";
-  const psychologyLine = attention?.viewing_psychology || `For ${verticalText} creatives, people need immediate category clarity before they trust the final action cue.`;
-  const actionReadiness = cta
-    ? `Action readiness: viewers are most likely to act only after ${headline ? "the headline promise" : "the core visual meaning"} feels credible enough to justify \"${cta}\".`
-    : "Action readiness: viewers need a clearer action target after message comprehension.";
+    : `From a human viewing perspective, the layout supports ${goalText} intent with a readable ${verticalText.toLowerCase()} narrative.`;
 
   return {
     flowLine,
-    focusLine: `${focusLabel}${headline ? ` (headline: "${headline}")` : ""}`,
-    scanStages,
-    frictionLine,
-    psychologyLine,
-    actionReadiness,
+    focusLine,
+    humanNote,
   };
 }
 
@@ -657,6 +743,7 @@ export default function AnalysisPanel({
 
   const overviewAudienceInterpretation = useMemo(() => {
     const total = sorted.length;
+    const displayName = String(viewerName || "").trim() || "Strategist";
     const goalMismatchCount = sorted.filter((entry) => {
       const payload = getEntryPayload(entry) || {};
       return getGoalAlignment(payload)?.is_aligned === false;
@@ -684,21 +771,49 @@ export default function AnalysisPanel({
       return getGoalAlignment(payload)?.is_aligned === true && getVerticalAlignment(payload)?.is_aligned === true;
     }).length;
 
-    const likelyInterpretation = goalMismatchCount > 0 || verticalMismatchCount > 0
-      ? `${goalMismatchCount + verticalMismatchCount} combined goal/vertical mismatch signal${goalMismatchCount + verticalMismatchCount === 1 ? "" : "s"} suggest parts of the audience will interpret this campaign inconsistently across creatives.`
-      : `Most creatives present a coherent ${goalText.toLowerCase()} ${verticalText.toLowerCase()} narrative, so audiences are likely to interpret the campaign consistently.`;
+    const contextSignatures = sorted.map((entry) => {
+      const payload = getEntryPayload(entry) || {};
+      const signals = getExtractionSignals(payload) || {};
+      const normalizedHeadline = normalizeContextText(signals.headline || "");
+      const normalizedVisual = normalizeContextText(signals.dominant_visual_cue || signals.topic_summary || "");
+      const normalizedCategory = normalizeContextText(signals.product_category || signals.detected_vertical || "");
+      const normalizedBehavior = normalizeContextText(signals.advertising_behavior || "");
 
-    const readinessStage = aggressiveAskCount > Math.ceil(total / 2)
-      ? `The campaign leans action-heavy in ${aggressiveAskCount} of ${total} creatives, so it reads closer to late-stage intent than broad discovery.`
-      : `Action pressure is moderated across the set, which supports earlier-stage evaluation before commitment.`;
+      return [normalizedCategory, normalizedBehavior, normalizedHeadline, normalizedVisual]
+        .filter(Boolean)
+        .join("|");
+    });
+
+    const uniqueContexts = new Set(contextSignatures.filter(Boolean));
+    const uniqueSizes = new Set(sorted.map((entry) => String(entry?.creative?.size || "").trim()).filter(Boolean));
+    const hasMixedContexts = uniqueContexts.size > 1;
+    const sameContextDifferentSizes = uniqueContexts.size === 1 && uniqueSizes.size > 1;
+
+    const contextAdvisory = hasMixedContexts
+      ? `Hi ${displayName}, we recommend launching campaigns using creatives with the same context but different dimensions to achieve better performance and clearer audience targeting.`
+      : sameContextDifferentSizes
+        ? `Hi ${displayName}, great job! All creatives share the same context with different dimensions, which increases the probability of winning better auctions and achieving stronger campaign performance.`
+        : `Hi ${displayName}, audience targeting is most stable when message context stays consistent across creatives.`;
+
+    const likelyInterpretation = goalMismatchCount > 0 || verticalMismatchCount > 0
+      ? `Audience targeting baseline is ${goalText.toLowerCase()} intent within ${verticalText}. However, ${goalMismatchCount + verticalMismatchCount} goal/vertical mismatch signal${goalMismatchCount + verticalMismatchCount === 1 ? "" : "s"} indicate interpretation drift across creatives.`
+      : `Audience targeting baseline is ${goalText.toLowerCase()} intent within ${verticalText}, and this alignment is largely consistent across the uploaded set.`;
+
+    const readinessStage = hasMixedContexts
+      ? `Creative contexts are fragmented (${uniqueContexts.size} distinct context pattern${uniqueContexts.size === 1 ? "" : "s"}), so audience-stage targeting may split across different intent groups.`
+      : aggressiveAskCount > Math.ceil(total / 2)
+        ? `The campaign leans action-heavy in ${aggressiveAskCount} of ${total} creatives, so targeting reads closer to late-stage intent.`
+        : `Context remains coherent across the set, supporting cleaner audience-stage optimization.`;
 
     const trustPerception = trustGapCount > 0
-      ? `${trustGapCount} creative${trustGapCount === 1 ? " shows" : "s show"} trust friction, so credibility signals are uneven at campaign level.`
-      : "Trust signaling appears stable across the set, with no dominant credibility gap pattern.";
+      ? `${trustGapCount} creative${trustGapCount === 1 ? " shows" : "s show"} trust friction; combined with context variation this can reduce delivery efficiency and audience confidence.`
+      : "Trust signaling appears stable at campaign level, with no dominant credibility gap pattern.";
 
     const likelyAudienceReaction = alignedBothCount === total
-      ? "Audiences are more likely to move smoothly from impression to action because message and targeting cues stay consistent."
-      : "Audiences may respond unevenly across placements because campaign cues do not resolve to a single stage-and-vertical story.";
+      ? contextAdvisory
+      : hasMixedContexts
+        ? contextAdvisory
+        : "Audiences may respond unevenly across placements because campaign cues do not fully resolve to one stage-and-vertical story.";
 
     return {
       likelyInterpretation,
@@ -706,6 +821,17 @@ export default function AnalysisPanel({
       trustPerception,
       likelyAudienceReaction,
     };
+  }, [sorted, goalText, verticalText, viewerName]);
+
+  const overviewAudienceByCreative = useMemo(() => {
+    return sorted.map((entry) => {
+      const payload = getEntryPayload(entry) || {};
+      const signals = getExtractionSignals(payload) || {};
+      return {
+        creativeName: entry?.creative?.name || "Untitled Creative",
+        intent: inferCreativeAudienceIntent(signals, payload, goalText, verticalText),
+      };
+    });
   }, [sorted, goalText, verticalText]);
 
   const greetingName = useMemo(() => {
@@ -791,24 +917,6 @@ export default function AnalysisPanel({
               <p className="mt-2 max-w-3xl text-sm leading-relaxed text-slate-300">
                 Here is a campaign-level summary of the key problems identified and the strategic issues already resolved.
               </p>
-              <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3">
-                <div className="rounded-xl border border-rose-500/35 bg-rose-500/10 p-3.5">
-                  <p className="text-[10px] font-semibold uppercase tracking-wider text-rose-200/90">Problems Identified</p>
-                  <div className="mt-2 space-y-2">
-                    {overviewProblemSummary.identified.map((item) => (
-                      <p key={item} className="text-sm leading-relaxed text-rose-100">- {item}</p>
-                    ))}
-                  </div>
-                </div>
-                <div className="rounded-xl border border-emerald-500/35 bg-emerald-500/10 p-3.5">
-                  <p className="text-[10px] font-semibold uppercase tracking-wider text-emerald-100">Problems Resolved</p>
-                  <div className="mt-2 space-y-2">
-                    {overviewProblemSummary.resolved.map((item) => (
-                      <p key={item} className="text-sm leading-relaxed text-emerald-100">- {item}</p>
-                    ))}
-                  </div>
-                </div>
-              </div>
             </div>
 
             {/* ── TOP SUMMARY STRIP ── */}
@@ -962,6 +1070,17 @@ export default function AnalysisPanel({
                   <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Trust Perception</p>
                   <p className="mt-1 text-sm leading-relaxed text-slate-100">{overviewAudienceInterpretation.trustPerception}</p>
                   <p className="mt-2 text-xs leading-relaxed text-slate-300">Likely audience reaction: {overviewAudienceInterpretation.likelyAudienceReaction}</p>
+                </div>
+
+                <div className="rounded-lg border border-cyan-500/20 bg-cyan-500/5 p-3 md:col-span-3">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-cyan-300">Per-Creative Audience Intent</p>
+                  <div className="mt-2 space-y-2">
+                    {overviewAudienceByCreative.map((item) => (
+                      <p key={`${item.creativeName}-${item.intent}`} className="text-sm leading-relaxed text-slate-100">
+                        <span className="font-semibold text-cyan-200">{item.creativeName}:</span> {item.intent}
+                      </p>
+                    ))}
+                  </div>
                 </div>
               </div>
             </div>
@@ -1353,36 +1472,15 @@ export default function AnalysisPanel({
               <Eye size={15} className="text-cyan-300" />
               <h4 className="text-sm font-semibold text-white">5. Layout &amp; Attention Flow</h4>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
-              <div className="rounded-lg border border-white/10 bg-white/[0.03] p-3 md:col-span-2">
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-1.5">Human Visual Scan</p>
-                {Array.isArray(layoutClarity.scanStages) && layoutClarity.scanStages.map((stage, idx) => (
-                  <p key={`${stage}-${idx}`} className="text-sm text-slate-200 leading-relaxed">
-                    {stage}
-                  </p>
-                ))}
-              </div>
-
-              <div className="rounded-lg border border-white/10 bg-white/[0.03] p-3">
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-1.5">Perceptual Flow</p>
-                <p className="text-sm text-slate-200 leading-relaxed">
-                  <span className="font-semibold text-slate-100">Flow:</span> {layoutClarity.flowLine}
-                </p>
-                <p className="text-sm text-slate-200 leading-relaxed mt-1">
-                  <span className="font-semibold text-slate-100">Focus:</span> {layoutClarity.focusLine}
-                </p>
-              </div>
-
-              <div className="rounded-lg border border-white/10 bg-white/[0.03] p-3">
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-1.5">Human Friction</p>
-                <p className="text-sm text-slate-200 leading-relaxed">{layoutClarity.frictionLine}</p>
-                <p className="text-sm text-slate-200 leading-relaxed mt-1">{layoutClarity.psychologyLine}</p>
-              </div>
-
-              <div className="rounded-lg border border-cyan-500/20 bg-cyan-500/5 p-3 md:col-span-2">
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-cyan-300 mb-1.5">Decision Moment</p>
-                <p className="text-sm text-slate-100 leading-relaxed">{layoutClarity.actionReadiness}</p>
-              </div>
+            <div className="rounded-lg border border-white/10 bg-white/[0.03] p-3">
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-1.5">Layout &amp; Attention Flow</p>
+              <p className="text-sm text-slate-200 leading-relaxed">
+                <span className="font-semibold text-slate-100">Flow:</span> {layoutClarity.flowLine}
+              </p>
+              <p className="text-sm text-slate-200 leading-relaxed mt-1">
+                <span className="font-semibold text-slate-100">Focus:</span> {layoutClarity.focusLine}
+              </p>
+              <p className="mt-2 text-xs leading-relaxed text-slate-300">{layoutClarity.humanNote}</p>
             </div>
           </div>
 
@@ -1396,10 +1494,6 @@ export default function AnalysisPanel({
               <div className="rounded-lg border border-white/10 bg-white/[0.03] p-3">
                 <p className="text-[10px] font-semibold uppercase tracking-wider text-emerald-200">Core Problem</p>
                 <p className="mt-1 text-slate-100">{strategistSummary.coreProblem}</p>
-              </div>
-              <div className="rounded-lg border border-white/10 bg-white/[0.03] p-3">
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-emerald-200">Why It Happens</p>
-                <p className="mt-1 text-slate-100">{strategistSummary.whyItHappens}</p>
               </div>
               <div className="rounded-lg border border-white/10 bg-white/[0.03] p-3">
                 <p className="text-[10px] font-semibold uppercase tracking-wider text-emerald-200">Business Risk</p>

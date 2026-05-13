@@ -1157,9 +1157,9 @@ function buildStrategicRecommendations(params: {
   if (alignment.alignment_status !== "aligned") {
     recommendations.push({
       issue: "Campaign-to-creative strategic mismatch",
-      why_it_hurts: `${behavioralResponse.perceived_message} ${behavioralResponse.likely_objection}`,
-      recommended_change: `Realign CTA pressure, urgency cues, and message framing so the audience can reach ${behavioralResponse.commitment_readiness.toLowerCase()} before a direct ask appears.`,
-      expected_outcome: `${behavioralResponse.confidence_building} The audience should move with less resistance and better stage fit.`,
+      why_it_hurts: `Detected mismatch: ${alignment.strategic_conflict} Evidence from audience modeling indicates ${behavioralResponse.likely_objection.toLowerCase()}.`,
+      recommended_change: `Recommendation: Review campaign-goal and vertical alignment before launch, then adjust CTA pressure, urgency cues, and message framing so audiences can reach ${behavioralResponse.commitment_readiness.toLowerCase()} before a direct ask.`,
+      expected_outcome: `Expected impact based on behavioral evidence: ${behavioralResponse.confidence_building} This should improve stage-fit consistency and reduce resistance.`,
       audience_reaction: behavioralResponse.emotional_state,
       emotional_barrier: behavioralResponse.risk_aversion,
       missing_belief: behavioralResponse.trust_gap,
@@ -1172,9 +1172,9 @@ function buildStrategicRecommendations(params: {
   if (attention.friction_points.length > 0) {
     recommendations.push({
       issue: "Attention flow breaks before CTA",
-      why_it_hurts: `${attention.friction_points.join(" ")} ${behavioralResponse.resistance_trigger}`,
-      recommended_change: "Reduce competing copy, tighten hierarchy, and isolate the strongest value claim near the CTA so the audience stays emotionally engaged long enough to evaluate it.",
-      expected_outcome: "The audience should stay oriented, feel less mental effort, and continue from perception into evaluation instead of dropping out.",
+      why_it_hurts: `Observed attention friction: ${attention.friction_points.join(" ")} This increases the likelihood of ${behavioralResponse.resistance_trigger.toLowerCase()}.`,
+      recommended_change: "Recommendation: Consider simplifying competing copy, tightening hierarchy, and isolating one value claim near the CTA so viewers can evaluate the message with less cognitive load.",
+      expected_outcome: "Research-backed expectation: cleaner visual hierarchy generally improves scan continuity, helping users move from perception to evaluation with fewer drop-offs.",
       audience_reaction: behavioralResponse.emotional_state,
       emotional_barrier: behavioralResponse.risk_aversion,
       missing_belief: "The audience does not yet believe the message is worth the cognitive effort.",
@@ -1187,9 +1187,9 @@ function buildStrategicRecommendations(params: {
   if (extraction.readability === "low") {
     recommendations.push({
       issue: "Low readability undercuts persuasion",
-      why_it_hurts: `${behavioralResponse.resistance_trigger} ${behavioralResponse.likely_objection}`,
-      recommended_change: "Increase text contrast, shorten copy blocks, and prioritize one dominant claim per frame so the audience can understand the message before emotional fatigue sets in.",
-      expected_outcome: "The audience should decode the message with less effort, which increases confidence and reduces early abandonment.",
+      why_it_hurts: `Readability is currently constraining message uptake. Audience evidence suggests ${behavioralResponse.likely_objection.toLowerCase()}.`,
+      recommended_change: "Recommendation: Consider increasing text contrast, shortening copy blocks, and prioritizing one dominant claim per frame before scaling spend.",
+      expected_outcome: "Expected impact from readability improvements: faster comprehension, lower cognitive fatigue, and stronger confidence before action.",
       audience_reaction: behavioralResponse.emotional_state,
       emotional_barrier: "Cognitive effort is becoming the emotional barrier.",
       missing_belief: "The audience does not yet believe the message is easy enough to process quickly.",
@@ -1202,9 +1202,9 @@ function buildStrategicRecommendations(params: {
   if (psychology.trust_signal_strength.toLowerCase().includes("weak")) {
     recommendations.push({
       issue: "Insufficient trust reinforcement",
-      why_it_hurts: `${behavioralResponse.trust_gap} ${behavioralResponse.likely_objection}`,
-      recommended_change: "Add proof elements such as brand credentials, social proof, or concrete reliability markers near the CTA so certainty grows before commitment pressure rises.",
-      expected_outcome: "The audience should feel safer, more certain, and more willing to move from evaluation into action.",
+      why_it_hurts: `Trust signals appear weak for this category and stage. Behavioral evidence points to ${behavioralResponse.trust_gap.toLowerCase()}.`,
+      recommended_change: "Recommendation: Review trust gaps and add proof elements (credentials, social proof, or reliability markers) near the CTA to support decision confidence.",
+      expected_outcome: "Expected impact from trust reinforcement: stronger perceived credibility and improved transition from evaluation to action.",
       audience_reaction: behavioralResponse.emotional_state,
       emotional_barrier: behavioralResponse.risk_aversion,
       missing_belief: "The audience still needs a stronger belief that the message is credible and safe to trust.",
@@ -1217,9 +1217,9 @@ function buildStrategicRecommendations(params: {
   if (recommendations.length === 0) {
     recommendations.push({
       issue: "No critical structural issue detected",
-      why_it_hurts: `${behavioralResponse.commitment_pressure} ${behavioralResponse.trust_gap}`,
-      recommended_change: "Run controlled A/B tests on headline framing, proof placement, and CTA microcopy to improve behavioral readiness without disrupting strategic alignment.",
-      expected_outcome: "Incremental lift with more confident audience movement from curiosity into intent.",
+      why_it_hurts: `No high-severity mismatch is detected, but there is still optimization potential around ${behavioralResponse.commitment_pressure.toLowerCase()}.`,
+      recommended_change: "Recommendation: Consider controlled A/B tests on headline framing, proof placement, and CTA microcopy to validate lift before broad rollout.",
+      expected_outcome: "Expected impact: incremental lift with more stable audience progression from curiosity to intent.",
       audience_reaction: behavioralResponse.emotional_state,
       emotional_barrier: behavioralResponse.risk_aversion,
       missing_belief: behavioralResponse.trust_gap,
@@ -1586,6 +1586,11 @@ Return JSON only.`;
         headline: extraction.headline,
         cta: extraction.cta,
         brand_presence: extraction.brand_presence,
+        layout_structure: extraction.layout_structure,
+        hierarchy_observations: extraction.hierarchy_observations,
+        dominant_colors: extraction.dominant_colors,
+        text_density: extraction.text_density,
+        readability: extraction.readability,
         dominant_visual_cue: extraction.visual_elements[0] || "",
         persuasion_style: psychologyAnalysis.persuasion_style,
         detected_vertical: verticalIntelligence.productCategory.id,
