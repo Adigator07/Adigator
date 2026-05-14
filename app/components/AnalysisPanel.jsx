@@ -6,6 +6,8 @@ import {
   AlertTriangle,
   Brain,
   CheckCircle,
+  ChevronDown,
+  ChevronUp,
   Download,
   Eye,
   FlaskConical,
@@ -157,6 +159,19 @@ function inferCreativeAudienceIntent(signals, payload, goalText, verticalText) {
   const hasBikeSignal = /bike|bicycle|motorbike|cycling/.test(corpus);
   const hasBurgerSignal = /burger|fries|fast food|meal|restaurant|food|qsr/.test(corpus);
   const hasCoffeeSignal = /coffee|latte|espresso|cafe|beverage/.test(corpus);
+  const hasFinanceSignal = /finance|bank|loan|credit|invest|insurance|interest|saving/.test(corpus);
+  const hasTravelSignal = /travel|trip|flight|hotel|stay|booking|vacation|holiday/.test(corpus);
+  const hasEducationSignal = /education|course|learn|enroll|admission|certification|degree|training/.test(corpus);
+  const hasTechSignal = /software|app|platform|ai|automation|dashboard|workflow|saas/.test(corpus);
+  const hasRetailSignal = /shop|store|cart|checkout|deal|discount|offer|sale/.test(corpus);
+  const hasGamingSignal = /game|gaming|esports|play now|level up/.test(corpus);
+  const hasLuxurySignal = /luxury|premium|exclusive|crafted|signature/.test(corpus);
+
+  const normalizedCategory = category.toLowerCase();
+  const isUnknownCategory =
+    !normalizedCategory ||
+    /unknown|unclear|mixed category|mixed audience|mixed/.test(normalizedCategory);
+
   const audienceBase = (() => {
     if (hasGiftSignal && hasBikeSignal && hasMenSignal && hasWomenSignal) {
       return "Women purchasing gifts for men interested in bikes.";
@@ -171,18 +186,61 @@ function inferCreativeAudienceIntent(signals, payload, goalText, verticalText) {
       return "Coffee and beverage consumers responding to taste/value-led offers.";
     }
 
-    const normalizedCategory = category.toLowerCase();
+    if (hasFinanceSignal) return "People comparing trustworthy financial options and outcomes.";
+    if (hasTravelSignal) return "Travel planners comparing destinations, stays, or booking value.";
+    if (hasEducationSignal) return "Learners exploring courses that improve career outcomes.";
+    if (hasTechSignal) return "Decision-makers evaluating software for productivity and results.";
+    if (hasRetailSignal) return "Shoppers looking for value, relevance, and easy purchase flow.";
+    if (hasGamingSignal) return "Gaming audiences looking for excitement, challenge, or rewards.";
+    if (hasLuxurySignal) return "Premium buyers motivated by exclusivity and elevated quality.";
+
+    if (normalizedCategory.includes("food") || normalizedCategory.includes("restaurant") || normalizedCategory.includes("qsr")) return "Restaurants / Food audiences.";
     if (normalizedCategory.includes("education")) return "Learners evaluating enrollment and career-outcome value.";
     if (normalizedCategory.includes("automotive")) return "Auto shoppers comparing design, value, and purchase timing.";
     if (normalizedCategory.includes("real estate")) return "Property seekers evaluating trust, value, and location relevance.";
     if (normalizedCategory.includes("finance") || normalizedCategory.includes("bank")) return "Financial decision-makers focused on trust, security, and returns.";
     if (normalizedCategory.includes("travel") || normalizedCategory.includes("hotel")) return "Travel and hospitality audiences planning stays or bookings.";
     if (normalizedCategory.includes("technology") || normalizedCategory.includes("software")) return "Tech buyers evaluating utility, proof, and workflow relevance.";
+    if (normalizedCategory.includes("luxury")) return "Luxury and premium lifestyle audiences.";
+    if (normalizedCategory.includes("gaming")) return "Gaming and interactive entertainment audiences.";
+    if (normalizedCategory.includes("ecommerce") || normalizedCategory.includes("retail")) return "Retail shoppers evaluating value and purchase momentum.";
+    if (normalizedCategory.includes("fashion")) return "Fashion and apparel audiences driven by style and self-expression.";
 
-    return `${String(verticalText || "campaign").replace(/\.$/, "")} audiences.`;
+    if (category && !isUnknownCategory) {
+      return `${String(category).replace(/\.$/, "")} audiences.`;
+    }
+
+    if (verticalText && verticalText.toLowerCase() !== "unknown") {
+      return `People interested in ${verticalText.toLowerCase()} offers.`;
+    }
+
+    return "Broad digital audiences likely seeing this as a general interest offer.";
   })();
 
-  return audienceBase;
+  const intentLayer = (() => {
+    if (/order now|buy now|shop now|book now|get now|checkout/.test(corpus)) {
+      return "Most likely intent: ready to take action quickly.";
+    }
+    if (/register|enroll|join now|sign up|apply now/.test(corpus)) {
+      return "Most likely intent: considering a sign-up or enrollment decision.";
+    }
+    if (/demo|free trial|start trial|request demo/.test(corpus)) {
+      return "Most likely intent: evaluating fit before committing.";
+    }
+    if (/learn more|discover|explore|see more|read more/.test(corpus)) {
+      return "Most likely intent: researching and learning before purchase.";
+    }
+    if (/download/.test(corpus)) {
+      return "Most likely intent: interested enough to exchange attention for a resource.";
+    }
+
+    const goal = String(goalText || "").toLowerCase();
+    if (goal.includes("conversion")) return "Most likely intent: primed for a direct response action.";
+    if (goal.includes("consideration")) return "Most likely intent: comparing options before deciding.";
+    return "Most likely intent: building awareness and initial interest.";
+  })();
+
+  return `${audienceBase} ${intentLayer}`;
 }
 
 function buildStrategistNarrative({
@@ -510,6 +568,7 @@ export default function AnalysisPanel({
   const [analysisTab, setAnalysisTab] = useState("overview");
   const [utilityTab, setUtilityTab] = useState("score-card");
   const [showAlignmentDetails, setShowAlignmentDetails] = useState(false);
+  const [showAudienceIntentTab, setShowAudienceIntentTab] = useState(false);
 
   if (!sorted.length) {
     return (
@@ -662,8 +721,19 @@ export default function AnalysisPanel({
       : 0;
 
     const mixedVerticals = sorted
-      .map((entry) => getVerticalAlignment(getEntryPayload(entry) || {})?.detected_vertical)
-      .filter((value) => value && value !== "unknown");
+      .map((entry) => {
+        const payload = getEntryPayload(entry) || {};
+        const va = getVerticalAlignment(payload) || {};
+        const detected = va?.detected_vertical;
+        const selected = va?.selected_vertical || campaignVertical || "unknown";
+
+        if (va?.is_aligned !== false) return null;
+        if (!detected || detected === "unknown") return null;
+        if (detected === selected) return null;
+
+        return detected;
+      })
+      .filter(Boolean);
     const verticalCounts = mixedVerticals.reduce((acc, vertical) => {
       acc[vertical] = (acc[vertical] || 0) + 1;
       return acc;
@@ -679,7 +749,7 @@ export default function AnalysisPanel({
       cohesionScore,
       topMixedVertical,
     };
-  }, [sorted, readyCount]);
+  }, [sorted, readyCount, campaignVertical]);
 
   const campaignInsights = useMemo(() => {
     const aggressiveCtaCount = sorted.filter((entry) => {
@@ -706,8 +776,10 @@ export default function AnalysisPanel({
     }).length;
 
     const verticalConflictText = topSummaryStats.topMixedVertical
-      ? `${topSummaryStats.topMixedVertical[1]} creatives appear closer to ${labelVertical(topSummaryStats.topMixedVertical[0])} than ${verticalText}.`
-      : `${topSummaryStats.verticalMisaligned} creatives do not match ${verticalText}.`;
+      ? `${topSummaryStats.topMixedVertical[1]} creative${topSummaryStats.topMixedVertical[1] === 1 ? "" : "s"} are being interpreted as ${labelVertical(topSummaryStats.topMixedVertical[0])} instead of ${verticalText}.`
+      : topSummaryStats.verticalMisaligned > 0
+        ? `${topSummaryStats.verticalMisaligned} creative${topSummaryStats.verticalMisaligned === 1 ? "" : "s"} show vertical mismatch signals against ${verticalText}.`
+        : `No vertical bleed detected. Creatives are aligned to ${verticalText}.`;
 
     return [
       {
@@ -1073,14 +1145,34 @@ export default function AnalysisPanel({
                 </div>
 
                 <div className="rounded-lg border border-cyan-500/20 bg-cyan-500/5 p-3 md:col-span-3">
-                  <p className="text-[10px] font-semibold uppercase tracking-wider text-cyan-300">Per-Creative Audience Intent</p>
-                  <div className="mt-2 space-y-2">
-                    {overviewAudienceByCreative.map((item) => (
-                      <p key={`${item.creativeName}-${item.intent}`} className="text-sm leading-relaxed text-slate-100">
-                        <span className="font-semibold text-cyan-200">{item.creativeName}:</span> {item.intent}
+                  <button
+                    type="button"
+                    onClick={() => setShowAudienceIntentTab((prev) => !prev)}
+                    className="flex w-full items-center justify-between gap-3 text-left"
+                    aria-expanded={showAudienceIntentTab}
+                    aria-controls="per-creative-audience-intent-tab"
+                  >
+                    <div>
+                      <p className="text-[10px] font-semibold uppercase tracking-wider text-cyan-300">Per-Creative Audience Intent</p>
+                      <p className="mt-1 text-xs text-cyan-100/80">
+                        Click to {showAudienceIntentTab ? "collapse" : "expand"} detailed audience intent by creative.
                       </p>
-                    ))}
-                  </div>
+                    </div>
+                    <span className="inline-flex items-center gap-1 rounded-md border border-cyan-400/30 bg-cyan-500/10 px-2 py-1 text-xs font-semibold text-cyan-100">
+                      {showAudienceIntentTab ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                      {showAudienceIntentTab ? "Open" : "Closed"}
+                    </span>
+                  </button>
+
+                  {showAudienceIntentTab && (
+                    <div id="per-creative-audience-intent-tab" className="mt-3 space-y-2 border-t border-cyan-400/20 pt-3">
+                      {overviewAudienceByCreative.map((item) => (
+                        <p key={`${item.creativeName}-${item.intent}`} className="text-sm leading-relaxed text-slate-100">
+                          <span className="font-semibold text-cyan-200">{item.creativeName}:</span> {item.intent}
+                        </p>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

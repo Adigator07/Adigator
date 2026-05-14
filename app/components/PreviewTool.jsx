@@ -547,7 +547,11 @@ export default function PreviewTool() {
       return prev.map((c) => {
         if (c.id !== id) return c;
         if (!originalBackups[id]) setOriginalBackups((b) => ({ ...b, [id]: { ...c } }));
-        const updated = { ...c, ...updates, valid: allowedSizes.includes(updates.size || c.size) };
+        const newValidation = updates.validation ?? c.validation;
+        const newValid = newValidation
+          ? newValidation.valid && newValidation.status !== "CRITICAL"
+          : allowedSizes.includes(updates.size || c.size);
+        const updated = { ...c, ...updates, validation: newValidation, valid: newValid };
         saveToSupabase(updated);
         return updated;
       });
@@ -591,6 +595,14 @@ export default function PreviewTool() {
       setAnalysisLoading(false);
     }
   }, [validCreatives, campaignGoal, platform, campaignVertical, addToast]);
+
+  useEffect(() => {
+    if (step !== 3) return;
+    if (analysisLoading || analysisResult) return;
+    if (uploadedCreatives.length === 0) return;
+
+    runAnalysis();
+  }, [step, analysisLoading, analysisResult, uploadedCreatives.length, runAnalysis]);
 
   const handleDownloadReport = useCallback(async () => {
     if (!analysisResult) return;

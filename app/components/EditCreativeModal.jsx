@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useImageEditor } from "../hooks/useImageEditor";
+import { validateCreativeAsset } from "../lib/creativeValidation";
 import {
   X, Maximize2, Crop, Wand2, Undo2,
   Check, Star, ArrowRight, Loader2, ZoomIn,
@@ -61,12 +62,22 @@ export default function EditCreativeModal({ creative, onApply, onClose }) {
 
   const handleApply = useCallback(() => {
     if (!previewUrl || !previewSize) return;
-    onApply(creative.id, {
-      url: previewUrl,
-      size: previewSize,
-      valid: true,
+    const [newW, newH] = previewSize.split("x").map(Number);
+    validateCreativeAsset({ file: null, image: { width: newW, height: newH }, platform: "programmatic" }).then((freshValidation) => {
+      onApply(creative.id, {
+        url: previewUrl,
+        size: previewSize,
+        validation: freshValidation,
+        placementType: freshValidation.intelligence?.placementType,
+        deviceClassification: freshValidation.intelligence?.deviceClassification,
+        iabCompatibility: freshValidation.intelligence?.iabCompatibility,
+        dspCompatibility: freshValidation.intelligence?.dspCompatibility,
+        inventoryAvailability: freshValidation.intelligence?.inventory,
+        auctionReadiness: freshValidation.intelligence?.auctionReadiness,
+        premiumPlacementPotential: freshValidation.intelligence?.premiumPlacement,
+      });
+      onClose();
     });
-    onClose();
   }, [creative.id, previewUrl, previewSize, onApply, onClose]);
 
   const handleSliderMove = useCallback(
