@@ -146,77 +146,11 @@ function inferCreativeAudienceIntent(signals, payload, goalText, verticalText) {
   const cta = String(signals?.cta || "");
   const visual = String(signals?.dominant_visual_cue || "");
   const topic = String(signals?.topic_summary || "");
-  const category = String(signals?.product_category || signals?.detected_vertical || "");
   const behavior = String(signals?.advertising_behavior || "");
   const behavioral = getBehavioralResponse(payload) || {};
   const likelyObjection = String(behavioral?.likely_objection || "");
   const trustGap = String(behavioral?.trust_gap || "");
-  const corpus = `${headline} ${cta} ${visual} ${topic} ${category} ${behavior} ${likelyObjection} ${trustGap}`.toLowerCase();
-
-  const hasGiftSignal = /gift|gifting|present/.test(corpus);
-  const hasMenSignal = /for men|male|him|husband|boyfriend/.test(corpus);
-  const hasWomenSignal = /for women|female|her|wife|girlfriend/.test(corpus);
-  const hasBikeSignal = /bike|bicycle|motorbike|cycling/.test(corpus);
-  const hasBurgerSignal = /burger|fries|fast food|meal|restaurant|food|qsr/.test(corpus);
-  const hasCoffeeSignal = /coffee|latte|espresso|cafe|beverage/.test(corpus);
-  const hasFinanceSignal = /finance|bank|loan|credit|invest|insurance|interest|saving/.test(corpus);
-  const hasTravelSignal = /travel|trip|flight|hotel|stay|booking|vacation|holiday/.test(corpus);
-  const hasEducationSignal = /education|course|learn|enroll|admission|certification|degree|training/.test(corpus);
-  const hasTechSignal = /software|app|platform|ai|automation|dashboard|workflow|saas/.test(corpus);
-  const hasRetailSignal = /shop|store|cart|checkout|deal|discount|offer|sale/.test(corpus);
-  const hasGamingSignal = /game|gaming|esports|play now|level up/.test(corpus);
-  const hasLuxurySignal = /luxury|premium|exclusive|crafted|signature/.test(corpus);
-
-  const normalizedCategory = category.toLowerCase();
-  const isUnknownCategory =
-    !normalizedCategory ||
-    /unknown|unclear|mixed category|mixed audience|mixed/.test(normalizedCategory);
-
-  const audienceBase = (() => {
-    if (hasGiftSignal && hasBikeSignal && hasMenSignal && hasWomenSignal) {
-      return "Women purchasing gifts for men interested in bikes.";
-    }
-    if (hasGiftSignal && hasBikeSignal && hasMenSignal) {
-      return "Gift buyers purchasing for men interested in bikes.";
-    }
-    if (hasBurgerSignal) {
-      return "Food consumers with quick-meal intent, including impulse QSR buyers.";
-    }
-    if (hasCoffeeSignal) {
-      return "Coffee and beverage consumers responding to taste/value-led offers.";
-    }
-
-    if (hasFinanceSignal) return "People comparing trustworthy financial options and outcomes.";
-    if (hasTravelSignal) return "Travel planners comparing destinations, stays, or booking value.";
-    if (hasEducationSignal) return "Learners exploring courses that improve career outcomes.";
-    if (hasTechSignal) return "Decision-makers evaluating software for productivity and results.";
-    if (hasRetailSignal) return "Shoppers looking for value, relevance, and easy purchase flow.";
-    if (hasGamingSignal) return "Gaming audiences looking for excitement, challenge, or rewards.";
-    if (hasLuxurySignal) return "Premium buyers motivated by exclusivity and elevated quality.";
-
-    if (normalizedCategory.includes("food") || normalizedCategory.includes("restaurant") || normalizedCategory.includes("qsr")) return "Restaurants / Food audiences.";
-    if (normalizedCategory.includes("education")) return "Learners evaluating enrollment and career-outcome value.";
-    if (normalizedCategory.includes("automotive")) return "Auto shoppers comparing design, value, and purchase timing.";
-    if (normalizedCategory.includes("real estate")) return "Property seekers evaluating trust, value, and location relevance.";
-    if (normalizedCategory.includes("finance") || normalizedCategory.includes("bank")) return "Financial decision-makers focused on trust, security, and returns.";
-    if (normalizedCategory.includes("travel") || normalizedCategory.includes("hotel")) return "Travel and hospitality audiences planning stays or bookings.";
-    if (normalizedCategory.includes("technology") || normalizedCategory.includes("software")) return "Tech buyers evaluating utility, proof, and workflow relevance.";
-    if (normalizedCategory.includes("luxury")) return "Luxury and premium lifestyle audiences.";
-    if (normalizedCategory.includes("gaming")) return "Gaming and interactive entertainment audiences.";
-    if (normalizedCategory.includes("ecommerce") || normalizedCategory.includes("retail")) return "Retail shoppers evaluating value and purchase momentum.";
-    if (normalizedCategory.includes("fashion")) return "Fashion and apparel audiences driven by style and self-expression.";
-
-    if (category && !isUnknownCategory) {
-      return `${String(category).replace(/\.$/, "")} audiences.`;
-    }
-
-    if (verticalText && verticalText.toLowerCase() !== "unknown") {
-      return `People interested in ${verticalText.toLowerCase()} offers.`;
-    }
-
-    return "Broad digital audiences likely seeing this as a general interest offer.";
-  })();
-
+  const corpus = `${headline} ${cta} ${visual} ${topic} ${behavior} ${likelyObjection} ${trustGap}`.toLowerCase();
   const intentLayer = (() => {
     if (/order now|buy now|shop now|book now|get now|checkout/.test(corpus)) {
       return "Most likely intent: ready to take action quickly.";
@@ -240,7 +174,7 @@ function inferCreativeAudienceIntent(signals, payload, goalText, verticalText) {
     return "Most likely intent: building awareness and initial interest.";
   })();
 
-  return `${audienceBase} ${intentLayer}`;
+  return intentLayer;
 }
 
 function buildStrategistNarrative({
