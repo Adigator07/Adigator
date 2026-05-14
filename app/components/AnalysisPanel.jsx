@@ -151,30 +151,56 @@ function inferCreativeAudienceIntent(signals, payload, goalText, verticalText) {
   const likelyObjection = String(behavioral?.likely_objection || "");
   const trustGap = String(behavioral?.trust_gap || "");
   const corpus = `${headline} ${cta} ${visual} ${topic} ${behavior} ${likelyObjection} ${trustGap}`.toLowerCase();
-  const intentLayer = (() => {
-    if (/order now|buy now|shop now|book now|get now|checkout/.test(corpus)) {
-      return "Most likely intent: ready to take action quickly.";
-    }
-    if (/register|enroll|join now|sign up|apply now/.test(corpus)) {
-      return "Most likely intent: considering a sign-up or enrollment decision.";
-    }
-    if (/demo|free trial|start trial|request demo/.test(corpus)) {
-      return "Most likely intent: evaluating fit before committing.";
-    }
-    if (/learn more|discover|explore|see more|read more/.test(corpus)) {
-      return "Most likely intent: researching and learning before purchase.";
-    }
-    if (/download/.test(corpus)) {
-      return "Most likely intent: interested enough to exchange attention for a resource.";
-    }
 
-    const goal = String(goalText || "").toLowerCase();
-    if (goal.includes("conversion")) return "Most likely intent: primed for a direct response action.";
-    if (goal.includes("consideration")) return "Most likely intent: comparing options before deciding.";
-    return "Most likely intent: building awareness and initial interest.";
-  })();
+  if (/gift|gifting|present/.test(corpus) && /bike|bicycle|motorbike|cycling/.test(corpus) && /for men|male|him|husband|boyfriend/.test(corpus)) {
+    return "gift buyers for men interested in bikes";
+  }
 
-  return intentLayer;
+  if (/burger|fries|fast food|meal|restaurant|food|qsr/.test(corpus)) {
+    return "food consumers with quick-meal intent";
+  }
+
+  if (/coffee|latte|espresso|cafe|beverage/.test(corpus)) {
+    return "coffee and beverage consumers";
+  }
+
+  if (/finance|bank|loan|credit|invest|insurance|interest|saving/.test(corpus)) {
+    return "people comparing financial options";
+  }
+
+  if (/travel|trip|flight|hotel|stay|booking|vacation|holiday/.test(corpus)) {
+    return "travel planners and booking prospects";
+  }
+
+  if (/education|course|learn|enroll|admission|certification|degree|training/.test(corpus)) {
+    return "learners exploring enrollment or training";
+  }
+
+  if (/software|app|platform|ai|automation|dashboard|workflow|saas/.test(corpus)) {
+    return "buyers evaluating software or tools";
+  }
+
+  if (/shop|store|cart|checkout|deal|discount|offer|sale/.test(corpus)) {
+    return "shoppers looking for value and convenience";
+  }
+
+  if (/game|gaming|esports|play now|level up/.test(corpus)) {
+    return "gaming audiences seeking entertainment";
+  }
+
+  if (/luxury|premium|exclusive|crafted|signature/.test(corpus)) {
+    return "premium buyers seeking elevated quality";
+  }
+
+  const normalizedVertical = String(verticalText || "").trim().toLowerCase();
+  if (normalizedVertical && normalizedVertical !== "unknown") {
+    return `${normalizedVertical} audiences`;
+  }
+
+  const goal = String(goalText || "").toLowerCase();
+  if (goal.includes("conversion")) return "ready-to-buy audiences";
+  if (goal.includes("consideration")) return "audiences comparing options";
+  return "broad awareness audiences";
 }
 
 function buildStrategistNarrative({
