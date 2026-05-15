@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import dynamic from "next/dynamic";
@@ -25,6 +25,24 @@ import {
 
 // Platform and CTA constants (previously from localAnalyzer)
 const PLATFORM_SIZES = {
+  google_ads: {
+    desktop: [
+      "300x250",
+      "336x280",
+      "728x90",
+      "970x90",
+      "970x250",
+      "300x600",
+      "160x600",
+    ],
+    mobile: ["320x50", "320x100", "300x250", "300x50"],
+    native: ["1200x628", "1080x1080"],
+  },
+  meta_ads: {
+    desktop: ["1200x628", "1080x1080"],
+    mobile: ["1080x1920", "1080x1350", "1080x1080"],
+    native: ["1080x1080", "1080x1350", "1200x1200"],
+  },
   programmatic: {
     desktop: SUPPORTED_DISPLAY_SIZE_GROUPS.desktop,
     mobile: SUPPORTED_DISPLAY_SIZE_GROUPS.mobile,
@@ -34,11 +52,33 @@ const PLATFORM_SIZES = {
 
 const GOAL_CTA = {
   awareness: ["Learn More", "Discover", "Explore", "Watch Now", "See Now"],
-  consideration: ["View Details", "Compare Now", "Check Features", "See Pricing", "Try Demo"],
   conversion: ["Buy Now", "Sign Up", "Get Started", "Download", "Claim Offer"],
+  traffic: ["Visit Site", "Learn More", "Read More", "Explore Now"],
+  app_installs: ["Install Now", "Download App", "Get the App", "Try It Free"],
+  lead_generation: ["Get Quote", "Request Demo", "Contact Sales", "Book Consultation"],
+  engagement: ["Comment", "Share", "React", "Join the Conversation"],
+  video_views: ["Watch Video", "Watch More", "Play Now", "See How It Works"],
+  retargeting: ["Complete Purchase", "Return to Cart", "Claim Offer", "Shop Again"],
 };
 
 const DEFAULT_CAMPAIGN_GOAL = "awareness";
+const WORKFLOW_STORAGE_KEY = "adigator_workflow_v1";
+const ANALYSIS_SESSION_STORAGE_KEY = "adigator_analysis_session_id";
+
+function parseStoredJson(value, fallback) {
+  if (!value) return fallback;
+  try {
+    return JSON.parse(value);
+  } catch {
+    return fallback;
+  }
+}
+
+function clampStep(value) {
+  const numeric = Number.parseInt(String(value || "1"), 10);
+  if (!Number.isFinite(numeric)) return 1;
+  return Math.min(Math.max(numeric, 1), TOTAL_STEPS);
+}
 import {
   UploadCloud, CheckCircle2, XCircle, AlertCircle,
   Download, LayoutGrid, Square, CheckSquare,
@@ -66,6 +106,44 @@ function Toast({ toasts }) {
   );
 }
 
+function NavBtn({ onClick, children, variant = "primary", disabled = false, className = "" }) {
+  const base = "flex-1 py-3 px-6 rounded-xl font-semibold transition disabled:opacity-40 disabled:cursor-not-allowed";
+  const bg = variant === "primary"
+    ? "bg-linear-to-r from-blue-600 to-purple-600 text-white"
+    : variant === "back"
+      ? "bg-white/10 hover:bg-white/20 text-white"
+      : "bg-linear-to-r from-green-600 to-emerald-600 text-white";
+
+  return (
+    <motion.button
+      type="button"
+      whileHover={{ scale: 1.02 }}
+      whileTap={{ scale: 0.98 }}
+      onClick={onClick}
+      disabled={disabled}
+      className={`${base} ${bg} ${className}`.trim()}
+    >
+      {children}
+    </motion.button>
+  );
+}
+
+function SelectionCard({ selected, onClick, children, activeClasses }) {
+  return (
+    <motion.div
+      whileHover={{ scale: 1.03 }}
+      whileTap={{ scale: 0.97 }}
+      animate={selected ? { boxShadow: ["0 0 0 rgba(168,85,247,0)", "0 0 22px rgba(168,85,247,0.25)", "0 0 0 rgba(168,85,247,0)"] } : { boxShadow: "0 0 0 rgba(0,0,0,0)" }}
+      transition={selected ? { duration: 1.6, repeat: Infinity, ease: "easeInOut" } : { duration: 0.2 }}
+      onClick={onClick}
+      className={`cursor-pointer rounded-2xl p-8 border-2 transition-all duration-200 bg-linear-to-br ${selected ? `${activeClasses} shadow-2xl` : "border-white/10 bg-white/5 hover:border-white/25"
+        }`}
+    >
+      {children}
+    </motion.div>
+  );
+}
+
 const TEMPLATES = [
   { id: "newspaper", name: "News website layout", icon: Newspaper, desc: "Awareness top funnel", slots: 7 },
   { id: "ecommerce", name: "E-commerce product page", icon: ShoppingCart, desc: "Conversion bottom funnel", slots: 7 },
@@ -86,6 +164,20 @@ const LOW_AVAILABILITY_SIZES = new Set([
 ]);
 
 const PLATFORMS = [
+  {
+    id: "google_ads", icon: "🟦", title: "Google Ads", desc: "Display inventory and responsive placements optimized for intent-rich contexts",
+    color: "from-blue-600/30 to-cyan-800/20", border: "border-blue-500/50",
+    desktop: PLATFORM_SIZES.google_ads.desktop,
+    mobile: PLATFORM_SIZES.google_ads.mobile,
+    native: PLATFORM_SIZES.google_ads.native,
+  },
+  {
+    id: "meta_ads", icon: "🟪", title: "Meta Ads", desc: "Feed, Story, and Reels ecosystems tuned for mobile attention and social engagement",
+    color: "from-pink-600/30 to-fuchsia-800/20", border: "border-fuchsia-500/50",
+    desktop: PLATFORM_SIZES.meta_ads.desktop,
+    mobile: PLATFORM_SIZES.meta_ads.mobile,
+    native: PLATFORM_SIZES.meta_ads.native,
+  },
   {
     id: "programmatic", icon: "📡", title: "Programmatic Ads", desc: "Real-time bidding across premium publisher inventory",
     color: "from-violet-600/30 to-violet-800/20", border: "border-violet-500/50",
@@ -111,7 +203,49 @@ const GOALS = [
     color: "from-orange-600/30 to-orange-800/20", border: "border-orange-500/50",
     desc: "Strong CTA, high contrast, urgent direct messaging.",
   },
+  {
+    id: "traffic", emoji: "🧭", title: "Traffic", subtitle: "Drive Visits",
+    color: "from-sky-600/30 to-sky-800/20", border: "border-sky-500/50",
+    desc: "Prioritize click-through clarity with low-friction value communication.",
+  },
+  {
+    id: "app_installs", emoji: "📲", title: "App Installs", subtitle: "Acquire Users",
+    color: "from-indigo-600/30 to-indigo-800/20", border: "border-indigo-500/50",
+    desc: "Highlight app utility fast, reduce cognitive load, and drive install intent.",
+  },
+  {
+    id: "lead_generation", emoji: "🧾", title: "Leads", subtitle: "Capture Leads",
+    color: "from-emerald-600/30 to-emerald-800/20", border: "border-emerald-500/50",
+    desc: "Build trust with offer clarity, authority signals, and qualification framing.",
+  },
+  {
+    id: "engagement", emoji: "💬", title: "Engagement", subtitle: "Spark Interaction",
+    color: "from-teal-600/30 to-teal-800/20", border: "border-teal-500/50",
+    desc: "Create conversation-worthy hooks to increase social interactions.",
+  },
+  {
+    id: "video_views", emoji: "🎬", title: "Video Views", subtitle: "Maximize Watch Time",
+    color: "from-rose-600/30 to-rose-800/20", border: "border-rose-500/50",
+    desc: "Optimize first-frame curiosity and narrative pull for continued viewing.",
+  },
+  {
+    id: "retargeting", emoji: "🔁", title: "Retargeting", subtitle: "Recover Intent",
+    color: "from-amber-600/30 to-amber-800/20", border: "border-amber-500/50",
+    desc: "Reinforce relevance and urgency for users already familiar with your offer.",
+  },
 ];
+
+const PLATFORM_GOAL_IDS = {
+  google_ads: ["awareness", "traffic", "conversion", "lead_generation", "engagement", "app_installs", "video_views", "retargeting"],
+  meta_ads: ["awareness", "traffic", "conversion", "lead_generation", "engagement", "app_installs", "video_views", "retargeting"],
+  programmatic: ["awareness", "consideration", "conversion"],
+};
+
+function getGoalTitle(goalId, platformId) {
+  if (goalId === "conversion" && platformId !== "programmatic") return "Conversions";
+  const found = GOALS.find((goal) => goal.id === goalId);
+  return found?.title || goalId;
+}
 
 const VERTICALS = [
   { id: "healthcare", title: "Healthcare" },
@@ -185,7 +319,7 @@ async function analyzeAllCreatives(creatives, goal, platform, vertical) {
       formData.append("image", imageBlob, "creative.jpg");
       formData.append("goal", goal);
       formData.append("vertical", verticalForApi);
-      formData.append("platform", platform || "display_ads");
+      formData.append("platform", platform || "programmatic");
 
       const analysisRes = await fetch("/api/analyze-creative", {
         method: "POST",
@@ -260,13 +394,24 @@ function deriveStatusFromIssues(issues) {
   return "PASS";
 }
 
+function getPersistableCreativeUrl(creative) {
+  const value = creative?.url;
+  if (typeof value !== "string") return null;
+  return /^https?:\/\//i.test(value) ? value : null;
+}
+
 export default function PreviewTool() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const pathname = usePathname();
 
-  // Initialize step from URL instead of local storage
-  const urlStep = parseInt(searchParams.get("step") || "1", 10);
+  const urlStepParam = searchParams.get("step");
+  const storedStepFallback = useMemo(() => {
+    if (typeof window === "undefined") return 1;
+    const storedWorkflow = parseStoredJson(localStorage.getItem(WORKFLOW_STORAGE_KEY), {});
+    return clampStep(storedWorkflow?.step || 1);
+  }, []);
+  const step = clampStep(urlStepParam || String(storedStepFallback));
   const [toasts, setToasts] = useState([]);
   const addToast = useCallback((message, type = "info") => {
     const id = Date.now();
@@ -274,40 +419,36 @@ export default function PreviewTool() {
     setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), 3500);
   }, []);
 
-  // Initialize state with basic defaults, then hydrate from localStorage
-  const [step, setStep] = useState(urlStep);
-  const [platform, setPlatform] = useState("programmatic");
-  const [campaignGoal, setCampaignGoal] = useState(DEFAULT_CAMPAIGN_GOAL);
-  const [campaignVertical, setCampaignVertical] = useState(null);
-
-  // 1. Persistence: Hydrate from localStorage on mount
-  useEffect(() => {
-    const savedPlatform = localStorage.getItem("adigator_platform");
+  const [platform, setPlatform] = useState(() => {
+    if (typeof window === "undefined") return "programmatic";
+    return localStorage.getItem("adigator_platform") || "programmatic";
+  });
+  const [campaignGoal, setCampaignGoal] = useState(() => {
+    if (typeof window === "undefined") return DEFAULT_CAMPAIGN_GOAL;
     const savedGoal = localStorage.getItem("adigator_goal");
-    const savedVertical = localStorage.getItem("adigator_vertical");
-    
-    if (savedPlatform) setPlatform(savedPlatform);
-    if (savedGoal && savedGoal !== "null") setCampaignGoal(savedGoal);
-    else setCampaignGoal(DEFAULT_CAMPAIGN_GOAL);
-    if (savedVertical && savedVertical !== "null") setCampaignVertical(savedVertical);
-  }, []);
-
-  // 2. Persistence: Save to localStorage when state changes
-  useEffect(() => {
-    localStorage.setItem("adigator_platform", platform);
-    localStorage.setItem("adigator_goal", campaignGoal || DEFAULT_CAMPAIGN_GOAL);
-    if (campaignVertical) localStorage.setItem("adigator_vertical", campaignVertical);
-  }, [platform, campaignGoal, campaignVertical]);
-
-  // 3. Robust Config Guard: If on Step 2+, but config is missing, force back to Step 1
-  useEffect(() => {
-    if (step > 1 && (!platform || !campaignGoal || !campaignVertical)) {
-      addToast("Configuration required. Please complete Step 1.", "error");
-      router.push(`${pathname}?step=1`, { scroll: true });
+    const savedPlatform = localStorage.getItem("adigator_platform") || "programmatic";
+    const allowedGoalIds = PLATFORM_GOAL_IDS[savedPlatform] || PLATFORM_GOAL_IDS.programmatic;
+    if (savedGoal && savedGoal !== "null" && allowedGoalIds.includes(savedGoal)) {
+      return savedGoal;
     }
-  }, [step, platform, campaignGoal, campaignVertical, pathname, router, addToast]);
+    return allowedGoalIds[0] || DEFAULT_CAMPAIGN_GOAL;
+  });
+  const [campaignVertical, setCampaignVertical] = useState(() => {
+    if (typeof window === "undefined") return null;
+    const savedVertical = localStorage.getItem("adigator_vertical");
+    return savedVertical && savedVertical !== "null" ? savedVertical : null;
+  });
+  const [analysisSessionId, setAnalysisSessionId] = useState(() => {
+    if (typeof window === "undefined") return null;
+    return localStorage.getItem(ANALYSIS_SESSION_STORAGE_KEY);
+  });
+  const mountRef = useRef(false);
 
-  const [creatives, setCreatives] = useState([]);
+  const [creatives, setCreatives] = useState(() => {
+    if (typeof window === "undefined") return [];
+    const storedWorkflow = parseStoredJson(localStorage.getItem(WORKFLOW_STORAGE_KEY), {});
+    return Array.isArray(storedWorkflow?.creatives) ? storedWorkflow.creatives : [];
+  });
   const [drag, setDrag] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [editingId, setEditingId] = useState(null);
@@ -315,21 +456,87 @@ export default function PreviewTool() {
   const [editModalCreative, setEditModalCreative] = useState(null);
   const [originalBackups, setOriginalBackups] = useState({});
 
-  const [analysisResult, setAnalysisResult] = useState(null);
+  const [analysisResult, setAnalysisResult] = useState(() => {
+    if (typeof window === "undefined") return null;
+    const storedWorkflow = parseStoredJson(localStorage.getItem(WORKFLOW_STORAGE_KEY), {});
+    return Array.isArray(storedWorkflow?.analysisResult) ? storedWorkflow.analysisResult : null;
+  });
   const [analysisLoading, setAnalysisLoading] = useState(false);
   const [viewerName, setViewerName] = useState("");
 
   const [selectedTemplate] = useState("newspaper");
-  const [viewMode, setViewMode] = useState("multiple");
-  const [showSlotLabels, setShowSlotLabels] = useState(false);
+  const [viewMode, setViewMode] = useState(() => {
+    if (typeof window === "undefined") return "multiple";
+    const storedWorkflow = parseStoredJson(localStorage.getItem(WORKFLOW_STORAGE_KEY), {});
+    return storedWorkflow?.viewMode === "single" || storedWorkflow?.viewMode === "multiple" ? storedWorkflow.viewMode : "multiple";
+  });
+  const [showSlotLabels, setShowSlotLabels] = useState(() => {
+    if (typeof window === "undefined") return false;
+    const storedWorkflow = parseStoredJson(localStorage.getItem(WORKFLOW_STORAGE_KEY), {});
+    return typeof storedWorkflow?.showSlotLabels === "boolean" ? storedWorkflow.showSlotLabels : false;
+  });
   const [isExporting, setIsExporting] = useState(false);
+
+  useEffect(() => {
+    mountRef.current = true;
+    return () => {
+      mountRef.current = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!mountRef.current) return;
+    if (urlStepParam) return;
+    router.replace(`${pathname}?step=${step}`, { scroll: false });
+  }, [urlStepParam, step, pathname, router]);
+
+  useEffect(() => {
+    localStorage.setItem("adigator_platform", platform);
+    localStorage.setItem("adigator_goal", campaignGoal || DEFAULT_CAMPAIGN_GOAL);
+    if (campaignVertical) localStorage.setItem("adigator_vertical", campaignVertical);
+    else localStorage.removeItem("adigator_vertical");
+
+    try {
+      localStorage.setItem(
+        WORKFLOW_STORAGE_KEY,
+        JSON.stringify({
+          step,
+          creatives,
+          analysisResult,
+          viewMode,
+          showSlotLabels,
+        })
+      );
+    } catch {
+      // Ignore quota/serialization issues and keep runtime state alive.
+    }
+  }, [
+    platform,
+    campaignGoal,
+    campaignVertical,
+    step,
+    creatives,
+    analysisResult,
+    viewMode,
+    showSlotLabels,
+  ]);
+
+  useEffect(() => {
+    if (analysisSessionId) {
+      localStorage.setItem(ANALYSIS_SESSION_STORAGE_KEY, analysisSessionId);
+      return;
+    }
+    localStorage.removeItem(ANALYSIS_SESSION_STORAGE_KEY);
+  }, [analysisSessionId]);
 
   const fileRef = useRef(null);
   const userRef = useRef(null);
   const goalSectionRef = useRef(null);
+  const sessionInitRef = useRef(false);
+  const lastSessionPayloadRef = useRef(null);
 
-  const selectedPlatform = PLATFORMS.find((p) => p.id === platform)?.title || "Not selected";
-  const selectedGoal = GOALS.find((g) => g.id === campaignGoal)?.title || "Not selected";
+  const isConfigComplete = Boolean(platform && campaignGoal && campaignVertical);
+
   const scrollToSection = useCallback((ref) => {
     if (!ref?.current) return;
     window.setTimeout(() => {
@@ -337,38 +544,225 @@ export default function PreviewTool() {
     }, 120);
   }, []);
 
-  const handlePlatformSelect = useCallback((id) => {
-    setPlatform(id);
-    scrollToSection(goalSectionRef);
-  }, [scrollToSection]);
-
-  const handleGoalSelect = useCallback((id) => {
-    setCampaignGoal(id);
+  const getAccessToken = useCallback(async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    return session?.access_token || null;
   }, []);
 
-  const selectedPlatformConfig = PLATFORMS.find((p) => p.id === platform);
-  const allowedSizes = platform
-    ? [
-      ...(PLATFORM_SIZES[platform]?.desktop || []),
-      ...(PLATFORM_SIZES[platform]?.mobile || []),
-      ...(PLATFORM_SIZES[platform]?.native || []),
-    ]
-    : [];
+  const createAnalysisSession = useCallback(async (initialValues = {}) => {
+    const token = await getAccessToken();
+    if (!token) return null;
 
-  const validCreatives = creatives.filter((c) => c && c.valid && (c.url || c.text || c.image || c.title));
-  const invalidCreatives = creatives.filter((c) => c && (!c.valid || !(c.url || c.text || c.image || c.title)));
+    const response = await fetch("/api/session/create", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(initialValues),
+    });
+
+    if (!response.ok) {
+      let message = "Unable to create analysis session.";
+      try {
+        const payload = await response.json();
+        if (payload?.error) message = payload.error;
+      } catch {
+        // Ignore parse errors and keep fallback message.
+      }
+      throw new Error(message);
+    }
+
+    const payload = await response.json();
+    const sessionId = payload?.sessionId;
+    if (!sessionId) {
+      throw new Error("Session creation succeeded but no sessionId was returned.");
+    }
+
+    setAnalysisSessionId(sessionId);
+    return sessionId;
+  }, [getAccessToken]);
+
+  const updateAnalysisSession = useCallback(async (updates) => {
+    if (!analysisSessionId) return false;
+
+    try {
+      const token = await getAccessToken();
+      if (!token) return false;
+
+      const response = await fetch("/api/session/update", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ sessionId: analysisSessionId, ...updates }),
+      });
+
+      if (!response.ok) {
+        let message = "Unable to update analysis session.";
+        try {
+          const payload = await response.json();
+          if (payload?.error) message = payload.error;
+        } catch {
+          // Ignore parse errors and keep fallback message.
+        }
+        console.error("Session update failed:", message);
+        return false;
+      }
+
+      return true;
+    } catch (error) {
+      console.error("Session update failed:", error);
+      return false;
+    }
+  }, [analysisSessionId, getAccessToken]);
+
+  const getUser = useCallback(async () => {
+    if (userRef.current) return userRef.current;
+    const { data: { session } } = await supabase.auth.getSession();
+    userRef.current = session?.user || null;
+    return userRef.current;
+  }, []);
+
+  const ensureAnalysisSession = useCallback(async () => {
+    if (analysisSessionId) return analysisSessionId;
+
+    const user = await getUser();
+    if (!user) return null;
+
+    return createAnalysisSession({
+      campaign_goal: campaignGoal || null,
+      vertical: campaignVertical || null,
+      platform: platform || null,
+      status: "draft",
+    });
+  }, [analysisSessionId, getUser, createAnalysisSession, campaignGoal, campaignVertical, platform]);
+
+  const handlePlatformSelect = useCallback((id) => {
+    const allowedGoalIds = PLATFORM_GOAL_IDS[id] || PLATFORM_GOAL_IDS.programmatic;
+    const fallbackGoal = allowedGoalIds[0] || DEFAULT_CAMPAIGN_GOAL;
+    const nextGoal = allowedGoalIds.includes(campaignGoal) ? campaignGoal : fallbackGoal;
+
+    setPlatform(id);
+    if (nextGoal !== campaignGoal) {
+      setCampaignGoal(nextGoal);
+    }
+    scrollToSection(goalSectionRef);
+
+    void ensureAnalysisSession()
+      .then((sessionId) => {
+        if (!sessionId) return;
+        return updateAnalysisSession({ platform: id, campaign_goal: nextGoal });
+      })
+      .catch((error) => {
+        console.error("Failed to persist platform selection", error);
+      });
+  }, [campaignGoal, scrollToSection, ensureAnalysisSession, updateAnalysisSession]);
+
+  const handleGoalSelect = useCallback((id) => {
+    const goalIds = PLATFORM_GOAL_IDS[platform] || PLATFORM_GOAL_IDS.programmatic;
+    if (!goalIds.includes(id)) return;
+    setCampaignGoal(id);
+
+    void ensureAnalysisSession()
+      .then((sessionId) => {
+        if (!sessionId) return;
+        return updateAnalysisSession({ campaign_goal: id });
+      })
+      .catch((error) => {
+        console.error("Failed to persist campaign goal", error);
+      });
+  }, [platform, ensureAnalysisSession, updateAnalysisSession]);
+
+  const handleVerticalSelect = useCallback((id) => {
+    setCampaignVertical(id);
+
+    void ensureAnalysisSession()
+      .then((sessionId) => {
+        if (!sessionId) return;
+        return updateAnalysisSession({ vertical: id });
+      })
+      .catch((error) => {
+        console.error("Failed to persist campaign vertical", error);
+      });
+  }, [ensureAnalysisSession, updateAnalysisSession]);
+
+  const selectedPlatformConfig = PLATFORMS.find((p) => p.id === platform);
+  const availableGoalIds = PLATFORM_GOAL_IDS[platform] || PLATFORM_GOAL_IDS.programmatic;
+  const availableGoals = GOALS.filter((goal) => availableGoalIds.includes(goal.id));
+  const allowedSizes = useMemo(() => (
+    platform
+      ? [
+        ...(PLATFORM_SIZES[platform]?.desktop || []),
+        ...(PLATFORM_SIZES[platform]?.mobile || []),
+        ...(PLATFORM_SIZES[platform]?.native || []),
+      ]
+      : []
+  ), [platform]);
+
+  const validCreatives = useMemo(() => creatives.filter((c) => c && c.valid && (c.url || c.text || c.image || c.title)), [creatives]);
+  const invalidCreatives = useMemo(() => creatives.filter((c) => c && (!c.valid || !(c.url || c.text || c.image || c.title))), [creatives]);
   const uploadedCreatives = validCreatives;
+  const primaryCreativeUrl = getPersistableCreativeUrl(uploadedCreatives[0]);
+  const canAdvanceToAnalysis = uploadedCreatives.length > 0;
+
+  useEffect(() => {
+    lastSessionPayloadRef.current = null;
+  }, [analysisSessionId]);
+
+  useEffect(() => {
+    if (!mountRef.current || !analysisSessionId) return;
+
+    const status = step >= 4
+      ? "preview_ready"
+      : step === 3
+        ? (analysisLoading ? "analysis_running" : "analysis_ready")
+        : step === 2
+          ? "upload_in_progress"
+          : "draft";
+
+    const payload = {
+      status,
+      campaign_goal: campaignGoal || null,
+      vertical: campaignVertical || null,
+      platform: platform || null,
+      creative_url: primaryCreativeUrl,
+    };
+
+    const payloadKey = JSON.stringify(payload);
+    if (lastSessionPayloadRef.current === payloadKey) return;
+    lastSessionPayloadRef.current = payloadKey;
+
+    const saveTimer = window.setTimeout(() => {
+      void updateAnalysisSession(payload);
+    }, 350);
+
+    return () => {
+      window.clearTimeout(saveTimer);
+    };
+  }, [
+    analysisSessionId,
+    step,
+    analysisLoading,
+    campaignGoal,
+    campaignVertical,
+    platform,
+    primaryCreativeUrl,
+    updateAnalysisSession,
+  ]);
+
   const validationResults = creatives.map((c) => c?.validation).filter(Boolean);
   const validationSummary = validationResults.length
     ? buildValidationSummary(validationResults)
     : { totalIssues: 0, criticalCount: 0, warningCount: 0, inventoryImpactScore: 100 };
 
   const goNext = useCallback(() => {
-    if (step === 1 && (!platform || !campaignGoal)) return;
-    if (step === 2 && uploadedCreatives.length === 0) return;
+    if (step === 1 && !isConfigComplete) return;
+    if (step === 2 && !canAdvanceToAnalysis) return;
     const nextStep = Math.min(step + 1, TOTAL_STEPS);
     router.push(`${pathname}?step=${nextStep}`, { scroll: true });
-  }, [step, platform, campaignGoal, uploadedCreatives.length, pathname, router]);
+  }, [step, isConfigComplete, canAdvanceToAnalysis, pathname, router]);
 
   const goBack = useCallback(() => {
     if (step === 1) {
@@ -379,11 +773,12 @@ export default function PreviewTool() {
     router.push(`${pathname}?step=${prevStep}`, { scroll: true });
   }, [step, router, pathname]);
 
-  // Sync state when URL parameter changes (e.g., via browser Back button)
   useEffect(() => {
-    const newStep = parseInt(searchParams.get("step") || "1", 10);
-    setStep(Math.min(Math.max(newStep, 1), TOTAL_STEPS));
-  }, [searchParams]);
+    if (!mountRef.current) return;
+    if (step > 1 && !isConfigComplete) {
+      router.replace(`${pathname}?step=1`, { scroll: false });
+    }
+  }, [step, isConfigComplete, pathname, router]);
 
   // Warn user before they leave with unsaved progress
   useEffect(() => {
@@ -399,17 +794,39 @@ export default function PreviewTool() {
 
   // Guard against entering analysis without creatives
   useEffect(() => {
+    if (!mountRef.current) return;
     if (step === 3 && uploadedCreatives.length === 0) {
       router.push(`${pathname}?step=2`, { scroll: true });
     }
   }, [step, uploadedCreatives.length, pathname, router]);
 
-  const getUser = useCallback(async () => {
-    if (userRef.current) return userRef.current;
-    const { data: { session } } = await supabase.auth.getSession();
-    userRef.current = session?.user || null;
-    return userRef.current;
-  }, []);
+  useEffect(() => {
+    if (!mountRef.current || sessionInitRef.current) return;
+
+    sessionInitRef.current = true;
+
+    let cancelled = false;
+
+    const initSession = async () => {
+      try {
+        const id = await ensureAnalysisSession();
+        if (!cancelled && id) {
+          setAnalysisSessionId(id);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          console.error("Failed to initialize analysis session", error);
+          addToast("Could not start a persistent analysis session.", "error");
+        }
+      }
+    };
+
+    initSession();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [ensureAnalysisSession, addToast]);
 
   useEffect(() => {
     let isMounted = true;
@@ -422,7 +839,7 @@ export default function PreviewTool() {
         const fullName = String(meta.full_name || meta.name || "").trim();
         const emailPrefix = String(user.email || "").split("@")[0] || "";
         setViewerName(fullName || emailPrefix || "");
-      } catch (error) {
+      } catch {
         if (isMounted) setViewerName("");
       }
     };
@@ -434,7 +851,7 @@ export default function PreviewTool() {
     };
   }, [getUser]);
 
-  const saveToSupabase = async (creative) => {
+  const saveToSupabase = useCallback(async (creative) => {
     try {
       const user = await getUser();
       if (!user) return;
@@ -448,7 +865,7 @@ export default function PreviewTool() {
         created_at: new Date().toISOString(),
       });
     } catch (e) { console.error("saveToSupabase error:", e); }
-  };
+  }, [getUser]);
 
   const handleFiles = async (files) => {
     if (!platform) { addToast("Please select a platform first.", "error"); return; }
@@ -556,7 +973,7 @@ export default function PreviewTool() {
         return updated;
       });
     });
-  }, [originalBackups, allowedSizes]);
+  }, [originalBackups, allowedSizes, saveToSupabase]);
 
   const startEdit = (id, currentName) => { setEditingId(id); setEditingName(currentName); };
   const saveEdit = (id) => {
@@ -601,8 +1018,21 @@ export default function PreviewTool() {
     if (analysisLoading || analysisResult) return;
     if (uploadedCreatives.length === 0) return;
 
-    runAnalysis();
+    const timer = window.setTimeout(() => {
+      void runAnalysis();
+    }, 0);
+
+    return () => window.clearTimeout(timer);
   }, [step, analysisLoading, analysisResult, uploadedCreatives.length, runAnalysis]);
+
+  useEffect(() => {
+    if (!analysisSessionId) return;
+    if (!Array.isArray(analysisResult) || analysisResult.length === 0) return;
+
+    void updateAnalysisSession({ status: "analysis_completed" }).catch((error) => {
+      console.error("Failed to mark analysis as completed", error);
+    });
+  }, [analysisSessionId, analysisResult, updateAnalysisSession]);
 
   const handleDownloadReport = useCallback(async () => {
     if (!analysisResult) return;
@@ -659,7 +1089,7 @@ export default function PreviewTool() {
         doc.setTextColor(255, 255, 255); doc.setFontSize(18); doc.text(`Creative: ${res.creative.name}`, 40, 48);
 
         let cy = 72;
-        try { doc.addImage(res.creative.url, 40, cy, 200, 130); cy += 145; } catch (e) { }
+        try { doc.addImage(res.creative.url, 40, cy, 200, 130); cy += 145; } catch { }
 
         const payload = getEntryPayload(res) || {};
         const flow = getStrategicFlow(payload);
@@ -702,35 +1132,10 @@ export default function PreviewTool() {
         { goal: campaignGoal, platform }
       );
       addToast(`Downloaded: ${filename}`, "success");
-    } catch (err) { addToast("Export failed.", "error"); }
+    } catch { addToast("Export failed.", "error"); }
     finally { setIsExporting(false); }
-  }, [isExporting, creatives, viewMode, selectedTemplate, addToast]);
+  }, [isExporting, creatives, viewMode, selectedTemplate, addToast, campaignGoal, platform]);
 
-  // Reusable Buttons
-  const NavBtn = ({ onClick, children, variant = "primary", disabled = false }) => {
-    const base = "flex-1 py-3 px-6 rounded-xl font-semibold transition disabled:opacity-40 disabled:cursor-not-allowed";
-    const bg = variant === "primary" ? "bg-linear-to-r from-blue-600 to-purple-600 text-white"
-      : variant === "back" ? "bg-white/10 hover:bg-white/20 text-white"
-        : "bg-linear-to-r from-green-600 to-emerald-600 text-white";
-    return (
-      <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={onClick} disabled={disabled} className={`${base} ${bg}`}>
-        {children}
-      </motion.button>
-    );
-  };
-
-  const SelectionCard = ({ selected, onClick, children, activeClasses }) => (
-    <motion.div
-      whileHover={{ scale: 1.03 }}
-      whileTap={{ scale: 0.97 }}
-      animate={selected ? { boxShadow: ["0 0 0 rgba(168,85,247,0)", "0 0 22px rgba(168,85,247,0.25)", "0 0 0 rgba(168,85,247,0)"] } : { boxShadow: "0 0 0 rgba(0,0,0,0)" }}
-      transition={selected ? { duration: 1.6, repeat: Infinity, ease: "easeInOut" } : { duration: 0.2 }}
-      onClick={onClick}
-      className={`cursor-pointer rounded-2xl p-8 border-2 transition-all duration-200 bg-linear-to-br ${selected ? `${activeClasses} shadow-2xl` : "border-white/10 bg-white/5 hover:border-white/25"
-        }`}>
-      {children}
-    </motion.div>
-  );
 
   return (
     <div className="min-h-screen bg-linear-to-br from-slate-900 via-purple-900 to-slate-900 text-white">
@@ -778,8 +1183,8 @@ export default function PreviewTool() {
               <motion.div variants={itemVariants} className="rounded-2xl border border-white/10 bg-white/5 p-5 backdrop-blur-lg">
                 <p className="text-xs uppercase tracking-[0.14em] text-gray-500">Selected Setup</p>
                 <div className="mt-3 grid gap-2 text-sm md:grid-cols-4">
-                  <p className="text-gray-300">Platform: <span className="text-white font-semibold">{platform}</span></p>
-                  <p className="text-gray-300">Goal: <span className="text-white font-semibold">{campaignGoal}</span></p>
+                  <p className="text-gray-300">Platform: <span className="text-white font-semibold">{PLATFORMS.find((p) => p.id === platform)?.title || platform}</span></p>
+                  <p className="text-gray-300">Goal: <span className="text-white font-semibold">{getGoalTitle(campaignGoal, platform)}</span></p>
                   <p className="text-gray-300">Vertical: <span className="text-white font-semibold">{campaignVertical ? VERTICALS.find(v => v.id === campaignVertical)?.title : "None"}</span></p>
                 </div>
               </motion.div>
@@ -802,8 +1207,8 @@ export default function PreviewTool() {
                           <span className="px-2 py-1 bg-white/10 rounded text-[10px] text-gray-300">Desktop: {p.desktop.length}</span>
                           <span className="px-2 py-1 bg-white/10 rounded text-[10px] text-gray-300">Mobile: {p.mobile.length}</span>
                           <span className="px-2 py-1 bg-white/10 rounded text-[10px] text-gray-300">Native: {p.native.length}</span>
-                          {[...p.desktop.slice(0, 2), ...p.mobile.slice(0, 2), ...p.native.slice(0, 2)].map(s => (
-                            <span key={s} className="px-2 py-1 bg-white/10 rounded text-[10px] text-gray-300">{s}</span>
+                          {[...new Set([...p.desktop.slice(0, 2), ...p.mobile.slice(0, 2), ...p.native.slice(0, 2)])].map((s, idx) => (
+                            <span key={`${p.id}-${s}-${idx}`} className="px-2 py-1 bg-white/10 rounded text-[10px] text-gray-300">{s}</span>
                           ))}
                         </div>
                       </div>
@@ -814,21 +1219,21 @@ export default function PreviewTool() {
 
               <motion.section ref={goalSectionRef} variants={itemVariants} className="space-y-5">
                 <div>
-                  <h3 className="text-2xl font-bold text-white">Campaign Goal</h3>
-                  <p className="mt-1 text-gray-400">Select your objective to guide the AI analysis.</p>
+                  <h3 className="text-2xl font-bold text-white">What is the campaign objective?</h3>
+                  <p className="mt-1 text-gray-400">Select the marketing intent. This directly changes analysis psychology and scoring behavior.</p>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  {GOALS.map((g) => (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                  {availableGoals.map((g) => (
                     <SelectionCard key={g.id} selected={campaignGoal === g.id} onClick={() => handleGoalSelect(g.id)} activeClasses={`${g.color} ${g.border}`}>
                       <div className="text-5xl mb-4">{g.emoji}</div>
                       <p className="text-xs font-bold text-purple-400 uppercase tracking-widest mb-1">{g.subtitle}</p>
-                      <h3 className={`text-2xl font-extrabold mb-2 ${campaignGoal === g.id ? "text-white" : "text-gray-200"}`}>{g.title}</h3>
+                      <h3 className={`text-2xl font-extrabold mb-2 ${campaignGoal === g.id ? "text-white" : "text-gray-200"}`}>{getGoalTitle(g.id, platform)}</h3>
                       <p className="text-sm text-gray-400 leading-relaxed mb-6">{g.desc}</p>
                       {campaignGoal === g.id && (
                         <div className="bg-white/10 p-3 rounded-xl">
                           <p className="text-[10px] font-bold text-gray-300 uppercase mb-2">Recommended CTAs:</p>
                           <div className="flex flex-wrap gap-1.5">
-                            {GOAL_CTA[g.id].map(cta => (
+                            {(GOAL_CTA[g.id] || GOAL_CTA.awareness).map(cta => (
                               <span key={cta} className="px-2 py-1 bg-purple-500/20 text-purple-200 border border-purple-500/30 rounded text-[10px]">{cta}</span>
                             ))}
                           </div>
@@ -848,7 +1253,7 @@ export default function PreviewTool() {
                   {VERTICALS.map((v) => (
                     <button
                       key={v.id}
-                      onClick={() => setCampaignVertical(v.id)}
+                      onClick={() => handleVerticalSelect(v.id)}
                       className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all border ${
                         campaignVertical === v.id
                           ? "bg-purple-600 border-purple-400 text-white shadow-[0_0_15px_rgba(168,85,247,0.4)]"
@@ -883,7 +1288,7 @@ export default function PreviewTool() {
               <div>
                 <h2 className="text-4xl font-bold text-white mb-2">Step 2: Upload & Validate</h2>
                 <p className="text-gray-400">
-                  {selectedPlatformConfig?.title} size intelligence active: {allowedSizes.length} supported display sizes across desktop, mobile, and native.
+                  {selectedPlatformConfig?.title} size intelligence active: {allowedSizes.length} supported formats across desktop, mobile, and native/social placements.
                 </p>
               </div>
 
@@ -891,7 +1296,7 @@ export default function PreviewTool() {
                 <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
                   <h3 className="text-xl font-bold text-white">Supported Display Sizes</h3>
                   <p className="text-xs text-purple-200/90 bg-purple-500/15 border border-purple-500/25 rounded-full px-3 py-1">
-                    Display Programmatic Only • IAB Compatible Matrix
+                    {selectedPlatformConfig?.title || "Platform"} • Creative Compatibility Matrix
                   </p>
                 </div>
 
@@ -899,7 +1304,7 @@ export default function PreviewTool() {
                   <div className="rounded-2xl border border-blue-500/25 bg-blue-500/8 p-4">
                     <p className="text-xs uppercase tracking-wider text-blue-300 font-bold mb-3">Desktop Display</p>
                     <div className="flex flex-wrap gap-2">
-                      {SUPPORTED_DISPLAY_SIZE_GROUPS.desktop.map((size) => (
+                      {(selectedPlatformConfig?.desktop || []).map((size) => (
                         <span key={`desktop-${size}`} className="px-2 py-1 rounded-md bg-white/10 text-[11px] text-blue-100 border border-white/10">
                           {size}
                         </span>
@@ -910,7 +1315,7 @@ export default function PreviewTool() {
                   <div className="rounded-2xl border border-purple-500/25 bg-purple-500/8 p-4">
                     <p className="text-xs uppercase tracking-wider text-purple-300 font-bold mb-3">Mobile Display</p>
                     <div className="flex flex-wrap gap-2">
-                      {SUPPORTED_DISPLAY_SIZE_GROUPS.mobile.map((size) => (
+                      {(selectedPlatformConfig?.mobile || []).map((size) => (
                         <span key={`mobile-${size}`} className="px-2 py-1 rounded-md bg-white/10 text-[11px] text-purple-100 border border-white/10">
                           {size}
                         </span>
@@ -921,7 +1326,7 @@ export default function PreviewTool() {
                   <div className="rounded-2xl border border-fuchsia-500/25 bg-fuchsia-500/8 p-4">
                     <p className="text-xs uppercase tracking-wider text-fuchsia-300 font-bold mb-3">Native / Feed Display</p>
                     <div className="flex flex-wrap gap-2">
-                      {SUPPORTED_DISPLAY_SIZE_GROUPS.native.map((size) => (
+                      {(selectedPlatformConfig?.native || []).map((size) => (
                         <span key={`native-${size}`} className="px-2 py-1 rounded-md bg-white/10 text-[11px] text-fuchsia-100 border border-white/10">
                           {size}
                         </span>
@@ -931,11 +1336,16 @@ export default function PreviewTool() {
                 </div>
 
                 <div className="mt-4 rounded-xl border border-white/10 bg-black/20 p-3">
-                  <p className="text-xs font-semibold text-gray-300 uppercase tracking-wider mb-2">DSP Compatibility Intelligence</p>
+                  <p className="text-xs font-semibold text-gray-300 uppercase tracking-wider mb-2">Platform Distribution Intelligence</p>
                   <div className="flex flex-wrap gap-2">
-                    {DSP_PARTNERS.map((dsp) => (
-                      <span key={dsp} className="px-2 py-1 rounded-md bg-emerald-500/10 border border-emerald-500/30 text-[11px] text-emerald-200">
-                        {dsp}
+                    {(platform === "programmatic"
+                      ? DSP_PARTNERS
+                      : platform === "google_ads"
+                        ? ["Google Display Network", "Responsive Display", "YouTube Companion"]
+                        : ["Meta Feed", "Meta Stories", "Meta Reels", "Meta Carousel"]
+                    ).map((channel) => (
+                      <span key={channel} className="px-2 py-1 rounded-md bg-emerald-500/10 border border-emerald-500/30 text-[11px] text-emerald-200">
+                        {channel}
                       </span>
                     ))}
                   </div>

@@ -14,11 +14,18 @@ import type {
   GeneratedEnvironment,
 } from "./types";
 
+function goalToStage(goal: string): "awareness" | "consideration" | "conversion" {
+  if (goal === "conversion" || goal === "app_installs" || goal === "retargeting") return "conversion";
+  if (goal === "traffic" || goal === "lead_generation" || goal === "consideration") return "consideration";
+  return "awareness";
+}
+
 // ── Environment family selector ────────────────────────────────────────────────
 export function selectEnvironmentFamily(
   vertical: string,
   goal: string
 ): EnvironmentFamily {
+  const goalStage = goalToStage(goal);
   const v = vertical.toLowerCase().replace(/[_\s/]+/g, "");
   if (v.includes("news") || v.includes("media") || v.includes("editorial")) return "news";
   if (v.includes("luxury") || v.includes("premium") || v.includes("fashion")) return "luxury";
@@ -39,7 +46,7 @@ export function selectEnvironmentFamily(
   if (v.includes("health") || v.includes("medical")) return "news"; // health ads fit editorial
   if (v.includes("education") || v.includes("edtech")) return "saas";
   if (v.includes("automotive") || v.includes("car")) return "luxury";
-  if (goal === "conversion") return "commerce";
+  if (goalStage === "conversion") return "commerce";
   return "news";
 }
 
@@ -76,8 +83,8 @@ export function buildTemplateName(
   goal: string
 ): string {
   const deviceStr = device === "desktop" ? "desktop" : device === "tablet" ? "tablet" : "mobile";
-  const goalSlug =
-    goal === "conversion" ? "cta" : goal === "consideration" ? "mid" : "editorial";
+  const stage = goalToStage(goal);
+  const goalSlug = stage === "conversion" ? "cta" : stage === "consideration" ? "mid" : "editorial";
   return `${environment}-${deviceStr}-${goalSlug}-v1`;
 }
 

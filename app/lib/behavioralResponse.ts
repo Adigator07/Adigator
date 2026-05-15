@@ -1,8 +1,15 @@
 export type SignalLevel = "low" | "moderate" | "high";
 export type CtaPressure = "soft" | "moderate" | "aggressive";
-export type CampaignGoal = "awareness" | "consideration" | "conversion";
+export type CampaignGoal = "awareness" | "traffic" | "conversion" | "lead_generation" | "engagement" | "app_installs" | "video_views" | "retargeting" | "consideration";
+type GoalStage = "awareness" | "consideration" | "conversion";
 export type AlignmentStatus = "aligned" | "partially_aligned" | "misaligned";
 export type Severity = "low" | "medium" | "high";
+
+function getGoalStage(goal: CampaignGoal): GoalStage {
+  if (goal === "conversion" || goal === "app_installs" || goal === "retargeting") return "conversion";
+  if (goal === "traffic" || goal === "lead_generation" || goal === "consideration") return "consideration";
+  return "awareness";
+}
 
 export interface BehavioralResponseInputs {
   goal: CampaignGoal;
@@ -102,7 +109,9 @@ function getIdentityNeed(vertical: string): string {
 }
 
 function getCuriosityIntentBalance(goal: CampaignGoal, ctaPressure: CtaPressure, urgencyLevel: SignalLevel): string {
-  if (goal === "awareness") {
+  const stage = getGoalStage(goal);
+
+  if (stage === "awareness") {
     if (ctaPressure === "aggressive" || urgencyLevel === "high") {
       return "Intent-heavy and likely too early for cold discovery traffic.";
     }
@@ -110,7 +119,7 @@ function getCuriosityIntentBalance(goal: CampaignGoal, ctaPressure: CtaPressure,
     return "Curiosity-led and appropriate for early-stage evaluation.";
   }
 
-  if (goal === "consideration") {
+  if (stage === "consideration") {
     if (ctaPressure === "soft") {
       return "Curiosity is slightly over-prioritized, which may underfeed evaluation momentum.";
     }
@@ -126,11 +135,13 @@ function getCuriosityIntentBalance(goal: CampaignGoal, ctaPressure: CtaPressure,
 }
 
 function getCommitmentPressureText(ctaPressure: CtaPressure, urgencyLevel: SignalLevel, goal: CampaignGoal): string {
-  if (goal === "awareness" && (ctaPressure === "aggressive" || urgencyLevel === "high")) {
+  const stage = getGoalStage(goal);
+
+  if (stage === "awareness" && (ctaPressure === "aggressive" || urgencyLevel === "high")) {
     return "High commitment pressure is being introduced before the audience has enough confidence to absorb it.";
   }
 
-  if (goal === "conversion" && ctaPressure === "soft") {
+  if (stage === "conversion" && ctaPressure === "soft") {
     return "Commitment pressure is too low to match the audience's likely readiness to act.";
   }
 
@@ -170,9 +181,10 @@ function getIdentityAlignment(vertical: string, psychologyText: string, audience
 }
 
 function getEmotionalState(goal: CampaignGoal, ctaPressure: CtaPressure, urgencyLevel: SignalLevel, psychologyTrigger: string, trustGap: string): string {
+  const stage = getGoalStage(goal);
   const trigger = psychologyTrigger && psychologyTrigger !== "neutral" ? psychologyTrigger : "caution";
 
-  if (goal === "awareness" && (ctaPressure === "aggressive" || urgencyLevel === "high")) {
+  if (stage === "awareness" && (ctaPressure === "aggressive" || urgencyLevel === "high")) {
     return `The audience is likely curious but guarded: the message creates tension before trust and relevance have settled.`;
   }
 
@@ -198,9 +210,10 @@ function getLikelyObjection(params: {
   vertical: string;
 }): string {
   const { alignment, psychology, audienceResponse, extraction, goal, ctaPressure, urgencyLevel, vertical } = params;
+  const stage = getGoalStage(goal);
   const textCorpus = [extraction.headline, extraction.primary_message, extraction.cta, audienceResponse.likely_perception].join(" ").toLowerCase();
 
-  if (alignment.alignment_status === "misaligned" && goal === "awareness" && (ctaPressure === "aggressive" || urgencyLevel === "high")) {
+  if (alignment.alignment_status === "misaligned" && stage === "awareness" && (ctaPressure === "aggressive" || urgencyLevel === "high")) {
     return "The audience is likely to think the ad is asking for commitment before it has earned relevance or emotional confidence.";
   }
 
@@ -216,7 +229,7 @@ function getLikelyObjection(params: {
     return "The audience is likely to resist because the cognitive effort feels too high for the perceived reward.";
   }
 
-  if (ctaPressure === "aggressive" && goal !== "conversion") {
+  if (ctaPressure === "aggressive" && stage !== "conversion") {
     return "The audience is likely to feel pushed before it is ready, which can convert curiosity into avoidance.";
   }
 
@@ -233,6 +246,7 @@ function getResistanceTrigger(params: {
   urgencyLevel: SignalLevel;
 }): string {
   const { attention, alignment, psychology, extraction, goal, ctaPressure, urgencyLevel } = params;
+  const stage = getGoalStage(goal);
   const textCorpus = [extraction.headline, extraction.primary_message, extraction.cta].join(" ").toLowerCase();
 
   if (attention.friction_points.length > 0) {
@@ -243,7 +257,7 @@ function getResistanceTrigger(params: {
     return alignment.strategic_conflict;
   }
 
-  if (goal === "awareness" && (ctaPressure === "aggressive" || urgencyLevel === "high")) {
+  if (stage === "awareness" && (ctaPressure === "aggressive" || urgencyLevel === "high")) {
     return "Early commitment pressure is triggering resistance before the audience has completed its curiosity phase.";
   }
 
@@ -267,13 +281,14 @@ function getCommitmentReadiness(params: {
   urgencyLevel: SignalLevel;
 }): string {
   const { alignment, psychology, extraction, goal, ctaPressure, urgencyLevel } = params;
+  const stage = getGoalStage(goal);
   const textCorpus = [extraction.headline, extraction.primary_message, extraction.cta].join(" ").toLowerCase();
 
   if (alignment.alignment_status === "aligned" && psychology.trust_signal_strength.toLowerCase().includes("solid") && ctaPressure !== "aggressive") {
     return "High readiness: the audience has enough trust and message fit to continue toward action.";
   }
 
-  if (goal === "awareness" && (ctaPressure === "aggressive" || urgencyLevel === "high")) {
+  if (stage === "awareness" && (ctaPressure === "aggressive" || urgencyLevel === "high")) {
     return "Low readiness: the audience is still evaluating relevance and trust, so direct commitment pressure arrives too early.";
   }
 

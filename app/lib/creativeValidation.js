@@ -23,7 +23,137 @@ export const SUPPORTED_DISPLAY_SIZE_GROUPS = {
   ],
   mobile: ["320x50", "320x100", "300x250", "300x50", "320x480", "480x320"],
   native: ["1200x628", "1080x1080", "1080x1350", "1200x1200"],
+  stories: ["1080x1920"],
 };
+
+export const PLATFORM_SUPPORTED_SIZE_GROUPS = {
+  google_ads: {
+    desktop: ["300x250", "336x280", "728x90", "970x90", "970x250", "300x600", "160x600"],
+    mobile: ["320x50", "320x100", "300x250", "300x50"],
+    native: ["1200x628", "1080x1080"],
+  },
+  meta_ads: {
+    desktop: ["1200x628", "1080x1080"],
+    mobile: ["1080x1920", "1080x1350", "1080x1080"],
+    native: ["1080x1080", "1080x1350", "1200x1200"],
+  },
+  programmatic: {
+    desktop: SUPPORTED_DISPLAY_SIZE_GROUPS.desktop,
+    mobile: SUPPORTED_DISPLAY_SIZE_GROUPS.mobile,
+    native: SUPPORTED_DISPLAY_SIZE_GROUPS.native,
+  },
+};
+
+const GOOGLE_ALLOWED_MIME_TYPES = new Set([
+  "image/jpeg",
+  "image/jpg",
+  "image/png",
+  "image/gif",
+  "application/zip",
+]);
+
+const GOOGLE_TIER1_SIZES = new Set([
+  "300x250",
+  "728x90",
+  "160x600",
+  "300x600",
+  "320x50",
+  "970x250",
+]);
+
+const GOOGLE_TIER2_SIZES = new Set([
+  "336x280",
+  "970x90",
+  "320x100",
+  "468x60",
+  "250x250",
+  "200x200",
+]);
+
+const META_ALLOWED_MIME_TYPES = new Set([
+  "image/jpeg",
+  "image/jpg",
+  "image/png",
+  "image/gif",
+  "video/mp4",
+  "video/quicktime",
+]);
+
+const META_TIER1_SIZES = new Set(["1080x1080", "1080x1350", "1080x1920"]);
+const META_TIER2_SIZES = new Set(["1200x628", "1200x1200"]);
+
+function parseSize(size) {
+  const [width, height] = String(size || "").split("x").map((n) => Number(n));
+  if (!width || !height) return null;
+  return { width, height };
+}
+
+function classifyGoogleSizeTier(size) {
+  if (GOOGLE_TIER1_SIZES.has(size)) return "tier1";
+  if (GOOGLE_TIER2_SIZES.has(size)) return "tier2";
+  return "non_core";
+}
+
+function classifyInventoryType(intelligence) {
+  if (!intelligence) return "Unsupported";
+  if (intelligence.inventory?.category === "Premium Inventory") return "Premium Inventory";
+  if (intelligence.deviceClassification === "Desktop + Mobile") return "Universal Inventory";
+  if (intelligence.deviceClassification === "Mobile") return "Mobile Inventory";
+  if (intelligence.deviceClassification === "Desktop") return "Desktop Inventory";
+  return "Standard Inventory";
+}
+
+function evaluateGoogleRdaFit(size) {
+  const dims = parseSize(size);
+  if (!dims) {
+    return {
+      class: "unsupported",
+      message: "Unable to evaluate Responsive Display fit due to invalid dimensions.",
+      satisfiesMinimum: false,
+    };
+  }
+
+  const ratio = dims.width / dims.height;
+  const isLandscape = ratio >= 1.85 && ratio <= 1.98;
+  const isSquare = ratio >= 0.95 && ratio <= 1.05;
+  const isVertical = ratio >= 0.72 && ratio <= 0.85;
+
+  if (isLandscape) {
+    const minPass = dims.width >= 600 && dims.height >= 314;
+    return {
+      class: "rda_landscape",
+      message: minPass
+        ? "Landscape RDA-compatible asset (1.91:1) with minimum dimension compliance."
+        : "Landscape-like asset but below minimum RDA requirement (600x314).",
+      satisfiesMinimum: minPass,
+    };
+  }
+
+  if (isSquare) {
+    const minPass = dims.width >= 300 && dims.height >= 300;
+    return {
+      class: "rda_square",
+      message: minPass
+        ? "Square RDA-compatible asset (1:1) with minimum dimension compliance."
+        : "Square-like asset but below minimum RDA requirement (300x300).",
+      satisfiesMinimum: minPass,
+    };
+  }
+
+  if (isVertical) {
+    return {
+      class: "rda_vertical_optional",
+      message: "Vertical mobile-first ratio detected. Useful for optional responsive inventory expansion.",
+      satisfiesMinimum: true,
+    };
+  }
+
+  return {
+    class: "uploaded_banner",
+    message: "Asset best treated as uploaded banner inventory instead of canonical RDA ratio.",
+    satisfiesMinimum: true,
+  };
+}
 
 const HIGH_IMPACT_SIZES = new Set(["970x250", "300x600"]);
 const LEGACY_SIZES = new Set(["468x60", "200x200"]);
@@ -238,6 +368,17 @@ const SIZE_INTELLIGENCE = {
     premiumEligible: true,
     iabCompatibility: "Native / Feed Display",
   },
+  "1080x1920": {
+    label: "Story / Full-Screen Vertical",
+    group: "stories",
+    placementType: "mobile",
+    deviceClassification: "Mobile",
+    inventoryCategory: "Social Mobile Inventory",
+    inventoryScore: 86,
+    auctionReadinessScore: 88,
+    premiumEligible: true,
+    iabCompatibility: "Social Story / Full-Screen",
+  },
 };
 
 function clamp(value, min, max) {
@@ -333,20 +474,31 @@ function normalizeStatus(issues) {
 export async function validateCreativeAsset({ file, image, platform }) {
   const size = `${image?.width || 0}x${image?.height || 0}`;
   const normalizedPlatform = platform || "programmatic";
+  const platformLabel = normalizedPlatform === "google_ads"
+    ? "Google Ads"
+    : normalizedPlatform === "meta_ads"
+      ? "Meta Ads"
+      : "Programmatic";
+  const platformGroups = PLATFORM_SUPPORTED_SIZE_GROUPS[normalizedPlatform] || PLATFORM_SUPPORTED_SIZE_GROUPS.programmatic;
   const supportedSizes = [
-    ...SUPPORTED_DISPLAY_SIZE_GROUPS.desktop,
-    ...SUPPORTED_DISPLAY_SIZE_GROUPS.mobile,
-    ...SUPPORTED_DISPLAY_SIZE_GROUPS.native,
+    ...(platformGroups.desktop || []),
+    ...(platformGroups.mobile || []),
+    ...(platformGroups.native || []),
   ];
   const issues = [];
   const intelligence = resolveSizeIntelligence(size);
+  const fileMime = String(file?.type || "").toLowerCase();
+  const rdaFit = normalizedPlatform === "google_ads" ? evaluateGoogleRdaFit(size) : null;
+  const googleSizeTier = normalizedPlatform === "google_ads" ? classifyGoogleSizeTier(size) : null;
+  const metaPlacement = normalizedPlatform === "meta_ads" ? classifyMetaPlacement(size) : null;
+  const metaSafeZone = normalizedPlatform === "meta_ads" ? evaluateMetaSafeZoneRisk(size) : null;
 
   if (!supportedSizes.includes(size) || !intelligence) {
     issues.push({
       type: "inventory",
       severity: "high",
-      message: `${size} is outside the supported display programmatic size matrix.`,
-      recommendation: "Use a supported Desktop, Mobile, or Native display size from the Supported Display Sizes section.",
+      message: `${size} is outside the supported ${platformLabel} size matrix.`,
+      recommendation: `Use a supported Desktop, Mobile, or Native/Social size from the ${platformLabel} compatibility matrix.`,
       scorePenalty: 40,
     });
   }
@@ -359,6 +511,101 @@ export async function validateCreativeAsset({ file, image, platform }) {
       recommendation: "Compress the asset before uploading for faster review and delivery.",
       scorePenalty: 12,
     });
+  }
+
+  if (normalizedPlatform === "google_ads") {
+    if (fileMime && !GOOGLE_ALLOWED_MIME_TYPES.has(fileMime)) {
+      issues.push({
+        type: "format",
+        severity: "high",
+        message: `${fileMime} is not in the Google uploaded display support set (JPG, PNG, GIF, ZIP/HTML5).`,
+        recommendation: "Upload JPG, PNG, GIF, or ZIP (HTML5 package) for Google display ecosystem compliance.",
+        scorePenalty: 35,
+      });
+    }
+
+    const isStandardBanner = (intelligence?.sizeGroup === "desktop" || intelligence?.sizeGroup === "mobile") && rdaFit?.class === "uploaded_banner";
+    if (isStandardBanner && (file?.size || 0) > 150 * 1024) {
+      issues.push({
+        type: "google_weight",
+        severity: "medium",
+        message: "Banner payload is above 150KB guidance and may reduce viewability and load-speed competitiveness.",
+        recommendation: "Compress image/HTML5 payload toward 150KB for stronger Google Display delivery quality.",
+        scorePenalty: 10,
+      });
+    }
+
+    if (rdaFit && !rdaFit.satisfiesMinimum) {
+      issues.push({
+        type: "rda",
+        severity: "high",
+        message: "Responsive Display asset does not meet minimum ratio dimension requirements.",
+        recommendation: "Use at least 600x314 for landscape or 300x300 for square responsive assets.",
+        scorePenalty: 28,
+      });
+    }
+  }
+
+  if (normalizedPlatform === "meta_ads") {
+    if (fileMime && !META_ALLOWED_MIME_TYPES.has(fileMime)) {
+      issues.push({
+        type: "format",
+        severity: "high",
+        message: `${fileMime} is not in the Meta support set for V1 (JPG, PNG, GIF, MP4, MOV).`,
+        recommendation: "Use JPG/PNG for static ads or MP4/MOV for video-first Meta placements.",
+        scorePenalty: 35,
+      });
+    }
+
+    if ((file?.size || 0) > 30 * 1024 * 1024 && fileMime.startsWith("image/")) {
+      issues.push({
+        type: "meta_weight",
+        severity: "high",
+        message: "Image exceeds Meta image size limit (30MB).",
+        recommendation: "Compress image below 30MB and optimize for mobile loading speed.",
+        scorePenalty: 26,
+      });
+    }
+
+    if ((file?.size || 0) > 4 * 1024 * 1024 * 1024 && fileMime.startsWith("video/")) {
+      issues.push({
+        type: "meta_weight",
+        severity: "high",
+        message: "Video exceeds Meta upload size limit (4GB).",
+        recommendation: "Compress video below 4GB; prioritize lightweight delivery for feed/reels performance.",
+        scorePenalty: 26,
+      });
+    }
+
+    if ((file?.size || 0) > 5 * 1024 * 1024 && fileMime.startsWith("image/")) {
+      issues.push({
+        type: "mobile_delivery",
+        severity: "medium",
+        message: "Heavy image payload may reduce mobile-first engagement and thumb-stop performance.",
+        recommendation: "Export lighter assets for faster in-feed render and stronger first-second retention.",
+        scorePenalty: 10,
+      });
+    }
+
+    if (metaPlacement === "non_core") {
+      issues.push({
+        type: "placement_fit",
+        severity: "medium",
+        message: `${size} is non-core for Meta feed/story/reels placements in V1.`,
+        recommendation: "Prefer 1080x1080, 1080x1350, or 1080x1920 for stronger Meta placement compatibility.",
+        scorePenalty: 8,
+      });
+    }
+
+    if (metaSafeZone?.riskLevel === "high") {
+      issues.push({
+        type: "safe_zone",
+        severity: "medium",
+        message: "High Meta overlay risk: critical content may collide with CTA/profile/caption UI.",
+        recommendation: "Move core text/logo toward center-safe zone and avoid edge-dependent messaging.",
+        scorePenalty: 8,
+      });
+    }
   }
 
   if (intelligence?.sizeGroup === "mobile" && (file?.size || 0) > 2 * 1024 * 1024) {
@@ -381,7 +628,7 @@ export async function validateCreativeAsset({ file, image, platform }) {
     size,
     platform: normalizedPlatform,
     supportedSizes,
-    supportedSizeGroups: SUPPORTED_DISPLAY_SIZE_GROUPS,
+    supportedSizeGroups: platformGroups,
     intelligence: intelligence || {
       size,
       sizeLabel: "Unsupported Size",
@@ -391,7 +638,7 @@ export async function validateCreativeAsset({ file, image, platform }) {
       iabCompatibility: {
         compatible: false,
         standard: "Not in supported matrix",
-        message: `${size} is not currently in the supported display programmatic matrix.`,
+        message: `${size} is not currently in the supported ${platformLabel} matrix.`,
       },
       dspCompatibility: {
         supported: [],
@@ -415,6 +662,32 @@ export async function validateCreativeAsset({ file, image, platform }) {
       },
       responsiveCompatibility: "Unsupported",
     },
+    googleStandards: normalizedPlatform === "google_ads"
+      ? {
+        ecosystemFocus: ["responsive_display_ads", "uploaded_banner_ads"],
+        fileFormat: {
+          mimeType: fileMime || "unknown",
+          supported: !fileMime || GOOGLE_ALLOWED_MIME_TYPES.has(fileMime),
+          acceptedFormats: ["image/jpeg", "image/png", "image/gif", "application/zip"],
+        },
+        inventoryType: classifyInventoryType(intelligence),
+        sizeTier: googleSizeTier,
+        responsiveDisplayFit: rdaFit,
+      }
+      : null,
+    metaStandards: normalizedPlatform === "meta_ads"
+      ? {
+        ecosystemFocus: ["feed_ads", "story_ads", "reels_ads", "carousel_ads"],
+        fileFormat: {
+          mimeType: fileMime || "unknown",
+          supported: !fileMime || META_ALLOWED_MIME_TYPES.has(fileMime),
+          acceptedFormats: ["image/jpeg", "image/png", "image/gif", "video/mp4", "video/quicktime"],
+        },
+        sizeTier: META_TIER1_SIZES.has(size) ? "tier1" : META_TIER2_SIZES.has(size) ? "tier2" : "non_core",
+        placementProfile: metaPlacement,
+        safeZone: metaSafeZone,
+      }
+      : null,
   };
 }
 
@@ -439,5 +712,51 @@ export function buildValidationSummary(validations = []) {
       ? Math.round(auctionScores.reduce((sum, score) => sum + score, 0) / auctionScores.length)
       : 0,
     premiumEligibleCount,
+  };
+}
+
+function classifyMetaPlacement(size) {
+  if (size === "1080x1920") return "stories_reels";
+  if (size === "1080x1350") return "feed_mobile_4_5";
+  if (size === "1080x1080") return "feed_carousel_square";
+  if (size === "1200x628") return "feed_landscape";
+  return "non_core";
+}
+
+function evaluateMetaSafeZoneRisk(size) {
+  const dims = parseSize(size);
+  if (!dims) {
+    return {
+      riskLevel: "high",
+      message: "Unable to calculate Meta safe-zone reliability due to invalid dimensions.",
+      overlays: ["cta_overlay", "caption_zone", "profile_ui"],
+    };
+  }
+
+  const ratio = dims.width / dims.height;
+  const isVertical = ratio >= 0.55 && ratio <= 0.57;
+  const isSquare = ratio >= 0.95 && ratio <= 1.05;
+  const isFeed45 = ratio >= 0.79 && ratio <= 0.81;
+
+  if (isVertical) {
+    return {
+      riskLevel: "medium",
+      message: "Story/Reels format detected. Keep critical text/logo in center-safe zone to avoid top/bottom UI overlay collisions.",
+      overlays: ["top_profile_bar", "bottom_cta_zone", "caption_overlay"],
+    };
+  }
+
+  if (isFeed45 || isSquare) {
+    return {
+      riskLevel: "low",
+      message: "Feed-friendly ratio detected with stronger safe-area stability for primary message and CTA visibility.",
+      overlays: ["feed_caption_truncation", "cta_button_overlay"],
+    };
+  }
+
+  return {
+    riskLevel: "medium",
+    message: "Non-core Meta ratio. Dynamic crops may affect logo/text edges across placements.",
+    overlays: ["dynamic_crop_edges", "cta_overlay"],
   };
 }

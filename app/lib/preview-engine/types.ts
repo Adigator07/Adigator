@@ -187,7 +187,16 @@ export interface PreviewEngineOutput {
 
 export interface PreviewEngineInput {
   vertical: string;
-  goal: "awareness" | "consideration" | "conversion";
+  goal:
+    | "awareness"
+    | "traffic"
+    | "conversion"
+    | "lead_generation"
+    | "engagement"
+    | "app_installs"
+    | "video_views"
+    | "retargeting"
+    | "consideration";
   preferredEnvironment?: EnvironmentFamily;
   device?: DeviceType;
   creativeSize?: string;
