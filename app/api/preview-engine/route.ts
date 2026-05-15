@@ -60,6 +60,12 @@ function buildPromptHints(input: PreviewEngineInput): PromptHints {
     awareness: "brand awareness offer",
     consideration: "demo, consultation, or comparison offer",
     conversion: "direct purchase, signup, or claim-now offer",
+    traffic: "click-through or visit-now offer",
+    lead_generation: "form fill, free consultation, or lead capture offer",
+    engagement: "social interaction or share-worthy content offer",
+    app_installs: "app download or install-now offer",
+    video_views: "watch-now or view full video offer",
+    retargeting: "return offer or limited-time reminder",
   };
 
   return {
