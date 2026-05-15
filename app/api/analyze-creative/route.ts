@@ -1543,6 +1543,18 @@ function buildPlatformAlignment(
   urgencyLevel: SignalLevel,
 ): PlatformAlignment {
   const profile = PLATFORM_BMI_PROFILE[platform];
+  const goalProfile = GOAL_INTELLIGENCE_PROFILE[goal];
+  const goalStage = goalProfile.stage;
+  const corpus = [
+    extraction.headline,
+    extraction.primary_message,
+    extraction.cta,
+    extraction.visual_elements.join(" "),
+    extraction.audience_clues.join(" "),
+  ].join(" ").toLowerCase();
+  const hasVideoMotionSignals = /video|reel|watch|play|motion|frame/.test(corpus);
+  const hasAppSignals = /app|ui|screen|install|ios|android|feature/.test(corpus);
+  const hasAuthoritySignals = /expert|certified|trusted|proof|testimonial|case study|secure|verified/.test(corpus);
   const conflicts: string[] = [];
   const recommendations: string[] = [];
 
@@ -1559,6 +1571,34 @@ function buildPlatformAlignment(
       conflicts.push("Urgency pressure is stronger than typical early-stage Google objective behavior.");
       recommendations.push("Reduce urgency language unless the objective is conversion-stage action.");
     }
+    if (goal === "awareness" && extraction.brand_presence === "low") {
+      conflicts.push("Awareness objective in Google display needs faster brand recognition than current creative provides.");
+      recommendations.push("Increase brand-anchor visibility in first-scan zone to improve branding speed.");
+    }
+    if (goal === "traffic" && extraction.hierarchy_observations.toLowerCase().includes("unclear")) {
+      conflicts.push("Traffic objective is weakened by unclear hierarchy that slows click-intent decoding.");
+      recommendations.push("Strengthen value proposition structure so users discover relevance before CTA.");
+    }
+    if (goal === "conversion" && (!extraction.cta?.trim() || ctaPressure === "soft")) {
+      conflicts.push("Conversion objective in Google display is underpowered by weak or missing direct action cues.");
+      recommendations.push("Use high-clarity action CTA with trust reinforcement near decision zone.");
+    }
+    if (goal === "lead_generation" && !hasAuthoritySignals) {
+      conflicts.push("Lead-generation objective requires stronger authority and trust evidence for form intent.");
+      recommendations.push("Add authority cues (credentials, proof points, security/trust markers) next to CTA.");
+    }
+    if (goal === "app_installs" && !hasAppSignals) {
+      conflicts.push("App-install objective lacks product UI/feature visibility needed for install confidence.");
+      recommendations.push("Show app interface or feature workflow to reduce install uncertainty.");
+    }
+    if (goal === "video_views" && !hasVideoMotionSignals) {
+      conflicts.push("Video-views objective lacks motion/hook indicators needed for first-frame retention.");
+      recommendations.push("Add stronger first-frame curiosity and dynamic visual cues.");
+    }
+    if (goal === "retargeting" && extraction.brand_presence === "low") {
+      conflicts.push("Retargeting objective needs stronger familiarity signals for quick recognition in display inventory.");
+      recommendations.push("Increase brand continuity and simplify recall cues for returning audiences.");
+    }
   }
 
   if (platform === "meta_ads") {
@@ -1574,6 +1614,34 @@ function buildPlatformAlignment(
       conflicts.push("Conversion-stage Meta objective is underpowered by a soft CTA ask.");
       recommendations.push("Strengthen CTA pressure with clearer action language and decision clarity.");
     }
+    if (goal === "awareness" && extraction.emotional_cues.length === 0) {
+      conflicts.push("Awareness objective on Meta requires emotional interruption, but current hook profile is weak.");
+      recommendations.push("Use stronger emotional contrast or relatable human cue in first-scroll frame.");
+    }
+    if (goal === "traffic" && extraction.readability === "low") {
+      conflicts.push("Traffic objective on Meta needs faster clarity for click intent, but readability is low.");
+      recommendations.push("Reduce copy friction and increase legibility for feed-speed decision making.");
+    }
+    if (goal === "lead_generation" && extraction.trust_markers.length === 0) {
+      conflicts.push("Lead-generation objective on Meta lacks trust/credibility markers for low-friction conversion.");
+      recommendations.push("Add proof and authority framing before ask to reduce social-feed skepticism.");
+    }
+    if (goal === "app_installs" && !hasAppSignals) {
+      conflicts.push("App-install objective on Meta needs UI/feature visualization to increase install confidence.");
+      recommendations.push("Show app utility quickly with product UI cues in first visual sequence.");
+    }
+    if (goal === "engagement" && extraction.emotional_cues.length === 0) {
+      conflicts.push("Engagement objective on Meta is missing social-native emotional triggers.");
+      recommendations.push("Introduce conversation-worthy or relatable cue to improve comment/share propensity.");
+    }
+    if (goal === "video_views" && !hasVideoMotionSignals) {
+      conflicts.push("Video-views objective on Meta needs hook-first motion cues for retention, but signals are weak.");
+      recommendations.push("Strengthen first-second visual hook and movement-led continuity.");
+    }
+    if (goal === "retargeting" && extraction.brand_presence === "low") {
+      conflicts.push("Retargeting on Meta should trigger familiarity quickly, but brand recognition is weak.");
+      recommendations.push("Use stronger brand continuity and direct reminder framing for warm audiences.");
+    }
   }
 
   if (platform === "programmatic") {
@@ -1588,6 +1656,14 @@ function buildPlatformAlignment(
     if (goal === "awareness" && extraction.brand_presence === "low") {
       conflicts.push("Awareness objective is weakened by low brand presence in scalable display contexts.");
       recommendations.push("Increase brand anchor visibility to improve recall before action cues.");
+    }
+    if (goalStage === "consideration" && extraction.trust_markers.length === 0) {
+      conflicts.push("Consideration objective in programmatic environments lacks trust signals needed for evaluation confidence.");
+      recommendations.push("Add concise proof and reassurance cues resilient across varied publisher layouts.");
+    }
+    if (goal === "conversion" && (!extraction.cta?.trim() || ctaPressure === "soft")) {
+      conflicts.push("Conversion objective in programmatic inventory requires clearer action language than current creative provides.");
+      recommendations.push("Increase CTA clarity and reduce decision friction for mixed-context placements.");
     }
   }
 
