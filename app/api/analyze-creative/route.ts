@@ -272,6 +272,86 @@ const GOAL_INTELLIGENCE_PROFILE: Record<CampaignGoal, { expectedCtaPressure: Cta
   },
 };
 
+const AGGRESSIVE_CTA_PATTERN = /\b(buy now|buy|book now|book today|claim (deal|offer|now)?|shop now|order now|checkout|subscribe now|apply now|enroll now|start now|join now|get started now|download now|reserve now|sign up now|register now)\b/;
+const MODERATE_CTA_PATTERN = /\b(learn more|learn about|explore|discover|compare|compare options|compare plans|see pricing|view pricing|pricing|view details|details|view features|features|read reviews|reviews|view reviews|check availability|availability|view inventory|view models|view curriculum|view instructors|see outcomes|get quote|request demo|book demo|schedule|watch demo|view plans|view services|view tools|view offers|see performance|check fees|explore solutions|explore services|explore program|sign up|register|get started|start free trial|try free)\b/;
+
+function inferDetectedGoalFromSignals(
+  extraction: ExtractionSignals,
+  ctaPressure: CtaPressure,
+  urgencyLevel: SignalLevel,
+  behaviorLabel: string,
+): CampaignGoal {
+  const corpus = [
+    extraction.headline,
+    extraction.primary_message,
+    extraction.cta,
+    extraction.urgency_signals.join(" "),
+    extraction.trust_markers.join(" "),
+    extraction.visual_elements.join(" "),
+  ].join(" ").toLowerCase();
+
+  const behavior = behaviorLabel.toLowerCase();
+  const conversionLike = /conversion|direct-response|discount|impulse-purchase/.test(behavior);
+  const awarenessLike = /awareness|storytelling|aspirational|lifestyle branding/.test(behavior);
+  const hasStrongTransactionalIntent = /\b(buy now|order now|shop now|checkout|claim deal|claim offer|apply now|enroll now|subscribe now|book now)\b/.test(corpus);
+  const hasPromoPressure = /\b(discount|%\s*off|sale|promo|deal|save)\b/.test(corpus);
+  const hasEvaluationIntent = /\b(compare|comparison|pricing|features|details|spec|specification|reviews|ratings|outcomes|curriculum|plans?|options?|demo|quote)\b/.test(corpus);
+  const hasTrustIntent = /\b(trust|secure|security|compliance|certification|warranty|proof|testimonial|case study|credential|verified|accredited)\b/.test(corpus);
+  const hasAwarenessIntent = /\b(discover|explore|story|journey|experience|introducing|new|launch|awareness|brand|lifestyle|inspiration)\b/.test(corpus);
+
+  const awarenessScore =
+    (ctaPressure === "soft" ? 3 : 0) +
+    (urgencyLevel === "low" ? 2 : 0) +
+    (hasAwarenessIntent ? 2 : 0) +
+    (awarenessLike ? 1 : 0) +
+    (hasStrongTransactionalIntent ? -3 : 0) +
+    (hasPromoPressure ? -2 : 0);
+
+  const considerationScore =
+    (ctaPressure === "moderate" ? 3 : 0) +
+    (urgencyLevel === "moderate" ? 2 : 0) +
+    (hasEvaluationIntent ? 2 : 0) +
+    (hasTrustIntent ? 2 : 0) +
+    (extraction.trust_markers.length > 0 ? 1 : 0) +
+    (ctaPressure === "soft" && hasEvaluationIntent ? 1 : 0) +
+    (ctaPressure === "aggressive" ? -2 : 0) +
+    (urgencyLevel === "high" ? -1 : 0);
+
+  const conversionScore =
+    (ctaPressure === "aggressive" ? 4 : 0) +
+    (urgencyLevel === "high" ? 3 : 0) +
+    (hasStrongTransactionalIntent ? 3 : 0) +
+    (hasPromoPressure ? 2 : 0) +
+    (conversionLike ? 1 : 0) +
+    (urgencyLevel === "low" ? -2 : 0) +
+    (ctaPressure === "soft" ? -2 : 0);
+
+  // Deterministic guardrails first.
+  if (ctaPressure === "aggressive" && (urgencyLevel === "high" || hasStrongTransactionalIntent || hasPromoPressure)) {
+    return "conversion";
+  }
+  if (ctaPressure === "soft" && urgencyLevel === "low" && !hasStrongTransactionalIntent && !hasPromoPressure) {
+    return "awareness";
+  }
+
+  if (conversionScore > considerationScore && conversionScore > awarenessScore) {
+    return "conversion";
+  }
+  if (awarenessScore > considerationScore && awarenessScore > conversionScore) {
+    return "awareness";
+  }
+
+  // Tie-breakers prevent consideration from becoming a catch-all stage.
+  if (conversionScore === considerationScore && ctaPressure === "aggressive") {
+    return "conversion";
+  }
+  if (awarenessScore === considerationScore && ctaPressure === "soft" && urgencyLevel !== "high") {
+    return "awareness";
+  }
+
+  return "consideration";
+}
+
 function createOpenAIClient(): OpenAI | null {
   const apiKey = process.env.OPENAI_API_KEY?.trim();
   if (!apiKey) return null;
@@ -621,10 +701,10 @@ async function extractSignalsWithRetry(params: {
 
 function classifyCtaPressure(cta: string): CtaPressure {
   const text = cta.toLowerCase();
-  if (/buy|book|claim|get started|sign up|download now|shop now|apply now/.test(text)) {
+  if (AGGRESSIVE_CTA_PATTERN.test(text)) {
     return "aggressive";
   }
-  if (/view|compare|see pricing|check|try demo|learn how/.test(text)) {
+  if (MODERATE_CTA_PATTERN.test(text)) {
     return "moderate";
   }
   return "soft";
@@ -639,10 +719,10 @@ function inferUrgencyLevel(extraction: ExtractionSignals): SignalLevel {
     extraction.emotional_cues.join(" "),
   ].join(" ").toLowerCase();
 
-  if (/limited|ends today|last chance|hurry|only today|countdown|now/.test(corpus)) {
+  if (/\b(limited time|ends today|last chance|hurry|only today|countdown|final hours|expires|act now|while supplies last)\b/.test(corpus)) {
     return "high";
   }
-  if (/soon|this week|don.t miss|book early/.test(corpus)) {
+  if (/\b(soon|this week|don.t miss|book early|limited slots|ending soon|today)\b/.test(corpus)) {
     return "moderate";
   }
   return "low";
@@ -961,6 +1041,10 @@ function buildPsychologyAnalysis(
   let psychologicalConflict = "No major psychological conflict detected.";
   if (goal === "awareness" && (ctaPressure === "aggressive" || urgencyLevel === "high")) {
     psychologicalConflict = "Awareness intent conflicts with high-pressure action cues, which can feel premature for cold audiences.";
+  } else if (goal === "consideration" && ctaPressure === "aggressive") {
+    psychologicalConflict = "Consideration intent conflicts with high-pressure CTA cues, which can truncate evaluation and trust-building.";
+  } else if (goal === "consideration" && ctaPressure === "soft") {
+    psychologicalConflict = "Consideration intent is underpowered by a soft CTA, which can stall evaluation momentum before decision confidence forms.";
   } else if (goal === "conversion" && ctaPressure === "soft") {
     psychologicalConflict = "Conversion intent conflicts with a low-pressure CTA, reducing action momentum at decision stage.";
   }
@@ -973,6 +1057,8 @@ function buildPsychologyAnalysis(
 
   const urgencyFit = goal === "awareness" && urgencyLevel === "high"
     ? "Urgency is misfit for awareness. Pressure is likely to feel sales-heavy too early."
+    : goal === "consideration" && urgencyLevel === "high"
+      ? "Urgency is too strong for consideration. Evaluation audiences may feel rushed before trust is established."
     : goal === "conversion" && urgencyLevel === "low"
       ? "Urgency is underpowered for conversion. Action momentum is likely too weak."
       : "Urgency pressure is broadly compatible with campaign stage.";
@@ -1046,11 +1132,23 @@ function buildCampaignAlignment(
   if (goalProfile.expectedCtaPressure === "soft" && ctaPressure === "aggressive") {
     conflicts.push("CTA pressure is too aggressive for awareness-stage behavior.");
   }
+  if (goalProfile.expectedCtaPressure === "moderate" && ctaPressure === "soft") {
+    conflicts.push("CTA pressure is too soft for consideration-stage evaluation behavior.");
+  }
+  if (goalProfile.expectedCtaPressure === "moderate" && ctaPressure === "aggressive") {
+    conflicts.push("CTA pressure is too aggressive for consideration-stage trust and comparison behavior.");
+  }
   if (goalProfile.expectedCtaPressure === "aggressive" && ctaPressure === "soft") {
     conflicts.push("CTA pressure is too soft for conversion-stage action goals.");
   }
   if (goalProfile.urgencyTolerance === "low" && urgencyLevel === "high") {
     conflicts.push("Urgency cues are too strong for the selected campaign stage.");
+  }
+  if (goal === "consideration" && urgencyLevel === "high") {
+    conflicts.push("Urgency cues are too strong for consideration-stage audiences still evaluating trust and fit.");
+  }
+  if (goal === "consideration" && extraction.trust_markers.length === 0) {
+    conflicts.push("Consideration-stage creative lacks visible trust signals to support evaluation confidence.");
   }
   if (selectedVertical === "luxury" && /discount|save|offer|% off/.test([extraction.headline, extraction.primary_message, extraction.cta].join(" ").toLowerCase())) {
     conflicts.push("Luxury positioning conflicts with discount-heavy message behavior.");
@@ -1476,11 +1574,12 @@ Return JSON only.`;
     const urgencyLevel = inferUrgencyLevel(extraction);
     const verticalIntelligence = buildVerticalIntelligence(vertical, extraction, goal, ctaPressure, urgencyLevel);
 
-    const detectedGoal = ctaPressure === "aggressive" || urgencyLevel === "high"
-      ? "conversion"
-      : ctaPressure === "moderate"
-        ? "consideration"
-        : "awareness";
+    const detectedGoal = inferDetectedGoalFromSignals(
+      extraction,
+      ctaPressure,
+      urgencyLevel,
+      verticalIntelligence.advertisingBehavior.label,
+    );
     const goalAligned = detectedGoal === goal;
     const verticalAligned = verticalIntelligence.productCategory.id === vertical;
 
