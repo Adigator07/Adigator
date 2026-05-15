@@ -534,6 +534,7 @@ export default function PreviewTool() {
   const goalSectionRef = useRef(null);
   const sessionInitRef = useRef(false);
   const lastSessionPayloadRef = useRef(null);
+  const sessionNetworkWarningShownRef = useRef(false);
 
   const isConfigComplete = Boolean(platform && campaignGoal && campaignVertical);
 
@@ -553,14 +554,23 @@ export default function PreviewTool() {
     const token = await getAccessToken();
     if (!token) return null;
 
-    const response = await fetch("/api/session/create", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify(initialValues),
-    });
+    let response;
+    try {
+      response = await fetch("/api/session/create", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(initialValues),
+      });
+    } catch (error) {
+      if (!sessionNetworkWarningShownRef.current) {
+        sessionNetworkWarningShownRef.current = true;
+        console.warn("Session create skipped due to temporary network/API unavailability.", error);
+      }
+      return null;
+    }
 
     if (!response.ok) {
       let message = "Unable to create analysis session.";
@@ -613,7 +623,10 @@ export default function PreviewTool() {
 
       return true;
     } catch (error) {
-      console.error("Session update failed:", error);
+      if (!sessionNetworkWarningShownRef.current) {
+        sessionNetworkWarningShownRef.current = true;
+        console.warn("Session update skipped due to temporary network/API unavailability.", error);
+      }
       return false;
     }
   }, [analysisSessionId, getAccessToken]);
