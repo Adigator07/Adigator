@@ -21,26 +21,30 @@ export const SUPPORTED_DISPLAY_SIZE_GROUPS = {
     "250x250",
     "200x200",
   ],
-  mobile: ["320x50", "320x100", "300x250", "300x50", "320x480", "480x320"],
+  mobile: ["320x50", "320x100", "300x250", "320x480", "480x320"],
+  high_impact: ["970x250", "300x600", "970x90"],
   native: ["1200x628", "1080x1080", "1080x1350", "1200x1200"],
+  responsive_native: ["1200x628", "1200x1200", "1080x1080", "960x1200", "1200x1500"],
   stories: ["1080x1920"],
 };
 
 export const PLATFORM_SUPPORTED_SIZE_GROUPS = {
   google_ads: {
-    desktop: ["300x250", "336x280", "728x90", "970x90", "970x250", "300x600", "160x600"],
-    mobile: ["320x50", "320x100", "300x250", "300x50"],
-    native: ["1200x628", "1080x1080"],
+    desktop_display: ["300x250", "336x280", "728x90", "970x90", "970x250", "160x600", "300x600", "468x60", "250x250", "200x200"],
+    mobile_display: ["320x50", "320x100", "300x250", "320x480", "480x320"],
+    responsive_native_assets: ["1200x628", "1200x1200", "1080x1080", "960x1200", "1200x1500"],
   },
   meta_ads: {
-    desktop: ["1200x628", "1080x1080"],
-    mobile: ["1080x1920", "1080x1350", "1080x1080"],
-    native: ["1080x1080", "1080x1350", "1200x1200"],
+    feed_placements: ["1080x1080", "1080x1350", "1200x628"],
+    story_reels: ["1080x1920"],
+    carousel: ["1080x1080"],
+    flexible_native_assets: ["1200x1200", "1200x628"],
   },
   programmatic: {
-    desktop: SUPPORTED_DISPLAY_SIZE_GROUPS.desktop,
-    mobile: SUPPORTED_DISPLAY_SIZE_GROUPS.mobile,
-    native: SUPPORTED_DISPLAY_SIZE_GROUPS.native,
+    standard_display: SUPPORTED_DISPLAY_SIZE_GROUPS.desktop,
+    mobile_display: SUPPORTED_DISPLAY_SIZE_GROUPS.mobile,
+    high_impact_premium: SUPPORTED_DISPLAY_SIZE_GROUPS.high_impact,
+    native_social_display: SUPPORTED_DISPLAY_SIZE_GROUPS.native,
   },
 };
 
@@ -59,6 +63,9 @@ const GOOGLE_TIER1_SIZES = new Set([
   "300x600",
   "320x50",
   "970x250",
+  "1200x628",
+  "1200x1200",
+  "1080x1080",
 ]);
 
 const GOOGLE_TIER2_SIZES = new Set([
@@ -68,6 +75,10 @@ const GOOGLE_TIER2_SIZES = new Set([
   "468x60",
   "250x250",
   "200x200",
+  "320x480",
+  "480x320",
+  "960x1200",
+  "1200x1500",
 ]);
 
 const META_ALLOWED_MIME_TYPES = new Set([
@@ -291,17 +302,6 @@ const SIZE_INTELLIGENCE = {
     premiumEligible: false,
     iabCompatibility: "IAB Mobile Display",
   },
-  "300x50": {
-    label: "Mobile Banner",
-    group: "mobile",
-    placementType: "mobile",
-    deviceClassification: "Mobile",
-    inventoryCategory: "Mobile-First Inventory",
-    inventoryScore: 87,
-    auctionReadinessScore: 84,
-    premiumEligible: false,
-    iabCompatibility: "IAB Mobile Display",
-  },
   "320x480": {
     label: "Mobile Interstitial",
     group: "mobile",
@@ -333,7 +333,7 @@ const SIZE_INTELLIGENCE = {
     inventoryScore: 88,
     auctionReadinessScore: 87,
     premiumEligible: true,
-    iabCompatibility: "Native / Feed Display",
+    iabCompatibility: "Responsive / Native Assets",
   },
   "1080x1080": {
     label: "Native Square",
@@ -344,7 +344,7 @@ const SIZE_INTELLIGENCE = {
     inventoryScore: 83,
     auctionReadinessScore: 85,
     premiumEligible: true,
-    iabCompatibility: "Native / Feed Display",
+    iabCompatibility: "Responsive / Native Assets",
   },
   "1080x1350": {
     label: "Native Portrait",
@@ -355,7 +355,7 @@ const SIZE_INTELLIGENCE = {
     inventoryScore: 81,
     auctionReadinessScore: 86,
     premiumEligible: true,
-    iabCompatibility: "Native / Feed Display",
+    iabCompatibility: "Responsive / Native Assets",
   },
   "1200x1200": {
     label: "Native Square Large",
@@ -366,7 +366,29 @@ const SIZE_INTELLIGENCE = {
     inventoryScore: 80,
     auctionReadinessScore: 82,
     premiumEligible: true,
-    iabCompatibility: "Native / Feed Display",
+    iabCompatibility: "Responsive / Native Assets",
+  },
+  "960x1200": {
+    label: "Responsive Portrait",
+    group: "native",
+    placementType: "native",
+    deviceClassification: "Mobile",
+    inventoryCategory: "Responsive Inventory",
+    inventoryScore: 77,
+    auctionReadinessScore: 79,
+    premiumEligible: true,
+    iabCompatibility: "Responsive / Native Assets",
+  },
+  "1200x1500": {
+    label: "Responsive Portrait Large",
+    group: "native",
+    placementType: "native",
+    deviceClassification: "Mobile",
+    inventoryCategory: "Responsive Inventory",
+    inventoryScore: 78,
+    auctionReadinessScore: 80,
+    premiumEligible: true,
+    iabCompatibility: "Responsive / Native Assets",
   },
   "1080x1920": {
     label: "Story / Full-Screen Vertical",
@@ -480,11 +502,7 @@ export async function validateCreativeAsset({ file, image, platform }) {
       ? "Meta Ads"
       : "Programmatic";
   const platformGroups = PLATFORM_SUPPORTED_SIZE_GROUPS[normalizedPlatform] || PLATFORM_SUPPORTED_SIZE_GROUPS.programmatic;
-  const supportedSizes = [
-    ...(platformGroups.desktop || []),
-    ...(platformGroups.mobile || []),
-    ...(platformGroups.native || []),
-  ];
+  const supportedSizes = [...new Set(Object.values(platformGroups).flat())];
   const issues = [];
   const intelligence = resolveSizeIntelligence(size);
   const fileMime = String(file?.type || "").toLowerCase();
@@ -498,7 +516,7 @@ export async function validateCreativeAsset({ file, image, platform }) {
       type: "inventory",
       severity: "high",
       message: `${size} is outside the supported ${platformLabel} size matrix.`,
-      recommendation: `Use a supported Desktop, Mobile, or Native/Social size from the ${platformLabel} compatibility matrix.`,
+      recommendation: `Use a supported size from the ${platformLabel} intelligence matrix.`,
       scorePenalty: 40,
     });
   }
@@ -592,7 +610,7 @@ export async function validateCreativeAsset({ file, image, platform }) {
         type: "placement_fit",
         severity: "medium",
         message: `${size} is non-core for Meta feed/story/reels placements in V1.`,
-        recommendation: "Prefer 1080x1080, 1080x1350, or 1080x1920 for stronger Meta placement compatibility.",
+        recommendation: "Prefer 1080x1080, 1080x1350, 1080x1920, or 1200x628 for stronger Meta placement compatibility.",
         scorePenalty: 8,
       });
     }
@@ -720,6 +738,7 @@ function classifyMetaPlacement(size) {
   if (size === "1080x1350") return "feed_mobile_4_5";
   if (size === "1080x1080") return "feed_carousel_square";
   if (size === "1200x628") return "feed_landscape";
+  if (size === "1200x1200") return "native_assets";
   return "non_core";
 }
 

@@ -469,8 +469,8 @@ const PRODUCT_CATEGORY_HINTS: Record<string, string[]> = {
   ecommerce: ["shop", "store", "cart", "checkout", "sale", "discount", "buy", "purchase"],
 };
 
-const GOOGLE_TIER1_SIZES = new Set(["300x250", "728x90", "160x600", "300x600", "320x50", "970x250"]);
-const GOOGLE_TIER2_SIZES = new Set(["336x280", "970x90", "320x100", "468x60", "250x250", "200x200"]);
+const GOOGLE_TIER1_SIZES = new Set(["300x250", "728x90", "160x600", "300x600", "320x50", "970x250", "1200x628", "1200x1200", "1080x1080"]);
+const GOOGLE_TIER2_SIZES = new Set(["336x280", "970x90", "320x100", "468x60", "250x250", "200x200", "320x480", "480x320", "960x1200", "1200x1500"]);
 const META_TIER1_SIZES = new Set(["1080x1080", "1080x1350", "1080x1920"]);
 const META_TIER2_SIZES = new Set(["1200x628", "1200x1200"]);
 

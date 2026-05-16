@@ -26,28 +26,52 @@ import {
 // Platform and CTA constants (previously from localAnalyzer)
 const PLATFORM_SIZES = {
   google_ads: {
-    desktop: [
+    desktop_display: [
       "300x250",
       "336x280",
       "728x90",
       "970x90",
       "970x250",
-      "300x600",
       "160x600",
+      "300x600",
+      "468x60",
+      "250x250",
+      "200x200",
     ],
-    mobile: ["320x50", "320x100", "300x250", "300x50"],
-    native: ["1200x628", "1080x1080"],
+    mobile_display: ["320x50", "320x100", "300x250", "320x480", "480x320"],
+    responsive_native_assets: ["1200x628", "1200x1200", "1080x1080", "960x1200", "1200x1500"],
   },
   meta_ads: {
-    desktop: ["1200x628", "1080x1080"],
-    mobile: ["1080x1920", "1080x1350", "1080x1080"],
-    native: ["1080x1080", "1080x1350", "1200x1200"],
+    feed_placements: ["1080x1080", "1080x1350", "1200x628"],
+    story_reels: ["1080x1920"],
+    carousel: ["1080x1080"],
+    flexible_native_assets: ["1200x1200", "1200x628"],
   },
   programmatic: {
-    desktop: SUPPORTED_DISPLAY_SIZE_GROUPS.desktop,
-    mobile: SUPPORTED_DISPLAY_SIZE_GROUPS.mobile,
-    native: SUPPORTED_DISPLAY_SIZE_GROUPS.native,
+    standard_display: SUPPORTED_DISPLAY_SIZE_GROUPS.desktop,
+    mobile_display: SUPPORTED_DISPLAY_SIZE_GROUPS.mobile,
+    high_impact_premium: SUPPORTED_DISPLAY_SIZE_GROUPS.high_impact,
+    native_social_display: SUPPORTED_DISPLAY_SIZE_GROUPS.native,
   },
+};
+
+const PLATFORM_INTELLIGENCE_LABEL = {
+  google_ads: "Inventory Intelligence",
+  meta_ads: "Placement Intelligence",
+  programmatic: "Cross-Inventory Intelligence",
+};
+
+const GROUP_LABELS = {
+  desktop_display: "Desktop Display",
+  mobile_display: "Mobile Display",
+  responsive_native_assets: "Responsive / Native Assets",
+  feed_placements: "Feed Placements",
+  story_reels: "Story / Reels",
+  carousel: "Carousel",
+  flexible_native_assets: "Flexible Native Assets",
+  standard_display: "Standard Display",
+  high_impact_premium: "High-Impact / Premium",
+  native_social_display: "Native / Social Display",
 };
 
 const GOAL_CTA = {
@@ -167,23 +191,17 @@ const PLATFORMS = [
   {
     id: "google_ads", icon: "🟦", title: "Google Ads", desc: "Display inventory and responsive placements optimized for intent-rich contexts",
     color: "from-blue-600/30 to-cyan-800/20", border: "border-blue-500/50",
-    desktop: PLATFORM_SIZES.google_ads.desktop,
-    mobile: PLATFORM_SIZES.google_ads.mobile,
-    native: PLATFORM_SIZES.google_ads.native,
+    groups: PLATFORM_SIZES.google_ads,
   },
   {
     id: "meta_ads", icon: "🟪", title: "Meta Ads", desc: "Feed, Story, and Reels ecosystems tuned for mobile attention and social engagement",
     color: "from-pink-600/30 to-fuchsia-800/20", border: "border-fuchsia-500/50",
-    desktop: PLATFORM_SIZES.meta_ads.desktop,
-    mobile: PLATFORM_SIZES.meta_ads.mobile,
-    native: PLATFORM_SIZES.meta_ads.native,
+    groups: PLATFORM_SIZES.meta_ads,
   },
   {
     id: "programmatic", icon: "📡", title: "Programmatic Ads", desc: "Real-time bidding across premium publisher inventory",
     color: "from-violet-600/30 to-violet-800/20", border: "border-violet-500/50",
-    desktop: SUPPORTED_DISPLAY_SIZE_GROUPS.desktop,
-    mobile: SUPPORTED_DISPLAY_SIZE_GROUPS.mobile,
-    native: SUPPORTED_DISPLAY_SIZE_GROUPS.native,
+    groups: PLATFORM_SIZES.programmatic,
   },
 ];
 
@@ -705,13 +723,7 @@ export default function PreviewTool() {
   const availableGoalIds = PLATFORM_GOAL_IDS[platform] || PLATFORM_GOAL_IDS.programmatic;
   const availableGoals = GOALS.filter((goal) => availableGoalIds.includes(goal.id));
   const allowedSizes = useMemo(() => (
-    platform
-      ? [
-        ...(PLATFORM_SIZES[platform]?.desktop || []),
-        ...(PLATFORM_SIZES[platform]?.mobile || []),
-        ...(PLATFORM_SIZES[platform]?.native || []),
-      ]
-      : []
+    platform ? [...new Set(Object.values(PLATFORM_SIZES[platform] || {}).flat())] : []
   ), [platform]);
 
   const validCreatives = useMemo(() => creatives.filter((c) => c && c.valid && (c.url || c.text || c.image || c.title)), [creatives]);
@@ -1215,12 +1227,14 @@ export default function PreviewTool() {
                       <h3 className={`text-2xl font-extrabold mb-2 ${platform === p.id ? "text-white" : "text-gray-200"}`}>{p.title}</h3>
                       <p className="text-sm text-gray-400 leading-relaxed mb-4">{p.desc}</p>
                       <div className="space-y-2">
-                        <p className="text-xs font-bold text-white/70 uppercase">Supported Sizes:</p>
+                        <p className="text-xs font-bold text-white/70 uppercase">{PLATFORM_INTELLIGENCE_LABEL[p.id]}:</p>
                         <div className="flex flex-wrap gap-1.5">
-                          <span className="px-2 py-1 bg-white/10 rounded text-[10px] text-gray-300">Desktop: {p.desktop.length}</span>
-                          <span className="px-2 py-1 bg-white/10 rounded text-[10px] text-gray-300">Mobile: {p.mobile.length}</span>
-                          <span className="px-2 py-1 bg-white/10 rounded text-[10px] text-gray-300">Native: {p.native.length}</span>
-                          {[...new Set([...p.desktop.slice(0, 2), ...p.mobile.slice(0, 2), ...p.native.slice(0, 2)])].map((s, idx) => (
+                          {Object.entries(p.groups).map(([key, sizes]) => (
+                            <span key={`${p.id}-${key}`} className="px-2 py-1 bg-white/10 rounded text-[10px] text-gray-300">
+                              {GROUP_LABELS[key] || key}: {sizes.length}
+                            </span>
+                          ))}
+                          {[...new Set(Object.values(p.groups).flat().slice(0, 6))].map((s, idx) => (
                             <span key={`${p.id}-${s}-${idx}`} className="px-2 py-1 bg-white/10 rounded text-[10px] text-gray-300">{s}</span>
                           ))}
                         </div>
@@ -1301,51 +1315,40 @@ export default function PreviewTool() {
               <div>
                 <h2 className="text-4xl font-bold text-white mb-2">Step 2: Upload & Validate</h2>
                 <p className="text-gray-400">
-                  {selectedPlatformConfig?.title} size intelligence active: {allowedSizes.length} supported formats across desktop, mobile, and native/social placements.
+                  {selectedPlatformConfig?.title} {PLATFORM_INTELLIGENCE_LABEL[platform]} active: {allowedSizes.length} supported formats across intelligent inventory clusters.
                 </p>
               </div>
 
               <div className="rounded-3xl border border-white/10 bg-white/5 p-6 backdrop-blur-lg">
                 <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-                  <h3 className="text-xl font-bold text-white">Supported Display Sizes</h3>
+                  <h3 className="text-xl font-bold text-white">{PLATFORM_INTELLIGENCE_LABEL[platform]}</h3>
                   <p className="text-xs text-purple-200/90 bg-purple-500/15 border border-purple-500/25 rounded-full px-3 py-1">
                     {selectedPlatformConfig?.title || "Platform"} • Creative Compatibility Matrix
                   </p>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="rounded-2xl border border-blue-500/25 bg-blue-500/8 p-4">
-                    <p className="text-xs uppercase tracking-wider text-blue-300 font-bold mb-3">Desktop Display</p>
-                    <div className="flex flex-wrap gap-2">
-                      {(selectedPlatformConfig?.desktop || []).map((size) => (
-                        <span key={`desktop-${size}`} className="px-2 py-1 rounded-md bg-white/10 text-[11px] text-blue-100 border border-white/10">
-                          {size}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="rounded-2xl border border-purple-500/25 bg-purple-500/8 p-4">
-                    <p className="text-xs uppercase tracking-wider text-purple-300 font-bold mb-3">Mobile Display</p>
-                    <div className="flex flex-wrap gap-2">
-                      {(selectedPlatformConfig?.mobile || []).map((size) => (
-                        <span key={`mobile-${size}`} className="px-2 py-1 rounded-md bg-white/10 text-[11px] text-purple-100 border border-white/10">
-                          {size}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="rounded-2xl border border-fuchsia-500/25 bg-fuchsia-500/8 p-4">
-                    <p className="text-xs uppercase tracking-wider text-fuchsia-300 font-bold mb-3">Native / Feed Display</p>
-                    <div className="flex flex-wrap gap-2">
-                      {(selectedPlatformConfig?.native || []).map((size) => (
-                        <span key={`native-${size}`} className="px-2 py-1 rounded-md bg-white/10 text-[11px] text-fuchsia-100 border border-white/10">
-                          {size}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                  {Object.entries(selectedPlatformConfig?.groups || {}).map(([groupKey, sizes], index) => {
+                    const themes = [
+                      { box: "border-blue-500/25 bg-blue-500/8", title: "text-blue-300", chip: "text-blue-100" },
+                      { box: "border-purple-500/25 bg-purple-500/8", title: "text-purple-300", chip: "text-purple-100" },
+                      { box: "border-fuchsia-500/25 bg-fuchsia-500/8", title: "text-fuchsia-300", chip: "text-fuchsia-100" },
+                      { box: "border-emerald-500/25 bg-emerald-500/8", title: "text-emerald-300", chip: "text-emerald-100" },
+                    ];
+                    const theme = themes[index % themes.length];
+                    return (
+                      <div key={groupKey} className={`rounded-2xl border p-4 ${theme.box}`}>
+                        <p className={`text-xs uppercase tracking-wider font-bold mb-3 ${theme.title}`}>{GROUP_LABELS[groupKey] || groupKey}</p>
+                        <div className="flex flex-wrap gap-2">
+                          {sizes.map((size) => (
+                            <span key={`${groupKey}-${size}`} className={`px-2 py-1 rounded-md bg-white/10 text-[11px] border border-white/10 ${theme.chip}`}>
+                              {size}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
 
                 <div className="mt-4 rounded-xl border border-white/10 bg-black/20 p-3">
