@@ -85,7 +85,6 @@ const GOAL_CTA = {
   retargeting: ["Complete Purchase", "Return to Cart", "Claim Offer", "Shop Again"],
 };
 
-const DEFAULT_CAMPAIGN_GOAL = "awareness";
 const WORKFLOW_STORAGE_KEY = "adigator_workflow_v1";
 const ANALYSIS_SESSION_STORAGE_KEY = "adigator_analysis_session_id";
 
@@ -437,25 +436,9 @@ export default function PreviewTool() {
     setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), 3500);
   }, []);
 
-  const [platform, setPlatform] = useState(() => {
-    if (typeof window === "undefined") return "programmatic";
-    return localStorage.getItem("adigator_platform") || "programmatic";
-  });
-  const [campaignGoal, setCampaignGoal] = useState(() => {
-    if (typeof window === "undefined") return DEFAULT_CAMPAIGN_GOAL;
-    const savedGoal = localStorage.getItem("adigator_goal");
-    const savedPlatform = localStorage.getItem("adigator_platform") || "programmatic";
-    const allowedGoalIds = PLATFORM_GOAL_IDS[savedPlatform] || PLATFORM_GOAL_IDS.programmatic;
-    if (savedGoal && savedGoal !== "null" && allowedGoalIds.includes(savedGoal)) {
-      return savedGoal;
-    }
-    return allowedGoalIds[0] || DEFAULT_CAMPAIGN_GOAL;
-  });
-  const [campaignVertical, setCampaignVertical] = useState(() => {
-    if (typeof window === "undefined") return null;
-    const savedVertical = localStorage.getItem("adigator_vertical");
-    return savedVertical && savedVertical !== "null" ? savedVertical : null;
-  });
+  const [platform, setPlatform] = useState(null);
+  const [campaignGoal, setCampaignGoal] = useState(null);
+  const [campaignVertical, setCampaignVertical] = useState(null);
   const [analysisSessionId, setAnalysisSessionId] = useState(() => {
     if (typeof window === "undefined") return null;
     return localStorage.getItem(ANALYSIS_SESSION_STORAGE_KEY);
@@ -509,8 +492,12 @@ export default function PreviewTool() {
   }, [urlStepParam, step, pathname, router]);
 
   useEffect(() => {
-    localStorage.setItem("adigator_platform", platform);
-    localStorage.setItem("adigator_goal", campaignGoal || DEFAULT_CAMPAIGN_GOAL);
+    if (platform) localStorage.setItem("adigator_platform", platform);
+    else localStorage.removeItem("adigator_platform");
+
+    if (campaignGoal) localStorage.setItem("adigator_goal", campaignGoal);
+    else localStorage.removeItem("adigator_goal");
+
     if (campaignVertical) localStorage.setItem("adigator_vertical", campaignVertical);
     else localStorage.removeItem("adigator_vertical");
 
@@ -672,26 +659,36 @@ export default function PreviewTool() {
 
   const handlePlatformSelect = useCallback((id) => {
     const allowedGoalIds = PLATFORM_GOAL_IDS[id] || PLATFORM_GOAL_IDS.programmatic;
-    const fallbackGoal = allowedGoalIds[0] || DEFAULT_CAMPAIGN_GOAL;
-    const nextGoal = allowedGoalIds.includes(campaignGoal) ? campaignGoal : fallbackGoal;
+    const nextGoal = allowedGoalIds.includes(campaignGoal) ? campaignGoal : null;
+    const platformChanged = id !== platform;
 
     setPlatform(id);
-    if (nextGoal !== campaignGoal) {
-      setCampaignGoal(nextGoal);
+    setCampaignGoal(nextGoal);
+    if (platformChanged) {
+      setCreatives([]);
+      setAnalysisResult(null);
+      setAnalysisLoading(false);
+      setOriginalBackups({});
+      setEditModalCreative(null);
     }
     scrollToSection(goalSectionRef);
 
     void ensureAnalysisSession()
       .then((sessionId) => {
         if (!sessionId) return;
-        return updateAnalysisSession({ platform: id, campaign_goal: nextGoal });
+        return updateAnalysisSession(
+          platformChanged
+            ? { platform: id, campaign_goal: nextGoal, creative_url: null, status: "draft" }
+            : { platform: id, campaign_goal: nextGoal }
+        );
       })
       .catch((error) => {
         console.error("Failed to persist platform selection", error);
       });
-  }, [campaignGoal, scrollToSection, ensureAnalysisSession, updateAnalysisSession]);
+  }, [campaignGoal, platform, scrollToSection, ensureAnalysisSession, updateAnalysisSession]);
 
   const handleGoalSelect = useCallback((id) => {
+    if (!platform) return;
     const goalIds = PLATFORM_GOAL_IDS[platform] || PLATFORM_GOAL_IDS.programmatic;
     if (!goalIds.includes(id)) return;
     setCampaignGoal(id);

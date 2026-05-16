@@ -131,7 +131,7 @@ export default function ContextualPreviewEngine({ creatives, vertical, goal }: P
   const [output, setOutput] = useState<PreviewEngineOutput | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [device, setDevice] = useState<DeviceType>("desktop");
+  const [device, setDevice] = useState<DeviceType | null>(null);
   const [selectedEnvironment, setSelectedEnvironment] = useState<EnvironmentFamily | null>(null);
   const [activeCreativeIndex, setActiveCreativeIndex] = useState(0);
   const previewCacheRef = useRef<Map<string, PreviewEngineOutput>>(new Map());
@@ -145,12 +145,12 @@ export default function ContextualPreviewEngine({ creatives, vertical, goal }: P
   useEffect(() => {
     // Guard against stale local state from hot reloads where "tablet" was previously selected.
     if (device === "tablet") {
-      setDevice("desktop");
+      setDevice(null);
     }
   }, [device]);
 
   const buildCacheKey = useCallback((creative: Props["creatives"][number], envOverride: EnvironmentFamily | null = selectedEnvironment) => {
-    return [vertical, goal, device, envOverride ?? "auto", creative.url, creative.size].join("|");
+    return [vertical, goal, device ?? "unselected", envOverride ?? "auto", creative.url, creative.size].join("|");
   }, [vertical, goal, device, selectedEnvironment]);
 
   useEffect(() => {
@@ -164,7 +164,7 @@ export default function ContextualPreviewEngine({ creatives, vertical, goal }: P
   }, [activeCreative, buildCacheKey]);
 
   const fetchPreview = useCallback(async (targetCreative: Props["creatives"][number], withLoading = true, envOverride: EnvironmentFamily | null = selectedEnvironment) => {
-    if (!targetCreative?.url || !vertical || !goal) return;
+    if (!targetCreative?.url || !vertical || !goal || !envOverride || !device) return;
 
     const cacheKey = buildCacheKey(targetCreative, envOverride);
     const cached = previewCacheRef.current.get(cacheKey);
@@ -172,7 +172,6 @@ export default function ContextualPreviewEngine({ creatives, vertical, goal }: P
     if (cached) {
       if (cacheKey === activeKeyRef.current) {
         setOutput(cached);
-        setSelectedEnvironment(envOverride ?? cached.previewDecision.environment);
         setError(null);
       }
       return;
@@ -189,7 +188,7 @@ export default function ContextualPreviewEngine({ creatives, vertical, goal }: P
           vertical,
           goal,
           preferredEnvironment: envOverride ?? undefined,
-          device,
+          device: device ?? undefined,
           creativeSize: targetCreative.size,
           creativeType: "display",
           analyzerOutput: targetCreative.analyzerOutput ?? {},
@@ -210,7 +209,6 @@ export default function ContextualPreviewEngine({ creatives, vertical, goal }: P
 
       if (cacheKey === activeKeyRef.current) {
         setOutput(data);
-        setSelectedEnvironment(envOverride ?? data.previewDecision.environment);
       }
     } catch (e) {
       if (cacheKey === activeKeyRef.current) {
@@ -222,14 +220,18 @@ export default function ContextualPreviewEngine({ creatives, vertical, goal }: P
   }, [buildCacheKey, vertical, goal, device, selectedEnvironment]);
 
   useEffect(() => {
-    if (!activeCreative) return;
+    if (!activeCreative || !selectedEnvironment || !device) {
+      setOutput(null);
+      setError(null);
+      setLoading(false);
+      return;
+    }
 
     const activeKey = buildCacheKey(activeCreative, selectedEnvironment);
     const cached = previewCacheRef.current.get(activeKey);
 
     if (cached) {
       setOutput(cached);
-      setSelectedEnvironment(selectedEnvironment ?? cached.previewDecision.environment);
       setError(null);
       setLoading(false);
       return;
@@ -239,7 +241,7 @@ export default function ContextualPreviewEngine({ creatives, vertical, goal }: P
   }, [activeCreative, buildCacheKey, fetchPreview, selectedEnvironment]);
 
   useEffect(() => {
-    if (creatives.length <= 1) return;
+    if (creatives.length <= 1 || !selectedEnvironment || !device) return;
 
     let cancelled = false;
     const runPrefetch = async () => {
@@ -261,7 +263,7 @@ export default function ContextualPreviewEngine({ creatives, vertical, goal }: P
     };
   }, [creatives, safeCreativeIndex, buildCacheKey, fetchPreview, selectedEnvironment]);
 
-  const currentEnv = selectedEnvironment ?? output?.previewDecision.environment ?? "news";
+  const currentEnv: EnvironmentFamily = selectedEnvironment ?? "news";
   const isMobilePreview = device === "mobile";
   const envMeta = ENV_LABELS[currentEnv] ?? ENV_LABELS.news;
   const activeExpectedSlot = getExpectedSlotForSize(activeCreative.size);
@@ -313,7 +315,58 @@ export default function ContextualPreviewEngine({ creatives, vertical, goal }: P
     );
   }
 
-  if (!output || !activeCreative) return null;
+  if (!activeCreative) return null;
+
+  if (!selectedEnvironment || !device) {
+    return (
+      <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex items-center gap-2 bg-white/5 border border-white/10 rounded-xl p-1">
+            {(Object.entries(ENV_LABELS) as [EnvironmentFamily, typeof ENV_LABELS[EnvironmentFamily]][])
+              .map(([k, v]) => (
+                <button
+                  key={k}
+                  onClick={() => {
+                    setSelectedEnvironment(k);
+                    if (activeCreative) {
+                      fetchPreview(activeCreative, true, k);
+                    }
+                  }}
+                  className="px-3 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1 text-gray-400 hover:text-white hover:bg-white/5"
+                >
+                  <span>{v.icon}</span>
+                  <span className="hidden sm:inline">{v.label}</span>
+                </button>
+              ))}
+          </div>
+
+          <div className="flex items-center gap-1 bg-white/5 border border-white/10 rounded-xl p-1 ml-auto">
+            {DEVICE_OPTIONS.map((d) => (
+              <button
+                key={d.id}
+                onClick={() => setDevice(d.id)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1 ${
+                  device === d.id
+                    ? "bg-white/15 text-white"
+                    : "text-gray-400 hover:text-white hover:bg-white/5"
+                }`}
+                title={d.label}
+              >
+                {d.icon} <span className="hidden sm:inline">{d.label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="rounded-2xl border border-white/10 bg-white/5 p-6 text-center">
+          <p className="text-sm font-semibold text-white">Select environment and device to generate preview output</p>
+          <p className="mt-2 text-xs text-gray-400">No options are auto-selected. Choose both controls above to continue.</p>
+        </div>
+      </motion.div>
+    );
+  }
+
+  if (!output) return null;
 
   const { previewDecision, creativeMapping } = output;
   const slotLabel = SLOT_LABELS[creativeMapping?.slotType] || "Strategic Placement";
@@ -364,6 +417,7 @@ export default function ContextualPreviewEngine({ creatives, vertical, goal }: P
 
         <button
           onClick={() => activeCreative && fetchPreview(activeCreative, true, selectedEnvironment)}
+          disabled={!selectedEnvironment || !device}
           className="px-4 py-2 bg-white/5 border border-white/10 hover:bg-white/10 text-white text-xs font-semibold rounded-xl transition flex items-center gap-2"
         >
           Refresh Context
