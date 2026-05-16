@@ -259,6 +259,425 @@ img, video {
   animation: drift-a 24s ease-in-out infinite;
 }
 
+@keyframes glowPulse {
+  0%   { box-shadow: 0 0 0px rgba(56, 189, 248, 0); }
+  50%  { box-shadow: 0 0 18px 6px rgba(56, 189, 248, 0.45); }
+  100% { box-shadow: 0 0 8px 3px rgba(56, 189, 248, 0.25); }
+}
+
+.preview-tool-white {
+  background: #ffffff !important;
+  color: #1c1c1e !important;
+}
+
+.preview-tool-white header {
+  background: linear-gradient(90deg, #0ea5e9 0%, #06b6d4 100%) !important;
+  color: #ffffff !important;
+}
+
+.preview-tool-white header * {
+  color: #ffffff !important;
+}
+
+.preview-tool-white section,
+.preview-tool-white .rounded-2xl,
+.preview-tool-white .rounded-3xl,
+.preview-tool-white .rounded-xl {
+  border-color: #cbd5e1 !important;
+}
+
+.preview-tool-white .bg-white\/5,
+.preview-tool-white .bg-white\/10,
+.preview-tool-white .bg-black\/20,
+.preview-tool-white .bg-slate-950\/85,
+.preview-tool-white .bg-black\/30 {
+  background: #ffffff !important;
+}
+
+.preview-tool-white h1,
+.preview-tool-white h2,
+.preview-tool-white h3,
+.preview-tool-white h4,
+.preview-tool-white h5,
+.preview-tool-white h6 {
+  color: #0a0a0a !important;
+  font-weight: 800 !important;
+}
+
+.preview-tool-white p,
+.preview-tool-white span,
+.preview-tool-white div {
+  color: #334155 !important;
+}
+
+.preview-tool-white .text-purple-400,
+.preview-tool-white .text-blue-400 {
+  color: #0ea5e9 !important;
+}
+
+.preview-tool-white .text-green-400 {
+  color: #10b981 !important;
+}
+
+.preview-tool-white .text-amber-300 {
+  color: #f59e0b !important;
+}
+
+.preview-tool-white .text-yellow-400 {
+  color: #eab308 !important;
+}
+
+.preview-tool-white .text-red-400 {
+  color: #ef4444 !important;
+}
+
+.preview-tool-white .border-white\/10,
+.preview-tool-white .border-white\/20,
+.preview-tool-white .border-white\/25 {
+  border-color: #e2e8f0 !important;
+}
+
+.preview-tool-white .bg-white\/5,
+.preview-tool-white .bg-white\/10,
+.preview-tool-white .bg-black\/20,
+.preview-tool-white .bg-slate-950\/85,
+.preview-tool-white .bg-black\/30 {
+  background: #f8fafc !important;
+}
+
+.preview-tool-white .bg-purple-500\/10,
+.preview-tool-white .bg-blue-500\/10,
+.preview-tool-white .bg-pink-500\/10,
+.preview-tool-white .bg-amber-500\/10,
+.preview-tool-white .bg-red-500\/10,
+.preview-tool-white .bg-green-500\/10 {
+  background: #f0f9ff !important;
+}
+
+.preview-tool-white .bg-purple-500\/10 {
+  background: #faf5ff !important;
+}
+
+.preview-tool-white .bg-pink-500\/10 {
+  background: #fdf2f8 !important;
+}
+
+.preview-tool-white .bg-amber-500\/10 {
+  background: #fffbeb !important;
+}
+
+.preview-tool-white .bg-red-500\/10 {
+  background: #fef2f2 !important;
+}
+
+.preview-tool-white .bg-green-500\/10 {
+  background: #f0fdf4 !important;
+}
+
+.preview-tool-white .bg-green-900\/80 {
+  background: rgba(16, 185, 129, 0.25) !important;
+}
+
+.preview-tool-white .bg-red-900\/80 {
+  background: rgba(239, 68, 68, 0.25) !important;
+}
+
+.preview-tool-white .bg-slate-900\/80 {
+  background: #f1f5f9 !important;
+}
+
+.preview-tool-white .bg-slate-950\/65,
+.preview-tool-white .bg-slate-950\/40,
+.preview-tool-white .bg-slate-800,
+.preview-tool-white .bg-black\/10,
+.preview-tool-white .bg-black\/15,
+.preview-tool-white .bg-black\/20 {
+  background: #f8fafc !important;
+}
+
+.preview-tool-white .from-purple-950\/55 {
+  --tw-gradient-from: #eef2ff !important;
+}
+
+.preview-tool-white .via-violet-950\/45 {
+  --tw-gradient-via: #f5f3ff !important;
+}
+
+.preview-tool-white .to-fuchsia-950\/35 {
+  --tw-gradient-to: #fdf4ff !important;
+}
+
+.preview-tool-white .bg-purple-950\/25,
+.preview-tool-white .bg-fuchsia-950\/20 {
+  background: #faf5ff !important;
+}
+
+.preview-tool-white .border-green-500\/40 {
+  border-color: #10b981 !important;
+}
+
+.preview-tool-white .border-red-500\/40 {
+  border-color: #ef4444 !important;
+}
+
+.preview-tool-white .from-blue-600\/30 {
+  --tw-gradient-from: #bfdbfe !important;
+}
+
+.preview-tool-white .to-cyan-800\/20 {
+  --tw-gradient-to: #cffafe !important;
+}
+
+.preview-tool-white .from-pink-600\/30 {
+  --tw-gradient-from: #fbcfe8 !important;
+}
+
+.preview-tool-white .to-fuchsia-800\/20 {
+  --tw-gradient-to: #f5d9f5 !important;
+}
+
+.preview-tool-white .from-violet-600\/30 {
+  --tw-gradient-from: #ddd6fe !important;
+}
+
+.preview-tool-white .to-violet-800\/20 {
+  --tw-gradient-to: #ede9fe !important;
+}
+
+.preview-tool-white .border-blue-500\/50 {
+  border-color: #0ea5e9 !important;
+}
+
+.preview-tool-white .border-fuchsia-500\/50 {
+  border-color: #d946ef !important;
+}
+
+.preview-tool-white .border-violet-500\/50 {
+  border-color: #a78bfa !important;
+}
+
+.preview-tool-white .border-purple-500\/50 {
+  border-color: #a78bfa !important;
+}
+
+.preview-tool-white .border-pink-500\/50 {
+  border-color: #ec4899 !important;
+}
+
+.preview-tool-white .border-amber-500\/50 {
+  border-color: #f59e0b !important;
+}
+
+.preview-tool-white .preview-tool-interactive:hover,
+.preview-tool-white button:hover,
+.preview-tool-white [role="button"]:hover {
+  box-shadow: 0 0 0 1px #cbd5e1, 0 0 18px 5px rgba(148, 163, 184, 0.35) !important;
+  background-color: #f8fafc !important;
+  transition: box-shadow 0.25s ease, transform 0.2s ease, background-color 0.25s ease;
+  transform: translateY(-2px);
+}
+
+.preview-tool-white .preview-tool-interactive:active,
+.preview-tool-white button:active,
+.preview-tool-white [role="button"]:active {
+  animation: glowPulse 0.4s ease forwards;
+  transform: scale(0.97);
+}
+
+.preview-tool-white .analysis-panel-light .bg-slate-950\/65,
+.preview-tool-white .analysis-panel-light .bg-slate-950\/40,
+.preview-tool-white .analysis-panel-light .bg-slate-800,
+.preview-tool-white .analysis-panel-light .bg-purple-950\/25,
+.preview-tool-white .analysis-panel-light .bg-fuchsia-950\/20,
+.preview-tool-white .analysis-panel-light .bg-cyan-950\/20,
+.preview-tool-white .analysis-panel-light .bg-black\/20,
+.preview-tool-white .analysis-panel-light .bg-black\/10,
+.preview-tool-white .analysis-panel-light .bg-white\/5,
+.preview-tool-white .analysis-panel-light .bg-white\/\[0\.04\],
+.preview-tool-white .analysis-panel-light .bg-white\/\[0\.03\],
+.preview-tool-white .analysis-panel-light .bg-white\/\[0\.02\],
+.preview-tool-white .analysis-panel-light .bg-purple-500\/10,
+.preview-tool-white .analysis-panel-light .bg-fuchsia-500\/5,
+.preview-tool-white .analysis-panel-light .bg-cyan-500\/10,
+.preview-tool-white .analysis-panel-light .bg-cyan-500\/5,
+.preview-tool-white .analysis-panel-light .bg-emerald-500\/5,
+.preview-tool-white .analysis-panel-light .bg-rose-500\/10,
+.preview-tool-white .analysis-panel-light .bg-amber-950\/25,
+.preview-tool-white .analysis-panel-light .bg-red-500\/15,
+.preview-tool-white .analysis-panel-light .bg-emerald-500\/10,
+.preview-tool-white .analysis-panel-light .bg-amber-500\/15 {
+  background: #ffffff !important;
+}
+
+.preview-tool-white .analysis-panel-light .border-white\/10,
+.preview-tool-white .analysis-panel-light .border-white\/5 {
+  border-color: #e2e8f0 !important;
+}
+
+.preview-tool-white .analysis-panel-light .from-purple-950\/55 {
+  --tw-gradient-from: #f8fafc !important;
+}
+
+.preview-tool-white .analysis-panel-light .via-violet-950\/45 {
+  --tw-gradient-via: #f8fafc !important;
+}
+
+.preview-tool-white .analysis-panel-light .to-fuchsia-950\/35 {
+  --tw-gradient-to: #f8fafc !important;
+}
+
+.preview-tool-white .analysis-panel-light .text-white {
+  color: #0f172a !important;
+}
+
+.preview-tool-white .analysis-panel-light .bg-sky-500.text-white {
+  color: #ffffff !important;
+}
+
+.preview-tool-white .analysis-panel-light .text-purple-300,
+.preview-tool-white .analysis-panel-light .text-purple-200,
+.preview-tool-white .analysis-panel-light .text-fuchsia-300,
+.preview-tool-white .analysis-panel-light .text-fuchsia-200,
+.preview-tool-white .analysis-panel-light .text-cyan-300,
+.preview-tool-white .analysis-panel-light .text-cyan-200,
+.preview-tool-white .analysis-panel-light .text-cyan-100,
+.preview-tool-white .analysis-panel-light .text-emerald-300,
+.preview-tool-white .analysis-panel-light .text-emerald-200,
+.preview-tool-white .analysis-panel-light .text-amber-300,
+.preview-tool-white .analysis-panel-light .text-amber-200,
+.preview-tool-white .analysis-panel-light .text-red-300,
+.preview-tool-white .analysis-panel-light .text-rose-200 {
+  color: #334155 !important;
+}
+
+.preview-tool-white .analysis-panel-light .border-purple-500\/30,
+.preview-tool-white .analysis-panel-light .border-purple-500\/20,
+.preview-tool-white .analysis-panel-light .border-fuchsia-500\/25,
+.preview-tool-white .analysis-panel-light .border-fuchsia-500\/20,
+.preview-tool-white .analysis-panel-light .border-cyan-500\/30,
+.preview-tool-white .analysis-panel-light .border-cyan-500\/25,
+.preview-tool-white .analysis-panel-light .border-cyan-500\/20,
+.preview-tool-white .analysis-panel-light .border-emerald-500\/25,
+.preview-tool-white .analysis-panel-light .border-emerald-500\/20,
+.preview-tool-white .analysis-panel-light .border-rose-500\/30,
+.preview-tool-white .analysis-panel-light .border-red-500\/30,
+.preview-tool-white .analysis-panel-light .border-amber-500\/30,
+.preview-tool-white .analysis-panel-light .border-amber-500\/25,
+.preview-tool-white .analysis-panel-light .border-sky-500\/40 {
+  border-color: #cbd5e1 !important;
+}
+
+.preview-tool-white .analysis-panel-light .rounded-lg,
+.preview-tool-white .analysis-panel-light .rounded-xl,
+.preview-tool-white .analysis-panel-light .rounded-2xl,
+.preview-tool-white .analysis-panel-light button {
+  transition: box-shadow 0.25s ease, background-color 0.25s ease, transform 0.2s ease;
+}
+
+.preview-tool-white .analysis-panel-light .rounded-lg:hover,
+.preview-tool-white .analysis-panel-light .rounded-xl:hover,
+.preview-tool-white .analysis-panel-light .rounded-2xl:hover,
+.preview-tool-white .analysis-panel-light button:hover {
+  background-color: #f8fafc !important;
+  box-shadow: 0 0 0 1px #cbd5e1, 0 0 20px 6px rgba(148, 163, 184, 0.28) !important;
+}
+
+.preview-tool-white .bg-purple-500\/20,
+.preview-tool-white .bg-purple-500\/10,
+.preview-tool-white .bg-fuchsia-500\/10,
+.preview-tool-white .bg-fuchsia-500\/8,
+.preview-tool-white .bg-blue-500\/20,
+.preview-tool-white .bg-blue-500\/10,
+.preview-tool-white .bg-blue-500\/8,
+.preview-tool-white .bg-cyan-500\/10,
+.preview-tool-white .bg-cyan-500\/8,
+.preview-tool-white .bg-emerald-500\/10,
+.preview-tool-white .bg-emerald-500\/8,
+.preview-tool-white .bg-green-500\/20,
+.preview-tool-white .bg-amber-500\/20,
+.preview-tool-white .bg-amber-500\/15,
+.preview-tool-white .bg-amber-500\/10,
+.preview-tool-white .bg-red-500\/20,
+.preview-tool-white .bg-red-500\/15,
+.preview-tool-white .bg-red-500\/10,
+.preview-tool-white .bg-rose-500\/10 {
+  background: #f8fafc !important;
+}
+
+.preview-tool-white .from-blue-500\/20,
+.preview-tool-white .from-green-500\/20,
+.preview-tool-white .from-amber-500\/20,
+.preview-tool-white .from-red-500\/20,
+.preview-tool-white .from-fuchsia-500\/20,
+.preview-tool-white .from-purple-600\/20,
+.preview-tool-white .to-blue-600\/20,
+.preview-tool-white .to-green-600\/20,
+.preview-tool-white .to-amber-600\/20,
+.preview-tool-white .to-red-600\/20,
+.preview-tool-white .to-purple-600\/20,
+.preview-tool-white .to-fuchsia-600\/20 {
+  --tw-gradient-from: #f8fafc !important;
+  --tw-gradient-to: #f8fafc !important;
+}
+
+.preview-tool-white .border-purple-500\/30,
+.preview-tool-white .border-purple-500\/25,
+.preview-tool-white .border-fuchsia-500\/30,
+.preview-tool-white .border-fuchsia-500\/25,
+.preview-tool-white .border-blue-500\/30,
+.preview-tool-white .border-blue-500\/25,
+.preview-tool-white .border-cyan-500\/30,
+.preview-tool-white .border-cyan-500\/25,
+.preview-tool-white .border-emerald-500\/30,
+.preview-tool-white .border-emerald-500\/25,
+.preview-tool-white .border-amber-500\/30,
+.preview-tool-white .border-amber-500\/25,
+.preview-tool-white .border-red-500\/30,
+.preview-tool-white .border-red-500\/25,
+.preview-tool-white .border-rose-500\/30 {
+  border-color: #cbd5e1 !important;
+}
+
+.preview-tool-white .text-purple-400,
+.preview-tool-white .text-purple-300,
+.preview-tool-white .text-purple-200,
+.preview-tool-white .text-purple-100,
+.preview-tool-white .text-fuchsia-400,
+.preview-tool-white .text-fuchsia-300,
+.preview-tool-white .text-fuchsia-200,
+.preview-tool-white .text-blue-400,
+.preview-tool-white .text-blue-300,
+.preview-tool-white .text-blue-200,
+.preview-tool-white .text-cyan-400,
+.preview-tool-white .text-cyan-300,
+.preview-tool-white .text-cyan-200,
+.preview-tool-white .text-cyan-100,
+.preview-tool-white .text-emerald-400,
+.preview-tool-white .text-emerald-300,
+.preview-tool-white .text-emerald-200,
+.preview-tool-white .text-green-500,
+.preview-tool-white .text-green-400,
+.preview-tool-white .text-amber-400,
+.preview-tool-white .text-amber-300,
+.preview-tool-white .text-amber-200,
+.preview-tool-white .text-red-500,
+.preview-tool-white .text-red-400,
+.preview-tool-white .text-red-300,
+.preview-tool-white .text-red-200,
+.preview-tool-white .text-rose-300,
+.preview-tool-white .text-rose-200,
+.preview-tool-white .text-sky-700,
+.preview-tool-white .text-sky-600 {
+  color: #334155 !important;
+}
+
+.preview-tool-white input:focus,
+.preview-tool-white select:focus,
+.preview-tool-white textarea:focus {
+  border-color: #38BDF8 !important;
+  box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.2) !important;
+}
+
 .cinematic-beam {
   position: absolute;
   inset: -18% -10%;

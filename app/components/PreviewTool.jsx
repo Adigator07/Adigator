@@ -130,12 +130,12 @@ function Toast({ toasts }) {
 }
 
 function NavBtn({ onClick, children, variant = "primary", disabled = false, className = "" }) {
-  const base = "flex-1 py-3 px-6 rounded-xl font-semibold transition disabled:opacity-40 disabled:cursor-not-allowed";
+  const base = "preview-tool-interactive flex-1 py-3 px-6 rounded-xl font-bold transition disabled:opacity-40 disabled:cursor-not-allowed border shadow-md";
   const bg = variant === "primary"
-    ? "bg-linear-to-r from-blue-600 to-purple-600 text-white"
+    ? "bg-sky-500 border-sky-600 text-white hover:bg-sky-600 hover:shadow-lg"
     : variant === "back"
-      ? "bg-white/10 hover:bg-white/20 text-white"
-      : "bg-linear-to-r from-green-600 to-emerald-600 text-white";
+      ? "bg-white border-sky-500 text-sky-700 hover:bg-sky-50 hover:border-sky-600 hover:shadow-md"
+      : "bg-emerald-500 border-emerald-600 text-white hover:bg-emerald-600 hover:shadow-lg";
 
   return (
     <motion.button
@@ -156,10 +156,10 @@ function SelectionCard({ selected, onClick, children, activeClasses }) {
     <motion.div
       whileHover={{ scale: 1.03 }}
       whileTap={{ scale: 0.97 }}
-      animate={selected ? { boxShadow: ["0 0 0 rgba(168,85,247,0)", "0 0 22px rgba(168,85,247,0.25)", "0 0 0 rgba(168,85,247,0)"] } : { boxShadow: "0 0 0 rgba(0,0,0,0)" }}
+      animate={selected ? { boxShadow: ["0 0 0 rgba(14,165,233,0)", "0 0 24px rgba(14,165,233,0.4)", "0 0 0 rgba(14,165,233,0)"] } : { boxShadow: "0 0 0 rgba(0,0,0,0)" }}
       transition={selected ? { duration: 1.6, repeat: Infinity, ease: "easeInOut" } : { duration: 0.2 }}
       onClick={onClick}
-      className={`cursor-pointer rounded-2xl p-8 border-2 transition-all duration-200 bg-linear-to-br ${selected ? `${activeClasses} shadow-2xl` : "border-white/10 bg-white/5 hover:border-white/25"
+      className={`preview-tool-interactive cursor-pointer rounded-2xl p-8 border-2 transition-all duration-200 shadow-sm hover:shadow-md ${selected ? "border-sky-500 bg-sky-50 shadow-lg" : "border-slate-300 bg-white hover:border-sky-400 hover:bg-sky-50"
         }`}
     >
       {children}
@@ -1160,21 +1160,21 @@ export default function PreviewTool() {
 
 
   return (
-    <div className="min-h-screen bg-linear-to-br from-slate-900 via-purple-900 to-slate-900 text-white">
+    <div className="preview-tool-white min-h-screen bg-gradient-to-b from-white to-slate-50 text-[#1C1C1E]">
       {/* HEADER */}
-      <header className="sticky top-0 z-50 backdrop-blur-xl bg-black/30 border-b border-white/10 px-6 py-3">
+      <header className="sticky top-0 z-50 backdrop-blur-xl bg-gradient-to-r from-sky-500 to-cyan-500 border-b border-sky-600 px-6 py-3 shadow-lg">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <h1 className="text-xl font-black bg-linear-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
+          <h1 className="text-2xl font-black text-white drop-shadow-md">
             Adigator Creative Studio
           </h1>
-          <div className="hidden lg:flex items-center gap-1 text-xs">
+          <div className="hidden">
             {STEP_LABELS.map((label, idx) => (
               <div key={idx} className="flex items-center">
-                <div className={`flex items-center gap-1 px-2 py-1 rounded-lg font-semibold transition-all ${step === idx + 1 ? "bg-purple-500/30 text-purple-300" : step > idx + 1 ? "text-green-400" : "text-gray-600"
+                <div className={`flex items-center gap-1 px-3 py-2 rounded-lg font-bold transition-all ${step === idx + 1 ? "bg-white/25 text-white shadow-md" : step > idx + 1 ? "bg-emerald-400/20 text-emerald-700 font-bold" : "text-white/70"
                   }`}>
                   {step > idx + 1 ? "✓" : `${idx + 1}.`} {label}
                 </div>
-                {idx < STEP_LABELS.length - 1 && <span className="text-white/15 mx-0.5">›</span>}
+                {idx < STEP_LABELS.length - 1 && <span className="text-white/25 mx-1">›</span>}
               </div>
             ))}
           </div>
@@ -1182,9 +1182,9 @@ export default function PreviewTool() {
       </header>
 
       {/* PROGRESS */}
-      <div className="h-1 bg-white/5">
+      <div className="h-1 bg-slate-300">
         <motion.div
-          className="h-full origin-left bg-linear-to-r from-blue-500 via-purple-500 to-pink-500"
+          className="h-full bg-gradient-to-r from-sky-500 via-cyan-500 to-emerald-500"
           initial={{ scaleX: 0 }}
           animate={{ scaleX: step / TOTAL_STEPS }}
           transition={{ duration: 0.5, ease: "easeOut" }}
@@ -1214,20 +1214,20 @@ export default function PreviewTool() {
 
               <motion.section variants={itemVariants} className="space-y-5">
                 <div>
-                  <h3 className="text-2xl font-bold text-white">Choose Platform</h3>
-                  <p className="mt-1 text-gray-400">Where will these ads run? This determines size validation and best practices.</p>
+                  <h3 className="text-2xl font-bold text-slate-900">Choose Platform</h3>
+                  <p className="mt-1 text-slate-600">Where will these ads run? This determines size validation and best practices.</p>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {PLATFORMS.map((p) => (
                     <SelectionCard key={p.id} selected={platform === p.id} onClick={() => handlePlatformSelect(p.id)} activeClasses={`${p.color} ${p.border}`}>
                       <div className="text-5xl mb-4">{p.icon}</div>
-                      <h3 className={`text-2xl font-extrabold mb-2 ${platform === p.id ? "text-white" : "text-gray-200"}`}>{p.title}</h3>
-                      <p className="text-sm text-gray-400 leading-relaxed mb-4">{p.desc}</p>
+                      <h3 className={`text-2xl font-extrabold mb-2 ${platform === p.id ? "text-sky-600" : "text-slate-800"}`}>{p.title}</h3>
+                      <p className="text-sm text-slate-700 leading-relaxed mb-4">{p.desc}</p>
                       <div className="space-y-2">
-                        <p className="text-xs font-bold text-white/70 uppercase">{PLATFORM_INTELLIGENCE_LABEL[p.id]}:</p>
+                        <p className="text-xs font-bold text-slate-700 uppercase">{PLATFORM_INTELLIGENCE_LABEL[p.id]}:</p>
                         <div className="flex flex-wrap gap-1.5">
                           {Object.entries(p.groups).map(([key, sizes]) => (
-                            <span key={`${p.id}-${key}`} className="px-2 py-1 bg-white/10 rounded text-[10px] text-gray-300">
+                            <span key={`${p.id}-${key}`} className="px-3 py-1 bg-gradient-to-r from-sky-100 to-cyan-100 rounded-lg text-[10px] font-semibold text-sky-700 border border-sky-300">
                               {GROUP_LABELS[key] || key}: {sizes.length}
                             </span>
                           ))}
@@ -1243,16 +1243,16 @@ export default function PreviewTool() {
 
               <motion.section ref={goalSectionRef} variants={itemVariants} className="space-y-5">
                 <div>
-                  <h3 className="text-2xl font-bold text-white">What is the campaign objective?</h3>
-                  <p className="mt-1 text-gray-400">Select the marketing intent. This directly changes analysis psychology and scoring behavior.</p>
+                  <h3 className="text-2xl font-bold text-slate-900">What is the campaign objective?</h3>
+                  <p className="mt-1 text-slate-600">Select the marketing intent. This directly changes analysis psychology and scoring behavior.</p>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                   {availableGoals.map((g) => (
                     <SelectionCard key={g.id} selected={campaignGoal === g.id} onClick={() => handleGoalSelect(g.id)} activeClasses={`${g.color} ${g.border}`}>
                       <div className="text-5xl mb-4">{g.emoji}</div>
-                      <p className="text-xs font-bold text-purple-400 uppercase tracking-widest mb-1">{g.subtitle}</p>
-                      <h3 className={`text-2xl font-extrabold mb-2 ${campaignGoal === g.id ? "text-white" : "text-gray-200"}`}>{getGoalTitle(g.id, platform)}</h3>
-                      <p className="text-sm text-gray-400 leading-relaxed mb-6">{g.desc}</p>
+                      <p className="text-xs font-bold text-sky-600 uppercase tracking-widest mb-1">{g.subtitle}</p>
+                      <h3 className={`text-2xl font-extrabold mb-2 ${campaignGoal === g.id ? "text-sky-600" : "text-slate-800"}`}>{getGoalTitle(g.id, platform)}</h3>
+                      <p className="text-sm text-slate-700 leading-relaxed mb-6">{g.desc}</p>
                       {campaignGoal === g.id && (
                         <div className="bg-white/10 p-3 rounded-xl">
                           <p className="text-[10px] font-bold text-gray-300 uppercase mb-2">Recommended CTAs:</p>
@@ -1270,18 +1270,18 @@ export default function PreviewTool() {
 
               <motion.section variants={itemVariants} className="space-y-5">
                 <div>
-                  <h3 className="text-2xl font-bold text-white">Industry Vertical</h3>
-                  <p className="mt-1 text-gray-400">Select the vertical for your campaign.</p>
+                  <h3 className="text-2xl font-bold text-slate-900">Industry Vertical</h3>
+                  <p className="mt-1 text-slate-600">Select the vertical for your campaign.</p>
                 </div>
                 <div className="flex flex-wrap gap-3">
                   {VERTICALS.map((v) => (
                     <button
                       key={v.id}
                       onClick={() => handleVerticalSelect(v.id)}
-                      className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all border ${
+                      className={`px-4 py-2 rounded-xl text-sm font-bold transition-all border shadow-sm ${
                         campaignVertical === v.id
-                          ? "bg-purple-600 border-purple-400 text-white shadow-[0_0_15px_rgba(168,85,247,0.4)]"
-                          : "bg-white/5 border-white/10 text-gray-300 hover:bg-white/10 hover:border-white/20"
+                          ? "bg-gradient-to-r from-sky-500 to-cyan-500 border-sky-600 text-white shadow-lg shadow-sky-500/30"
+                          : "bg-slate-100 border-slate-300 text-slate-700 hover:bg-slate-200 hover:border-slate-400"
                       }`}
                     >
                       {v.title}
@@ -1290,7 +1290,7 @@ export default function PreviewTool() {
                 </div>
               </motion.section>
 
-              <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-white/10 bg-slate-950/85 backdrop-blur-xl">
+              <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-slate-300 bg-white/95 backdrop-blur-xl shadow-2xl">
                 <div className="mx-auto flex w-full max-w-7xl gap-4 px-6 py-4 md:px-10">
                   <NavBtn variant="back" onClick={goBack}>
                     ← Back
@@ -1310,16 +1310,16 @@ export default function PreviewTool() {
           {step === 2 && (
             <motion.div key="step-2" variants={itemVariants} initial="hidden" animate="visible" exit="hidden" className="space-y-8">
               <div>
-                <h2 className="text-4xl font-bold text-white mb-2">Step 2: Upload & Validate</h2>
-                <p className="text-gray-400">
+                <h2 className="text-4xl font-bold text-slate-900 mb-2">Step 2: Upload & Validate</h2>
+                <p className="text-slate-700 text-lg">
                   {selectedPlatformConfig?.title} {PLATFORM_INTELLIGENCE_LABEL[platform]} active: {allowedSizes.length} supported formats across intelligent inventory clusters.
                 </p>
               </div>
 
-              <div className="rounded-3xl border border-white/10 bg-white/5 p-6 backdrop-blur-lg">
+              <div className="rounded-3xl border border-slate-300 bg-slate-50 p-6 shadow-md">
                 <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-                  <h3 className="text-xl font-bold text-white">{PLATFORM_INTELLIGENCE_LABEL[platform]}</h3>
-                  <p className="text-xs text-purple-200/90 bg-purple-500/15 border border-purple-500/25 rounded-full px-3 py-1">
+                  <h3 className="text-xl font-bold text-slate-900">{PLATFORM_INTELLIGENCE_LABEL[platform]}</h3>
+                  <p className="text-xs text-sky-700 bg-sky-100 border border-sky-300 rounded-full px-3 py-1 font-semibold">
                     {selectedPlatformConfig?.title || "Platform"} • Creative Compatibility Matrix
                   </p>
                 </div>
@@ -1432,16 +1432,16 @@ export default function PreviewTool() {
                             <input autoFocus value={editingName} onChange={(e) => setEditingName(e.target.value)}
                               onKeyDown={(e) => { if (e.key === "Enter") saveEdit(creative.id); if (e.key === "Escape") setEditingId(null); }}
                               className="flex-1 min-w-0 bg-white/10 border border-purple-500 rounded-lg px-2 py-1 text-xs text-white outline-none" />
-                            <button onClick={() => saveEdit(creative.id)} className="px-2 py-1 bg-purple-600 rounded-lg text-xs text-white">✓</button>
-                            <button onClick={() => setEditingId(null)} className="px-2 py-1 bg-white/10 rounded-lg text-xs text-white">✕</button>
+                            <button onClick={() => saveEdit(creative.id)} className="px-2 py-1 bg-sky-600 rounded-lg text-xs text-white font-semibold hover:bg-sky-700">✓</button>
+                            <button onClick={() => setEditingId(null)} className="px-2 py-1 bg-slate-200 border border-slate-300 rounded-lg text-xs text-slate-800 font-semibold hover:bg-slate-300">✕</button>
                           </div>
                         ) : (
                           <button onClick={() => startEdit(creative.id, creative.name)} className="text-left flex items-center gap-1 mt-1 group/rn">
-                            <span className="text-xs text-gray-400 truncate group-hover/rn:text-purple-300">{creative.name}</span>
-                            <span className="text-[10px] text-gray-600 group-hover/rn:text-purple-400">✏️</span>
+                            <span className="text-xs text-slate-700 truncate group-hover/rn:text-sky-700">{creative.name}</span>
+                            <span className="text-[10px] text-slate-500 group-hover/rn:text-sky-600">✏️</span>
                           </button>
                         )}
-                        <button onClick={() => downloadCreative(creative)} className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-green-400 transition bg-white/5 hover:bg-white/10 rounded-lg px-2 py-1.5 mt-1">
+                        <button onClick={() => downloadCreative(creative)} className="flex items-center gap-1.5 text-xs text-slate-700 hover:text-emerald-700 transition bg-slate-100 hover:bg-slate-200 border border-slate-300 rounded-lg px-2 py-1.5 mt-1 font-medium">
                           <Download size={12} /> Download
                         </button>
                         {creative.validation?.issues?.length > 0 && (

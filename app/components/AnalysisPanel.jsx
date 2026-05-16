@@ -914,15 +914,15 @@ export default function AnalysisPanel({
   ]);
 
   return (
-    <div className="space-y-5">
-      <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.04] p-2">
+    <div className="analysis-panel-light space-y-5">
+      <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-slate-300 bg-slate-100 p-2">
         <button
           type="button"
           onClick={() => setAnalysisTab("overview")}
           className={`rounded-lg px-3 py-2 text-sm font-semibold transition ${
             analysisTab === "overview"
-              ? "bg-white/12 text-white border border-white/15"
-              : "text-slate-300 hover:bg-white/8 hover:text-white"
+              ? "bg-sky-500 text-white border border-sky-600 shadow-sm"
+              : "text-slate-700 hover:bg-slate-200 hover:text-slate-900 border border-transparent"
           }`}
         >
           Overview
@@ -932,8 +932,8 @@ export default function AnalysisPanel({
           onClick={() => setAnalysisTab("creative-analysis")}
           className={`rounded-lg px-3 py-2 text-sm font-semibold transition ${
             analysisTab === "creative-analysis"
-              ? "bg-white/12 text-white border border-white/15"
-              : "text-slate-300 hover:bg-white/8 hover:text-white"
+              ? "bg-sky-500 text-white border border-sky-600 shadow-sm"
+              : "text-slate-700 hover:bg-slate-200 hover:text-slate-900 border border-transparent"
           }`}
         >
           Creative Analysis
@@ -1036,7 +1036,7 @@ export default function AnalysisPanel({
                   <button
                     type="button"
                     onClick={() => setShowAlignmentDetails(!showAlignmentDetails)}
-                    className="w-full rounded-lg border border-purple-500/40 bg-purple-500/10 px-3 py-2 text-sm font-semibold text-purple-200 transition hover:bg-purple-500/20 hover:border-purple-500/60 flex items-center justify-center gap-2"
+                    className="w-full rounded-lg border border-sky-400 bg-sky-100 px-3 py-2 text-sm font-semibold text-sky-800 transition hover:bg-sky-200 hover:border-sky-500 flex items-center justify-center gap-2"
                   >
                     <Eye size={14} />
                     {showAlignmentDetails ? "Hide Details" : "View Alignment Details"}
@@ -1118,7 +1118,7 @@ export default function AnalysisPanel({
                         Click to {showAudienceIntentTab ? "collapse" : "expand"} detailed audience intent by creative.
                       </p>
                     </div>
-                    <span className="inline-flex items-center gap-1 rounded-md border border-cyan-400/30 bg-cyan-500/10 px-2 py-1 text-xs font-semibold text-cyan-100">
+                    <span className="inline-flex items-center gap-1 rounded-md border border-sky-400 bg-sky-100 px-2 py-1 text-xs font-semibold text-sky-800">
                       {showAudienceIntentTab ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
                       {showAudienceIntentTab ? "Open" : "Closed"}
                     </span>
@@ -1145,15 +1145,15 @@ export default function AnalysisPanel({
       ) : (
         <>
           {/* ── UTILITY TABS ── */}
-          <div className="rounded-2xl border border-purple-500/20 bg-gradient-to-r from-purple-900/25 to-fuchsia-900/20 p-3">
-        <div className="flex flex-wrap gap-2 rounded-xl border border-white/10 bg-black/10 p-2">
+          <div className="rounded-2xl border border-slate-300 bg-gradient-to-r from-sky-50 to-cyan-50 p-3">
+        <div className="flex flex-wrap gap-2 rounded-xl border border-slate-300 bg-white p-2">
           <button
             type="button"
             onClick={() => setUtilityTab("score-card")}
             className={`inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold transition ${
               utilityTab === "score-card"
-                ? "bg-white/12 text-white border border-white/15"
-                : "text-slate-300 hover:bg-white/8 hover:text-white"
+                ? "bg-sky-500 text-white border border-sky-600 shadow-sm"
+                : "text-slate-700 hover:bg-slate-100 hover:text-slate-900 border border-transparent"
             }`}
           >
             <Target size={14} /> Score Card
@@ -1163,8 +1163,8 @@ export default function AnalysisPanel({
             onClick={() => setUtilityTab("ab-testing")}
             className={`inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold transition ${
               utilityTab === "ab-testing"
-                ? "bg-white/12 text-white border border-white/15"
-                : "text-slate-300 hover:bg-white/8 hover:text-white"
+                ? "bg-sky-500 text-white border border-sky-600 shadow-sm"
+                : "text-slate-700 hover:bg-slate-100 hover:text-slate-900 border border-transparent"
             }`}
           >
             <FlaskConical size={14} /> A/B Testing
@@ -1174,8 +1174,8 @@ export default function AnalysisPanel({
             onClick={() => setUtilityTab("device-platform")}
             className={`inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold transition ${
               utilityTab === "device-platform"
-                ? "bg-white/12 text-white border border-white/15"
-                : "text-slate-300 hover:bg-white/8 hover:text-white"
+                ? "bg-sky-500 text-white border border-sky-600 shadow-sm"
+                : "text-slate-700 hover:bg-slate-100 hover:text-slate-900 border border-transparent"
             }`}
           >
             <Monitor size={14} /> Device Platform
@@ -1565,7 +1565,7 @@ export default function AnalysisPanel({
         whileHover={{ scale: 1.01 }}
         whileTap={{ scale: 0.99 }}
         onClick={onDownloadReport}
-        className="flex w-full items-center justify-center gap-2 rounded-xl border border-cyan-500/40 bg-cyan-500/10 py-3 text-sm font-semibold text-cyan-100 transition hover:bg-cyan-500/20"
+        className="flex w-full items-center justify-center gap-2 rounded-xl border border-sky-500 bg-sky-100 py-3 text-sm font-semibold text-sky-900 transition hover:bg-sky-200"
       >
         <Download size={16} /> Download Strategic Report
       </motion.button>
