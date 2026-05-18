@@ -255,8 +255,26 @@ const GOALS = [
 const PLATFORM_GOAL_IDS = {
   google_ads: ["awareness", "traffic", "conversion", "lead_generation", "engagement", "app_installs", "video_views", "retargeting"],
   meta_ads: ["awareness", "traffic", "conversion", "lead_generation", "engagement", "app_installs", "video_views", "retargeting"],
-  programmatic: ["awareness", "consideration", "conversion"],
+  programmatic: ["awareness", "consideration", "conversion", "retargeting"],
 };
+
+const AUDIENCE_STAGES = [
+  {
+    id: "cold",
+    title: "Cold Audience",
+    desc: "First-touch users who need clear category understanding and simple messaging.",
+  },
+  {
+    id: "warm",
+    title: "Warm Audience",
+    desc: "Partially familiar users who need trust reinforcement and a faster path to action.",
+  },
+  {
+    id: "hot",
+    title: "Hot / Retargeting",
+    desc: "High-intent users who respond best to urgency, reminders, and conversion clarity.",
+  },
+];
 
 function getGoalTitle(goalId, platformId) {
   if (goalId === "conversion" && platformId !== "programmatic") return "Conversions";
@@ -297,7 +315,7 @@ const VALID_VERTICALS = new Set([
 
 // ── OpenAI-Only Analyzer ─────────────────────────────────────────────────────
 
-async function analyzeAllCreatives(creatives, goal, platform, vertical) {
+async function analyzeAllCreatives(creatives, goal, platform, vertical, audienceStage) {
   const results = [];
   const verticalForApi = VALID_VERTICALS.has(vertical) ? vertical : "technology";
 
@@ -337,6 +355,7 @@ async function analyzeAllCreatives(creatives, goal, platform, vertical) {
       formData.append("goal", goal);
       formData.append("vertical", verticalForApi);
       formData.append("platform", platform || "programmatic");
+      formData.append("audience_stage", audienceStage || "cold");
 
       const analysisRes = await fetch("/api/analyze-creative", {
         method: "POST",
@@ -439,6 +458,11 @@ export default function PreviewTool() {
   const [platform, setPlatform] = useState(null);
   const [campaignGoal, setCampaignGoal] = useState(null);
   const [campaignVertical, setCampaignVertical] = useState(null);
+  const [campaignAudienceStage, setCampaignAudienceStage] = useState(() => {
+    if (typeof window === "undefined") return "cold";
+    const stored = localStorage.getItem("adigator_audience_stage");
+    return stored || "cold";
+  });
   const [analysisSessionId, setAnalysisSessionId] = useState(() => {
     if (typeof window === "undefined") return null;
     return localStorage.getItem(ANALYSIS_SESSION_STORAGE_KEY);
@@ -501,6 +525,9 @@ export default function PreviewTool() {
     if (campaignVertical) localStorage.setItem("adigator_vertical", campaignVertical);
     else localStorage.removeItem("adigator_vertical");
 
+    if (campaignAudienceStage) localStorage.setItem("adigator_audience_stage", campaignAudienceStage);
+    else localStorage.removeItem("adigator_audience_stage");
+
     try {
       localStorage.setItem(
         WORKFLOW_STORAGE_KEY,
@@ -519,6 +546,7 @@ export default function PreviewTool() {
     platform,
     campaignGoal,
     campaignVertical,
+    campaignAudienceStage,
     step,
     creatives,
     analysisResult,
@@ -541,7 +569,7 @@ export default function PreviewTool() {
   const lastSessionPayloadRef = useRef(null);
   const sessionNetworkWarningShownRef = useRef(false);
 
-  const isConfigComplete = Boolean(platform && campaignGoal && campaignVertical);
+  const isConfigComplete = Boolean(platform && campaignGoal && campaignVertical && campaignAudienceStage);
 
   const scrollToSection = useCallback((ref) => {
     if (!ref?.current) return;
@@ -1010,11 +1038,11 @@ export default function PreviewTool() {
 
   const runAnalysis = useCallback(async () => {
     if (validCreatives.length === 0) { addToast("No valid creatives to analyze.", "error"); return; }
-    if (!campaignGoal || !platform || !campaignVertical) { addToast("Missing configuration.", "error"); return; }
+    if (!campaignGoal || !platform || !campaignVertical || !campaignAudienceStage) { addToast("Missing configuration.", "error"); return; }
 
     setAnalysisLoading(true); setAnalysisResult(null);
     try {
-      const results = await analyzeAllCreatives(validCreatives, campaignGoal, platform, campaignVertical);
+      const results = await analyzeAllCreatives(validCreatives, campaignGoal, platform, campaignVertical, campaignAudienceStage);
       setAnalysisResult(results);
 
       const goalMisaligned = results.filter((entry) => getEntryPayload(entry)?.goal_alignment?.is_aligned === false);
@@ -1033,7 +1061,7 @@ export default function PreviewTool() {
     } finally {
       setAnalysisLoading(false);
     }
-  }, [validCreatives, campaignGoal, platform, campaignVertical, addToast]);
+  }, [validCreatives, campaignGoal, platform, campaignVertical, campaignAudienceStage, addToast]);
 
   useEffect(() => {
     if (step !== 3) return;
@@ -1207,6 +1235,7 @@ export default function PreviewTool() {
                 <div className="mt-3 grid gap-2 text-sm md:grid-cols-4">
                   <p className="text-gray-300">Platform: <span className="text-white font-semibold">{PLATFORMS.find((p) => p.id === platform)?.title || platform}</span></p>
                   <p className="text-gray-300">Goal: <span className="text-white font-semibold">{getGoalTitle(campaignGoal, platform)}</span></p>
+                  <p className="text-gray-300">Audience: <span className="text-white font-semibold">{AUDIENCE_STAGES.find((stage) => stage.id === campaignAudienceStage)?.title || "Cold Audience"}</span></p>
                   <p className="text-gray-300">Vertical: <span className="text-white font-semibold">{campaignVertical ? VERTICALS.find(v => v.id === campaignVertical)?.title : "None"}</span></p>
                 </div>
               </motion.div>
@@ -1287,6 +1316,33 @@ export default function PreviewTool() {
                       {v.title}
                     </button>
                   ))}
+                </div>
+              </motion.section>
+
+              <motion.section variants={itemVariants} className="space-y-5">
+                <div>
+                  <h3 className="text-2xl font-bold text-slate-900">Audience Stage</h3>
+                  <p className="mt-1 text-slate-600">Choose how familiar this audience is with your product.</p>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {AUDIENCE_STAGES.map((stage) => {
+                    const selected = campaignAudienceStage === stage.id;
+                    return (
+                      <button
+                        key={stage.id}
+                        type="button"
+                        onClick={() => setCampaignAudienceStage(stage.id)}
+                        className={`rounded-2xl border p-4 text-left transition-all ${
+                          selected
+                            ? "border-sky-500 bg-sky-50 shadow-md"
+                            : "border-slate-300 bg-white hover:border-sky-400 hover:bg-sky-50"
+                        }`}
+                      >
+                        <p className={`text-sm font-bold ${selected ? "text-sky-700" : "text-slate-900"}`}>{stage.title}</p>
+                        <p className={`mt-1 text-xs leading-relaxed ${selected ? "text-sky-700/90" : "text-slate-600"}`}>{stage.desc}</p>
+                      </button>
+                    );
+                  })}
                 </div>
               </motion.section>
 
@@ -1523,7 +1579,7 @@ export default function PreviewTool() {
                 <h2 className="text-4xl font-bold text-white mb-2">Step 3: AI Analysis</h2>
                 <p className="text-gray-400">Analyze your creatives against {PLATFORMS.find(p => p.id === platform)?.title} standards.</p>
                 <p className="text-gray-500 text-sm mt-2">
-                  Selected goal: <span className="text-white font-semibold capitalize">{campaignGoal}</span> · Selected vertical: <span className="text-white font-semibold">{VERTICAL_TITLE_MAP[campaignVertical] || campaignVertical}</span>
+                  Selected goal: <span className="text-white font-semibold capitalize">{campaignGoal}</span> · Audience stage: <span className="text-white font-semibold">{AUDIENCE_STAGES.find((stage) => stage.id === campaignAudienceStage)?.title || "Cold Audience"}</span> · Selected vertical: <span className="text-white font-semibold">{VERTICAL_TITLE_MAP[campaignVertical] || campaignVertical}</span>
                 </p>
               </div>
 

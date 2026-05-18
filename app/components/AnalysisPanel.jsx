@@ -330,6 +330,14 @@ function labelGoal(id) {
   return GOAL_LABELS[id] || id.charAt(0).toUpperCase() + id.slice(1);
 }
 
+function labelAudienceStage(id) {
+  const normalized = String(id || "").toLowerCase();
+  if (normalized === "warm") return "Warm Audience";
+  if (normalized === "hot") return "Hot / Retargeting";
+  if (normalized === "cold") return "Cold Audience";
+  return "Unknown";
+}
+
 function AlignmentBadge({ isAligned }) {
   if (isAligned === true) {
     return (
@@ -551,6 +559,9 @@ export default function AnalysisPanel({
   const goalAlignment = getGoalAlignment(data);
   const verticalAlignment = getVerticalAlignment(data);
   const extractionSignals = getExtractionSignals(data);
+  const googleFinalInterpretation = data?.google_final_interpretation || null;
+  const metaFinalInterpretation = data?.meta_final_interpretation || null;
+  const programmaticFinalInterpretation = data?.programmatic_final_interpretation || null;
   const layoutClarity = buildLayoutClarityAnalysis({
     flow,
     extractionSignals,
@@ -1363,6 +1374,12 @@ export default function AnalysisPanel({
                     {labelGoal(goalAlignment?.selected_goal || campaignGoal)}
                   </span>
                 </span>
+                <span>
+                  Audience:{" "}
+                  <span className="font-semibold text-white">
+                    {labelAudienceStage(goalAlignment?.selected_audience_stage)}
+                  </span>
+                </span>
                 {goalAlignment?.detected_goal &&
                   goalAlignment.detected_goal !== goalAlignment.selected_goal && (
                     <span>
@@ -1557,6 +1574,129 @@ export default function AnalysisPanel({
               </div>
             </div>
           </div>
+
+          {platform === "google_ads" && googleFinalInterpretation && (
+            <div className="rounded-xl border border-sky-500/25 bg-sky-500/5 p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <Target size={15} className="text-sky-300" />
+                <h4 className="text-sm font-semibold text-white">7. Google Final Interpretation</h4>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5 text-sm leading-relaxed">
+                <div className="rounded-lg border border-white/10 bg-white/[0.03] p-3">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-sky-200">Campaign Fit</p>
+                  <p className="mt-1 text-slate-100">{googleFinalInterpretation.campaign_fit}</p>
+                </div>
+                <div className="rounded-lg border border-white/10 bg-white/[0.03] p-3">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-sky-200">Audience Fit</p>
+                  <p className="mt-1 text-slate-100">{googleFinalInterpretation.audience_fit}</p>
+                </div>
+                <div className="rounded-lg border border-white/10 bg-white/[0.03] p-3">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-sky-200">Inventory Fit</p>
+                  <p className="mt-1 text-slate-100">{googleFinalInterpretation.inventory_fit}</p>
+                </div>
+                <div className="rounded-lg border border-white/10 bg-white/[0.03] p-3">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-sky-200">Main Strength</p>
+                  <p className="mt-1 text-slate-100">{googleFinalInterpretation.main_strength}</p>
+                </div>
+                <div className="rounded-lg border border-amber-400/30 bg-amber-500/10 p-3 md:col-span-2">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-amber-200">Main Risk</p>
+                  <p className="mt-1 text-amber-100">{googleFinalInterpretation.main_risk}</p>
+                </div>
+                {Array.isArray(googleFinalInterpretation.recommended_fixes) && googleFinalInterpretation.recommended_fixes.length > 0 && (
+                  <div className="rounded-lg border border-emerald-400/30 bg-emerald-500/10 p-3 md:col-span-2">
+                    <p className="text-[10px] font-semibold uppercase tracking-wider text-emerald-200">Recommended Fixes</p>
+                    <div className="mt-1 space-y-1">
+                      {googleFinalInterpretation.recommended_fixes.slice(0, 3).map((fix, idx) => (
+                        <p key={`google-fix-${idx}`} className="text-sm text-emerald-100">- {fix}</p>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {platform === "meta_ads" && metaFinalInterpretation && (
+            <div className="rounded-xl border border-pink-500/25 bg-pink-500/5 p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <Target size={15} className="text-pink-300" />
+                <h4 className="text-sm font-semibold text-white">7. Meta Final Interpretation</h4>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5 text-sm leading-relaxed">
+                <div className="rounded-lg border border-white/10 bg-white/[0.03] p-3">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-pink-200">Campaign Fit</p>
+                  <p className="mt-1 text-slate-100">{metaFinalInterpretation.campaign_fit}</p>
+                </div>
+                <div className="rounded-lg border border-white/10 bg-white/[0.03] p-3">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-pink-200">Audience Fit</p>
+                  <p className="mt-1 text-slate-100">{metaFinalInterpretation.audience_fit}</p>
+                </div>
+                <div className="rounded-lg border border-white/10 bg-white/[0.03] p-3">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-pink-200">Placement Fit</p>
+                  <p className="mt-1 text-slate-100">{metaFinalInterpretation.placement_fit}</p>
+                </div>
+                <div className="rounded-lg border border-white/10 bg-white/[0.03] p-3">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-pink-200">Main Strength</p>
+                  <p className="mt-1 text-slate-100">{metaFinalInterpretation.main_strength}</p>
+                </div>
+                <div className="rounded-lg border border-amber-400/30 bg-amber-500/10 p-3 md:col-span-2">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-amber-200">Main Risk</p>
+                  <p className="mt-1 text-amber-100">{metaFinalInterpretation.main_risk}</p>
+                </div>
+                {Array.isArray(metaFinalInterpretation.recommended_fixes) && metaFinalInterpretation.recommended_fixes.length > 0 && (
+                  <div className="rounded-lg border border-emerald-400/30 bg-emerald-500/10 p-3 md:col-span-2">
+                    <p className="text-[10px] font-semibold uppercase tracking-wider text-emerald-200">Recommended Fixes</p>
+                    <div className="mt-1 space-y-1">
+                      {metaFinalInterpretation.recommended_fixes.slice(0, 3).map((fix, idx) => (
+                        <p key={`meta-fix-${idx}`} className="text-sm text-emerald-100">- {fix}</p>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {platform === "programmatic" && programmaticFinalInterpretation && (
+            <div className="rounded-xl border border-violet-500/25 bg-violet-500/5 p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <Target size={15} className="text-violet-300" />
+                <h4 className="text-sm font-semibold text-white">7. Programmatic Final Interpretation</h4>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5 text-sm leading-relaxed">
+                <div className="rounded-lg border border-white/10 bg-white/[0.03] p-3">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-violet-200">Campaign Fit</p>
+                  <p className="mt-1 text-slate-100">{programmaticFinalInterpretation.campaign_fit}</p>
+                </div>
+                <div className="rounded-lg border border-white/10 bg-white/[0.03] p-3">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-violet-200">Audience Fit</p>
+                  <p className="mt-1 text-slate-100">{programmaticFinalInterpretation.audience_fit}</p>
+                </div>
+                <div className="rounded-lg border border-white/10 bg-white/[0.03] p-3">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-violet-200">Inventory Fit</p>
+                  <p className="mt-1 text-slate-100">{programmaticFinalInterpretation.inventory_fit}</p>
+                </div>
+                <div className="rounded-lg border border-white/10 bg-white/[0.03] p-3">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-violet-200">Main Strength</p>
+                  <p className="mt-1 text-slate-100">{programmaticFinalInterpretation.main_strength}</p>
+                </div>
+                <div className="rounded-lg border border-amber-400/30 bg-amber-500/10 p-3 md:col-span-2">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-amber-200">Main Risk</p>
+                  <p className="mt-1 text-amber-100">{programmaticFinalInterpretation.main_risk}</p>
+                </div>
+                {Array.isArray(programmaticFinalInterpretation.recommended_fixes) && programmaticFinalInterpretation.recommended_fixes.length > 0 && (
+                  <div className="rounded-lg border border-emerald-400/30 bg-emerald-500/10 p-3 md:col-span-2">
+                    <p className="text-[10px] font-semibold uppercase tracking-wider text-emerald-200">Recommended Fixes</p>
+                    <div className="mt-1 space-y-1">
+                      {programmaticFinalInterpretation.recommended_fixes.slice(0, 3).map((fix, idx) => (
+                        <p key={`programmatic-fix-${idx}`} className="text-sm text-emerald-100">- {fix}</p>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       </div>
 

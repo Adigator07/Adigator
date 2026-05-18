@@ -29,6 +29,7 @@ type CtaPressure = "soft" | "moderate" | "aggressive";
 type CampaignGoal = "awareness" | "traffic" | "conversion" | "lead_generation" | "engagement" | "app_installs" | "video_views" | "retargeting" | "consideration";
 type GoalStage = "awareness" | "consideration" | "conversion";
 type PlatformContext = "google_ads" | "meta_ads" | "programmatic";
+type AudienceStage = "cold" | "warm" | "hot";
 type AlignmentStatus = "aligned" | "partially_aligned" | "misaligned";
 type Severity = "low" | "medium" | "high";
 
@@ -100,6 +101,7 @@ interface PlatformAlignment {
 
 interface GoogleDisplayIntelligence {
   campaign_goal: CampaignGoal;
+  audience_stage: AudienceStage;
   objective_priorities: string[];
   ecosystem_focus: string[];
   inventory_profile: {
@@ -150,11 +152,26 @@ interface GoogleDisplayIntelligence {
     classification: "optimal" | "slightly_overloaded" | "text_heavy" | "unreadable";
     impact: string;
   };
+  audience_stage_fit: {
+    status: "strong" | "mixed" | "weak";
+    expected_behavior: string;
+    reasoning: string;
+  };
   auction_readiness_impact: string;
+}
+
+interface GoogleFinalInterpretation {
+  campaign_fit: string;
+  audience_fit: string;
+  inventory_fit: string;
+  main_strength: string;
+  main_risk: string;
+  recommended_fixes: string[];
 }
 
 interface MetaFeedIntelligence {
   campaign_goal: CampaignGoal;
+  audience_stage: AudienceStage;
   objective_priorities: string[];
   ecosystem_focus: string[];
   placement_profile: {
@@ -186,6 +203,12 @@ interface MetaFeedIntelligence {
     status: "strong" | "mixed" | "weak";
     issues: string[];
   };
+  feed_native_analysis: {
+    native_feel: "authentic" | "mixed" | "banner_like";
+    ugc_compatibility: "strong" | "moderate" | "weak";
+    over_designed_risk: "low" | "medium" | "high";
+    reasoning: string;
+  };
   social_native_feel_analysis: {
     status: "authentic" | "mixed" | "banner_like";
     reason: string;
@@ -212,7 +235,74 @@ interface MetaFeedIntelligence {
     detected_triggers: string[];
     goal_fit: string;
   };
+  audience_stage_fit: {
+    status: "strong" | "mixed" | "weak";
+    expected_behavior: string;
+    reasoning: string;
+  };
   platform_behavior_fit: string;
+}
+
+interface MetaFinalInterpretation {
+  campaign_fit: string;
+  audience_fit: string;
+  placement_fit: string;
+  main_strength: string;
+  main_risk: string;
+  recommended_fixes: string[];
+}
+
+interface ProgrammaticDisplayIntelligence {
+  campaign_goal: CampaignGoal;
+  audience_stage: AudienceStage;
+  objective_priorities: string[];
+  ecosystem_focus: string[];
+  inventory_adaptability_analysis: {
+    contrast_strength: "strong" | "moderate" | "weak";
+    readability_speed: "fast" | "moderate" | "slow";
+    visual_simplicity: "clean" | "balanced" | "complex";
+    peripheral_recognition: "strong" | "moderate" | "weak";
+    reasoning: string;
+  };
+  banner_blindness_analysis: {
+    risk_level: "low" | "medium" | "high";
+    generic_structure_risk: string;
+    fatigue_pattern_risk: string;
+    interruption_signal: string;
+  };
+  device_inventory_flexibility: {
+    desktop_fit: "strong" | "mixed" | "weak";
+    mobile_fit: "strong" | "mixed" | "weak";
+    in_app_fit: "strong" | "mixed" | "weak";
+    native_fit: "strong" | "mixed" | "weak";
+    key_risks: string[];
+  };
+  inventory_context_fit: {
+    premium_inventory_fit: "strong" | "mixed" | "weak";
+    native_compatibility: "strong" | "mixed" | "weak";
+    high_impact_compatibility: "strong" | "mixed" | "weak";
+    best_suited_inventory: string[];
+  };
+  category_signal_strength: {
+    product_recognition_speed: "fast" | "moderate" | "slow";
+    brand_recognition_speed: "fast" | "moderate" | "slow";
+    offer_clarity: "strong" | "moderate" | "weak";
+    reasoning: string;
+  };
+  audience_stage_fit: {
+    status: "strong" | "mixed" | "weak";
+    expected_behavior: string;
+    reasoning: string;
+  };
+}
+
+interface ProgrammaticFinalInterpretation {
+  campaign_fit: string;
+  audience_fit: string;
+  inventory_fit: string;
+  main_strength: string;
+  main_risk: string;
+  recommended_fixes: string[];
 }
 
 interface BusinessImpact {
@@ -647,9 +737,46 @@ function normalizePlatform(platform: string): PlatformContext {
   return "programmatic";
 }
 
+function normalizeAudienceStage(audienceStage: string): AudienceStage {
+  const cleaned = (audienceStage || "").toLowerCase().trim();
+  if (cleaned === "warm") return "warm";
+  if (cleaned === "hot" || cleaned === "retargeting") return "hot";
+  return "cold";
+}
+
 function normalizeVertical(vertical: string): string {
   const cleaned = (vertical || "").toLowerCase().trim();
   return KNOWN_VERTICALS.has(cleaned) ? cleaned : "technology";
+}
+
+function getGoogleAudienceExpectation(audienceStage: AudienceStage): string {
+  if (audienceStage === "cold") {
+    return "Cold audiences need category clarity, fast recognition, and lower-pressure framing.";
+  }
+  if (audienceStage === "warm") {
+    return "Warm audiences need trust reinforcement, differentiation, and visible conversion direction.";
+  }
+  return "Hot audiences need urgency, familiarity, and frictionless conversion cues.";
+}
+
+function getMetaAudienceExpectation(audienceStage: AudienceStage): string {
+  if (audienceStage === "cold") {
+    return "Cold Meta audiences need emotional interruption, identity relevance, and low cognitive load.";
+  }
+  if (audienceStage === "warm") {
+    return "Warm Meta audiences need trust cues, differentiation, and stronger value reinforcement.";
+  }
+  return "Hot Meta audiences need urgency, reminders, and fast decision reinforcement.";
+}
+
+function getProgrammaticAudienceExpectation(audienceStage: AudienceStage): string {
+  if (audienceStage === "cold") {
+    return "Cold programmatic audiences need fast category recognition, emotional accessibility, and low cognitive load.";
+  }
+  if (audienceStage === "warm") {
+    return "Warm programmatic audiences need trust reinforcement, value differentiation, and clearer decision support.";
+  }
+  return "Hot/retargeting programmatic audiences need urgency, offer clarity, and direct action reinforcement.";
 }
 
 function isNonEmptyString(value: unknown): boolean {
@@ -1424,6 +1551,7 @@ function buildAudienceResponse(
 function buildCampaignAlignment(
   goal: CampaignGoal,
   selectedVertical: string,
+  audienceStage: AudienceStage,
   extraction: ExtractionSignals,
   psychology: PsychologyAnalysis,
   ctaPressure: CtaPressure,
@@ -1485,6 +1613,18 @@ function buildCampaignAlignment(
   if (goal === "retargeting" && extraction.brand_presence === "low") {
     conflicts.push("Retargeting objective needs faster familiarity signals, but brand recognition cues are weak.");
   }
+  if (audienceStage === "cold" && ctaPressure === "aggressive" && goalStage !== "conversion") {
+    conflicts.push("Cold audiences are receiving aggressive action pressure before relevance and trust are fully established.");
+  }
+  if (audienceStage === "warm" && extraction.trust_markers.length === 0 && goalStage !== "awareness") {
+    conflicts.push("Warm audiences need trust reinforcement, but visible proof markers are limited.");
+  }
+  if (audienceStage === "hot" && (!extraction.cta?.trim() || ctaPressure === "soft")) {
+    conflicts.push("Hot audiences need direct conversion cues, but CTA pressure is currently too soft.");
+  }
+  if (audienceStage === "hot" && urgencyLevel === "low" && goalStage === "conversion") {
+    conflicts.push("Hot conversion audiences typically respond to urgency reinforcement, but urgency cues are weak.");
+  }
   if (selectedVertical === "luxury" && /discount|save|offer|% off/.test([extraction.headline, extraction.primary_message, extraction.cta].join(" ").toLowerCase())) {
     conflicts.push("Luxury positioning conflicts with discount-heavy message behavior.");
   }
@@ -1537,6 +1677,7 @@ function buildCampaignAlignment(
 
 function buildPlatformAlignment(
   platform: PlatformContext,
+  audienceStage: AudienceStage,
   extraction: ExtractionSignals,
   goal: CampaignGoal,
   ctaPressure: CtaPressure,
@@ -1599,6 +1740,18 @@ function buildPlatformAlignment(
       conflicts.push("Retargeting objective needs stronger familiarity signals for quick recognition in display inventory.");
       recommendations.push("Increase brand continuity and simplify recall cues for returning audiences.");
     }
+    if (audienceStage === "cold" && ctaPressure === "aggressive") {
+      conflicts.push("Google cold-audience delivery is over-pressured for utility-driven first-touch scanning behavior.");
+      recommendations.push("Reduce commitment pressure and foreground category/value clarity before direct ask.");
+    }
+    if (audienceStage === "warm" && extraction.trust_markers.length === 0) {
+      conflicts.push("Google warm-audience delivery lacks trust reinforcement needed to convert partially familiar users.");
+      recommendations.push("Add proof anchors near headline/CTA: credibility, testimonial, or security cues.");
+    }
+    if (audienceStage === "hot" && (!extraction.cta?.trim() || ctaPressure === "soft")) {
+      conflicts.push("Google hot-audience delivery is under-activated by soft action language.");
+      recommendations.push("Use direct decision-stage CTA and visible offer reinforcement for retargeting-like behavior.");
+    }
   }
 
   if (platform === "meta_ads") {
@@ -1642,6 +1795,18 @@ function buildPlatformAlignment(
       conflicts.push("Retargeting on Meta should trigger familiarity quickly, but brand recognition is weak.");
       recommendations.push("Use stronger brand continuity and direct reminder framing for warm audiences.");
     }
+    if (audienceStage === "cold" && ctaPressure === "aggressive" && goalProfile.stage !== "conversion") {
+      conflicts.push("Cold Meta audiences are receiving high commitment pressure before emotional relevance is established.");
+      recommendations.push("Lower immediate action pressure and strengthen first-second emotional hook.");
+    }
+    if (audienceStage === "warm" && extraction.trust_markers.length === 0) {
+      conflicts.push("Warm Meta audiences need stronger trust and social proof cues than the current creative provides.");
+      recommendations.push("Add concise trust proof, social proof, or credibility anchors near the value claim.");
+    }
+    if (audienceStage === "hot" && (!extraction.cta?.trim() || ctaPressure === "soft")) {
+      conflicts.push("Hot Meta audiences are under-activated by weak CTA pressure in decision-stage contexts.");
+      recommendations.push("Use clearer urgency and action reinforcement for retargeting-oriented placements.");
+    }
   }
 
   if (platform === "programmatic") {
@@ -1664,6 +1829,26 @@ function buildPlatformAlignment(
     if (goal === "conversion" && (!extraction.cta?.trim() || ctaPressure === "soft")) {
       conflicts.push("Conversion objective in programmatic inventory requires clearer action language than current creative provides.");
       recommendations.push("Increase CTA clarity and reduce decision friction for mixed-context placements.");
+    }
+    if (goal === "retargeting" && (!extraction.cta?.trim() || urgencyLevel === "low")) {
+      conflicts.push("Retargeting objective in programmatic inventory needs clearer urgency and offer reinforcement.");
+      recommendations.push("Use stronger reminder/offer language and clearer action framing for retargeting inventory.");
+    }
+    if (extraction.text_density === "high") {
+      conflicts.push("High text density may fail in peripheral-attention programmatic environments.");
+      recommendations.push("Simplify copy blocks so category and action can be recognized without full focus.");
+    }
+    if (audienceStage === "cold" && ctaPressure === "aggressive" && goalProfile.stage !== "conversion") {
+      conflicts.push("Cold programmatic audiences are receiving early action pressure before trust/relevance is established.");
+      recommendations.push("Lower pressure and prioritize clarity + category recognition for first-touch inventory.");
+    }
+    if (audienceStage === "warm" && extraction.trust_markers.length === 0) {
+      conflicts.push("Warm programmatic audiences need stronger trust signals for mid-funnel progression.");
+      recommendations.push("Add concise trust proof next to value messaging to reduce hesitation across mixed publishers.");
+    }
+    if (audienceStage === "hot" && (!extraction.cta?.trim() || ctaPressure === "soft")) {
+      conflicts.push("Hot programmatic audiences are under-activated by weak CTA pressure.");
+      recommendations.push("Increase action reinforcement and decision clarity for retargeting-heavy delivery.");
     }
   }
 
@@ -1689,6 +1874,7 @@ function buildPlatformAlignment(
 function buildGoogleDisplayIntelligence(params: {
   platform: PlatformContext;
   goal: CampaignGoal;
+  audienceStage: AudienceStage;
   extraction: ExtractionSignals;
   attention: AttentionAnalysis;
   ctaPressure: CtaPressure;
@@ -1699,6 +1885,7 @@ function buildGoogleDisplayIntelligence(params: {
   const {
     platform,
     goal,
+    audienceStage,
     extraction,
     attention,
     ctaPressure,
@@ -1808,8 +1995,29 @@ function buildGoogleDisplayIntelligence(params: {
       ? "Strong auction readiness baseline: core inventory size + objective-aligned messaging supports CTR competitiveness."
       : "Moderate auction readiness: improve hierarchy and responsive safety to stabilize performance across inventory.";
 
+  const audienceStageFitStatus: "strong" | "mixed" | "weak" =
+    audienceStage === "cold"
+      ? (ctaPressure === "aggressive" ? "weak" : extraction.readability === "low" ? "mixed" : "strong")
+      : audienceStage === "warm"
+        ? (extraction.trust_markers.length === 0 ? "mixed" : "strong")
+        : (!extraction.cta?.trim() || ctaPressure === "soft" ? "weak" : urgencyLevel === "low" ? "mixed" : "strong");
+
+  const audienceStageFitReasoning =
+    audienceStage === "cold"
+      ? (ctaPressure === "aggressive"
+        ? "Cold audience delivery is too action-heavy for first-touch utility scanning."
+        : "Cold audience delivery keeps pressure contained and supports quick comprehension.")
+      : audienceStage === "warm"
+        ? (extraction.trust_markers.length === 0
+          ? "Warm audience delivery needs stronger trust markers to convert familiarity into action."
+          : "Warm audience delivery includes adequate trust and action guidance.")
+        : (!extraction.cta?.trim() || ctaPressure === "soft"
+          ? "Hot audience delivery lacks decisive action cues for high-intent users."
+          : "Hot audience delivery is action-forward and suitable for retargeting behavior.");
+
   return {
     campaign_goal: goal,
+    audience_stage: audienceStage,
     objective_priorities: goalProfile.aiPriorities,
     ecosystem_focus: ["responsive_display_ads", "uploaded_banner_ads"],
     inventory_profile: {
@@ -1886,13 +2094,141 @@ function buildGoogleDisplayIntelligence(params: {
             ? "High text load likely suppresses CTR in fast-scan inventory."
             : "Unreadable text profile can significantly weaken viewability-to-click conversion.",
     },
+    audience_stage_fit: {
+      status: audienceStageFitStatus,
+      expected_behavior: getGoogleAudienceExpectation(audienceStage),
+      reasoning: audienceStageFitReasoning,
+    },
     auction_readiness_impact: auctionImpact,
+  };
+}
+
+function buildGoogleFinalInterpretation(params: {
+  platform: PlatformContext;
+  goal: CampaignGoal;
+  audienceStage: AudienceStage;
+  campaignAlignment: CampaignAlignment;
+  googleDisplayIntelligence: GoogleDisplayIntelligence | null;
+  attentionAnalysis: AttentionAnalysis;
+}): GoogleFinalInterpretation | null {
+  const {
+    platform,
+    goal,
+    audienceStage,
+    campaignAlignment,
+    googleDisplayIntelligence,
+    attentionAnalysis,
+  } = params;
+
+  if (platform !== "google_ads" || !googleDisplayIntelligence) return null;
+
+  const campaignFit = campaignAlignment.alignment_status === "aligned"
+    ? `Strong ${goal.replace(/_/g, " ")} alignment for Google utility-driven conversion behavior.`
+    : campaignAlignment.alignment_status === "partially_aligned"
+      ? `Partial ${goal.replace(/_/g, " ")} alignment: key messaging elements need tightening for Google display.`
+      : `Weak ${goal.replace(/_/g, " ")} alignment: creative behavior conflicts with Google display objective requirements.`;
+
+  const audienceFit = googleDisplayIntelligence.audience_stage_fit.status === "strong"
+    ? `Suitable for ${audienceStage} audiences in Google's intent-assisted display ecosystem.`
+    : googleDisplayIntelligence.audience_stage_fit.status === "mixed"
+      ? `Partially suitable for ${audienceStage} audiences; audience-stage reinforcement is needed.`
+      : `Not yet suitable for ${audienceStage} audiences due to stage-fit friction signals.`;
+
+  const inventoryFit = googleDisplayIntelligence.responsive_safety_analysis.status === "safe"
+    ? "Responsive-display compatible across desktop and mobile Google inventory."
+    : googleDisplayIntelligence.responsive_safety_analysis.status === "watch"
+      ? "Mostly compatible with Google inventory, but responsive recomposition should be monitored."
+      : "At risk in fragmented Google inventory due to responsive/cropping instability.";
+
+  const mainStrength = `Attention flow is ${attentionAnalysis.first_focus} -> message -> CTA with ${googleDisplayIntelligence.cta_strength_analysis.status} CTA visibility.`;
+
+  const mainRisk = googleDisplayIntelligence.mobile_cropping_risk.risk_level === "high"
+    ? "Dense or ratio-sensitive layout may lose readability on smaller mobile placements."
+    : googleDisplayIntelligence.banner_blindness_detection.risk_level === "high"
+      ? "Creative may blend into generic display inventory and be ignored subconsciously."
+      : "Secondary detail density can reduce scan speed in constrained placements.";
+
+  const recommendedFixes = [
+    "Simplify visual density to improve recognition at small responsive sizes.",
+    "Increase CTA contrast and safe-zone spacing for mobile inventory.",
+    "Prioritize headline clarity so product/value is understood within 1-2 seconds.",
+  ];
+
+  return {
+    campaign_fit: campaignFit,
+    audience_fit: audienceFit,
+    inventory_fit: inventoryFit,
+    main_strength: mainStrength,
+    main_risk: mainRisk,
+    recommended_fixes: recommendedFixes,
+  };
+}
+
+function buildMetaFinalInterpretation(params: {
+  platform: PlatformContext;
+  goal: CampaignGoal;
+  audienceStage: AudienceStage;
+  campaignAlignment: CampaignAlignment;
+  metaFeedIntelligence: MetaFeedIntelligence | null;
+}): MetaFinalInterpretation | null {
+  const {
+    platform,
+    goal,
+    audienceStage,
+    campaignAlignment,
+    metaFeedIntelligence,
+  } = params;
+
+  if (platform !== "meta_ads" || !metaFeedIntelligence) return null;
+
+  const campaignFit = campaignAlignment.alignment_status === "aligned"
+    ? `Strong ${goal.replace(/_/g, " ")} Meta alignment for feed-behavior and interruption dynamics.`
+    : campaignAlignment.alignment_status === "partially_aligned"
+      ? `Partial ${goal.replace(/_/g, " ")} Meta alignment: key feed-behavior elements need refinement.`
+      : `Weak ${goal.replace(/_/g, " ")} Meta alignment: creative behavior conflicts with feed-psychology requirements.`;
+
+  const audienceFit = metaFeedIntelligence.audience_stage_fit.status === "strong"
+    ? `Suitable for ${audienceStage} Meta audiences in fast-scroll mobile feeds.`
+    : metaFeedIntelligence.audience_stage_fit.status === "mixed"
+      ? `Partially suitable for ${audienceStage} audiences; audience-stage reinforcement is needed.`
+      : `Not yet suitable for ${audienceStage} audiences due to stage-fit friction in feed behavior.`;
+
+  const placementFit = metaFeedIntelligence.safe_zone_analysis.status === "safe"
+    ? "Performs well across feed and story inventory with stable mobile-safe composition."
+    : metaFeedIntelligence.safe_zone_analysis.status === "watch"
+      ? "Works best in feed placements; vertical stories/reels need additional safe-zone tuning."
+      : "Placement risk is elevated, especially in story/reels surfaces due to crop and overlay conflicts.";
+
+  const mainStrength = metaFeedIntelligence.thumb_stop_analysis.predicted_strength === "strong"
+    ? "Strong emotional interruption and feed-native structure support thumb-stop behavior."
+    : "Creative shows partial feed interruption signals with mobile-first potential.";
+
+  const mainRisk = metaFeedIntelligence.reels_story_immersion_analysis.status === "weak"
+    ? "Brand/message visibility weakens in Reels/Story vertical behavior windows."
+    : metaFeedIntelligence.creative_fatigue_analysis.risk_level === "high"
+      ? "Pattern saturation risk may reduce thumb-stop performance over repeated impressions."
+      : "Secondary copy and hierarchy can become slower to decode in high-speed scroll contexts.";
+
+  const recommendedFixes = [
+    "Strengthen logo and brand anchors without making the layout look display-banner-like.",
+    "Improve vertical safe-zone spacing for Stories/Reels overlays.",
+    "Reduce secondary copy density to improve one-second emotional readability.",
+  ];
+
+  return {
+    campaign_fit: campaignFit,
+    audience_fit: audienceFit,
+    placement_fit: placementFit,
+    main_strength: mainStrength,
+    main_risk: mainRisk,
+    recommended_fixes: recommendedFixes,
   };
 }
 
 function buildMetaFeedIntelligence(params: {
   platform: PlatformContext;
   goal: CampaignGoal;
+  audienceStage: AudienceStage;
   extraction: ExtractionSignals;
   attention: AttentionAnalysis;
   ctaPressure: CtaPressure;
@@ -1903,6 +2239,7 @@ function buildMetaFeedIntelligence(params: {
   const {
     platform,
     goal,
+    audienceStage,
     extraction,
     attention,
     ctaPressure,
@@ -2004,8 +2341,43 @@ function buildMetaFeedIntelligence(params: {
     ? extraction.emotional_cues.slice(0, 4)
     : ["neutral"]; 
 
+  const ugcCompatibility: "strong" | "moderate" | "weak" =
+    socialNativeStatus === "authentic"
+      ? "strong"
+      : socialNativeStatus === "mixed"
+        ? "moderate"
+        : "weak";
+
+  const overDesignedRisk: "low" | "medium" | "high" =
+    extraction.text_density === "high"
+      ? "high"
+      : socialNativeStatus === "mixed"
+        ? "medium"
+        : "low";
+
+  const audienceStageFitStatus: "strong" | "mixed" | "weak" =
+    audienceStage === "cold"
+      ? (thumbStopStrength === "weak" ? "weak" : extraction.readability === "low" ? "mixed" : "strong")
+      : audienceStage === "warm"
+        ? (extraction.trust_markers.length === 0 ? "mixed" : "strong")
+        : (!extraction.cta?.trim() || ctaPressure === "soft" ? "weak" : urgencyLevel === "low" ? "mixed" : "strong");
+
+  const audienceStageFitReasoning =
+    audienceStage === "cold"
+      ? (thumbStopStrength === "weak"
+        ? "Cold feed users may not pause because interruption signals are currently weak."
+        : "Cold feed users receive enough emotional interruption and simple decoding cues.")
+      : audienceStage === "warm"
+        ? (extraction.trust_markers.length === 0
+          ? "Warm audiences need stronger trust proof before converting feed attention into clicks."
+          : "Warm audiences get trust and differentiation signals suitable for mid-funnel action.")
+        : (!extraction.cta?.trim() || ctaPressure === "soft"
+          ? "Hot audiences are under-activated by soft action language in fast-scroll contexts."
+          : "Hot audiences receive stronger urgency/action cues aligned with retargeting behavior.");
+
   return {
     campaign_goal: goal,
+    audience_stage: audienceStage,
     objective_priorities: goalProfile.aiPriorities,
     ecosystem_focus: ["feed_ads", "story_ads", "reels_ads", "carousel_ads"],
     placement_profile: {
@@ -2042,6 +2414,16 @@ function buildMetaFeedIntelligence(params: {
       expected_order: ["Thumb-stop visual", "Main message", "Emotional cue", "CTA", "Branding"],
       status: hierarchyIssues.length >= 2 ? "weak" : hierarchyIssues.length === 1 ? "mixed" : "strong",
       issues: hierarchyIssues,
+    },
+    feed_native_analysis: {
+      native_feel: socialNativeStatus,
+      ugc_compatibility: ugcCompatibility,
+      over_designed_risk: overDesignedRisk,
+      reasoning: socialNativeStatus === "authentic"
+        ? "Creative behavior is feed-native and avoids rigid display-banner composition."
+        : socialNativeStatus === "banner_like"
+          ? "Composition resembles display-banner structure and may underperform in social feeds."
+          : "Creative is partially feed-native but still carries some polished-ad friction.",
     },
     social_native_feel_analysis: {
       status: socialNativeStatus,
@@ -2090,6 +2472,11 @@ function buildMetaFeedIntelligence(params: {
         : stage === "conversion" && (triggers.includes("trust") || triggers.includes("urgency"))
           ? "Emotional trigger aligns with conversion-stage action psychology."
           : "Trigger-goal fit is partial; refine emotional framing to objective priorities.",
+    },
+    audience_stage_fit: {
+      status: audienceStageFitStatus,
+      expected_behavior: getMetaAudienceExpectation(audienceStage),
+      reasoning: audienceStageFitReasoning,
     },
     platform_behavior_fit: urgencyLevel === "high" && stage === "awareness"
       ? "Meta discovery-mode behavior conflicts with heavy urgency at awareness stage."
@@ -2240,6 +2627,219 @@ function scoreLevel(level: SignalLevel, positive = true): number {
     return level === "high" ? 90 : level === "moderate" ? 70 : 45;
   }
   return level === "high" ? 45 : level === "moderate" ? 70 : 90;
+}
+
+function buildProgrammaticDisplayIntelligence(params: {
+  platform: PlatformContext;
+  goal: CampaignGoal;
+  audienceStage: AudienceStage;
+  extraction: ExtractionSignals;
+  attention: AttentionAnalysis;
+  ctaPressure: CtaPressure;
+  urgencyLevel: SignalLevel;
+  width: number;
+  height: number;
+}): ProgrammaticDisplayIntelligence | null {
+  const {
+    platform,
+    goal,
+    audienceStage,
+    extraction,
+    attention,
+    ctaPressure,
+    urgencyLevel,
+    width,
+    height,
+  } = params;
+
+  if (platform !== "programmatic") return null;
+
+  const ratio = height > 0 ? width / height : 0;
+  const goalProfile = GOAL_INTELLIGENCE_PROFILE[goal];
+  const textCorpus = [extraction.headline, extraction.primary_message, extraction.cta].join(" ").toLowerCase();
+
+  const contrastStrength: "strong" | "moderate" | "weak" = extraction.readability === "low"
+    ? "weak"
+    : extraction.brand_presence === "high" || extraction.emotional_cues.length > 0
+      ? "strong"
+      : "moderate";
+
+  const readabilitySpeed: "fast" | "moderate" | "slow" = extraction.readability === "low"
+    ? "slow"
+    : extraction.text_density === "high"
+      ? "moderate"
+      : "fast";
+
+  const visualSimplicity: "clean" | "balanced" | "complex" = extraction.text_density === "high"
+    ? "complex"
+    : extraction.text_density === "moderate"
+      ? "balanced"
+      : "clean";
+
+  const peripheralRecognition: "strong" | "moderate" | "weak" =
+    extraction.hierarchy_observations.toLowerCase().includes("unclear") || extraction.readability === "low"
+      ? "weak"
+      : extraction.headline?.trim()
+        ? "strong"
+        : "moderate";
+
+  const blindnessRisk: "low" | "medium" | "high" =
+    extraction.emotional_cues.length === 0 && extraction.text_density !== "low"
+      ? "high"
+      : extraction.text_density === "high" || attention.friction_points.length > 0
+        ? "medium"
+        : "low";
+
+  const keyRisks: string[] = [];
+  if (!(ratio >= 0.45 && ratio <= 3.8)) keyRisks.push("Extreme ratio may break flexibility across mixed programmatic slots.");
+  if (extraction.text_density === "high") keyRisks.push("Dense text reduces performance in peripheral-attention inventory.");
+  if (extraction.readability === "low") keyRisks.push("Low readability weakens category recognition in cluttered environments.");
+  if (extraction.brand_presence === "low") keyRisks.push("Brand anchor may be missed in fast-scan publisher contexts.");
+
+  const desktopFit: "strong" | "mixed" | "weak" = keyRisks.length === 0 ? "strong" : keyRisks.length <= 2 ? "mixed" : "weak";
+  const mobileFit: "strong" | "mixed" | "weak" = extraction.readability === "low" || extraction.text_density === "high" ? "weak" : keyRisks.length > 1 ? "mixed" : "strong";
+  const inAppFit: "strong" | "mixed" | "weak" = extraction.text_density === "high" ? "weak" : extraction.readability === "low" ? "mixed" : "strong";
+  const nativeFit: "strong" | "mixed" | "weak" = extraction.emotional_cues.length > 0 ? "strong" : extraction.text_density === "high" ? "weak" : "mixed";
+
+  const premiumFit: "strong" | "mixed" | "weak" = extraction.readability === "low" ? "weak" : extraction.brand_presence === "high" ? "strong" : "mixed";
+  const nativeCompatibility: "strong" | "mixed" | "weak" = nativeFit;
+  const highImpactCompatibility: "strong" | "mixed" | "weak" = (width >= 900 || height >= 500) && extraction.readability !== "low" ? "strong" : extraction.readability === "low" ? "weak" : "mixed";
+
+  const productRecognitionSpeed: "fast" | "moderate" | "slow" = extraction.visual_elements.length > 0 && extraction.headline?.trim() ? "fast" : extraction.visual_elements.length > 0 ? "moderate" : "slow";
+  const brandRecognitionSpeed: "fast" | "moderate" | "slow" = extraction.brand_presence === "high" ? "fast" : extraction.brand_presence === "moderate" ? "moderate" : "slow";
+  const offerClarity: "strong" | "moderate" | "weak" = /offer|save|discount|trial|free|pricing|book|buy|shop|quote|demo/.test(textCorpus)
+    ? "strong"
+    : extraction.cta?.trim()
+      ? "moderate"
+      : "weak";
+
+  const audienceStageFitStatus: "strong" | "mixed" | "weak" =
+    audienceStage === "cold"
+      ? (peripheralRecognition === "weak" || readabilitySpeed === "slow" ? "weak" : "strong")
+      : audienceStage === "warm"
+        ? (extraction.trust_markers.length === 0 ? "mixed" : "strong")
+        : (!extraction.cta?.trim() || ctaPressure === "soft" ? "weak" : urgencyLevel === "low" ? "mixed" : "strong");
+
+  const bestInventory = [
+    premiumFit === "strong" ? "premium publishers" : null,
+    mobileFit !== "weak" ? "mobile web" : null,
+    nativeCompatibility !== "weak" ? "native widgets" : null,
+    desktopFit !== "weak" ? "desktop display" : null,
+    highImpactCompatibility === "strong" ? "high-impact canvases" : null,
+  ].filter((value): value is string => Boolean(value));
+
+  return {
+    campaign_goal: goal,
+    audience_stage: audienceStage,
+    objective_priorities: goalProfile.aiPriorities,
+    ecosystem_focus: ["premium_publishers", "mobile_web", "in_app_display", "native_widgets", "high_impact_inventory"],
+    inventory_adaptability_analysis: {
+      contrast_strength: contrastStrength,
+      readability_speed: readabilitySpeed,
+      visual_simplicity: visualSimplicity,
+      peripheral_recognition: peripheralRecognition,
+      reasoning: "Programmatic outcomes depend on surviving mixed backgrounds and peripheral attention windows across publisher contexts.",
+    },
+    banner_blindness_analysis: {
+      risk_level: blindnessRisk,
+      generic_structure_risk: blindnessRisk === "high"
+        ? "Creative resembles standard templated banner structures."
+        : "Generic banner risk is partially controlled.",
+      fatigue_pattern_risk: blindnessRisk === "low"
+        ? "Low immediate fatigue risk from repetitive layout patterns."
+        : "Repeated delivery may reduce response if layout novelty is not refreshed.",
+      interruption_signal: attention.friction_points.length === 0
+        ? "Interruption signal is present and supports scan break."
+        : "Interruption signal is inconsistent in cluttered browsing contexts.",
+    },
+    device_inventory_flexibility: {
+      desktop_fit: desktopFit,
+      mobile_fit: mobileFit,
+      in_app_fit: inAppFit,
+      native_fit: nativeFit,
+      key_risks: keyRisks,
+    },
+    inventory_context_fit: {
+      premium_inventory_fit: premiumFit,
+      native_compatibility: nativeCompatibility,
+      high_impact_compatibility: highImpactCompatibility,
+      best_suited_inventory: bestInventory.length > 0 ? bestInventory : ["standard display inventory"],
+    },
+    category_signal_strength: {
+      product_recognition_speed: productRecognitionSpeed,
+      brand_recognition_speed: brandRecognitionSpeed,
+      offer_clarity: offerClarity,
+      reasoning: "Programmatic creatives must communicate category and intent within fast, low-attention scanning moments.",
+    },
+    audience_stage_fit: {
+      status: audienceStageFitStatus,
+      expected_behavior: getProgrammaticAudienceExpectation(audienceStage),
+      reasoning: audienceStage === "cold"
+        ? "Cold audiences need immediate category clarity and low cognitive load."
+        : audienceStage === "warm"
+          ? "Warm audiences need trust and stronger value reinforcement."
+          : "Hot audiences need urgency and explicit action reinforcement.",
+    },
+  };
+}
+
+function buildProgrammaticFinalInterpretation(params: {
+  platform: PlatformContext;
+  goal: CampaignGoal;
+  audienceStage: AudienceStage;
+  campaignAlignment: CampaignAlignment;
+  programmaticDisplayIntelligence: ProgrammaticDisplayIntelligence | null;
+}): ProgrammaticFinalInterpretation | null {
+  const {
+    platform,
+    goal,
+    audienceStage,
+    campaignAlignment,
+    programmaticDisplayIntelligence,
+  } = params;
+
+  if (platform !== "programmatic" || !programmaticDisplayIntelligence) return null;
+
+  const campaignFit = campaignAlignment.alignment_status === "aligned"
+    ? `Strong ${goal.replace(/_/g, " ")} alignment for inventory-diverse programmatic delivery.`
+    : campaignAlignment.alignment_status === "partially_aligned"
+      ? `Partial ${goal.replace(/_/g, " ")} alignment: some inventory-behavior conflicts require refinement.`
+      : `Weak ${goal.replace(/_/g, " ")} alignment for current programmatic context and objective.`;
+
+  const audienceFit = programmaticDisplayIntelligence.audience_stage_fit.status === "strong"
+    ? `Suitable for ${audienceStage} audiences in fragmented programmatic environments.`
+    : programmaticDisplayIntelligence.audience_stage_fit.status === "mixed"
+      ? `Partially suitable for ${audienceStage} audiences; stage-fit reinforcement is needed.`
+      : `Not yet suitable for ${audienceStage} audiences due to stage-fit friction.`;
+
+  const inventoryFit = programmaticDisplayIntelligence.inventory_context_fit.best_suited_inventory.length > 0
+    ? `Best suited for ${programmaticDisplayIntelligence.inventory_context_fit.best_suited_inventory.join(", ")}.`
+    : "Inventory fit is currently broad but unoptimized across mixed environments.";
+
+  const mainStrength = programmaticDisplayIntelligence.inventory_adaptability_analysis.peripheral_recognition === "strong"
+    ? "Strong peripheral recognition and mixed-inventory readability support broad display survival."
+    : "Creative shows moderate inventory adaptability with usable cross-context visibility.";
+
+  const mainRisk = programmaticDisplayIntelligence.banner_blindness_analysis.risk_level === "high"
+    ? "High banner-blindness risk may suppress attention in saturated display environments."
+    : programmaticDisplayIntelligence.device_inventory_flexibility.mobile_fit === "weak"
+      ? "Mobile/in-app flexibility is weak and may reduce scalable reach quality."
+      : "Brand/category signals may degrade in lower-attention placements.";
+
+  const recommendedFixes = [
+    "Strengthen non-generic focal contrast to reduce banner-blindness behavior.",
+    "Simplify copy and improve peripheral readability across cluttered publisher layouts.",
+    "Increase mobile-safe branding and CTA clarity for fragmented inventory placements.",
+  ];
+
+  return {
+    campaign_fit: campaignFit,
+    audience_fit: audienceFit,
+    inventory_fit: inventoryFit,
+    main_strength: mainStrength,
+    main_risk: mainRisk,
+    recommended_fixes: recommendedFixes,
+  };
 }
 
 function scoreCtaPressureFit(goal: CampaignGoal, ctaPressure: CtaPressure): number {
@@ -2432,6 +3032,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const file = formData.get("image") as File | null;
     const goal = normalizeGoal((formData.get("goal") as string) || "awareness");
     const goalProfile = GOAL_INTELLIGENCE_PROFILE[goal];
+    const audienceStage = normalizeAudienceStage((formData.get("audience_stage") as string) || "cold");
     const vertical = normalizeVertical((formData.get("vertical") as string) || "technology");
     const platform = normalizePlatform((formData.get("platform") as string) || "programmatic");
     const platformProfile = PLATFORM_BMI_PROFILE[platform];
@@ -2454,6 +3055,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
 Campaign goal: ${goal}
 Goal stage: ${goalProfile.stage}
+Audience stage: ${audienceStage}
 Creative behavior target: ${goalProfile.creativeBehavior.join("; ")}
 AI optimization priorities: ${goalProfile.aiPriorities.join("; ")}
 Campaign vertical: ${vertical}
@@ -2491,11 +3093,12 @@ Return JSON only.`;
     const verticalAligned = verticalIntelligence.productCategory.id === vertical;
 
     const attentionAnalysis = buildAttentionAnalysis(extraction, goal, ctaPressure);
-    const platformAlignment = buildPlatformAlignment(platform, extraction, goal, ctaPressure, urgencyLevel);
+    const platformAlignment = buildPlatformAlignment(platform, audienceStage, extraction, goal, ctaPressure, urgencyLevel);
     const psychologyAnalysis = buildPsychologyAnalysis(extraction, goal, ctaPressure, urgencyLevel);
     const googleDisplayIntelligence = buildGoogleDisplayIntelligence({
       platform,
       goal,
+      audienceStage,
       extraction,
       attention: attentionAnalysis,
       ctaPressure,
@@ -2506,6 +3109,18 @@ Return JSON only.`;
     const metaFeedIntelligence = buildMetaFeedIntelligence({
       platform,
       goal,
+      audienceStage,
+      extraction,
+      attention: attentionAnalysis,
+      ctaPressure,
+      urgencyLevel,
+      width: normalized.width,
+      height: normalized.height,
+    });
+    const programmaticDisplayIntelligence = buildProgrammaticDisplayIntelligence({
+      platform,
+      goal,
+      audienceStage,
       extraction,
       attention: attentionAnalysis,
       ctaPressure,
@@ -2517,12 +3132,35 @@ Return JSON only.`;
     const campaignAlignment = buildCampaignAlignment(
       goal,
       vertical,
+      audienceStage,
       extraction,
       psychologyAnalysis,
       ctaPressure,
       urgencyLevel,
       verticalIntelligence,
     );
+    const googleFinalInterpretation = buildGoogleFinalInterpretation({
+      platform,
+      goal,
+      audienceStage,
+      campaignAlignment,
+      googleDisplayIntelligence,
+      attentionAnalysis,
+    });
+    const metaFinalInterpretation = buildMetaFinalInterpretation({
+      platform,
+      goal,
+      audienceStage,
+      campaignAlignment,
+      metaFeedIntelligence,
+    });
+    const programmaticFinalInterpretation = buildProgrammaticFinalInterpretation({
+      platform,
+      goal,
+      audienceStage,
+      campaignAlignment,
+      programmaticDisplayIntelligence,
+    });
     const behavioralResponse = buildBehavioralResponse({
       goal,
       vertical,
@@ -2564,6 +3202,7 @@ Return JSON only.`;
     const goalAlignment = {
       selected_goal: goal,
       selected_stage: goalProfile.stage,
+      selected_audience_stage: audienceStage,
       detected_goal_stage: detectedGoal,
       is_aligned: detectedGoal === goalProfile.stage,
       reason: detectedGoal === goalProfile.stage
@@ -2611,7 +3250,11 @@ Return JSON only.`;
       campaign_alignment: campaignAlignment,
       platform_alignment: platformAlignment,
       google_display_intelligence: googleDisplayIntelligence,
+      google_final_interpretation: googleFinalInterpretation,
       meta_feed_intelligence: metaFeedIntelligence,
+      meta_final_interpretation: metaFinalInterpretation,
+      programmatic_display_intelligence: programmaticDisplayIntelligence,
+      programmatic_final_interpretation: programmaticFinalInterpretation,
       goal_alignment: goalAlignment,
       vertical_alignment: verticalAlignment,
       business_impact: businessImpact,
@@ -2629,6 +3272,7 @@ Return JSON only.`;
         platform_context: platformProfile.label,
         objective_context: goal,
         objective_stage: goalProfile.stage,
+        audience_stage: audienceStage,
         detected_vertical: verticalIntelligence.productCategory.id,
         product_category: verticalIntelligence.productCategory.label,
         advertising_behavior: verticalIntelligence.advertisingBehavior.label,
