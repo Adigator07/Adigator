@@ -29,7 +29,6 @@ import {
   getValidatedRecommendations,
   getVerticalAlignment,
   isValidStrategicPayload,
-  getBehavioralResponse,
 } from "../lib/strategicPresentation";
 
 const VERTICAL_LABELS = {
@@ -115,7 +114,7 @@ function getVerticalStrategyProfile(vertical) {
     lens: "relevance and category fit",
     pressure: "campaign-stage alignment",
     anchor: "brand meaning and value clarity",
-    caution: "Avoid using a one-size-fits-all psychology pattern.",
+    caution: "Avoid using one-size-fits-all messaging patterns.",
   };
 }
 
@@ -147,10 +146,7 @@ function inferCreativeAudienceIntent(signals, payload, goalText, verticalText) {
   const visual = String(signals?.dominant_visual_cue || "");
   const topic = String(signals?.topic_summary || "");
   const behavior = String(signals?.advertising_behavior || "");
-  const behavioral = getBehavioralResponse(payload) || {};
-  const likelyObjection = String(behavioral?.likely_objection || "");
-  const trustGap = String(behavioral?.trust_gap || "");
-  const corpus = `${headline} ${cta} ${visual} ${topic} ${behavior} ${likelyObjection} ${trustGap}`.toLowerCase();
+  const corpus = `${headline} ${cta} ${visual} ${topic} ${behavior}`.toLowerCase();
 
   if (/gift|gifting|present/.test(corpus) && /bike|bicycle|motorbike|cycling/.test(corpus) && /for men|male|him|husband|boyfriend/.test(corpus)) {
     return "gift buyers for men interested in bikes";
@@ -207,7 +203,6 @@ function buildStrategistNarrative({
   goalAlignment,
   verticalAlignment,
   extractionSignals,
-  behavioral,
   flow,
   campaignGoal,
   campaignVertical,
@@ -224,14 +219,6 @@ function buildStrategistNarrative({
   const imageMeaning = extractionSignals?.topic_summary?.trim() || extractionSignals?.dominant_visual_cue?.trim() || "image meaning unavailable";
   const visualHierarchy = firstSentence(flow?.attentionAnalysis?.attention_path) || "scan flow signal is limited";
   const firstFocus = flow?.attentionAnalysis?.first_focus?.trim() || "primary focus is unclear";
-  const emotionalTone = firstSentence(behavioral?.emotional_state) || "emotional tone is unclear";
-  const commitmentPressure = firstSentence(behavioral?.commitment_pressure) || "commitment pressure signal unavailable";
-  const curiosity = firstSentence(behavioral?.curiosity_vs_intent_balance) || "curiosity-intent signal unavailable";
-  const trust = firstSentence(behavioral?.trust_gap) || "trust signal unavailable";
-  const hesitation = firstSentence(behavioral?.likely_objection) || "hesitation signal unavailable";
-  const readiness = firstSentence(behavioral?.commitment_readiness) || "readiness signal unavailable";
-  const brandPresence = extractionSignals?.brand_presence || "unknown";
-  const persuasionStyle = extractionSignals?.persuasion_style || "general persuasion";
 
   const mismatchReasons = [];
   if (goalAlignment?.is_aligned === false) mismatchReasons.push("goal mismatch");
@@ -243,8 +230,6 @@ function buildStrategistNarrative({
 
   const urgencySignal = /(limited|hurry|last chance|today|ends|only now|offer)/i.test(`${headline} ${cta}`);
   if (urgencySignal && selectedGoal.toLowerCase() !== "conversion") mismatchReasons.push("urgency-stage mismatch");
-
-  if (/guarded|cautious|skeptic|hesitat|resist/i.test(emotionalTone)) mismatchReasons.push("emotional readiness mismatch");
 
   if (goalAlignment?.detected_goal && goalAlignment?.selected_goal && goalAlignment.detected_goal !== goalAlignment.selected_goal) {
     mismatchReasons.push("audience stage mismatch");
@@ -442,7 +427,7 @@ function formatPosArticle(position) {
   return `on the ${position}`;
 }
 
-function buildLayoutClarityAnalysis({ flow, extractionSignals, behavioral, campaignGoal, campaignVertical }) {
+function buildLayoutClarityAnalysis({ flow, extractionSignals, campaignGoal, campaignVertical }) {
   const attention = flow?.attentionAnalysis || null;
   const headline = extractionSignals?.headline?.trim() || null;
   const cta = extractionSignals?.cta?.trim() || null;
@@ -553,19 +538,15 @@ export default function AnalysisPanel({
   const selected = sorted.find((e) => e.creative.id === selectedId) || sorted[0];
   const data = getEntryPayload(selected) || {};
   const flow = getStrategicFlow(data);
-  const behavioral = getBehavioralResponse(data);
   const recommendations = getValidatedRecommendations(data);
   const strategicScore = getStrategicAlignmentScore(data);
   const goalAlignment = getGoalAlignment(data);
   const verticalAlignment = getVerticalAlignment(data);
   const extractionSignals = getExtractionSignals(data);
-  const googleFinalInterpretation = data?.google_final_interpretation || null;
-  const metaFinalInterpretation = data?.meta_final_interpretation || null;
-  const programmaticFinalInterpretation = data?.programmatic_final_interpretation || null;
+  const adigatorAnalysis = data?.adigator_analysis || null;
   const layoutClarity = buildLayoutClarityAnalysis({
     flow,
     extractionSignals,
-    behavioral,
     campaignGoal,
     campaignVertical,
   });
@@ -574,7 +555,6 @@ export default function AnalysisPanel({
     goalAlignment,
     verticalAlignment,
     extractionSignals,
-    behavioral,
     flow,
     campaignGoal,
     campaignVertical,
@@ -613,7 +593,6 @@ export default function AnalysisPanel({
     goalAlignment,
     verticalAlignment,
     extractionSignals,
-    behavioral,
     flow,
     campaignGoal,
     campaignVertical,
@@ -803,10 +782,10 @@ export default function AnalysisPanel({
       return /(shop now|buy now|order now|sign up|book now|apply now|get started|claim now|download now|reserve now|purchase now)/i.test(cta);
     }).length;
 
-    const trustGapCount = sorted.filter((entry) => {
+    const technicalRiskCount = sorted.filter((entry) => {
       const payload = getEntryPayload(entry) || {};
-      const trustGap = String(getBehavioralResponse(payload)?.trust_gap || "").toLowerCase();
-      return /thin|weak|unclear|missing|limited|skeptic|hesitat/.test(trustGap);
+      const technicalRisks = payload?.adigator_analysis?.technical_risks;
+      return Array.isArray(technicalRisks) && technicalRisks.some((item) => String(item).toLowerCase() !== "none");
     }).length;
 
     const alignedBothCount = sorted.filter((entry) => {
@@ -848,9 +827,9 @@ export default function AnalysisPanel({
         ? `The campaign leans action-heavy in ${aggressiveAskCount} of ${total} creatives, so targeting reads closer to late-stage intent.`
         : `Context remains coherent across the set, supporting cleaner audience-stage optimization.`;
 
-    const trustPerception = trustGapCount > 0
-      ? `${trustGapCount} creative${trustGapCount === 1 ? " shows" : "s show"} trust friction; combined with context variation this can reduce delivery efficiency and audience confidence.`
-      : "Trust signaling appears stable at campaign level, with no dominant credibility gap pattern.";
+    const trustPerception = technicalRiskCount > 0
+      ? `${technicalRiskCount} creative${technicalRiskCount === 1 ? " shows" : "s show"} technical risk flags that may reduce delivery consistency.`
+      : "Technical stability appears strong at campaign level, with no dominant rendering-risk pattern.";
 
     const likelyAudienceReaction = alignedBothCount === total
       ? contextAdvisory
@@ -1102,7 +1081,7 @@ export default function AnalysisPanel({
               </div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5">
                 <div className="rounded-lg border border-white/10 bg-white/[0.03] p-3">
-                  <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Likely Interpretation</p>
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Observed Interpretation</p>
                   <p className="mt-1 text-sm leading-relaxed text-slate-100">{overviewAudienceInterpretation.likelyInterpretation}</p>
                 </div>
                 <div className="rounded-lg border border-white/10 bg-white/[0.03] p-3">
@@ -1110,9 +1089,9 @@ export default function AnalysisPanel({
                   <p className="mt-1 text-sm leading-relaxed text-slate-100">{overviewAudienceInterpretation.readinessStage}</p>
                 </div>
                 <div className="rounded-lg border border-white/10 bg-white/[0.03] p-3">
-                  <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Trust Perception</p>
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Stability Signal</p>
                   <p className="mt-1 text-sm leading-relaxed text-slate-100">{overviewAudienceInterpretation.trustPerception}</p>
-                  <p className="mt-2 text-xs leading-relaxed text-slate-300">Likely audience reaction: {overviewAudienceInterpretation.likelyAudienceReaction}</p>
+                  <p className="mt-2 text-xs leading-relaxed text-slate-300">Campaign signal: {overviewAudienceInterpretation.likelyAudienceReaction}</p>
                 </div>
 
                 <div className="rounded-lg border border-cyan-500/20 bg-cyan-500/5 p-3 md:col-span-3">
@@ -1520,7 +1499,7 @@ export default function AnalysisPanel({
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5">
               <div className="rounded-lg border border-white/10 bg-white/[0.03] p-3">
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Likely Interpretation</p>
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Observed Interpretation</p>
                 <p className="mt-1 text-sm leading-relaxed text-slate-100">{audienceInterpretation.likelyInterpretation}</p>
               </div>
               <div className="rounded-lg border border-white/10 bg-white/[0.03] p-3">
@@ -1528,9 +1507,9 @@ export default function AnalysisPanel({
                 <p className="mt-1 text-sm leading-relaxed text-slate-100">{audienceInterpretation.readinessStage}</p>
               </div>
               <div className="rounded-lg border border-white/10 bg-white/[0.03] p-3">
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Trust Perception</p>
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Stability Signal</p>
                 <p className="mt-1 text-sm leading-relaxed text-slate-100">{audienceInterpretation.trustPerception}</p>
-                <p className="mt-2 text-xs leading-relaxed text-slate-300">Likely audience reaction: {audienceInterpretation.likelyAudienceReaction}</p>
+                <p className="mt-2 text-xs leading-relaxed text-slate-300">Campaign signal: {audienceInterpretation.likelyAudienceReaction}</p>
               </div>
             </div>
           </div>
@@ -1575,121 +1554,39 @@ export default function AnalysisPanel({
             </div>
           </div>
 
-          {platform === "google_ads" && googleFinalInterpretation && (
-            <div className="rounded-xl border border-sky-500/25 bg-sky-500/5 p-4">
+          {adigatorAnalysis && (
+            <div className="rounded-xl border border-cyan-500/25 bg-cyan-500/5 p-4">
               <div className="flex items-center gap-2 mb-2">
-                <Target size={15} className="text-sky-300" />
-                <h4 className="text-sm font-semibold text-white">7. Google Final Interpretation</h4>
+                <Target size={15} className="text-cyan-300" />
+                <h4 className="text-sm font-semibold text-white">7. Adigator Analysis</h4>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5 text-sm leading-relaxed">
                 <div className="rounded-lg border border-white/10 bg-white/[0.03] p-3">
-                  <p className="text-[10px] font-semibold uppercase tracking-wider text-sky-200">Campaign Fit</p>
-                  <p className="mt-1 text-slate-100">{googleFinalInterpretation.campaign_fit}</p>
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-cyan-200">Campaign Fit</p>
+                  <p className="mt-1 text-slate-100">{adigatorAnalysis.campaign_fit}</p>
                 </div>
                 <div className="rounded-lg border border-white/10 bg-white/[0.03] p-3">
-                  <p className="text-[10px] font-semibold uppercase tracking-wider text-sky-200">Audience Fit</p>
-                  <p className="mt-1 text-slate-100">{googleFinalInterpretation.audience_fit}</p>
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-cyan-200">Audience Fit</p>
+                  <p className="mt-1 text-slate-100">{adigatorAnalysis.audience_fit}</p>
                 </div>
                 <div className="rounded-lg border border-white/10 bg-white/[0.03] p-3">
-                  <p className="text-[10px] font-semibold uppercase tracking-wider text-sky-200">Inventory Fit</p>
-                  <p className="mt-1 text-slate-100">{googleFinalInterpretation.inventory_fit}</p>
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-cyan-200">Inventory Fit</p>
+                  <p className="mt-1 text-slate-100">{adigatorAnalysis.inventory_fit}</p>
                 </div>
                 <div className="rounded-lg border border-white/10 bg-white/[0.03] p-3">
-                  <p className="text-[10px] font-semibold uppercase tracking-wider text-sky-200">Main Strength</p>
-                  <p className="mt-1 text-slate-100">{googleFinalInterpretation.main_strength}</p>
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-cyan-200">Main Strength</p>
+                  <p className="mt-1 text-slate-100">{adigatorAnalysis.main_strength}</p>
                 </div>
                 <div className="rounded-lg border border-amber-400/30 bg-amber-500/10 p-3 md:col-span-2">
                   <p className="text-[10px] font-semibold uppercase tracking-wider text-amber-200">Main Risk</p>
-                  <p className="mt-1 text-amber-100">{googleFinalInterpretation.main_risk}</p>
+                  <p className="mt-1 text-amber-100">{adigatorAnalysis.main_risk}</p>
                 </div>
-                {Array.isArray(googleFinalInterpretation.recommended_fixes) && googleFinalInterpretation.recommended_fixes.length > 0 && (
+                {Array.isArray(adigatorAnalysis.recommended_fixes) && adigatorAnalysis.recommended_fixes.length > 0 && (
                   <div className="rounded-lg border border-emerald-400/30 bg-emerald-500/10 p-3 md:col-span-2">
                     <p className="text-[10px] font-semibold uppercase tracking-wider text-emerald-200">Recommended Fixes</p>
                     <div className="mt-1 space-y-1">
-                      {googleFinalInterpretation.recommended_fixes.slice(0, 3).map((fix, idx) => (
-                        <p key={`google-fix-${idx}`} className="text-sm text-emerald-100">- {fix}</p>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
-          {platform === "meta_ads" && metaFinalInterpretation && (
-            <div className="rounded-xl border border-pink-500/25 bg-pink-500/5 p-4">
-              <div className="flex items-center gap-2 mb-2">
-                <Target size={15} className="text-pink-300" />
-                <h4 className="text-sm font-semibold text-white">7. Meta Final Interpretation</h4>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5 text-sm leading-relaxed">
-                <div className="rounded-lg border border-white/10 bg-white/[0.03] p-3">
-                  <p className="text-[10px] font-semibold uppercase tracking-wider text-pink-200">Campaign Fit</p>
-                  <p className="mt-1 text-slate-100">{metaFinalInterpretation.campaign_fit}</p>
-                </div>
-                <div className="rounded-lg border border-white/10 bg-white/[0.03] p-3">
-                  <p className="text-[10px] font-semibold uppercase tracking-wider text-pink-200">Audience Fit</p>
-                  <p className="mt-1 text-slate-100">{metaFinalInterpretation.audience_fit}</p>
-                </div>
-                <div className="rounded-lg border border-white/10 bg-white/[0.03] p-3">
-                  <p className="text-[10px] font-semibold uppercase tracking-wider text-pink-200">Placement Fit</p>
-                  <p className="mt-1 text-slate-100">{metaFinalInterpretation.placement_fit}</p>
-                </div>
-                <div className="rounded-lg border border-white/10 bg-white/[0.03] p-3">
-                  <p className="text-[10px] font-semibold uppercase tracking-wider text-pink-200">Main Strength</p>
-                  <p className="mt-1 text-slate-100">{metaFinalInterpretation.main_strength}</p>
-                </div>
-                <div className="rounded-lg border border-amber-400/30 bg-amber-500/10 p-3 md:col-span-2">
-                  <p className="text-[10px] font-semibold uppercase tracking-wider text-amber-200">Main Risk</p>
-                  <p className="mt-1 text-amber-100">{metaFinalInterpretation.main_risk}</p>
-                </div>
-                {Array.isArray(metaFinalInterpretation.recommended_fixes) && metaFinalInterpretation.recommended_fixes.length > 0 && (
-                  <div className="rounded-lg border border-emerald-400/30 bg-emerald-500/10 p-3 md:col-span-2">
-                    <p className="text-[10px] font-semibold uppercase tracking-wider text-emerald-200">Recommended Fixes</p>
-                    <div className="mt-1 space-y-1">
-                      {metaFinalInterpretation.recommended_fixes.slice(0, 3).map((fix, idx) => (
-                        <p key={`meta-fix-${idx}`} className="text-sm text-emerald-100">- {fix}</p>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
-          {platform === "programmatic" && programmaticFinalInterpretation && (
-            <div className="rounded-xl border border-violet-500/25 bg-violet-500/5 p-4">
-              <div className="flex items-center gap-2 mb-2">
-                <Target size={15} className="text-violet-300" />
-                <h4 className="text-sm font-semibold text-white">7. Programmatic Final Interpretation</h4>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5 text-sm leading-relaxed">
-                <div className="rounded-lg border border-white/10 bg-white/[0.03] p-3">
-                  <p className="text-[10px] font-semibold uppercase tracking-wider text-violet-200">Campaign Fit</p>
-                  <p className="mt-1 text-slate-100">{programmaticFinalInterpretation.campaign_fit}</p>
-                </div>
-                <div className="rounded-lg border border-white/10 bg-white/[0.03] p-3">
-                  <p className="text-[10px] font-semibold uppercase tracking-wider text-violet-200">Audience Fit</p>
-                  <p className="mt-1 text-slate-100">{programmaticFinalInterpretation.audience_fit}</p>
-                </div>
-                <div className="rounded-lg border border-white/10 bg-white/[0.03] p-3">
-                  <p className="text-[10px] font-semibold uppercase tracking-wider text-violet-200">Inventory Fit</p>
-                  <p className="mt-1 text-slate-100">{programmaticFinalInterpretation.inventory_fit}</p>
-                </div>
-                <div className="rounded-lg border border-white/10 bg-white/[0.03] p-3">
-                  <p className="text-[10px] font-semibold uppercase tracking-wider text-violet-200">Main Strength</p>
-                  <p className="mt-1 text-slate-100">{programmaticFinalInterpretation.main_strength}</p>
-                </div>
-                <div className="rounded-lg border border-amber-400/30 bg-amber-500/10 p-3 md:col-span-2">
-                  <p className="text-[10px] font-semibold uppercase tracking-wider text-amber-200">Main Risk</p>
-                  <p className="mt-1 text-amber-100">{programmaticFinalInterpretation.main_risk}</p>
-                </div>
-                {Array.isArray(programmaticFinalInterpretation.recommended_fixes) && programmaticFinalInterpretation.recommended_fixes.length > 0 && (
-                  <div className="rounded-lg border border-emerald-400/30 bg-emerald-500/10 p-3 md:col-span-2">
-                    <p className="text-[10px] font-semibold uppercase tracking-wider text-emerald-200">Recommended Fixes</p>
-                    <div className="mt-1 space-y-1">
-                      {programmaticFinalInterpretation.recommended_fixes.slice(0, 3).map((fix, idx) => (
-                        <p key={`programmatic-fix-${idx}`} className="text-sm text-emerald-100">- {fix}</p>
+                      {adigatorAnalysis.recommended_fixes.slice(0, 3).map((fix, idx) => (
+                        <p key={`adigator-fix-${idx}`} className="text-sm text-emerald-100">- {fix}</p>
                       ))}
                     </div>
                   </div>

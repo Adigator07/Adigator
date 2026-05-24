@@ -12,9 +12,7 @@ import {
   getStrategicAlignmentScore,
   getStrategicFlow,
   getStrategicRankLabel,
-  getStrategicRecommendationText,
   isValidStrategicPayload,
-  getBehavioralResponse,
   getValidatedRecommendations,
 } from "./strategicPresentation";
 
@@ -109,11 +107,11 @@ function addCoverSlide(prs, entries, meta, totalSlides) {
   addHeader(
     prs,
     slide,
-    "Behavioral Intelligence Report",
+    "Adigator Validation Report",
     `Campaign Goal: ${meta?.goal || "awareness"}  |  Platform: ${meta?.platform || "programmatic"}`
   );
 
-  slide.addText("Enterprise Behavioral Advertising Intelligence System", {
+  slide.addText("Observable Advertising Ecosystem Validation", {
     x: 0.6,
     y: 1.6,
     w: 6.5,
@@ -146,12 +144,12 @@ function addCoverSlide(prs, entries, meta, totalSlides) {
   });
 
   const flowLines = [
-    "1. Audience Psychology & Mental State",
-    "2. Strategic Context & Problem",
-    "3. Business Impact Analysis",
-    "4. Attention Flow Dynamics",
-    "5. Behavioral Interventions",
-    "6. Expected Improvement",
+    "1. Extraction Signals",
+    "2. Campaign and Audience Fit",
+    "3. Inventory and Placement Fit",
+    "4. Rendering and Hierarchy Risks",
+    "5. Recommended Fixes",
+    "6. Launch Readiness",
     "7. Strategic Alignment Summary",
   ];
 
@@ -235,7 +233,6 @@ function addCreativeSlide(prs, entry, index, totalCreatives) {
   const payload = getEntryPayload(entry) || {};
 
   const flow = getStrategicFlow(payload);
-  const behavioral = getBehavioralResponse(payload);
   const recommendations = getValidatedRecommendations(payload);
   const rankLabel = getStrategicRankLabel(payload);
   const score = getStrategicAlignmentScore(payload);
@@ -271,8 +268,8 @@ function addCreativeSlide(prs, entry, index, totalCreatives) {
 
   let y = 1.2;
 
-  // AUDIENCE PSYCHOLOGY
-  slide.addText("AUDIENCE PSYCHOLOGY", {
+  // INVENTORY FIT SUMMARY
+  slide.addText("INVENTORY FIT SUMMARY", {
     x: 5.4,
     y,
     w: 7.4,
@@ -284,36 +281,34 @@ function addCreativeSlide(prs, entry, index, totalCreatives) {
   });
   y += 0.42;
 
-  if (behavioral) {
-    const psychFields = [
-      [`Emotional State`, behavioral.emotional_state],
-      [`Likely Objection`, behavioral.likely_objection],
-      [`Trust Gap`, behavioral.trust_gap],
-      [`Expected Behavior`, behavioral.likely_behavior],
-    ];
+  const fitFields = [
+    ["Campaign Fit", flow.campaignFit],
+    ["Inventory Fit", flow.inventoryFit],
+    ["Business Consequence", flow.businessConsequence],
+    ["Expected Improvement", flow.expectedImprovement],
+  ];
 
-    for (const [label, value] of psychFields) {
-      slide.addText(`${label}:`, {
-        x: 5.4,
-        y,
-        w: 1.8,
-        h: 0.25,
-        fontSize: 9,
-        bold: true,
-        color: "67E8F9",
-        fontFace: "Arial",
-      });
-      slide.addText(value || "Analysis unavailable", {
-        x: 7.4,
-        y,
-        w: 5.4,
-        h: 0.25,
-        fontSize: 8,
-        color: "CBD5E1",
-        fontFace: "Arial",
-      });
-      y += 0.35;
-    }
+  for (const [label, value] of fitFields) {
+    slide.addText(`${label}:`, {
+      x: 5.4,
+      y,
+      w: 2,
+      h: 0.25,
+      fontSize: 9,
+      bold: true,
+      color: "67E8F9",
+      fontFace: "Arial",
+    });
+    slide.addText(value || "Analysis unavailable", {
+      x: 7.4,
+      y,
+      w: 5.4,
+      h: 0.25,
+      fontSize: 8,
+      color: "CBD5E1",
+      fontFace: "Arial",
+    });
+    y += 0.35;
   }
 
   y += 0.15;
@@ -345,7 +340,7 @@ function addCreativeSlide(prs, entry, index, totalCreatives) {
   addFooter(slide, index + 3, totalCreatives + 2);
 }
 
-function addBehavioralInterventionsSlide(prs, entry, index, totalCreatives) {
+function addInterventionsSlide(prs, entry, index, totalCreatives) {
   const slide = prs.addSlide();
   addSlideBackground(slide);
   const payload = getEntryPayload(entry) || {};
@@ -354,12 +349,12 @@ function addBehavioralInterventionsSlide(prs, entry, index, totalCreatives) {
   const rankLabel = getStrategicRankLabel(payload);
   const score = getStrategicAlignmentScore(payload);
 
-  addHeader(prs, slide, `Behavioral Interventions: ${entry.creative.name || `Creative ${index + 1}`}`, `Priority Interventions (Top 3)`);
+  addHeader(prs, slide, `Recommended Fixes: ${entry.creative.name || `Creative ${index + 1}`}`, `Priority Fixes (Top 3)`);
 
   let y = 1.3;
 
   if (recommendations.length === 0) {
-    slide.addText("No behavioral interventions available for this creative.", {
+    slide.addText("No priority fixes available for this creative.", {
       x: 0.6,
       y: 2.5,
       w: SLIDE_W - 1.2,
@@ -391,7 +386,7 @@ function addBehavioralInterventionsSlide(prs, entry, index, totalCreatives) {
         fontFace: "Arial",
       });
 
-      slide.addText(`Barrier: ${rec.emotional_barrier || rec.why_it_hurts || "N/A"}`, {
+      slide.addText(`Constraint: ${rec.why_it_hurts || "N/A"}`, {
         x: 0.8,
         y: y + 0.38,
         w: SLIDE_W - 1.6,
@@ -429,7 +424,7 @@ function buildStrategicDeck(prs, validCreatives, templateName, meta = {}) {
   if (entries.length === 0) {
     const slide = prs.addSlide();
     addSlideBackground(slide);
-    addHeader(prs, slide, "Behavioral Intelligence Report", "No valid orchestrator payloads were available for export");
+    addHeader(prs, slide, "Adigator Validation Report", "No valid orchestrator payloads were available for export");
     addFooter(slide, 1, 1);
     return;
   }
@@ -440,7 +435,7 @@ function buildStrategicDeck(prs, validCreatives, templateName, meta = {}) {
 
   entries.forEach((entry, index) => {
     addCreativeSlide(prs, entry, index, entries.length);
-    addBehavioralInterventionsSlide(prs, entry, index, entries.length);
+    addInterventionsSlide(prs, entry, index, entries.length);
   });
 }
 
@@ -458,7 +453,7 @@ export async function exportToPptx(validCreatives, viewMode = "multiple", templa
   prs.author   = "Adigator Advertising Intelligence";
   prs.company  = "Adigator";
   prs.subject  = "Advertising Intelligence Report";
-  prs.title    = `Adigator Behavioral Intelligence Report — ${templateName}`;
+  prs.title    = `Adigator Validation Report — ${templateName}`;
 
   buildStrategicDeck(prs, validCreatives, templateName, meta);
 

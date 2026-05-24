@@ -41,6 +41,40 @@ async function resizeImage(sourceUrl, targetW, targetH) {
 }
 
 /**
+ * Resize image proportionally to fit inside target dimensions without cropping.
+ * The remaining area is left transparent.
+ */
+async function resizeImagePixelProportional(sourceUrl, targetW, targetH) {
+  const img = await loadImage(sourceUrl);
+  const srcW = img.width;
+  const srcH = img.height;
+
+  const requestedW = Math.max(1, Number(targetW) || srcW);
+  const requestedH = Math.max(1, Number(targetH) || srcH);
+  const srcRatio = srcW / srcH;
+  const requestedRatio = requestedW / requestedH;
+
+  let finalW = requestedW;
+  let finalH = requestedH;
+
+  if (Math.abs(srcRatio - requestedRatio) > 0.0001) {
+    // Snap to source ratio to avoid distortion when inputs are out-of-ratio.
+    finalH = Math.max(1, Math.round(finalW / srcRatio));
+  }
+
+  const canvas = document.createElement("canvas");
+  canvas.width = finalW;
+  canvas.height = finalH;
+  const ctx = canvas.getContext("2d");
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = "high";
+
+  ctx.clearRect(0, 0, finalW, finalH);
+  ctx.drawImage(img, 0, 0, finalW, finalH);
+  return canvas.toDataURL("image/png");
+}
+
+/**
  * Crop an image from a source rect then scale to target dimensions.
  * cropRect = { x, y, w, h } in source-image pixel coordinates.
  */
@@ -177,6 +211,22 @@ export function useImageEditor() {
     }
   }, [previewUrl, previewSize, pushUndo]);
 
+  const handleResizePixelProportional = useCallback(async (sourceUrl, currentSize, targetW, targetH) => {
+    setIsProcessing(true);
+    try {
+      if (previewUrl) {
+        pushUndo(previewUrl, previewSize);
+      } else {
+        pushUndo(sourceUrl, currentSize);
+      }
+      const result = await resizeImagePixelProportional(previewUrl || sourceUrl, targetW, targetH);
+      setPreviewUrl(result);
+      setPreviewSize(`${targetW}x${targetH}`);
+    } finally {
+      setIsProcessing(false);
+    }
+  }, [previewUrl, previewSize, pushUndo]);
+
   const handleUndo = useCallback(() => {
     if (undoStackRef.current.length === 0) return;
     const prev = undoStackRef.current.pop();
@@ -201,6 +251,7 @@ export function useImageEditor() {
     handleResize,
     handleCrop,
     handleAutoFit,
+    handleResizePixelProportional,
     handleUndo,
     reset,
     suggestBestSizes,

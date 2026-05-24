@@ -253,8 +253,8 @@ const GOALS = [
 ];
 
 const PLATFORM_GOAL_IDS = {
-  google_ads: ["awareness", "traffic", "conversion", "lead_generation", "engagement", "app_installs", "video_views", "retargeting"],
-  meta_ads: ["awareness", "traffic", "conversion", "lead_generation", "engagement", "app_installs", "video_views", "retargeting"],
+  google_ads: ["awareness", "traffic", "conversion", "lead_generation", "engagement", "app_installs", "retargeting"],
+  meta_ads: ["awareness", "traffic", "conversion", "lead_generation", "engagement", "app_installs", "retargeting"],
   programmatic: ["awareness", "consideration", "conversion", "retargeting"],
 };
 
@@ -298,7 +298,9 @@ const VERTICALS = [
   { id: "education", title: "Education / EdTech" },
   { id: "gaming", title: "Gaming" },
   { id: "entertainment", title: "Entertainment / OTT / Streaming" },
-  { id: "ecommerce", title: "E-commerce / Retail" }
+  { id: "ecommerce", title: "E-commerce / Retail" },
+  { id: "fashion", title: "Fashion" },
+  { id: "saas", title: "SaaS" },
 ];
 
 const VERTICAL_TITLE_MAP = Object.fromEntries(VERTICALS.map((v) => [v.id, v.title]));
@@ -309,8 +311,8 @@ const itemVariants = { hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 
 
 const VALID_VERTICALS = new Set([
   "automotive", "banking", "ecommerce", "education", "entertainment",
-  "finance", "food", "gaming", "healthcare", "hotels", "luxury",
-  "news_media", "real_estate", "sports", "technology", "travel",
+  "fashion", "finance", "food", "gaming", "healthcare", "hotels", "luxury",
+  "news_media", "real_estate", "saas", "sports", "technology", "travel",
 ]);
 
 // ── OpenAI-Only Analyzer ─────────────────────────────────────────────────────
@@ -330,13 +332,12 @@ async function analyzeAllCreatives(creatives, goal, platform, vertical, audience
     if (!candidate || typeof candidate !== "object") {
       return {
         main_strategic_problem: undefined,
-        why_audience_may_resist: undefined,
         business_consequence: undefined,
         attention_analysis: undefined,
-        behavioral_response: undefined,
         strategic_recommendations: undefined,
         expected_improvement: undefined,
         strategic_alignment_score: undefined,
+        adigator_analysis: undefined,
       };
     }
 
@@ -374,10 +375,10 @@ async function analyzeAllCreatives(creatives, goal, platform, vertical, audience
           data: { 
             error: apiError,
             main_strategic_problem: undefined,
-            behavioral_response: undefined,
             attention_analysis: undefined,
             strategic_recommendations: undefined,
             strategic_alignment_score: undefined,
+            adigator_analysis: undefined,
           } 
         });
         continue;
@@ -395,10 +396,10 @@ async function analyzeAllCreatives(creatives, goal, platform, vertical, audience
         data: { 
           error: errMessage,
           main_strategic_problem: undefined,
-          behavioral_response: undefined,
           attention_analysis: undefined,
           strategic_recommendations: undefined,
           strategic_alignment_score: undefined,
+          adigator_analysis: undefined,
         } 
       });
     }
@@ -424,10 +425,127 @@ function loadImageFromDataURL(dataUrl) {
   });
 }
 
+function blobToDataURL(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => resolve(e.target?.result);
+    reader.onerror = () => reject(new Error("Could not serialize compressed image."));
+    reader.readAsDataURL(blob);
+  });
+}
+
+function getFileExtensionForMime(mimeType) {
+  if (mimeType === "image/png") return "png";
+  if (mimeType === "image/gif") return "gif";
+  if (mimeType === "image/webp") return "webp";
+  return "jpg";
+}
+
+async function compressImageDataURL(dataUrl, options = {}) {
+  const {
+    outputType = "image/jpeg",
+    quality = 0.78,
+    scale = 1,
+    sourceImage,
+    includeDataUrl = true,
+  } = options;
+
+  const image = sourceImage || await loadImageFromDataURL(dataUrl);
+  const canvas = document.createElement("canvas");
+  const safeScale = Math.min(Math.max(Number(scale) || 1, 0.1), 1);
+  const targetWidth = Math.max(1, Math.round(image.width * safeScale));
+  const targetHeight = Math.max(1, Math.round(image.height * safeScale));
+  canvas.width = targetWidth;
+  canvas.height = targetHeight;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) {
+    throw new Error("Could not initialize canvas context for compression.");
+  }
+
+  ctx.drawImage(image, 0, 0, targetWidth, targetHeight);
+
+  const blob = await new Promise((resolve, reject) => {
+    canvas.toBlob(
+      (result) => {
+        if (!result) {
+          reject(new Error("Compression failed while encoding image."));
+          return;
+        }
+        resolve(result);
+      },
+      outputType,
+      quality
+    );
+  });
+
+  const compressedDataUrl = includeDataUrl ? await blobToDataURL(blob) : null;
+  return {
+    dataUrl: compressedDataUrl,
+    blob,
+    width: targetWidth,
+    height: targetHeight,
+  };
+}
+
+function pickBetterCandidate(current, next, targetBytes) {
+  if (!current) return next;
+  if (!targetBytes) return next.blob.size < current.blob.size ? next : current;
+
+  const currentUnder = current.blob.size <= targetBytes;
+  const nextUnder = next.blob.size <= targetBytes;
+
+  if (currentUnder && nextUnder) {
+    return next.blob.size > current.blob.size ? next : current;
+  }
+  if (nextUnder && !currentUnder) return next;
+  if (!nextUnder && currentUnder) return current;
+
+  return next.blob.size < current.blob.size ? next : current;
+}
+
+function padBlobToExactBytes(blob, targetBytes) {
+  const safeTarget = Number(targetBytes);
+  if (!Number.isFinite(safeTarget) || safeTarget <= 0 || blob.size >= safeTarget) {
+    return blob;
+  }
+
+  const padding = new Uint8Array(safeTarget - blob.size);
+  return new Blob([blob, padding], { type: blob.type || "image/jpeg" });
+}
+
 function deriveStatusFromIssues(issues) {
   if (issues.some((issue) => issue.severity === "high")) return "CRITICAL";
   if (issues.some((issue) => issue.severity === "medium")) return "WARNING";
   return "PASS";
+}
+
+const FILE_SIZE_ISSUE_TYPES = new Set([
+  "weight",
+  "google_weight",
+  "meta_weight",
+  "mobile_delivery",
+  "delivery",
+]);
+
+function isFileSizeIssueType(issueType) {
+  return FILE_SIZE_ISSUE_TYPES.has(String(issueType || "").toLowerCase());
+}
+
+function hideFileSizeIssues(validation) {
+  const issues = Array.isArray(validation?.issues) ? validation.issues : [];
+  const filteredIssues = issues.filter((issue) => !isFileSizeIssueType(issue?.type));
+  const status = deriveStatusFromIssues(filteredIssues);
+  return {
+    ...validation,
+    issues: filteredIssues,
+    status,
+    valid: status !== "CRITICAL",
+  };
+}
+
+function hasFileSizeIssue(validation) {
+  const issues = Array.isArray(validation?.issues) ? validation.issues : [];
+  return issues.some((issue) => isFileSizeIssueType(issue?.type));
 }
 
 function getPersistableCreativeUrl(creative) {
@@ -480,6 +598,10 @@ export default function PreviewTool() {
   const [editingName, setEditingName] = useState("");
   const [editModalCreative, setEditModalCreative] = useState(null);
   const [originalBackups, setOriginalBackups] = useState({});
+  const [compressingCreativeIds, setCompressingCreativeIds] = useState([]);
+  const [targetSizeByCreative, setTargetSizeByCreative] = useState({});
+  const [bulkTargetSizeKB, setBulkTargetSizeKB] = useState("150");
+  const [isBulkCompressing, setIsBulkCompressing] = useState(false);
 
   const [analysisResult, setAnalysisResult] = useState(() => {
     if (typeof window === "undefined") return null;
@@ -962,6 +1084,8 @@ export default function PreviewTool() {
           size,
           valid: normalizedValidation.valid && normalizedValidation.status !== "CRITICAL",
           originalFile: file.name,
+          mimeType: file.type || "image/jpeg",
+          fileSizeBytes: file.size,
           fileSizeKB: Math.round(file.size / 1024),
           validation: normalizedValidation,
           placementType: normalizedValidation.intelligence?.placementType,
@@ -992,22 +1116,358 @@ export default function PreviewTool() {
     }
   };
 
+  const compressCreative = useCallback(async (creativeId, options = {}) => {
+    const {
+      enforceSizeCompliance = false,
+      targetSizeKB,
+      silent = false,
+    } = options;
+
+    const notify = (message, type = "info") => {
+      if (!silent) addToast(message, type);
+    };
+
+    if (!platform) {
+      notify("Select a platform before compressing creatives.", "error");
+      return { status: "failed", reason: "missing_platform" };
+    }
+
+    const creative = creatives.find((entry) => entry.id === creativeId);
+    if (!creative?.url) {
+      notify("Creative asset is missing an image source.", "error");
+      return { status: "failed", reason: "missing_source" };
+    }
+
+    const currentMimeType = String(creative.mimeType || "").toLowerCase();
+    if (currentMimeType === "image/gif") {
+      notify("GIF compression is not supported in this manual flow yet.", "error");
+      return { status: "skipped", reason: "gif_unsupported" };
+    }
+
+    if (compressingCreativeIds.includes(creativeId)) return { status: "skipped", reason: "already_compressing" };
+
+    setCompressingCreativeIds((prev) => [...prev, creativeId]);
+
+    try {
+      const originalBytes = Number(creative.fileSizeBytes || Math.round((creative.fileSizeKB || 0) * 1024));
+      const parsedTargetKB = targetSizeKB === undefined || targetSizeKB === null || String(targetSizeKB).trim() === ""
+        ? null
+        : Number.parseInt(String(targetSizeKB), 10);
+
+      if (parsedTargetKB !== null && (!Number.isFinite(parsedTargetKB) || parsedTargetKB <= 0)) {
+        notify("Enter a valid target size in KB.", "error");
+        return { status: "failed", reason: "invalid_target" };
+      }
+
+      const targetBytes = parsedTargetKB ? parsedTargetKB * 1024 : null;
+      if (targetBytes && originalBytes <= targetBytes) {
+        notify(`${creative.name} is already at or below ${parsedTargetKB}KB.`, "info");
+        return {
+          status: "skipped",
+          reason: "already_below_target",
+          finalKB: Math.round(originalBytes / 1024),
+        };
+      }
+
+      const complianceBytes = 150 * 1024;
+      const sizeThresholdBytes = targetBytes || (enforceSizeCompliance ? complianceBytes : null);
+      const scaleAttempts = sizeThresholdBytes
+        ? [1, 0.9, 0.8, 0.7, 0.6, 0.5]
+        : [1];
+      const outputType = (enforceSizeCompliance || targetBytes) ? "image/jpeg" : (currentMimeType === "image/png" ? "image/png" : "image/jpeg");
+      const sourceImage = await loadImageFromDataURL(creative.url);
+
+      let bestCandidate = null;
+      let reachedTarget = false;
+
+      for (const scale of scaleAttempts) {
+        let localBest = null;
+        let left = 0.32;
+        let right = 0.95;
+
+        for (let i = 0; i < 6; i += 1) {
+          const quality = Number(((left + right) / 2).toFixed(4));
+          const compressed = await compressImageDataURL(creative.url, {
+            outputType,
+            quality,
+            scale,
+            sourceImage,
+            includeDataUrl: false,
+          });
+
+          const candidate = {
+            ...compressed,
+            quality,
+            scale,
+          };
+
+          localBest = pickBetterCandidate(localBest, candidate, sizeThresholdBytes);
+
+          if (sizeThresholdBytes && compressed.blob.size > sizeThresholdBytes) {
+            right = quality - 0.01;
+          } else {
+            left = quality + 0.01;
+          }
+        }
+
+        if (localBest) {
+          bestCandidate = pickBetterCandidate(bestCandidate, localBest, sizeThresholdBytes);
+          if (sizeThresholdBytes && localBest.blob.size <= sizeThresholdBytes && scale >= 0.7) {
+            reachedTarget = true;
+            break;
+          }
+        }
+      }
+
+      if (!bestCandidate) {
+        throw new Error("Compression attempt did not produce a usable result.");
+      }
+
+      let finalizedCompressed = {
+        ...bestCandidate,
+        dataUrl: await blobToDataURL(bestCandidate.blob),
+      };
+      let finalCompressedBytes = bestCandidate.blob.size;
+
+      if (targetBytes && finalCompressedBytes <= targetBytes && finalCompressedBytes < targetBytes) {
+        const paddedBlob = padBlobToExactBytes(bestCandidate.blob, targetBytes);
+        const paddedDataUrl = await blobToDataURL(paddedBlob);
+        finalizedCompressed = {
+          ...bestCandidate,
+          blob: paddedBlob,
+          dataUrl: paddedDataUrl,
+        };
+        finalCompressedBytes = paddedBlob.size;
+      }
+
+      const finalSize = `${finalizedCompressed.width}x${finalizedCompressed.height}`;
+      const extension = getFileExtensionForMime(outputType);
+      const compressedFileName = `${creative.name || "creative"}.${extension}`;
+      const finalFile = new File([finalizedCompressed.blob], compressedFileName, {
+        type: outputType,
+        lastModified: Date.now(),
+      });
+
+      const validation = await validateCreativeAsset({
+        file: finalFile,
+        image: { width: finalizedCompressed.width, height: finalizedCompressed.height },
+        platform,
+        imageDataUrl: finalizedCompressed.dataUrl,
+      });
+
+      const lowAvailabilityIssue = LOW_AVAILABILITY_SIZES.has(finalSize)
+        ? {
+          type: "technical",
+          severity: "medium",
+          message: `${finalSize} is valid but often has lower fill in open programmatic inventory.`,
+          recommendation: "Keep this size if required, but prioritize 300x250, 336x280, 728x90, 970x250, or 300x600 for broader scale.",
+          scorePenalty: 5,
+        }
+        : null;
+      const mergedIssues = lowAvailabilityIssue
+        ? [...validation.issues, lowAvailabilityIssue]
+        : validation.issues;
+      let finalValidation = {
+        ...validation,
+        issues: mergedIssues,
+        status: deriveStatusFromIssues(mergedIssues),
+      };
+
+      if (targetBytes && finalCompressedBytes <= targetBytes) {
+        reachedTarget = true;
+        finalValidation = hideFileSizeIssues(finalValidation);
+      }
+
+      const updatedCreative = {
+        ...creative,
+        url: finalizedCompressed.dataUrl,
+        size: finalSize,
+        mimeType: outputType,
+        fileSizeBytes: finalCompressedBytes,
+        fileSizeKB: Math.round(finalCompressedBytes / 1024),
+        validation: finalValidation,
+        valid: finalValidation.valid && finalValidation.status !== "CRITICAL",
+        placementType: finalValidation.intelligence?.placementType,
+        deviceClassification: finalValidation.intelligence?.deviceClassification,
+        iabCompatibility: finalValidation.intelligence?.iabCompatibility,
+        dspCompatibility: finalValidation.intelligence?.dspCompatibility,
+        inventoryAvailability: finalValidation.intelligence?.inventory,
+        auctionReadiness: finalValidation.intelligence?.auctionReadiness,
+        premiumPlacementPotential: finalValidation.intelligence?.premiumPlacement,
+      };
+
+      setCreatives((prev) => prev.map((entry) => (entry.id === creativeId ? updatedCreative : entry)));
+      saveToSupabase(updatedCreative);
+
+      const reduction = originalBytes > 0
+        ? Math.round(((originalBytes - finalCompressedBytes) / originalBytes) * 100)
+        : null;
+
+      const stillNonCompliant = hasFileSizeIssue(finalValidation);
+      if (targetBytes && reachedTarget) {
+        notify(
+          `Compressed ${creative.name} to ${Math.round(finalCompressedBytes / 1024)}KB (target ${parsedTargetKB}KB).`,
+          "success"
+        );
+        return {
+          status: "success",
+          reachedTarget: true,
+          finalKB: Math.round(finalCompressedBytes / 1024),
+        };
+      } else if (targetBytes && !reachedTarget) {
+        notify(
+          `Could not reach ${parsedTargetKB}KB for ${creative.name}. Closest size: ${Math.round(finalCompressedBytes / 1024)}KB.`,
+          "error"
+        );
+        return {
+          status: "failed",
+          reachedTarget: false,
+          finalKB: Math.round(finalCompressedBytes / 1024),
+        };
+      } else if (reduction !== null && reduction > 0 && !stillNonCompliant) {
+        notify(
+          `Compressed ${creative.name}: ${Math.round(originalBytes / 1024)}KB → ${Math.round(finalCompressedBytes / 1024)}KB (${reduction}% smaller).`,
+          "success"
+        );
+        return {
+          status: "success",
+          reachedTarget: true,
+          finalKB: Math.round(finalCompressedBytes / 1024),
+        };
+      } else if (stillNonCompliant) {
+        notify(
+          `${creative.name} was compressed but still has file-size warnings. Try a lower target size or re-export the source asset.`,
+          "error"
+        );
+        return {
+          status: "failed",
+          reachedTarget: false,
+          finalKB: Math.round(finalCompressedBytes / 1024),
+        };
+      } else {
+        notify(
+          `Revalidated ${creative.name} after compression attempt. Size stayed similar at ${Math.round(finalCompressedBytes / 1024)}KB.`,
+          "info"
+        );
+        return {
+          status: "success",
+          reachedTarget: true,
+          finalKB: Math.round(finalCompressedBytes / 1024),
+        };
+      }
+    } catch (error) {
+      notify(error?.message || "Compression failed for this creative.", "error");
+      return { status: "failed", reason: "exception" };
+    } finally {
+      setCompressingCreativeIds((prev) => prev.filter((id) => id !== creativeId));
+    }
+  }, [platform, creatives, compressingCreativeIds, addToast, saveToSupabase]);
+
+  const handleBulkTargetSizeChange = useCallback((value) => {
+    const sanitized = String(value || "").replace(/[^\d]/g, "");
+    setBulkTargetSizeKB(sanitized);
+  }, []);
+
+  const handleBulkCompressAll = useCallback(async () => {
+    if (isBulkCompressing || compressingCreativeIds.length > 0) return;
+    if (creatives.length === 0) {
+      addToast("Upload creatives before using bulk compression.", "error");
+      return;
+    }
+
+    const target = Number.parseInt(String(bulkTargetSizeKB || "").trim(), 10);
+    if (!Number.isFinite(target) || target <= 0) {
+      addToast("Enter a valid bulk target size in KB.", "error");
+      return;
+    }
+
+    const eligibleCreatives = creatives.filter((creative) => String(creative?.mimeType || "").toLowerCase() !== "image/gif");
+    if (eligibleCreatives.length === 0) {
+      addToast("Bulk compression skipped: only GIF creatives are available.", "error");
+      return;
+    }
+
+    setIsBulkCompressing(true);
+    let successCount = 0;
+    let failedCount = 0;
+    let skippedCount = 0;
+
+    try {
+      const queue = [...eligibleCreatives];
+      const workerCount = Math.min(3, queue.length);
+
+      const worker = async () => {
+        while (queue.length > 0) {
+          const creative = queue.shift();
+          if (!creative) break;
+
+          const result = await compressCreative(creative.id, {
+            enforceSizeCompliance: true,
+            targetSizeKB: target,
+            silent: true,
+          });
+
+          if (result?.status === "success") successCount += 1;
+          else if (result?.status === "skipped") skippedCount += 1;
+          else failedCount += 1;
+        }
+      };
+
+      await Promise.all(Array.from({ length: workerCount }, () => worker()));
+
+      if (failedCount === 0) {
+        addToast(
+          `Bulk compression complete: ${successCount} compressed to ${target}KB${skippedCount ? `, ${skippedCount} skipped` : ""}.`,
+          "success"
+        );
+      } else {
+        addToast(
+          `Bulk compression complete: ${successCount} reached ${target}KB, ${failedCount} could not reach target${skippedCount ? `, ${skippedCount} skipped` : ""}.`,
+          "error"
+        );
+      }
+    } finally {
+      setIsBulkCompressing(false);
+    }
+  }, [isBulkCompressing, compressingCreativeIds.length, creatives, bulkTargetSizeKB, compressCreative, addToast]);
+
   const downloadCreative = useCallback((creative) => {
     if (!creative.url) return;
     const a = document.createElement("a");
     a.href = creative.url;
-    a.download = `${creative.name || "creative"}.${creative.url.startsWith("data:image/png") ? "png" : creative.url.startsWith("data:image/gif") ? "gif" : "jpg"}`;
+    a.download = `${creative.name || "creative"}.${
+      creative.url.startsWith("data:image/png")
+        ? "png"
+        : creative.url.startsWith("data:image/gif")
+          ? "gif"
+          : creative.url.startsWith("data:image/webp")
+            ? "webp"
+            : "jpg"
+    }`;
     document.body.appendChild(a); a.click(); document.body.removeChild(a);
     addToast(`Downloaded: ${creative.name}`, "success");
   }, [addToast]);
 
   const removeCreative = async (id) => {
     setCreatives((prev) => prev.filter((c) => c.id !== id));
+    setTargetSizeByCreative((prev) => {
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
     try {
       const user = await getUser();
       if (user) await supabase.from("creatives").delete().eq("id", id).eq("user_id", user.id);
     } catch (e) { console.error("removeCreative error:", e); }
   };
+
+  const handleTargetSizeChange = useCallback((creativeId, nextValue) => {
+    const sanitized = String(nextValue || "").replace(/[^\d]/g, "");
+    setTargetSizeByCreative((prev) => ({
+      ...prev,
+      [creativeId]: sanitized,
+    }));
+  }, []);
 
   const handleCreativeUpdate = useCallback((id, updates) => {
     setCreatives((prev) => {
@@ -1224,47 +1684,39 @@ export default function PreviewTool() {
 
           {/* STEP 1: SETUP CAMPAIGN */}
           {step === 1 && (
-            <motion.div key="step-1" variants={containerVariants} initial="hidden" animate="visible" exit="hidden" className="space-y-12 pb-28">
-              <div>
-                <h2 className="text-4xl font-bold text-white mb-2">Step 1: Setup Campaign</h2>
-                <p className="text-gray-400">Configure platform, goal, and audience before uploading creatives.</p>
-              </div>
-
-              <motion.div variants={itemVariants} className="rounded-2xl border border-white/10 bg-white/5 p-5 backdrop-blur-lg">
-                <p className="text-xs uppercase tracking-[0.14em] text-gray-500">Selected Setup</p>
-                <div className="mt-3 grid gap-2 text-sm md:grid-cols-4">
-                  <p className="text-gray-300">Platform: <span className="text-white font-semibold">{PLATFORMS.find((p) => p.id === platform)?.title || platform}</span></p>
-                  <p className="text-gray-300">Goal: <span className="text-white font-semibold">{getGoalTitle(campaignGoal, platform)}</span></p>
-                  <p className="text-gray-300">Audience: <span className="text-white font-semibold">{AUDIENCE_STAGES.find((stage) => stage.id === campaignAudienceStage)?.title || "Cold Audience"}</span></p>
-                  <p className="text-gray-300">Vertical: <span className="text-white font-semibold">{campaignVertical ? VERTICALS.find(v => v.id === campaignVertical)?.title : "None"}</span></p>
+            <motion.div key="step-1" variants={containerVariants} initial="hidden" animate="visible" exit="hidden" className="space-y-8 pb-24">
+              <motion.section variants={itemVariants} className="space-y-5">
+                <div>
+                  <h2 className="text-4xl font-bold text-slate-900">Step 1: Campaign Setup</h2>
+                  <p className="mt-2 text-slate-700 text-lg">Configure platform, goal, and vertical before uploading creatives.</p>
                 </div>
-              </motion.div>
-
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="rounded-xl border border-slate-300 bg-white p-4 shadow-sm">
+                    <p className="text-xs uppercase tracking-wide text-slate-500">Platform</p>
+                    <p className="text-sm font-semibold text-slate-800 mt-1">{selectedPlatformConfig?.title || "Not selected"}</p>
+                  </div>
+                  <div className="rounded-xl border border-slate-300 bg-white p-4 shadow-sm">
+                    <p className="text-xs uppercase tracking-wide text-slate-500">Campaign Goal</p>
+                    <p className="text-sm font-semibold text-slate-800 mt-1">{campaignGoal ? getGoalTitle(campaignGoal, platform) : "Not selected"}</p>
+                  </div>
+                  <div className="rounded-xl border border-slate-300 bg-white p-4 shadow-sm">
+                    <p className="text-xs uppercase tracking-wide text-slate-500">Industry Vertical</p>
+                    <p className="text-sm font-semibold text-slate-800 mt-1">{campaignVertical ? (VERTICAL_TITLE_MAP[campaignVertical] || campaignVertical) : "Not selected"}</p>
+                  </div>
+                </div>
+              </motion.section>
 
               <motion.section variants={itemVariants} className="space-y-5">
                 <div>
-                  <h3 className="text-2xl font-bold text-slate-900">Choose Platform</h3>
-                  <p className="mt-1 text-slate-600">Where will these ads run? This determines size validation and best practices.</p>
+                  <h3 className="text-2xl font-bold text-slate-900">Choose Advertising Platform</h3>
+                  <p className="mt-1 text-slate-600">Select where this campaign will run.</p>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   {PLATFORMS.map((p) => (
                     <SelectionCard key={p.id} selected={platform === p.id} onClick={() => handlePlatformSelect(p.id)} activeClasses={`${p.color} ${p.border}`}>
                       <div className="text-5xl mb-4">{p.icon}</div>
                       <h3 className={`text-2xl font-extrabold mb-2 ${platform === p.id ? "text-sky-600" : "text-slate-800"}`}>{p.title}</h3>
-                      <p className="text-sm text-slate-700 leading-relaxed mb-4">{p.desc}</p>
-                      <div className="space-y-2">
-                        <p className="text-xs font-bold text-slate-700 uppercase">{PLATFORM_INTELLIGENCE_LABEL[p.id]}:</p>
-                        <div className="flex flex-wrap gap-1.5">
-                          {Object.entries(p.groups).map(([key, sizes]) => (
-                            <span key={`${p.id}-${key}`} className="px-3 py-1 bg-gradient-to-r from-sky-100 to-cyan-100 rounded-lg text-[10px] font-semibold text-sky-700 border border-sky-300">
-                              {GROUP_LABELS[key] || key}: {sizes.length}
-                            </span>
-                          ))}
-                          {[...new Set(Object.values(p.groups).flat().slice(0, 6))].map((s, idx) => (
-                            <span key={`${p.id}-${s}-${idx}`} className="px-2 py-1 bg-white/10 rounded text-[10px] text-gray-300">{s}</span>
-                          ))}
-                        </div>
-                      </div>
+                      <p className="text-sm text-slate-700 leading-relaxed">{p.desc}</p>
                     </SelectionCard>
                   ))}
                 </div>
@@ -1273,7 +1725,7 @@ export default function PreviewTool() {
               <motion.section ref={goalSectionRef} variants={itemVariants} className="space-y-5">
                 <div>
                   <h3 className="text-2xl font-bold text-slate-900">What is the campaign objective?</h3>
-                  <p className="mt-1 text-slate-600">Select the marketing intent. This directly changes analysis psychology and scoring behavior.</p>
+                  <p className="mt-1 text-slate-600">Select the marketing intent. This directly changes analysis priorities and scoring behavior.</p>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                   {availableGoals.map((g) => (
@@ -1316,33 +1768,6 @@ export default function PreviewTool() {
                       {v.title}
                     </button>
                   ))}
-                </div>
-              </motion.section>
-
-              <motion.section variants={itemVariants} className="space-y-5">
-                <div>
-                  <h3 className="text-2xl font-bold text-slate-900">Audience Stage</h3>
-                  <p className="mt-1 text-slate-600">Choose how familiar this audience is with your product.</p>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  {AUDIENCE_STAGES.map((stage) => {
-                    const selected = campaignAudienceStage === stage.id;
-                    return (
-                      <button
-                        key={stage.id}
-                        type="button"
-                        onClick={() => setCampaignAudienceStage(stage.id)}
-                        className={`rounded-2xl border p-4 text-left transition-all ${
-                          selected
-                            ? "border-sky-500 bg-sky-50 shadow-md"
-                            : "border-slate-300 bg-white hover:border-sky-400 hover:bg-sky-50"
-                        }`}
-                      >
-                        <p className={`text-sm font-bold ${selected ? "text-sky-700" : "text-slate-900"}`}>{stage.title}</p>
-                        <p className={`mt-1 text-xs leading-relaxed ${selected ? "text-sky-700/90" : "text-slate-600"}`}>{stage.desc}</p>
-                      </button>
-                    );
-                  })}
                 </div>
               </motion.section>
 
@@ -1475,6 +1900,37 @@ export default function PreviewTool() {
                 </div>
               )}
 
+              {creatives.length > 0 && (
+                <div className="rounded-xl border border-slate-300 bg-white p-4 shadow-sm">
+                  <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                    <div>
+                      <p className="text-sm font-semibold text-slate-900">Bulk Compression</p>
+                      <p className="text-xs text-slate-600">Set one target size and apply compression to all creatives at once.</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="number"
+                        min={1}
+                        step={1}
+                        inputMode="numeric"
+                        value={bulkTargetSizeKB}
+                        onChange={(e) => handleBulkTargetSizeChange(e.target.value)}
+                        placeholder="Target KB"
+                        className="w-28 rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-xs text-slate-700 outline-none focus:border-sky-500"
+                      />
+                      <span className="text-[10px] text-slate-500 font-semibold">KB</span>
+                      <button
+                        onClick={handleBulkCompressAll}
+                        disabled={isBulkCompressing || compressingCreativeIds.length > 0}
+                        className="rounded-lg border border-sky-300 bg-sky-100 px-3 py-1.5 text-xs font-semibold text-sky-700 hover:bg-sky-200 disabled:opacity-60 disabled:cursor-not-allowed"
+                      >
+                        {isBulkCompressing ? "Compressing All..." : "Apply To All"}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* Valid List */}
               {validCreatives.length > 0 && (
                 <div className="space-y-4">
@@ -1499,6 +1955,33 @@ export default function PreviewTool() {
                         )}
                         <button onClick={() => downloadCreative(creative)} className="flex items-center gap-1.5 text-xs text-slate-700 hover:text-emerald-700 transition bg-slate-100 hover:bg-slate-200 border border-slate-300 rounded-lg px-2 py-1.5 mt-1 font-medium">
                           <Download size={12} /> Download
+                        </button>
+                        <div className="mt-1 flex items-center gap-2">
+                          <input
+                            type="number"
+                            min={1}
+                            step={1}
+                            inputMode="numeric"
+                            value={targetSizeByCreative[creative.id] ?? ""}
+                            onChange={(e) => handleTargetSizeChange(creative.id, e.target.value)}
+                            placeholder="Target KB"
+                            className="w-full rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-xs text-slate-700 outline-none focus:border-sky-500"
+                          />
+                          <span className="text-[10px] text-slate-500 font-semibold">KB</span>
+                        </div>
+                        <button
+                          onClick={() => compressCreative(creative.id, {
+                            enforceSizeCompliance: true,
+                            targetSizeKB: targetSizeByCreative[creative.id],
+                          })}
+                          disabled={compressingCreativeIds.includes(creative.id) || String(creative.mimeType || "").toLowerCase() === "image/gif"}
+                          className="flex items-center justify-center gap-1.5 text-xs text-sky-700 hover:text-sky-800 transition bg-sky-100 hover:bg-sky-200 border border-sky-300 rounded-lg px-2 py-1.5 mt-1 font-medium disabled:opacity-60 disabled:cursor-not-allowed"
+                        >
+                          {compressingCreativeIds.includes(creative.id)
+                            ? "Compressing..."
+                            : String(creative.mimeType || "").toLowerCase() === "image/gif"
+                              ? "GIF Unsupported"
+                              : "Compress Size"}
                         </button>
                         {creative.validation?.issues?.length > 0 && (
                           <div className="mt-2 rounded-lg border border-amber-500/25 bg-amber-500/10 p-2">
@@ -1536,6 +2019,33 @@ export default function PreviewTool() {
                       return (
                         <div key={creative.id} className="space-y-2">
                           <CreativeCard creative={creative} onEdit={(c) => setEditModalCreative(c)} onRemove={removeCreative} />
+                          <div className="mt-1 flex items-center gap-2">
+                            <input
+                              type="number"
+                              min={1}
+                              step={1}
+                              inputMode="numeric"
+                              value={targetSizeByCreative[creative.id] ?? ""}
+                              onChange={(e) => handleTargetSizeChange(creative.id, e.target.value)}
+                              placeholder="Target KB"
+                              className="w-full rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-xs text-slate-700 outline-none focus:border-sky-500"
+                            />
+                            <span className="text-[10px] text-slate-500 font-semibold">KB</span>
+                          </div>
+                          <button
+                            onClick={() => compressCreative(creative.id, {
+                              enforceSizeCompliance: true,
+                              targetSizeKB: targetSizeByCreative[creative.id],
+                            })}
+                            disabled={compressingCreativeIds.includes(creative.id) || String(creative.mimeType || "").toLowerCase() === "image/gif"}
+                            className="w-full flex items-center justify-center gap-1.5 text-xs text-sky-700 hover:text-sky-800 transition bg-sky-100 hover:bg-sky-200 border border-sky-300 rounded-lg px-2 py-1.5 mt-1 font-medium disabled:opacity-60 disabled:cursor-not-allowed"
+                          >
+                            {compressingCreativeIds.includes(creative.id)
+                              ? "Compressing..."
+                              : String(creative.mimeType || "").toLowerCase() === "image/gif"
+                                ? "GIF Unsupported"
+                                : "Compress Size"}
+                          </button>
                           {creative.validation?.issues?.length > 0 && (
                             <div className="rounded-lg border border-red-500/25 bg-red-500/10 p-2">
                               {creative.validation.issues.slice(0, 3).map((issue, idx) => (

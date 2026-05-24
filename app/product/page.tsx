@@ -33,7 +33,7 @@ const OVERVIEW_NOTES = [
   "Google / Meta / Programmatic size intelligence",
   "Goal and vertical alignment checks",
   "Contextual preview engine",
-  "Behavioral response modeling",
+  "Adigator output formatting",
   "PPTX strategic report export",
 ];
 
@@ -421,7 +421,7 @@ export default function ProductPage() {
               </h2>
               <p className="mt-6 max-w-xl text-lg leading-relaxed text-[#66665F]">
                 Adigator's advertising intelligence orchestrator evaluates creative assets through extraction, attention analysis,
-                psychology, audience response, business impact, and final decision scoring so teams move faster with clearer signals.
+                platform-fit checks, inventory-fit checks, business impact, and final decision scoring so teams move faster with clearer signals.
               </p>
               <div className="mt-8 space-y-4">
                 {PERFORMANCE_BULLETS.map((item) => (

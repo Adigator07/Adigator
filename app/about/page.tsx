@@ -34,7 +34,7 @@ const VALUES = [
 const STATS = [
   { value: "10", label: "analysis layers in orchestrator" },
   { value: "3", label: "platform intelligence matrices" },
-  { value: "12", label: "behavioral response core fields" },
+  { value: "1", label: "adigator output contract" },
   { value: "10", label: "preview environment families" },
 ];
 
@@ -42,7 +42,7 @@ const PLATFORM_PILLARS = [
   {
     name: "Analyze Creative API",
     role: "Strategic Intelligence Core",
-    detail: "Combines extraction, attention, psychology, campaign alignment, and weighted scoring.",
+    detail: "Combines extraction, attention, platform/inventory alignment, and weighted scoring.",
   },
   {
     name: "Creative Validation Library",
@@ -69,7 +69,7 @@ const TIMELINE = [
   },
   {
     year: "Phase 2",
-    title: "Behavioral analysis contract",
+    title: "Adigator analysis contract",
     body: "Strategic payloads were standardized with explicit campaign, goal, and vertical alignment fields.",
   },
   {
@@ -188,7 +188,7 @@ export default function AboutPage() {
             <div className="saas-hover col-span-2 row-span-2 rounded-[24px] border border-[#DAD9D1] bg-[#0D0D0D] p-5 text-white">
               <p className="text-xs uppercase tracking-[0.14em] text-white/60">Core API</p>
               <p className="mt-3 text-2xl font-black">Analyze Creative</p>
-              <p className="mt-3 text-sm text-white/70">Extraction → Psychology → Alignment → Weighted Decision Intelligence.</p>
+              <p className="mt-3 text-sm text-white/70">Extraction → Platform Fit → Alignment → Weighted Decision Intelligence.</p>
             </div>
             <div className="saas-hover col-span-2 row-span-1 rounded-[20px] border border-[#DAD9D1] bg-white p-4">
               <p className="text-xs uppercase tracking-[0.14em] text-[#5E5E58]">Validation</p>

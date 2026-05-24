@@ -272,7 +272,7 @@ IMPORTANT RULES:
 - ALWAYS create commercial website content.
 - Content must look like a modern SaaS, E-commerce, Finance, Healthcare, or Brand landing page.
 - Write concise, high-conversion copy.
-- Use marketing psychology and UX hierarchy.
+- Use clear message hierarchy and conversion-focused UX structure.
 
 INPUT CONTEXT:
 - Website environment: ${envDescriptions[env]}

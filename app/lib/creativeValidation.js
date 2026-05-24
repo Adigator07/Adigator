@@ -521,13 +521,13 @@ export async function validateCreativeAsset({ file, image, platform }) {
     });
   }
 
-  if ((file?.size || 0) > 5 * 1024 * 1024) {
+  if ((file?.size || 0) > 150 * 1024) {
     issues.push({
       type: "weight",
-      severity: "medium",
-      message: "File size is larger than 5MB.",
-      recommendation: "Compress the asset before uploading for faster review and delivery.",
-      scorePenalty: 12,
+      severity: "high",
+      message: "File size exceeds the required 150KB limit.",
+      recommendation: "Compress the creative to 150KB or below before analysis.",
+      scorePenalty: 30,
     });
   }
 

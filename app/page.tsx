@@ -15,7 +15,7 @@ const ROTATING_WORDS = ["analysis", "validation", "preview", "optimization"];
 const FEATURES = [
   {
     title: "10-layer analysis orchestrator",
-    description: "Run extraction, attention, psychology, audience response, business impact, and strategic scoring in one deterministic flow.",
+    description: "Run extraction, attention, platform-fit, inventory-fit, business impact, and strategic scoring in one deterministic flow.",
     icon: "↗",
   },
   {
@@ -36,14 +36,14 @@ const LOGOS = [
   "GOOGLE ADS MATRIX",
   "META ADS MATRIX",
   "PROGRAMMATIC MATRIX",
-  "BEHAVIORAL RESPONSE",
+  "ADIGATOR ANALYSIS",
   "PPTX EXPORT",
   "DASHBOARD",
 ];
 
 const CASE_STUDIES = [
   { brand: "Advertising Intelligence Orchestrator", stat: "10 analysis layers", tagline: "Deterministic flow from extraction to final decision intelligence.", tag: "API" },
-  { brand: "Behavioral Contract", stat: "12 required fields", tagline: "Standardized audience response output for every analyzed creative.", tag: "Scoring" },
+  { brand: "Adigator Contract", stat: "Structured output", tagline: "Standardized observable output for every analyzed creative.", tag: "Scoring" },
   { brand: "Platform Size Intelligence", stat: "3 platform matrices", tagline: "Google Ads, Meta Ads, and Programmatic support with tiered size groups.", tag: "Validation" },
   { brand: "Preview + Export Workflow", stat: "Context to deck", tagline: "Preview in realistic environments and export strategic reports to PPTX.", tag: "Operations" },
 ];
@@ -203,9 +203,9 @@ export default function HomePage() {
                 <p className="mt-2 text-sm text-[#5E5E58]">Google Ads, Meta Ads, and Programmatic compatibility intelligence.</p>
               </div>
               <div className="rounded-2xl border border-[#E7E6DF] bg-[#F8F8F4] p-5">
-                <p className="text-xs font-semibold uppercase tracking-wider text-[#666]">Behavioral Model</p>
-                <p className="mt-3 text-3xl font-black">12 fields</p>
-                <p className="mt-2 text-sm text-[#5E5E58]">Structured audience-response signals for strategic decisioning.</p>
+                <p className="text-xs font-semibold uppercase tracking-wider text-[#666]">Adigator Output</p>
+                <p className="mt-3 text-3xl font-black">Signal dense</p>
+                <p className="mt-2 text-sm text-[#5E5E58]">Structured observable signals for launch decisioning.</p>
               </div>
             </div>
           </motion.div>
@@ -314,7 +314,7 @@ export default function HomePage() {
               <p className="text-xs font-semibold uppercase tracking-wider text-[#63635E]">Live Decisioning</p>
               <p className="text-3xl font-black leading-tight">From upload to strategic report in one pipeline</p>
               <div className="rounded-2xl border border-[#DAD9D1] bg-white p-4 text-sm text-[#5A5A56]">
-                Creative diagnostics, platform fit checks, behavioral response modeling, and presentation export are fused into one recommendation stream.
+                Creative diagnostics, platform fit checks, inventory compatibility checks, and presentation export are fused into one recommendation stream.
               </div>
             </div>
           </div>
