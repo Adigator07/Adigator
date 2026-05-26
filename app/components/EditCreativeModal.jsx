@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useImageEditor } from "../hooks/useImageEditor";
-import { validateCreativeAsset } from "../lib/creativeValidation";
+import { validateCreativeAsset, finalizeValidationForPlatform } from "../lib/creativeValidation";
 import {
   X, Maximize2, Crop, Undo2,
   Check, ArrowRight, Loader2, ZoomIn,
@@ -26,14 +26,14 @@ const modalVariants = {
   exit: { opacity: 0, scale: 0.92, y: 30, transition: { duration: 0.2 } },
 };
 
-export default function EditCreativeModal({ creative, onApply, onClose }) {
+export default function EditCreativeModal({ creative, platform, onApply, onClose }) {
   const {
     previewUrl,
     previewSize,
     isProcessing,
     undoCount,
     handleAutoFit,
-    handleResizePixelProportional,
+    handleResize,
     handleUndo,
     reset,
   } = useImageEditor();
@@ -50,59 +50,32 @@ export default function EditCreativeModal({ creative, onApply, onClose }) {
   // Parse creative's original dimensions
   const [origW, origH] = creative.size.split("x").map(Number);
 
-  const parseDims = useCallback((sizeText) => {
-    const [w, h] = String(sizeText || "").split("x").map((n) => Number(n));
-    if (!w || !h) return { w: origW, h: origH };
-    return { w, h };
-  }, [origW, origH]);
-
-  const deriveRatioLockedSize = useCallback((nextWInput, nextHInput, changedField) => {
-    const base = parseDims(previewSize || creative.size);
-    const ratio = base.w / base.h;
-    const parsedW = Number.parseInt(String(nextWInput || ""), 10);
-    const parsedH = Number.parseInt(String(nextHInput || ""), 10);
-
-    if (changedField === "w") {
-      if (!Number.isFinite(parsedW) || parsedW <= 0) return { w: "", h: "" };
-      const nextH = Math.max(1, Math.round(parsedW / ratio));
-      return { w: String(parsedW), h: String(nextH) };
-    }
-
-    if (!Number.isFinite(parsedH) || parsedH <= 0) return { w: "", h: "" };
-    const nextW = Math.max(1, Math.round(parsedH * ratio));
-    return { w: String(nextW), h: String(parsedH) };
-  }, [creative.size, previewSize, parseDims]);
+  const sanitizeDimensionInput = useCallback((value) => {
+    return String(value || "").replace(/[^\d]/g, "");
+  }, []);
 
   const handleCustomWidthChange = useCallback((e) => {
-    const sanitized = String(e.target.value || "").replace(/[^\d]/g, "");
-    const next = deriveRatioLockedSize(sanitized, customH, "w");
-    setCustomW(next.w);
-    setCustomH(next.h);
-  }, [customH, deriveRatioLockedSize]);
+    setCustomW(sanitizeDimensionInput(e.target.value));
+  }, [sanitizeDimensionInput]);
 
   const handleCustomHeightChange = useCallback((e) => {
-    const sanitized = String(e.target.value || "").replace(/[^\d]/g, "");
-    const next = deriveRatioLockedSize(customW, sanitized, "h");
-    setCustomW(next.w);
-    setCustomH(next.h);
-  }, [customW, deriveRatioLockedSize]);
+    setCustomH(sanitizeDimensionInput(e.target.value));
+  }, [sanitizeDimensionInput]);
 
   const handleApplyPixelResize = useCallback(() => {
     const w = Number.parseInt(customW, 10);
     const h = Number.parseInt(customH, 10);
     if (!w || !h) return;
-    handleResizePixelProportional(creative.url, creative.size, w, h);
-  }, [customW, customH, creative.url, creative.size, handleResizePixelProportional]);
+    handleResize(creative.url, creative.size, w, h);
+  }, [customW, customH, creative.url, creative.size, handleResize]);
 
   const handleCropWidthChange = useCallback((e) => {
-    const sanitized = String(e.target.value || "").replace(/[^\d]/g, "");
-    setCropW(sanitized);
-  }, []);
+    setCropW(sanitizeDimensionInput(e.target.value));
+  }, [sanitizeDimensionInput]);
 
   const handleCropHeightChange = useCallback((e) => {
-    const sanitized = String(e.target.value || "").replace(/[^\d]/g, "");
-    setCropH(sanitized);
-  }, []);
+    setCropH(sanitizeDimensionInput(e.target.value));
+  }, [sanitizeDimensionInput]);
 
   const handleApplyCropCreative = useCallback(() => {
     const w = Number.parseInt(cropW, 10);
@@ -123,7 +96,14 @@ export default function EditCreativeModal({ creative, onApply, onClose }) {
   const handleApply = useCallback(() => {
     if (!previewUrl || !previewSize) return;
     const [newW, newH] = previewSize.split("x").map(Number);
-    validateCreativeAsset({ file: null, image: { width: newW, height: newH }, platform: "programmatic" }).then((freshValidation) => {
+    validateCreativeAsset({
+      file: creative.mimeType
+        ? { type: creative.mimeType, size: Number(creative.fileSizeBytes || 0) }
+        : null,
+      image: { width: newW, height: newH },
+      platform: platform || "programmatic",
+    }).then((baseValidation) => {
+      const freshValidation = finalizeValidationForPlatform(baseValidation, platform || "programmatic", previewSize);
       onApply(creative.id, {
         url: previewUrl,
         size: previewSize,
@@ -138,7 +118,7 @@ export default function EditCreativeModal({ creative, onApply, onClose }) {
       });
       onClose();
     });
-  }, [creative.id, previewUrl, previewSize, onApply, onClose]);
+  }, [creative.id, creative.mimeType, creative.fileSizeBytes, previewUrl, previewSize, platform, onApply, onClose]);
 
   const handleSliderMove = useCallback(
     (e) => {
@@ -318,7 +298,7 @@ export default function EditCreativeModal({ creative, onApply, onClose }) {
                     Apply Pixel Resize
                   </motion.button>
                   <p className="text-[11px] text-slate-400 mt-2">
-                    Enter width or height only. The other value auto-calculates to keep aspect ratio without crop or distortion.
+                    Enter your target width and height independently. The image will resize to those exact pixel dimensions.
                   </p>
                 </motion.div>
               )}
@@ -361,7 +341,7 @@ export default function EditCreativeModal({ creative, onApply, onClose }) {
                     Apply Crop Creative
                   </motion.button>
                   <p className="text-[11px] text-slate-400 mt-2">
-                    Crops from center to match the exact width and height you enter.
+                    Enter your target width and height independently. The image will be center-cropped to those exact dimensions.
                   </p>
                 </motion.div>
               )}

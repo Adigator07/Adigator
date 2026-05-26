@@ -1,5 +1,6 @@
 "use client";
 
+import { memo } from "react";
 import { motion } from "framer-motion";
 import {
   Trash2, Edit2, Wand2, CheckCircle2, AlertTriangle,
@@ -11,11 +12,12 @@ const cardVariants = {
   exit: { opacity: 0, scale: 0.9, y: -20 },
 };
 
-export default function CreativeCard({
+function CreativeCard({
   creative,
   onEdit,
   onRemove,
   compact = false,
+  disableLayoutAnimation = false,
 }) {
   const validationStatus = creative?.validation?.status || (creative.valid ? "PASS" : "CRITICAL");
   const readinessScore = creative?.auctionReadiness?.score ?? creative?.validation?.intelligence?.auctionReadiness?.score ?? 0;
@@ -29,8 +31,8 @@ export default function CreativeCard({
 
   return (
     <motion.div
-      layout
-      layoutId={`creative-card-${creative.id}`}
+      layout={!disableLayoutAnimation}
+      layoutId={disableLayoutAnimation ? undefined : `creative-card-${creative.id}`}
       variants={cardVariants}
       initial="hidden"
       animate="visible"
@@ -47,6 +49,8 @@ export default function CreativeCard({
         <img
           src={creative.url}
           alt={creative.name}
+          loading="lazy"
+          decoding="async"
           className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
         />
 
@@ -175,3 +179,5 @@ const formatFileSize = (kb) => {
   if (kb < 1024) return `${kb} KB`;
   return `${(kb / 1024).toFixed(2)} MB`;
 };
+
+export default memo(CreativeCard);

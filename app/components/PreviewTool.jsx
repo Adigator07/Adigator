@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback, useMemo } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo, startTransition } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import dynamic from "next/dynamic";
@@ -19,9 +19,34 @@ import {
 import {
   validateCreativeAsset,
   buildValidationSummary,
+  finalizeValidationForPlatform,
+  revalidateCreativesForPlatform,
   SUPPORTED_DISPLAY_SIZE_GROUPS,
   DSP_PARTNERS,
 } from "../lib/creativeValidation";
+import {
+  compressImageToTarget,
+  getFileExtensionForMime,
+  loadImageSource,
+  mapWithConcurrency,
+  padBlobToExactBytes,
+  yieldToMain,
+} from "../lib/imageCompression";
+import {
+  deleteCreativeAssets,
+  getCreativeFullBlob,
+  hydrateCreativesList,
+  revokeCreativeObjectUrls,
+  storeCompressedCreativeBlobs,
+  storeUploadedCreativeFile,
+  stripCreativeForPersistence,
+} from "../lib/creativeAssetStore";
+import {
+  readStoredAnalysisResult,
+  readStoredWorkflow,
+  writeStoredAnalysisResult,
+  writeStoredWorkflow,
+} from "../lib/workflowStorage";
 
 // Platform and CTA constants (previously from localAnalyzer)
 const PLATFORM_SIZES = {
@@ -85,17 +110,7 @@ const GOAL_CTA = {
   retargeting: ["Complete Purchase", "Return to Cart", "Claim Offer", "Shop Again"],
 };
 
-const WORKFLOW_STORAGE_KEY = "adigator_workflow_v1";
 const ANALYSIS_SESSION_STORAGE_KEY = "adigator_analysis_session_id";
-
-function parseStoredJson(value, fallback) {
-  if (!value) return fallback;
-  try {
-    return JSON.parse(value);
-  } catch {
-    return fallback;
-  }
-}
 
 function clampStep(value) {
   const numeric = Number.parseInt(String(value || "1"), 10);
@@ -179,13 +194,6 @@ const TEMPLATES = [
 const TOTAL_STEPS = 4;
 const STEP_LABELS = ["Setup", "Upload", "Analysis", "Preview Studio"];
 
-const LOW_AVAILABILITY_SIZES = new Set([
-  "234x60",
-  "120x240",
-  "180x150",
-  "300x1050",
-]);
-
 const PLATFORMS = [
   {
     id: "google_ads", icon: "🟦", title: "Google Ads", desc: "Display inventory and responsive placements optimized for intent-rich contexts",
@@ -255,7 +263,7 @@ const GOALS = [
 const PLATFORM_GOAL_IDS = {
   google_ads: ["awareness", "traffic", "conversion", "lead_generation", "engagement", "app_installs", "retargeting"],
   meta_ads: ["awareness", "traffic", "conversion", "lead_generation", "engagement", "app_installs", "retargeting"],
-  programmatic: ["awareness", "consideration", "conversion", "retargeting"],
+  programmatic: ["awareness", "consideration", "conversion"],
 };
 
 const AUDIENCE_STAGES = [
@@ -346,13 +354,11 @@ async function analyzeAllCreatives(creatives, goal, platform, vertical, audience
 
   for (const creative of creatives) {
     try {
-      // Fetch image from URL and convert to Blob
-      const imageRes = await fetch(creative.url);
-      if (!imageRes.ok) throw new Error(`Failed to fetch image: ${creative.url}`);
-      const imageBlob = await imageRes.blob();
+      const imageBlob = await getCreativeFullBlob(creative);
+      if (!imageBlob) throw new Error(`Could not load image bytes for ${creative.name || creative.id}`);
 
       const formData = new FormData();
-      formData.append("image", imageBlob, "creative.jpg");
+      formData.append("image", imageBlob, `${creative.name || "creative"}.jpg`);
       formData.append("goal", goal);
       formData.append("vertical", verticalForApi);
       formData.append("platform", platform || "programmatic");
@@ -407,112 +413,6 @@ async function analyzeAllCreatives(creatives, goal, platform, vertical, audience
   return results;
 }
 
-function readFileAsDataURL(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = (e) => resolve(e.target?.result);
-    reader.onerror = () => reject(new Error(`Could not read ${file.name}`));
-    reader.readAsDataURL(file);
-  });
-}
-
-function loadImageFromDataURL(dataUrl) {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.onload = () => resolve(img);
-    img.onerror = () => reject(new Error("Could not parse image dimensions"));
-    img.src = dataUrl;
-  });
-}
-
-function blobToDataURL(blob) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = (e) => resolve(e.target?.result);
-    reader.onerror = () => reject(new Error("Could not serialize compressed image."));
-    reader.readAsDataURL(blob);
-  });
-}
-
-function getFileExtensionForMime(mimeType) {
-  if (mimeType === "image/png") return "png";
-  if (mimeType === "image/gif") return "gif";
-  if (mimeType === "image/webp") return "webp";
-  return "jpg";
-}
-
-async function compressImageDataURL(dataUrl, options = {}) {
-  const {
-    outputType = "image/jpeg",
-    quality = 0.78,
-    scale = 1,
-    sourceImage,
-    includeDataUrl = true,
-  } = options;
-
-  const image = sourceImage || await loadImageFromDataURL(dataUrl);
-  const canvas = document.createElement("canvas");
-  const safeScale = Math.min(Math.max(Number(scale) || 1, 0.1), 1);
-  const targetWidth = Math.max(1, Math.round(image.width * safeScale));
-  const targetHeight = Math.max(1, Math.round(image.height * safeScale));
-  canvas.width = targetWidth;
-  canvas.height = targetHeight;
-  const ctx = canvas.getContext("2d");
-  if (!ctx) {
-    throw new Error("Could not initialize canvas context for compression.");
-  }
-
-  ctx.drawImage(image, 0, 0, targetWidth, targetHeight);
-
-  const blob = await new Promise((resolve, reject) => {
-    canvas.toBlob(
-      (result) => {
-        if (!result) {
-          reject(new Error("Compression failed while encoding image."));
-          return;
-        }
-        resolve(result);
-      },
-      outputType,
-      quality
-    );
-  });
-
-  const compressedDataUrl = includeDataUrl ? await blobToDataURL(blob) : null;
-  return {
-    dataUrl: compressedDataUrl,
-    blob,
-    width: targetWidth,
-    height: targetHeight,
-  };
-}
-
-function pickBetterCandidate(current, next, targetBytes) {
-  if (!current) return next;
-  if (!targetBytes) return next.blob.size < current.blob.size ? next : current;
-
-  const currentUnder = current.blob.size <= targetBytes;
-  const nextUnder = next.blob.size <= targetBytes;
-
-  if (currentUnder && nextUnder) {
-    return next.blob.size > current.blob.size ? next : current;
-  }
-  if (nextUnder && !currentUnder) return next;
-  if (!nextUnder && currentUnder) return current;
-
-  return next.blob.size < current.blob.size ? next : current;
-}
-
-function padBlobToExactBytes(blob, targetBytes) {
-  const safeTarget = Number(targetBytes);
-  if (!Number.isFinite(safeTarget) || safeTarget <= 0 || blob.size >= safeTarget) {
-    return blob;
-  }
-
-  const padding = new Uint8Array(safeTarget - blob.size);
-  return new Blob([blob, padding], { type: blob.type || "image/jpeg" });
-}
-
 function deriveStatusFromIssues(issues) {
   if (issues.some((issue) => issue.severity === "high")) return "CRITICAL";
   if (issues.some((issue) => issue.severity === "medium")) return "WARNING";
@@ -562,7 +462,7 @@ export default function PreviewTool() {
   const urlStepParam = searchParams.get("step");
   const storedStepFallback = useMemo(() => {
     if (typeof window === "undefined") return 1;
-    const storedWorkflow = parseStoredJson(localStorage.getItem(WORKFLOW_STORAGE_KEY), {});
+    const storedWorkflow = readStoredWorkflow();
     return clampStep(storedWorkflow?.step || 1);
   }, []);
   const step = clampStep(urlStepParam || String(storedStepFallback));
@@ -573,9 +473,23 @@ export default function PreviewTool() {
     setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), 3500);
   }, []);
 
-  const [platform, setPlatform] = useState(null);
-  const [campaignGoal, setCampaignGoal] = useState(null);
-  const [campaignVertical, setCampaignVertical] = useState(null);
+  const [platform, setPlatform] = useState(() => {
+    if (typeof window === "undefined") return null;
+    const stored = localStorage.getItem("adigator_platform");
+    return stored === "google_ads" || stored === "meta_ads" || stored === "programmatic" ? stored : null;
+  });
+  const [campaignGoal, setCampaignGoal] = useState(() => {
+    if (typeof window === "undefined") return null;
+    const storedPlatform = localStorage.getItem("adigator_platform");
+    const storedGoal = localStorage.getItem("adigator_goal");
+    if (!storedGoal) return null;
+    const allowedGoalIds = PLATFORM_GOAL_IDS[storedPlatform] || PLATFORM_GOAL_IDS.programmatic;
+    return allowedGoalIds.includes(storedGoal) ? storedGoal : null;
+  });
+  const [campaignVertical, setCampaignVertical] = useState(() => {
+    if (typeof window === "undefined") return null;
+    return localStorage.getItem("adigator_vertical") || null;
+  });
   const [campaignAudienceStage, setCampaignAudienceStage] = useState(() => {
     if (typeof window === "undefined") return "cold";
     const stored = localStorage.getItem("adigator_audience_stage");
@@ -587,11 +501,8 @@ export default function PreviewTool() {
   });
   const mountRef = useRef(false);
 
-  const [creatives, setCreatives] = useState(() => {
-    if (typeof window === "undefined") return [];
-    const storedWorkflow = parseStoredJson(localStorage.getItem(WORKFLOW_STORAGE_KEY), {});
-    return Array.isArray(storedWorkflow?.creatives) ? storedWorkflow.creatives : [];
-  });
+  const [creatives, setCreatives] = useState([]);
+  const [isHydratingCreatives, setIsHydratingCreatives] = useState(true);
   const [drag, setDrag] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [editingId, setEditingId] = useState(null);
@@ -602,11 +513,14 @@ export default function PreviewTool() {
   const [targetSizeByCreative, setTargetSizeByCreative] = useState({});
   const [bulkTargetSizeKB, setBulkTargetSizeKB] = useState("150");
   const [isBulkCompressing, setIsBulkCompressing] = useState(false);
+  const [bulkCompressProgress, setBulkCompressProgress] = useState({ current: 0, total: 0 });
+  const creativesRef = useRef(creatives);
+  const compressingIdsRef = useRef(new Set());
+  const workflowPersistTimerRef = useRef(null);
 
   const [analysisResult, setAnalysisResult] = useState(() => {
     if (typeof window === "undefined") return null;
-    const storedWorkflow = parseStoredJson(localStorage.getItem(WORKFLOW_STORAGE_KEY), {});
-    return Array.isArray(storedWorkflow?.analysisResult) ? storedWorkflow.analysisResult : null;
+    return readStoredAnalysisResult();
   });
   const [analysisLoading, setAnalysisLoading] = useState(false);
   const [viewerName, setViewerName] = useState("");
@@ -614,12 +528,12 @@ export default function PreviewTool() {
   const [selectedTemplate] = useState("newspaper");
   const [viewMode, setViewMode] = useState(() => {
     if (typeof window === "undefined") return "multiple";
-    const storedWorkflow = parseStoredJson(localStorage.getItem(WORKFLOW_STORAGE_KEY), {});
+    const storedWorkflow = readStoredWorkflow();
     return storedWorkflow?.viewMode === "single" || storedWorkflow?.viewMode === "multiple" ? storedWorkflow.viewMode : "multiple";
   });
   const [showSlotLabels, setShowSlotLabels] = useState(() => {
     if (typeof window === "undefined") return false;
-    const storedWorkflow = parseStoredJson(localStorage.getItem(WORKFLOW_STORAGE_KEY), {});
+    const storedWorkflow = readStoredWorkflow();
     return typeof storedWorkflow?.showSlotLabels === "boolean" ? storedWorkflow.showSlotLabels : false;
   });
   const [isExporting, setIsExporting] = useState(false);
@@ -629,6 +543,72 @@ export default function PreviewTool() {
     return () => {
       mountRef.current = false;
     };
+  }, []);
+
+  useEffect(() => {
+    creativesRef.current = creatives;
+  }, [creatives]);
+
+  useEffect(() => {
+    let active = true;
+
+    (async () => {
+      const storedWorkflow = readStoredWorkflow();
+      const metas = Array.isArray(storedWorkflow?.creatives) ? storedWorkflow.creatives : [];
+      if (!metas.length) {
+        if (active) setIsHydratingCreatives(false);
+        return;
+      }
+
+      const hydrated = await hydrateCreativesList(metas, 4);
+      if (active) {
+        startTransition(() => {
+          setCreatives(hydrated);
+          setIsHydratingCreatives(false);
+        });
+        try {
+          writeStoredWorkflow({
+            step: storedWorkflow?.step ?? 1,
+            creatives: hydrated.map(stripCreativeForPersistence),
+            viewMode: storedWorkflow?.viewMode ?? "multiple",
+            showSlotLabels: storedWorkflow?.showSlotLabels ?? false,
+          });
+        } catch {
+          // Best-effort: drop legacy inline image payloads from localStorage.
+        }
+      }
+    })();
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (isHydratingCreatives || !platform) return;
+
+    let active = true;
+    (async () => {
+      const current = creativesRef.current;
+      if (!current.length) return;
+      const needsRevalidation = current.some((creative) => creative.validation?.platform !== platform);
+      if (!needsRevalidation) return;
+
+      const updated = await revalidateCreativesForPlatform(current, platform);
+      if (active) {
+        startTransition(() => {
+          setCreatives(updated);
+        });
+      }
+    })();
+
+    return () => {
+      active = false;
+    };
+  }, [isHydratingCreatives, platform]);
+
+  useEffect(() => () => {
+    creativesRef.current.forEach((creative) => revokeCreativeObjectUrls(creative));
   }, []);
 
   useEffect(() => {
@@ -649,32 +629,54 @@ export default function PreviewTool() {
 
     if (campaignAudienceStage) localStorage.setItem("adigator_audience_stage", campaignAudienceStage);
     else localStorage.removeItem("adigator_audience_stage");
+  }, [platform, campaignGoal, campaignVertical, campaignAudienceStage]);
 
-    try {
-      localStorage.setItem(
-        WORKFLOW_STORAGE_KEY,
-        JSON.stringify({
+  useEffect(() => {
+    if (workflowPersistTimerRef.current) {
+      clearTimeout(workflowPersistTimerRef.current);
+    }
+
+    const delayMs = isBulkCompressing || compressingCreativeIds.length > 0 ? 1200 : 350;
+
+    workflowPersistTimerRef.current = setTimeout(() => {
+      try {
+        writeStoredWorkflow({
           step,
-          creatives,
-          analysisResult,
+          creatives: creatives.map(stripCreativeForPersistence),
           viewMode,
           showSlotLabels,
-        })
-      );
-    } catch {
-      // Ignore quota/serialization issues and keep runtime state alive.
-    }
+        });
+      } catch {
+        // Ignore quota/serialization issues and keep runtime state alive.
+      }
+    }, delayMs);
+
+    return () => {
+      if (workflowPersistTimerRef.current) {
+        clearTimeout(workflowPersistTimerRef.current);
+      }
+    };
   }, [
-    platform,
-    campaignGoal,
-    campaignVertical,
-    campaignAudienceStage,
     step,
     creatives,
-    analysisResult,
     viewMode,
     showSlotLabels,
+    isBulkCompressing,
+    compressingCreativeIds.length,
   ]);
+
+  useEffect(() => {
+    if (!mountRef.current) return;
+    const delayMs = isBulkCompressing || compressingCreativeIds.length > 0 ? 1200 : 350;
+    const timer = setTimeout(() => {
+      try {
+        writeStoredAnalysisResult(analysisResult);
+      } catch {
+        // Ignore quota issues.
+      }
+    }, delayMs);
+    return () => clearTimeout(timer);
+  }, [analysisResult, isBulkCompressing, compressingCreativeIds.length]);
 
   useEffect(() => {
     if (analysisSessionId) {
@@ -815,6 +817,8 @@ export default function PreviewTool() {
     setPlatform(id);
     setCampaignGoal(nextGoal);
     if (platformChanged) {
+      creativesRef.current.forEach((creative) => revokeCreativeObjectUrls(creative));
+      void Promise.all(creativesRef.current.map((creative) => deleteCreativeAssets(creative.id)));
       setCreatives([]);
       setAnalysisResult(null);
       setAnalysisLoading(false);
@@ -924,10 +928,16 @@ export default function PreviewTool() {
     updateAnalysisSession,
   ]);
 
-  const validationResults = creatives.map((c) => c?.validation).filter(Boolean);
-  const validationSummary = validationResults.length
-    ? buildValidationSummary(validationResults)
-    : { totalIssues: 0, criticalCount: 0, warningCount: 0, inventoryImpactScore: 100 };
+  const validationResults = useMemo(
+    () => creatives.map((c) => c?.validation).filter(Boolean),
+    [creatives],
+  );
+  const validationSummary = useMemo(
+    () => (validationResults.length
+      ? buildValidationSummary(validationResults)
+      : { totalIssues: 0, criticalCount: 0, warningCount: 0, inventoryImpactScore: 100 }),
+    [validationResults],
+  );
 
   const goNext = useCallback(() => {
     if (step === 1 && !isConfigComplete) return;
@@ -1046,60 +1056,56 @@ export default function PreviewTool() {
 
     setIsLoading(true);
     try {
-      const preparedCreatives = await Promise.all(fileList.map(async (file) => {
-        const dataUrl = await readFileAsDataURL(file);
-        const img = await loadImageFromDataURL(dataUrl);
-        const size = `${img.width}x${img.height}`;
-        const validation = await validateCreativeAsset({
-          file,
-          image: img,
-          platform,
-          imageDataUrl: dataUrl,
+      const preparedCreatives = await mapWithConcurrency(fileList, 2, async (file, fileIndex) => {
+        const imageSource = await loadImageSource(file);
+        try {
+          const size = `${imageSource.width}x${imageSource.height}`;
+          const validation = await validateCreativeAsset({
+            file,
+            image: { width: imageSource.width, height: imageSource.height },
+            platform,
+          });
+
+          const normalizedValidation = finalizeValidationForPlatform(validation, platform, size);
+
+          const creativeId = `${Date.now()}-${fileIndex}-${file.name}-${size}`;
+          const { displayUrl, fullUrl } = await storeUploadedCreativeFile(creativeId, file);
+
+          return {
+            id: creativeId,
+            name: file.name.replace(/\.[^/.]+$/, ""),
+            url: displayUrl,
+            fullUrl,
+            hasStoredAssets: true,
+            size,
+            valid: normalizedValidation.valid && normalizedValidation.status !== "CRITICAL",
+            originalFile: file.name,
+            mimeType: file.type || "image/jpeg",
+            fileSizeBytes: file.size,
+            fileSizeKB: Math.round(file.size / 1024),
+            validation: normalizedValidation,
+            placementType: normalizedValidation.intelligence?.placementType,
+            deviceClassification: normalizedValidation.intelligence?.deviceClassification,
+            iabCompatibility: normalizedValidation.intelligence?.iabCompatibility,
+            dspCompatibility: normalizedValidation.intelligence?.dspCompatibility,
+            inventoryAvailability: normalizedValidation.intelligence?.inventory,
+            auctionReadiness: normalizedValidation.intelligence?.auctionReadiness,
+            premiumPlacementPotential: normalizedValidation.intelligence?.premiumPlacement,
+          };
+        } finally {
+          imageSource.release();
+        }
+      });
+
+      startTransition(() => {
+        setCreatives((prev) => [...prev, ...preparedCreatives]);
+      });
+
+      window.setTimeout(() => {
+        preparedCreatives.forEach((creative) => {
+          void saveToSupabase(creative);
         });
-
-        const lowAvailabilityIssue = LOW_AVAILABILITY_SIZES.has(size)
-          ? {
-            type: "technical",
-            severity: "medium",
-            message: `${size} is valid but often has lower fill in open programmatic inventory.`,
-            recommendation: "Keep this size if required, but prioritize 300x250, 336x280, 728x90, 970x250, or 300x600 for broader scale.",
-            scorePenalty: 5,
-          }
-          : null;
-
-        const mergedIssues = lowAvailabilityIssue
-          ? [...validation.issues, lowAvailabilityIssue]
-          : validation.issues;
-
-        const normalizedValidation = {
-          ...validation,
-          issues: mergedIssues,
-          status: deriveStatusFromIssues(mergedIssues),
-        };
-
-        return {
-          id: `${Date.now()}-${file.name}-${size}`,
-          name: file.name.replace(/\.[^/.]+$/, ""),
-          url: dataUrl,
-          size,
-          valid: normalizedValidation.valid && normalizedValidation.status !== "CRITICAL",
-          originalFile: file.name,
-          mimeType: file.type || "image/jpeg",
-          fileSizeBytes: file.size,
-          fileSizeKB: Math.round(file.size / 1024),
-          validation: normalizedValidation,
-          placementType: normalizedValidation.intelligence?.placementType,
-          deviceClassification: normalizedValidation.intelligence?.deviceClassification,
-          iabCompatibility: normalizedValidation.intelligence?.iabCompatibility,
-          dspCompatibility: normalizedValidation.intelligence?.dspCompatibility,
-          inventoryAvailability: normalizedValidation.intelligence?.inventory,
-          auctionReadiness: normalizedValidation.intelligence?.auctionReadiness,
-          premiumPlacementPotential: normalizedValidation.intelligence?.premiumPlacement,
-        };
-      }));
-
-      setCreatives((prev) => [...prev, ...preparedCreatives]);
-      preparedCreatives.forEach((creative) => saveToSupabase(creative));
+      }, 0);
 
       const uploadSummary = buildValidationSummary(preparedCreatives.map((c) => c.validation));
       if (uploadSummary.criticalCount > 0) {
@@ -1132,7 +1138,7 @@ export default function PreviewTool() {
       return { status: "failed", reason: "missing_platform" };
     }
 
-    const creative = creatives.find((entry) => entry.id === creativeId);
+    const creative = creativesRef.current.find((entry) => entry.id === creativeId);
     if (!creative?.url) {
       notify("Creative asset is missing an image source.", "error");
       return { status: "failed", reason: "missing_source" };
@@ -1144,9 +1150,13 @@ export default function PreviewTool() {
       return { status: "skipped", reason: "gif_unsupported" };
     }
 
-    if (compressingCreativeIds.includes(creativeId)) return { status: "skipped", reason: "already_compressing" };
+    if (compressingIdsRef.current.has(creativeId)) {
+      return { status: "skipped", reason: "already_compressing" };
+    }
 
+    compressingIdsRef.current.add(creativeId);
     setCompressingCreativeIds((prev) => [...prev, creativeId]);
+    await yieldToMain();
 
     try {
       const originalBytes = Number(creative.fileSizeBytes || Math.round((creative.fileSizeKB || 0) * 1024));
@@ -1171,107 +1181,56 @@ export default function PreviewTool() {
 
       const complianceBytes = 150 * 1024;
       const sizeThresholdBytes = targetBytes || (enforceSizeCompliance ? complianceBytes : null);
-      const scaleAttempts = sizeThresholdBytes
-        ? [1, 0.9, 0.8, 0.7, 0.6, 0.5]
-        : [1];
-      const outputType = (enforceSizeCompliance || targetBytes) ? "image/jpeg" : (currentMimeType === "image/png" ? "image/png" : "image/jpeg");
-      const sourceImage = await loadImageFromDataURL(creative.url);
+      const outputType = (enforceSizeCompliance || targetBytes)
+        ? "image/jpeg"
+        : (currentMimeType === "image/png" ? "image/png" : "image/jpeg");
 
-      let bestCandidate = null;
+      const sourceBlob = await getCreativeFullBlob(creative);
+      if (!sourceBlob) {
+        throw new Error("Could not load creative bytes for compression.");
+      }
+
+      const imageSource = await loadImageSource(sourceBlob);
       let reachedTarget = false;
 
-      for (const scale of scaleAttempts) {
-        let localBest = null;
-        let left = 0.32;
-        let right = 0.95;
-
-        for (let i = 0; i < 6; i += 1) {
-          const quality = Number(((left + right) / 2).toFixed(4));
-          const compressed = await compressImageDataURL(creative.url, {
-            outputType,
-            quality,
-            scale,
-            sourceImage,
-            includeDataUrl: false,
-          });
-
-          const candidate = {
-            ...compressed,
-            quality,
-            scale,
-          };
-
-          localBest = pickBetterCandidate(localBest, candidate, sizeThresholdBytes);
-
-          if (sizeThresholdBytes && compressed.blob.size > sizeThresholdBytes) {
-            right = quality - 0.01;
-          } else {
-            left = quality + 0.01;
-          }
-        }
-
-        if (localBest) {
-          bestCandidate = pickBetterCandidate(bestCandidate, localBest, sizeThresholdBytes);
-          if (sizeThresholdBytes && localBest.blob.size <= sizeThresholdBytes && scale >= 0.7) {
-            reachedTarget = true;
-            break;
-          }
-        }
+      let bestCandidate;
+      try {
+        bestCandidate = await compressImageToTarget(imageSource.drawable, {
+          outputType,
+          targetBytes: sizeThresholdBytes,
+          sourceWidth: imageSource.width,
+          sourceHeight: imageSource.height,
+        });
+      } finally {
+        imageSource.release();
       }
 
-      if (!bestCandidate) {
-        throw new Error("Compression attempt did not produce a usable result.");
-      }
-
-      let finalizedCompressed = {
-        ...bestCandidate,
-        dataUrl: await blobToDataURL(bestCandidate.blob),
-      };
-      let finalCompressedBytes = bestCandidate.blob.size;
+      let finalBlob = bestCandidate.blob;
+      let finalCompressedBytes = finalBlob.size;
 
       if (targetBytes && finalCompressedBytes <= targetBytes && finalCompressedBytes < targetBytes) {
-        const paddedBlob = padBlobToExactBytes(bestCandidate.blob, targetBytes);
-        const paddedDataUrl = await blobToDataURL(paddedBlob);
-        finalizedCompressed = {
-          ...bestCandidate,
-          blob: paddedBlob,
-          dataUrl: paddedDataUrl,
-        };
-        finalCompressedBytes = paddedBlob.size;
+        finalBlob = padBlobToExactBytes(bestCandidate.blob, targetBytes);
+        finalCompressedBytes = finalBlob.size;
       }
 
-      const finalSize = `${finalizedCompressed.width}x${finalizedCompressed.height}`;
+      const finalSize = `${bestCandidate.width}x${bestCandidate.height}`;
       const extension = getFileExtensionForMime(outputType);
       const compressedFileName = `${creative.name || "creative"}.${extension}`;
-      const finalFile = new File([finalizedCompressed.blob], compressedFileName, {
+      const finalFile = new File([finalBlob], compressedFileName, {
         type: outputType,
         lastModified: Date.now(),
       });
 
+      revokeCreativeObjectUrls(creative);
+      const { displayUrl, fullUrl } = await storeCompressedCreativeBlobs(creative.id, finalBlob);
+
       const validation = await validateCreativeAsset({
         file: finalFile,
-        image: { width: finalizedCompressed.width, height: finalizedCompressed.height },
+        image: { width: bestCandidate.width, height: bestCandidate.height },
         platform,
-        imageDataUrl: finalizedCompressed.dataUrl,
       });
 
-      const lowAvailabilityIssue = LOW_AVAILABILITY_SIZES.has(finalSize)
-        ? {
-          type: "technical",
-          severity: "medium",
-          message: `${finalSize} is valid but often has lower fill in open programmatic inventory.`,
-          recommendation: "Keep this size if required, but prioritize 300x250, 336x280, 728x90, 970x250, or 300x600 for broader scale.",
-          scorePenalty: 5,
-        }
-        : null;
-      const mergedIssues = lowAvailabilityIssue
-        ? [...validation.issues, lowAvailabilityIssue]
-        : validation.issues;
-      let finalValidation = {
-        ...validation,
-        issues: mergedIssues,
-        status: deriveStatusFromIssues(mergedIssues),
-      };
+      let finalValidation = finalizeValidationForPlatform(validation, platform, finalSize);
 
       if (targetBytes && finalCompressedBytes <= targetBytes) {
         reachedTarget = true;
@@ -1280,7 +1239,9 @@ export default function PreviewTool() {
 
       const updatedCreative = {
         ...creative,
-        url: finalizedCompressed.dataUrl,
+        url: displayUrl,
+        fullUrl,
+        hasStoredAssets: true,
         size: finalSize,
         mimeType: outputType,
         fileSizeBytes: finalCompressedBytes,
@@ -1296,8 +1257,10 @@ export default function PreviewTool() {
         premiumPlacementPotential: finalValidation.intelligence?.premiumPlacement,
       };
 
-      setCreatives((prev) => prev.map((entry) => (entry.id === creativeId ? updatedCreative : entry)));
-      saveToSupabase(updatedCreative);
+      startTransition(() => {
+        setCreatives((prev) => prev.map((entry) => (entry.id === creativeId ? updatedCreative : entry)));
+      });
+      void saveToSupabase(updatedCreative);
 
       const reduction = originalBytes > 0
         ? Math.round(((originalBytes - finalCompressedBytes) / originalBytes) * 100)
@@ -1359,9 +1322,10 @@ export default function PreviewTool() {
       notify(error?.message || "Compression failed for this creative.", "error");
       return { status: "failed", reason: "exception" };
     } finally {
+      compressingIdsRef.current.delete(creativeId);
       setCompressingCreativeIds((prev) => prev.filter((id) => id !== creativeId));
     }
-  }, [platform, creatives, compressingCreativeIds, addToast, saveToSupabase]);
+  }, [platform, addToast, saveToSupabase]);
 
   const handleBulkTargetSizeChange = useCallback((value) => {
     const sanitized = String(value || "").replace(/[^\d]/g, "");
@@ -1388,32 +1352,28 @@ export default function PreviewTool() {
     }
 
     setIsBulkCompressing(true);
+    setBulkCompressProgress({ current: 0, total: eligibleCreatives.length });
     let successCount = 0;
     let failedCount = 0;
     let skippedCount = 0;
 
     try {
-      const queue = [...eligibleCreatives];
-      const workerCount = Math.min(3, queue.length);
+      for (let index = 0; index < eligibleCreatives.length; index += 1) {
+        const creative = eligibleCreatives[index];
+        setBulkCompressProgress({ current: index + 1, total: eligibleCreatives.length });
 
-      const worker = async () => {
-        while (queue.length > 0) {
-          const creative = queue.shift();
-          if (!creative) break;
+        const result = await compressCreative(creative.id, {
+          enforceSizeCompliance: true,
+          targetSizeKB: target,
+          silent: true,
+        });
 
-          const result = await compressCreative(creative.id, {
-            enforceSizeCompliance: true,
-            targetSizeKB: target,
-            silent: true,
-          });
+        if (result?.status === "success") successCount += 1;
+        else if (result?.status === "skipped") skippedCount += 1;
+        else failedCount += 1;
 
-          if (result?.status === "success") successCount += 1;
-          else if (result?.status === "skipped") skippedCount += 1;
-          else failedCount += 1;
-        }
-      };
-
-      await Promise.all(Array.from({ length: workerCount }, () => worker()));
+        await yieldToMain();
+      }
 
       if (failedCount === 0) {
         addToast(
@@ -1428,33 +1388,39 @@ export default function PreviewTool() {
       }
     } finally {
       setIsBulkCompressing(false);
+      setBulkCompressProgress({ current: 0, total: 0 });
     }
   }, [isBulkCompressing, compressingCreativeIds.length, creatives, bulkTargetSizeKB, compressCreative, addToast]);
 
-  const downloadCreative = useCallback((creative) => {
-    if (!creative.url) return;
+  const downloadCreative = useCallback(async (creative) => {
+    const blob = await getCreativeFullBlob(creative);
+    if (!blob) return;
+
+    const extension = getFileExtensionForMime(creative.mimeType || blob.type || "image/jpeg");
+    const objectUrl = URL.createObjectURL(blob);
     const a = document.createElement("a");
-    a.href = creative.url;
-    a.download = `${creative.name || "creative"}.${
-      creative.url.startsWith("data:image/png")
-        ? "png"
-        : creative.url.startsWith("data:image/gif")
-          ? "gif"
-          : creative.url.startsWith("data:image/webp")
-            ? "webp"
-            : "jpg"
-    }`;
-    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    a.href = objectUrl;
+    a.download = `${creative.name || "creative"}.${extension}`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(objectUrl);
     addToast(`Downloaded: ${creative.name}`, "success");
   }, [addToast]);
 
   const removeCreative = async (id) => {
+    const existing = creativesRef.current.find((c) => c.id === id);
+    if (existing) revokeCreativeObjectUrls(existing);
+
     setCreatives((prev) => prev.filter((c) => c.id !== id));
     setTargetSizeByCreative((prev) => {
       const next = { ...prev };
       delete next[id];
       return next;
     });
+
+    void deleteCreativeAssets(id);
+
     try {
       const user = await getUser();
       if (user) await supabase.from("creatives").delete().eq("id", id).eq("user_id", user.id);
@@ -1861,8 +1827,13 @@ export default function PreviewTool() {
                 <input ref={fileRef} type="file" multiple hidden accept="image/*" onChange={(e) => { handleFiles(e.target.files); e.target.value = ""; }} />
               </div>
 
-              {isLoading && (
-                <div className="text-center py-4"><div className="inline-block w-6 h-6 border-4 border-purple-500 border-t-transparent rounded-full animate-spin"></div></div>
+              {(isLoading || isHydratingCreatives) && (
+                <div className="text-center py-4">
+                  <div className="inline-block w-6 h-6 border-4 border-purple-500 border-t-transparent rounded-full animate-spin" />
+                  <p className="mt-2 text-xs text-gray-400">
+                    {isHydratingCreatives ? "Restoring creatives…" : "Validating uploads…"}
+                  </p>
+                </div>
               )}
 
               {/* Validation Summary Stats */}
@@ -1924,10 +1895,29 @@ export default function PreviewTool() {
                         disabled={isBulkCompressing || compressingCreativeIds.length > 0}
                         className="rounded-lg border border-sky-300 bg-sky-100 px-3 py-1.5 text-xs font-semibold text-sky-700 hover:bg-sky-200 disabled:opacity-60 disabled:cursor-not-allowed"
                       >
-                        {isBulkCompressing ? "Compressing All..." : "Apply To All"}
+                        {isBulkCompressing
+                          ? bulkCompressProgress.total > 0
+                            ? `Compressing ${bulkCompressProgress.current}/${bulkCompressProgress.total}…`
+                            : "Compressing All..."
+                          : "Apply To All"}
                       </button>
                     </div>
                   </div>
+                  {isBulkCompressing && bulkCompressProgress.total > 0 && (
+                    <div className="mt-3">
+                      <div className="h-1.5 w-full rounded-full bg-slate-200 overflow-hidden">
+                        <div
+                          className="h-full rounded-full bg-sky-500 transition-[width] duration-200"
+                          style={{
+                            width: `${Math.round((bulkCompressProgress.current / bulkCompressProgress.total) * 100)}%`,
+                          }}
+                        />
+                      </div>
+                      <p className="mt-1 text-[10px] text-slate-500">
+                        Processing one creative at a time to keep the UI responsive.
+                      </p>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -1938,7 +1928,11 @@ export default function PreviewTool() {
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     {validCreatives.map((creative) => (
                       <div key={creative.id} className="flex flex-col gap-1">
-                        <CreativeCard creative={creative} onRemove={removeCreative} />
+                        <CreativeCard
+                          creative={creative}
+                          onRemove={removeCreative}
+                          disableLayoutAnimation={isBulkCompressing || compressingCreativeIds.length > 0}
+                        />
                         {editingId === creative.id ? (
                           <div className="flex gap-1 mt-1">
                             <input autoFocus value={editingName} onChange={(e) => setEditingName(e.target.value)}
@@ -2018,7 +2012,12 @@ export default function PreviewTool() {
                     {invalidCreatives.map((creative) => {
                       return (
                         <div key={creative.id} className="space-y-2">
-                          <CreativeCard creative={creative} onEdit={(c) => setEditModalCreative(c)} onRemove={removeCreative} />
+                          <CreativeCard
+                            creative={creative}
+                            onEdit={(c) => setEditModalCreative(c)}
+                            onRemove={removeCreative}
+                            disableLayoutAnimation={isBulkCompressing || compressingCreativeIds.length > 0}
+                          />
                           <div className="mt-1 flex items-center gap-2">
                             <input
                               type="number"
@@ -2200,6 +2199,7 @@ export default function PreviewTool() {
       {editModalCreative && (
         <EditCreativeModal
           creative={editModalCreative}
+          platform={platform}
           onApply={handleCreativeUpdate}
           onClose={() => setEditModalCreative(null)}
         />

@@ -543,6 +543,10 @@ export default function AnalysisPanel({
   const goalAlignment = getGoalAlignment(data);
   const verticalAlignment = getVerticalAlignment(data);
   const extractionSignals = getExtractionSignals(data);
+  const aiAnalysis = data?.ai_analysis || null;
+  const googleAdsEval = aiAnalysis?.google_ads_dynamic_eval || null;
+  const metaAdsEval = aiAnalysis?.meta_ads_dynamic_eval || null;
+  const programmaticAdsEval = aiAnalysis?.programmatic_ads_dynamic_eval || null;
   const adigatorAnalysis = data?.adigator_analysis || null;
   const layoutClarity = buildLayoutClarityAnalysis({
     flow,
@@ -1441,6 +1445,398 @@ export default function AnalysisPanel({
                 )}
             </div>
           </div>
+
+          {/* GOOGLE ADS DYNAMIC EVALUATION */}
+          {platform === "google_ads" && googleAdsEval && (
+            <div className="rounded-xl border border-sky-500/20 bg-sky-950/20 p-4 relative overflow-hidden">
+              <div className="absolute top-0 right-0 p-3 opacity-10">
+                <Brain size={48} />
+              </div>
+              
+              <div className="flex items-center gap-2 mb-4 relative z-10">
+                <Target size={16} className="text-sky-400" />
+                <h4 className="text-sm font-bold text-sky-100">Google Ads Deep-Dive</h4>
+              </div>
+
+              <div className="mb-4 relative z-10">
+                <p className="text-xs font-semibold uppercase tracking-wider text-sky-400/80 mb-1">
+                  Goal Focus: <span className="text-sky-200">{googleAdsEval.campaign_goal_focus}</span>
+                </p>
+                <p className="text-sm text-slate-300">{googleAdsEval.purpose}</p>
+              </div>
+
+              {/* Signals */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5 relative z-10">
+                <div className="bg-emerald-950/30 rounded-lg p-3 border border-emerald-500/10">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-emerald-400 mb-2">Detected Required Signals</p>
+                  <ul className="space-y-1">
+                    {googleAdsEval.detected_signals?.map((s, i) => (
+                      <li key={i} className="text-xs text-emerald-100 flex gap-1.5 items-start">
+                        <CheckCircle size={12} className="text-emerald-500 mt-0.5 shrink-0" />
+                        {s}
+                      </li>
+                    ))}
+                    {(!googleAdsEval.detected_signals || googleAdsEval.detected_signals.length === 0) && (
+                      <li className="text-xs text-emerald-300/50">No key signals detected</li>
+                    )}
+                  </ul>
+                </div>
+                
+                <div className="bg-amber-950/30 rounded-lg p-3 border border-amber-500/10">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-amber-400 mb-2">Avoided Elements Found</p>
+                  <ul className="space-y-1">
+                    {googleAdsEval.avoided_elements_found?.map((s, i) => (
+                      <li key={i} className="text-xs text-amber-100 flex gap-1.5 items-start">
+                        <AlertTriangle size={12} className="text-amber-500 mt-0.5 shrink-0" />
+                        {s}
+                      </li>
+                    ))}
+                    {(!googleAdsEval.avoided_elements_found || googleAdsEval.avoided_elements_found.length === 0) && (
+                      <li className="text-xs text-amber-300/50 flex gap-1.5 items-center">
+                        <CheckCircle size={12} className="text-emerald-500/70 shrink-0" />
+                        None detected
+                      </li>
+                    )}
+                  </ul>
+                </div>
+              </div>
+
+              {/* Metrics */}
+              {googleAdsEval.metrics && googleAdsEval.metrics.length > 0 && (
+                <div className="mb-5 relative z-10">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-sky-400/80 mb-2">Campaign-Specific Metrics</p>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                    {googleAdsEval.metrics.map((m, i) => (
+                      <div key={i} className="bg-black/20 rounded p-2 text-center border border-white/5">
+                        <p className={`text-lg font-bold ${scoreTone(m.score)}`}>{m.score}</p>
+                        <p className="text-[9px] text-slate-400 uppercase tracking-wide mt-0.5">{m.label}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Questions */}
+              {googleAdsEval.best_analyzer_questions && googleAdsEval.best_analyzer_questions.length > 0 && (
+                <div className="mb-4 relative z-10">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-sky-400/80 mb-2">Analyzer Questions</p>
+                  <div className="space-y-2">
+                    {googleAdsEval.best_analyzer_questions.map((q, i) => (
+                      <div key={i} className="bg-sky-900/10 rounded-lg p-2.5 border border-sky-500/10">
+                        <p className="text-xs font-semibold text-sky-200 mb-1">"{q.question}"</p>
+                        <p className="text-xs text-slate-300 italic flex items-start gap-1.5">
+                          <span className="text-sky-500 font-bold mt-[-1px]">↳</span> {q.response}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Vertical Signals */}
+              {googleAdsEval.vertical_specific_signals && googleAdsEval.vertical_specific_signals.length > 0 && (
+                <div className="relative z-10">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-sky-400/80 mb-2">Vertical Signals</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {googleAdsEval.vertical_specific_signals.map((vs, i) => (
+                      <span key={i} className="bg-fuchsia-900/20 border border-fuchsia-500/30 text-fuchsia-200 px-2 py-0.5 rounded text-[10px]">
+                        {vs}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* META ADS DYNAMIC EVALUATION */}
+          {platform === "meta_ads" && metaAdsEval && (
+            <div className="rounded-xl border border-pink-500/25 bg-gradient-to-br from-rose-950/25 via-fuchsia-950/20 to-violet-950/25 p-4 relative overflow-hidden">
+              {/* Decorative background icon */}
+              <div className="absolute top-0 right-0 p-3 opacity-[0.07]">
+                <Zap size={56} />
+              </div>
+
+              {/* Header */}
+              <div className="flex items-center gap-2 mb-1 relative z-10">
+                <Zap size={15} className="text-pink-400" />
+                <h4 className="text-sm font-bold text-pink-100">Meta Ads Deep-Dive</h4>
+                <span className="ml-auto text-[9px] font-bold uppercase tracking-widest text-fuchsia-400/80 bg-fuchsia-900/30 border border-fuchsia-500/20 px-2 py-0.5 rounded-full">
+                  Emotion · Scroll · Social
+                </span>
+              </div>
+              <p className="text-[10px] text-rose-300/60 mb-4 relative z-10 pl-0.5">
+                Facebook · Instagram · Reels · Stories · Feed
+              </p>
+
+              {/* Goal Focus & Purpose */}
+              <div className="mb-4 relative z-10 bg-black/20 rounded-lg p-3 border border-white/5">
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-pink-400/90 mb-1">
+                  Goal Focus: <span className="text-pink-200">{metaAdsEval.campaign_goal_focus}</span>
+                </p>
+                <p className="text-sm text-slate-300 leading-relaxed">{metaAdsEval.purpose}</p>
+              </div>
+
+              {/* Detected Signals & Avoided Elements */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-5 relative z-10">
+                {/* Detected */}
+                <div className="bg-emerald-950/30 rounded-lg p-3 border border-emerald-500/15">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-emerald-400 mb-2 flex items-center gap-1">
+                    <CheckCircle size={10} /> Detected Signals
+                  </p>
+                  <ul className="space-y-1.5">
+                    {metaAdsEval.detected_signals?.map((s, i) => (
+                      <li key={i} className="text-xs text-emerald-100 flex gap-1.5 items-start">
+                        <CheckCircle size={11} className="text-emerald-500 mt-0.5 shrink-0" />
+                        {s}
+                      </li>
+                    ))}
+                    {(!metaAdsEval.detected_signals || metaAdsEval.detected_signals.length === 0) && (
+                      <li className="text-xs text-emerald-300/40">No key signals detected</li>
+                    )}
+                  </ul>
+                </div>
+
+                {/* Avoided Elements */}
+                <div className="bg-amber-950/30 rounded-lg p-3 border border-amber-500/15">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-amber-400 mb-2 flex items-center gap-1">
+                    <AlertTriangle size={10} /> Avoided Elements Found
+                  </p>
+                  <ul className="space-y-1.5">
+                    {metaAdsEval.avoided_elements_found?.map((s, i) => (
+                      <li key={i} className="text-xs text-amber-100 flex gap-1.5 items-start">
+                        <AlertTriangle size={11} className="text-amber-500 mt-0.5 shrink-0" />
+                        {s}
+                      </li>
+                    ))}
+                    {(!metaAdsEval.avoided_elements_found || metaAdsEval.avoided_elements_found.length === 0) && (
+                      <li className="text-xs text-amber-300/40 flex gap-1.5 items-center">
+                        <CheckCircle size={11} className="text-emerald-500/70 shrink-0" />
+                        None found — clear
+                      </li>
+                    )}
+                  </ul>
+                </div>
+              </div>
+
+              {/* Meta-Specific Metrics */}
+              {metaAdsEval.metrics && metaAdsEval.metrics.length > 0 && (
+                <div className="mb-5 relative z-10">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-pink-400/90 mb-2">
+                    Meta Performance Metrics
+                  </p>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                    {metaAdsEval.metrics.map((m, i) => {
+                      const tone = m.score >= 70
+                        ? "border-emerald-500/30 bg-emerald-950/30 text-emerald-300"
+                        : m.score >= 45
+                        ? "border-amber-500/30 bg-amber-950/30 text-amber-300"
+                        : "border-red-500/30 bg-red-950/30 text-red-300";
+                      return (
+                        <div key={i} className={`rounded-lg p-2.5 text-center border ${tone}`}>
+                          <p className="text-xl font-black">{m.score}</p>
+                          <p className="text-[9px] uppercase tracking-wide mt-0.5 opacity-80">{m.label}</p>
+                          <div className="mt-1.5 h-1 rounded-full bg-white/10 overflow-hidden">
+                            <div
+                              className="h-full rounded-full bg-current opacity-60 transition-all"
+                              style={{ width: `${m.score}%` }}
+                            />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Analyzer Questions */}
+              {metaAdsEval.best_analyzer_questions && metaAdsEval.best_analyzer_questions.length > 0 && (
+                <div className="mb-4 relative z-10">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-pink-400/90 mb-2">
+                    Social Psychology Questions
+                  </p>
+                  <div className="space-y-2">
+                    {metaAdsEval.best_analyzer_questions.map((q, i) => (
+                      <div key={i} className="bg-fuchsia-900/10 rounded-lg p-3 border border-fuchsia-500/15">
+                        <p className="text-xs font-semibold text-pink-200 mb-1.5">
+                          <span className="text-pink-500 mr-1">?</span>
+                          {q.question}
+                        </p>
+                        <p className="text-xs text-slate-300 leading-relaxed flex items-start gap-1.5">
+                          <span className="text-pink-500 font-bold mt-[-1px] shrink-0">↳</span>
+                          {q.response}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Vertical-Specific Social Signals */}
+              {metaAdsEval.vertical_specific_signals && metaAdsEval.vertical_specific_signals.length > 0 && (
+                <div className="relative z-10">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-pink-400/90 mb-2">
+                    Vertical Social Signals
+                  </p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {metaAdsEval.vertical_specific_signals.map((vs, i) => (
+                      <span
+                        key={i}
+                        className="bg-violet-900/30 border border-violet-500/30 text-violet-200 px-2.5 py-0.5 rounded-full text-[10px] font-medium"
+                      >
+                        {vs}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* PROGRAMMATIC ADS DYNAMIC EVALUATION */}
+          {platform === "programmatic" && programmaticAdsEval && (
+            <div className="rounded-xl border border-violet-500/25 bg-gradient-to-br from-indigo-950/30 via-violet-950/20 to-slate-950/30 p-4 relative overflow-hidden">
+              <div className="absolute top-0 right-0 p-3 opacity-[0.07]">
+                <Monitor size={56} />
+              </div>
+
+              <div className="flex items-center gap-2 mb-1 relative z-10">
+                <Monitor size={15} className="text-violet-400" />
+                <h4 className="text-sm font-bold text-violet-100">Programmatic Ads Deep-Dive</h4>
+                <span className="ml-auto text-[9px] font-bold uppercase tracking-widest text-indigo-400/80 bg-indigo-900/30 border border-indigo-500/20 px-2 py-0.5 rounded-full">
+                  Display · Viewability · Inventory
+                </span>
+              </div>
+              <p className="text-[10px] text-violet-300/60 mb-4 relative z-10">
+                Premium publishers · Mobile web · In-app · Native · High-impact
+              </p>
+
+              <div className="mb-4 relative z-10 bg-black/20 rounded-lg p-3 border border-white/5">
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-violet-400/90 mb-1">
+                  Goal Focus: <span className="text-violet-200">{programmaticAdsEval.campaign_goal_focus}</span>
+                </p>
+                <p className="text-sm text-slate-300 leading-relaxed">{programmaticAdsEval.purpose}</p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-5 relative z-10">
+                <div className="bg-emerald-950/30 rounded-lg p-3 border border-emerald-500/15">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-emerald-400 mb-2 flex items-center gap-1">
+                    <CheckCircle size={10} /> Detected Signals
+                  </p>
+                  <ul className="space-y-1.5">
+                    {programmaticAdsEval.detected_signals?.map((s, i) => (
+                      <li key={i} className="text-xs text-emerald-100 flex gap-1.5 items-start">
+                        <CheckCircle size={11} className="text-emerald-500 mt-0.5 shrink-0" />
+                        {s}
+                      </li>
+                    ))}
+                    {(!programmaticAdsEval.detected_signals || programmaticAdsEval.detected_signals.length === 0) && (
+                      <li className="text-xs text-emerald-300/40">No key signals detected</li>
+                    )}
+                  </ul>
+                </div>
+
+                <div className="bg-amber-950/30 rounded-lg p-3 border border-amber-500/15">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-amber-400 mb-2 flex items-center gap-1">
+                    <AlertTriangle size={10} /> Avoided Elements Found
+                  </p>
+                  <ul className="space-y-1.5">
+                    {programmaticAdsEval.avoided_elements_found?.map((s, i) => (
+                      <li key={i} className="text-xs text-amber-100 flex gap-1.5 items-start">
+                        <AlertTriangle size={11} className="text-amber-500 mt-0.5 shrink-0" />
+                        {s}
+                      </li>
+                    ))}
+                    {(!programmaticAdsEval.avoided_elements_found || programmaticAdsEval.avoided_elements_found.length === 0) && (
+                      <li className="text-xs text-amber-300/40 flex gap-1.5 items-center">
+                        <CheckCircle size={11} className="text-emerald-500/70 shrink-0" />
+                        None found — clear
+                      </li>
+                    )}
+                  </ul>
+                </div>
+              </div>
+
+              {programmaticAdsEval.metrics && programmaticAdsEval.metrics.length > 0 && (
+                <div className="mb-5 relative z-10">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-violet-400/90 mb-2">
+                    Display Performance Metrics
+                  </p>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                    {programmaticAdsEval.metrics.map((m, i) => {
+                      const tone = m.score >= 70
+                        ? "border-emerald-500/30 bg-emerald-950/30 text-emerald-300"
+                        : m.score >= 45
+                        ? "border-amber-500/30 bg-amber-950/30 text-amber-300"
+                        : "border-red-500/30 bg-red-950/30 text-red-300";
+                      return (
+                        <div key={i} className={`rounded-lg p-2.5 text-center border ${tone}`}>
+                          <p className="text-xl font-black">{m.score}</p>
+                          <p className="text-[9px] uppercase tracking-wide mt-0.5 opacity-80">{m.label}</p>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {programmaticAdsEval.environment_modules && programmaticAdsEval.environment_modules.length > 0 && (
+                <div className="mb-5 relative z-10">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-violet-400/90 mb-2">
+                    Display Environment Modules
+                  </p>
+                  <div className="space-y-2">
+                    {programmaticAdsEval.environment_modules.map((mod, i) => (
+                      <div key={i} className="bg-indigo-900/15 rounded-lg p-3 border border-indigo-500/15">
+                        <p className="text-[10px] font-bold uppercase tracking-wide text-indigo-300 mb-1">{mod.module}</p>
+                        <p className="text-xs text-slate-300 leading-relaxed">{mod.finding}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {programmaticAdsEval.best_analyzer_questions && programmaticAdsEval.best_analyzer_questions.length > 0 && (
+                <div className="mb-4 relative z-10">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-violet-400/90 mb-2">
+                    Display Attention Questions
+                  </p>
+                  <div className="space-y-2">
+                    {programmaticAdsEval.best_analyzer_questions.map((q, i) => (
+                      <div key={i} className="bg-violet-900/10 rounded-lg p-3 border border-violet-500/15">
+                        <p className="text-xs font-semibold text-violet-200 mb-1.5">
+                          <span className="text-violet-500 mr-1">?</span>
+                          {q.question}
+                        </p>
+                        <p className="text-xs text-slate-300 leading-relaxed flex items-start gap-1.5">
+                          <span className="text-violet-500 font-bold mt-[-1px] shrink-0">↳</span>
+                          {q.response}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {programmaticAdsEval.vertical_specific_signals && programmaticAdsEval.vertical_specific_signals.length > 0 && (
+                <div className="relative z-10">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-violet-400/90 mb-2">
+                    Vertical Display Signals
+                  </p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {programmaticAdsEval.vertical_specific_signals.map((vs, i) => (
+                      <span
+                        key={i}
+                        className="bg-indigo-900/30 border border-indigo-500/30 text-indigo-200 px-2.5 py-0.5 rounded-full text-[10px] font-medium"
+                      >
+                        {vs}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* 3. CREATIVE EXTRACTION SIGNALS */}
           {extractionSignals && (

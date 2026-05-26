@@ -493,6 +493,24 @@ function normalizeStatus(issues) {
   return "PASS";
 }
 
+function isSizeSupportedForPlatform(size, platform, intelligence) {
+  const platformGroups = PLATFORM_SUPPORTED_SIZE_GROUPS[platform] || PLATFORM_SUPPORTED_SIZE_GROUPS.programmatic;
+  const supportedSizes = [...new Set(Object.values(platformGroups).flat())];
+  if (!supportedSizes.includes(size)) return false;
+  if (platform === "programmatic") return Boolean(intelligence);
+  return true;
+}
+
+function buildUnsupportedSizeIssue(size, platformLabel) {
+  return {
+    type: "inventory",
+    severity: "high",
+    message: `${size} is outside the supported ${platformLabel} size matrix.`,
+    recommendation: `Use a supported size from the ${platformLabel} intelligence matrix.`,
+    scorePenalty: 40,
+  };
+}
+
 export async function validateCreativeAsset({ file, image, platform }) {
   const size = `${image?.width || 0}x${image?.height || 0}`;
   const normalizedPlatform = platform || "programmatic";
@@ -511,14 +529,8 @@ export async function validateCreativeAsset({ file, image, platform }) {
   const metaPlacement = normalizedPlatform === "meta_ads" ? classifyMetaPlacement(size) : null;
   const metaSafeZone = normalizedPlatform === "meta_ads" ? evaluateMetaSafeZoneRisk(size) : null;
 
-  if (!supportedSizes.includes(size) || !intelligence) {
-    issues.push({
-      type: "inventory",
-      severity: "high",
-      message: `${size} is outside the supported ${platformLabel} size matrix.`,
-      recommendation: `Use a supported size from the ${platformLabel} intelligence matrix.`,
-      scorePenalty: 40,
-    });
+  if (!isSizeSupportedForPlatform(size, normalizedPlatform, intelligence)) {
+    issues.push(buildUnsupportedSizeIssue(size, platformLabel));
   }
 
   if ((file?.size || 0) > 150 * 1024) {
@@ -707,6 +719,70 @@ export async function validateCreativeAsset({ file, image, platform }) {
       }
       : null,
   };
+}
+
+const PROGRAMMATIC_LOW_AVAILABILITY_SIZES = new Set([
+  "234x60",
+  "120x240",
+  "180x150",
+  "300x1050",
+]);
+
+export function finalizeValidationForPlatform(validation, platform, size) {
+  if (platform !== "programmatic" || !PROGRAMMATIC_LOW_AVAILABILITY_SIZES.has(size)) {
+    return validation;
+  }
+
+  const lowAvailabilityIssue = {
+    type: "technical",
+    severity: "medium",
+    message: `${size} is valid but often has lower fill in open programmatic inventory.`,
+    recommendation: "Keep this size if required, but prioritize 300x250, 336x280, 728x90, 970x250, or 300x600 for broader scale.",
+    scorePenalty: 5,
+  };
+  const issues = [...(validation?.issues || []), lowAvailabilityIssue];
+  return {
+    ...validation,
+    issues,
+    status: normalizeStatus(issues),
+    valid: issues.every((issue) => issue.severity !== "high"),
+  };
+}
+
+function applyValidationFields(creative, validation) {
+  return {
+    ...creative,
+    validation,
+    valid: validation.valid && validation.status !== "CRITICAL",
+    placementType: validation.intelligence?.placementType,
+    deviceClassification: validation.intelligence?.deviceClassification,
+    iabCompatibility: validation.intelligence?.iabCompatibility,
+    dspCompatibility: validation.intelligence?.dspCompatibility,
+    inventoryAvailability: validation.intelligence?.inventory,
+    auctionReadiness: validation.intelligence?.auctionReadiness,
+    premiumPlacementPotential: validation.intelligence?.premiumPlacement,
+  };
+}
+
+export async function revalidateCreativeForPlatform(creative, platform) {
+  if (!creative?.size || !platform) return creative;
+  const dims = parseSize(creative.size);
+  if (!dims) return creative;
+
+  const baseValidation = await validateCreativeAsset({
+    file: creative.mimeType
+      ? { type: creative.mimeType, size: Number(creative.fileSizeBytes || 0) }
+      : null,
+    image: { width: dims.width, height: dims.height },
+    platform,
+  });
+  const validation = finalizeValidationForPlatform(baseValidation, platform, creative.size);
+  return applyValidationFields(creative, validation);
+}
+
+export async function revalidateCreativesForPlatform(creatives, platform) {
+  if (!Array.isArray(creatives) || !creatives.length || !platform) return creatives || [];
+  return Promise.all(creatives.map((creative) => revalidateCreativeForPlatform(creative, platform)));
 }
 
 export function buildValidationSummary(validations = []) {
