@@ -131,18 +131,46 @@ export async function storeCompressedCreativeBlobs(creativeId, fullBlob) {
   };
 }
 
+async function fetchBlobFromUrlSafely(url) {
+  if (!url || typeof url !== "string") return null;
+
+  try {
+    if (url.startsWith("data:") || url.startsWith("blob:") || /^https?:\/\//i.test(url)) {
+      const response = await fetch(url);
+      if (response.ok) return response.blob();
+    }
+  } catch {
+    // Blob URLs expire after reload/revoke; network URLs may fail CORS or offline.
+  }
+
+  return null;
+}
+
 export async function getCreativeFullBlob(creative) {
   if (!creative) return null;
+
   const fromDb = await getCreativeBlob(creative.id);
   if (fromDb) return fromDb;
+
+  const previewFromDb = await getCreativeBlob(previewKey(creative.id));
+  if (previewFromDb) return previewFromDb;
+
   if (creative.fullUrl) {
-    const response = await fetch(creative.fullUrl);
-    if (response.ok) return response.blob();
+    const blob = await fetchBlobFromUrlSafely(creative.fullUrl);
+    if (blob) {
+      await putCreativeBlob(creative.id, blob);
+      return blob;
+    }
   }
+
   if (creative.url) {
-    const response = await fetch(creative.url);
-    if (response.ok) return response.blob();
+    const blob = await fetchBlobFromUrlSafely(creative.url);
+    if (blob) {
+      await putCreativeBlob(creative.id, blob);
+      return blob;
+    }
   }
+
   return null;
 }
 
@@ -150,45 +178,78 @@ export async function getCreativeFullBlob(creative) {
 export async function hydrateCreativeRecord(meta) {
   if (!meta?.id) return meta;
 
+  const previewBlob = await getCreativeBlob(previewKey(meta.id));
+  const fullBlob = await getCreativeBlob(meta.id);
+  const displayBlob = previewBlob || fullBlob;
+
+  if (displayBlob) {
+    return {
+      ...meta,
+      url: URL.createObjectURL(displayBlob),
+      fullUrl: fullBlob ? URL.createObjectURL(fullBlob) : undefined,
+      hasStoredAssets: true,
+    };
+  }
+
   if (meta.url && String(meta.url).startsWith("data:")) {
     try {
-      const response = await fetch(meta.url);
-      if (response.ok) {
-        const blob = await response.blob();
+      const blob = await fetchBlobFromUrlSafely(meta.url);
+      if (blob) {
         await putCreativeBlob(meta.id, blob);
-        const previewBlob = await createPreviewBlob(blob);
-        await putCreativeBlob(previewKey(meta.id), previewBlob);
+        const nextPreviewBlob = await createPreviewBlob(blob);
+        await putCreativeBlob(previewKey(meta.id), nextPreviewBlob);
         const { url: _legacyUrl, fullUrl: _legacyFullUrl, ...rest } = meta;
         return {
           ...rest,
-          url: URL.createObjectURL(previewBlob),
+          url: URL.createObjectURL(nextPreviewBlob),
           fullUrl: URL.createObjectURL(blob),
           hasStoredAssets: true,
         };
       }
     } catch {
-      return meta;
+      // Fall through — strip unusable legacy payload below.
     }
   }
 
   if (meta.url && String(meta.url).startsWith("blob:")) {
-    return meta;
+    const recovered = await fetchBlobFromUrlSafely(meta.url);
+    if (recovered) {
+      await putCreativeBlob(meta.id, recovered);
+      const nextPreviewBlob = await createPreviewBlob(recovered);
+      await putCreativeBlob(previewKey(meta.id), nextPreviewBlob);
+      return {
+        ...meta,
+        url: URL.createObjectURL(nextPreviewBlob),
+        fullUrl: URL.createObjectURL(recovered),
+        hasStoredAssets: true,
+      };
+    }
+
+    const { url: _staleUrl, fullUrl: _staleFullUrl, ...rest } = meta;
+    return {
+      ...rest,
+      url: null,
+      fullUrl: null,
+      hasStoredAssets: false,
+    };
   }
 
-  const previewBlob = await getCreativeBlob(previewKey(meta.id));
-  const fullBlob = await getCreativeBlob(meta.id);
-  const displayBlob = previewBlob || fullBlob;
-
-  if (!displayBlob) {
-    return { ...meta, url: meta.url || null };
+  if (meta.url && /^https?:\/\//i.test(meta.url)) {
+    const recovered = await fetchBlobFromUrlSafely(meta.url);
+    if (recovered) {
+      await putCreativeBlob(meta.id, recovered);
+      const nextPreviewBlob = await createPreviewBlob(recovered);
+      await putCreativeBlob(previewKey(meta.id), nextPreviewBlob);
+      return {
+        ...meta,
+        url: URL.createObjectURL(nextPreviewBlob),
+        fullUrl: URL.createObjectURL(recovered),
+        hasStoredAssets: true,
+      };
+    }
   }
 
-  return {
-    ...meta,
-    url: URL.createObjectURL(displayBlob),
-    fullUrl: fullBlob && fullBlob !== displayBlob ? URL.createObjectURL(fullBlob) : undefined,
-    hasStoredAssets: true,
-  };
+  return { ...meta, url: meta.url || null };
 }
 
 export function stripCreativeForPersistence(creative) {

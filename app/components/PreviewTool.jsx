@@ -4,7 +4,7 @@ import { useState, useRef, useEffect, useCallback, useMemo, startTransition } fr
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import dynamic from "next/dynamic";
-const ContextualPreviewEngine = dynamic(() => import("./ContextualPreviewEngine"), { ssr: false, loading: () => <div className="py-20 text-center text-gray-500 text-sm">Loading contextual engine…</div> });
+const PreviewStudio = dynamic(() => import("./PreviewStudio"), { ssr: false, loading: () => <div className="py-20 text-center text-gray-500 text-sm">Loading preview studio…</div> });
 import EditCreativeModal from "./EditCreativeModal";
 import CreativeCard from "./CreativeCard";
 import AnalysisPanel from "./AnalysisPanel";
@@ -355,7 +355,9 @@ async function analyzeAllCreatives(creatives, goal, platform, vertical, audience
   for (const creative of creatives) {
     try {
       const imageBlob = await getCreativeFullBlob(creative);
-      if (!imageBlob) throw new Error(`Could not load image bytes for ${creative.name || creative.id}`);
+      if (!imageBlob) {
+        throw new Error(`Could not load image bytes for ${creative.name || creative.id}. Re-upload the creative and try again.`);
+      }
 
       const formData = new FormData();
       formData.append("image", imageBlob, `${creative.name || "creative"}.jpg`);
@@ -1491,6 +1493,7 @@ export default function PreviewTool() {
 
   useEffect(() => {
     if (step !== 3) return;
+    if (isHydratingCreatives) return;
     if (analysisLoading || analysisResult) return;
     if (uploadedCreatives.length === 0) return;
 
@@ -1499,7 +1502,7 @@ export default function PreviewTool() {
     }, 0);
 
     return () => window.clearTimeout(timer);
-  }, [step, analysisLoading, analysisResult, uploadedCreatives.length, runAnalysis]);
+  }, [step, isHydratingCreatives, analysisLoading, analysisResult, uploadedCreatives.length, runAnalysis]);
 
   useEffect(() => {
     if (!analysisSessionId) return;
@@ -1611,6 +1614,49 @@ export default function PreviewTool() {
     } catch { addToast("Export failed.", "error"); }
     finally { setIsExporting(false); }
   }, [isExporting, creatives, viewMode, selectedTemplate, addToast, campaignGoal, platform]);
+
+  const previewEngineCreatives = useMemo(
+    () => validCreatives.map((creative, index) => ({
+      id: creative.id,
+      name: creative.name,
+      url: creative.url || creative.imageDataUrl || creative.image || "",
+      size: creative.size,
+      analyzerOutput: getEntryPayload(analysisResult?.[index]) || {},
+      ctaText: getEntryPayload(analysisResult?.[index])?.signals?.cta || "",
+      headline: getEntryPayload(analysisResult?.[index])?.signals?.headline
+        || getEntryPayload(analysisResult?.[index])?.main_strategic_problem
+        || creative.name
+        || "",
+    })),
+    [validCreatives, analysisResult],
+  );
+
+  const previewTemplateContext = useMemo(() => {
+    const primaryPayload = getEntryPayload(analysisResult?.[0]) || {};
+    const signals = primaryPayload.signals || {};
+    return {
+      brandName: signals.brand || validCreatives[0]?.name || "Brand",
+      targetAudience: campaignAudienceStage || "Prospective customers",
+      tone: campaignGoal === "awareness"
+        ? "Brand-forward and scroll-stopping"
+        : campaignGoal === "consideration"
+          ? "Credible and persuasive"
+          : "Direct and conversion-focused",
+      keyMessage: signals.primary_message || signals.headline || primaryPayload.main_strategic_problem || "",
+      imageUrls: validCreatives
+        .map((creative) => creative.url || creative.imageDataUrl || creative.image || "")
+        .filter(Boolean),
+    };
+  }, [analysisResult, validCreatives, campaignAudienceStage, campaignGoal]);
+
+  const handleCopyPreviewCreative = useCallback(async (creative) => {
+    try {
+      await navigator.clipboard.writeText(JSON.stringify(creative, null, 2));
+      addToast("Creative template copied to clipboard.", "success");
+    } catch {
+      addToast("Could not copy creative template.", "error");
+    }
+  }, [addToast]);
 
 
   return (
@@ -2152,7 +2198,13 @@ export default function PreviewTool() {
               <div className="flex items-center justify-between flex-wrap gap-4">
                 <div>
                   <h2 className="text-4xl font-bold text-white mb-2">Step 4: Preview Studio</h2>
-                  <p className="text-gray-400">See your creatives in realistic interactive website contexts.</p>
+                  <p className="text-gray-400">
+                    {platform === "google_ads"
+                      ? "Preview Google Search, Display, Shopping, and App Install templates."
+                      : platform === "meta_ads"
+                        ? "Preview Facebook, Instagram, Stories, Reels, Carousel, and Messenger templates."
+                        : "See your creatives in realistic interactive website contexts."}
+                  </p>
                 </div>
                 <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} onClick={handleExportPptx} disabled={isExporting}
                   className="px-8 py-3 bg-linear-to-r from-green-600 to-emerald-600 text-white rounded-xl font-semibold flex items-center gap-2 disabled:opacity-60">
@@ -2160,23 +2212,22 @@ export default function PreviewTool() {
                 </motion.button>
               </div>
 
-              {validCreatives.length > 0 && (
-                <ContextualPreviewEngine
-                  creatives={validCreatives.map((creative, index) => ({
-                    id: creative.id,
-                    name: creative.name,
-                    url: creative.url || creative.imageDataUrl || creative.image || "",
-                    size: creative.size,
-                    analyzerOutput: getEntryPayload(analysisResult?.[index]) || {},
-                    ctaText: "",
-                    headline: (getEntryPayload(analysisResult?.[index]) || {}).main_strategic_problem ?? "",
-                  }))}
+              {(platform === "programmatic" ? validCreatives.length > 0 : Boolean(platform)) && (
+                <PreviewStudio
+                  platform={platform}
+                  creatives={previewEngineCreatives}
                   vertical={campaignVertical || "general"}
                   goal={campaignGoal || "awareness"}
+                  brandName={previewTemplateContext.brandName}
+                  targetAudience={previewTemplateContext.targetAudience}
+                  tone={previewTemplateContext.tone}
+                  keyMessage={previewTemplateContext.keyMessage}
+                  imageUrls={previewTemplateContext.imageUrls}
+                  onCopyCreative={handleCopyPreviewCreative}
                 />
               )}
 
-              {validCreatives.length === 0 && (
+              {platform === "programmatic" && validCreatives.length === 0 && (
                 <div className="flex flex-col items-center justify-center py-16 text-center bg-white/3 border border-white/10 rounded-2xl">
                   <span className="text-4xl mb-4">🌐</span>
                   <p className="text-white font-semibold">No valid creatives to preview</p>
