@@ -78,6 +78,27 @@ export function pickBestAdSlot(creativeSize, slots) {
   return best;
 }
 
+export function dedupeTemplatesByEnvironment(creatives) {
+  if (!Array.isArray(creatives)) return [];
+  const seen = new Map();
+  for (const creative of creatives) {
+    const key = creative?.environment || creative?.type || creative?.id;
+    if (!key || seen.has(key)) continue;
+    seen.set(key, creative);
+  }
+  return Array.from(seen.values());
+}
+
+export function applySourceCreativeToTemplates(templates, sourceCreative) {
+  if (!sourceCreative || !Array.isArray(templates)) return templates;
+  const imageUrl = sourceCreative.url || sourceCreative.fullUrl || sourceCreative.imageUrl || "";
+  return templates.map((template) => ({
+    ...template,
+    imageUrl: imageUrl || template.imageUrl,
+    pageName: template.pageName || sourceCreative.name || "Brand",
+  }));
+}
+
 export async function fetchPreviewTemplates({
   platform,
   brandName,
@@ -88,6 +109,9 @@ export async function fetchPreviewTemplates({
   keyMessage,
   imageUrls = [],
 }) {
+  const stripUrls = platform === "meta_ads" || platform === "google_ads";
+  const safeUrls = (imageUrls || []).filter(Boolean);
+
   const response = await fetch("/api/preview-templates", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -99,7 +123,8 @@ export async function fetchPreviewTemplates({
       goal,
       tone,
       keyMessage,
-      imageUrls,
+      imageUrls: stripUrls ? [] : safeUrls,
+      imageCount: stripUrls ? safeUrls.length : undefined,
     }),
   });
 

@@ -2216,6 +2216,13 @@ export default function PreviewTool() {
                 <PreviewStudio
                   platform={platform}
                   creatives={previewEngineCreatives}
+                  sourceCreatives={validCreatives.map((c) => ({
+                    id: c.id,
+                    name: c.name,
+                    url: c.url,
+                    fullUrl: c.fullUrl,
+                    size: c.size,
+                  }))}
                   vertical={campaignVertical || "general"}
                   goal={campaignGoal || "awareness"}
                   brandName={previewTemplateContext.brandName}

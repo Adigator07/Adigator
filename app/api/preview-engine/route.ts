@@ -13,6 +13,8 @@ import {
   selectEnvironmentFamily,
   buildPreviewEngineOutput,
 } from "@/app/lib/preview-engine/index";
+import { buildProgrammaticPreviewPrompt } from "@/app/lib/programmaticPreviewPrompt";
+import { compactAnalyzerOutputForPreview } from "@/app/lib/previewAnalyzerCompact";
 import type {
   PreviewEngineInput,
   GeneratedEnvironment,
@@ -55,7 +57,7 @@ function cleanList(value: unknown, fallback: string[]): string[] {
 }
 
 function buildPromptHints(input: PreviewEngineInput): PromptHints {
-  const analyzer = input.analyzerOutput ?? {};
+  const analyzer = compactAnalyzerOutputForPreview(input.analyzerOutput ?? {});
   const goalOfferMap: Record<PreviewEngineInput["goal"], string> = {
     awareness: "brand awareness offer",
     consideration: "demo, consultation, or comparison offer",
@@ -239,128 +241,17 @@ function normalizeGeneratedEnvironment(
   };
 }
 
-// ── Environment content prompt ─────────────────────────────────────────────────
+// ── Environment content prompt (compact — see programmaticPreviewPrompt.js) ───
 function buildContentPrompt(
   env: EnvironmentFamily,
   vertical: string,
   goal: string,
   hints: PromptHints
 ): string {
-  const envDescriptions: Record<EnvironmentFamily, string> = {
-    news: "a news/editorial publication website",
-    commerce: "an e-commerce shopping website",
-    social: "a social media or content feed app",
-    luxury: "a premium luxury brand or lifestyle magazine website",
-    sports: "a sports news and scores website",
-    gaming: "a gaming app or platform",
-    finance: "a financial news and data website",
-    travel: "a travel discovery and booking website",
-    saas: "a SaaS product dashboard or corporate website",
-    booking: "a local services or booking platform",
-  };
-
-  return `ROLE:
-You are an expert Conversion Copywriter, UX Strategist, and Commercial Landing Page Designer.
-
-Your job is NOT to write articles or blog posts.
-Your job is to generate REAL WEBSITE LANDING PAGE CONTENT designed for marketing conversion.
-
-IMPORTANT RULES:
-- NEVER create article-style content.
-- NEVER write long paragraphs like a blog.
-- NEVER use editorial or news tone.
-- ALWAYS create commercial website content.
-- Content must look like a modern SaaS, E-commerce, Finance, Healthcare, or Brand landing page.
-- Write concise, high-conversion copy.
-- Use clear message hierarchy and conversion-focused UX structure.
-
-INPUT CONTEXT:
-- Website environment: ${envDescriptions[env]}
-- Industry Vertical: ${vertical}
-- Campaign Goal: ${goal}
-- Target Audience: ${hints.audience}
-- Creative Message: ${hints.creativeMessage}
-- Offer Type: ${hints.offerType}
-- Tone: ${hints.tone}
-- Platform Source: ${hints.platform}
-- Detected Headline: ${hints.headline}
-- Detected CTA: ${hints.ctaText}
-
-OUTPUT REQUIREMENT:
-Generate structured LANDING PAGE CONTENT following REAL WEBSITE hierarchy.
-
-Return ONLY a valid JSON object with this exact structure:
-{
-  "layoutType": "<landing-page layout name>",
-  "pageTitle": "<realistic commercial landing page title>",
-  "publisherName": "<realistic brand or platform name>",
-  "landingPage": {
-    "hero": {
-      "headline": "<powerful, benefit-driven headline>",
-      "subheadline": "<clarifies value>",
-      "primaryCta": "<primary CTA text>",
-      "secondaryCta": "<secondary CTA text>",
-      "supportingBullets": ["<bullet 1>", "<bullet 2>", "<bullet 3>"],
-      "trustIndicators": ["<indicator 1>", "<indicator 2>", "<indicator 3>"]
-    },
-    "valueProposition": {
-      "sectionTitle": "<section title>",
-      "features": [
-        { "title": "<feature title>", "description": "<short benefit description>", "iconIdea": "<icon idea>" },
-        { "title": "<feature title>", "description": "<short benefit description>", "iconIdea": "<icon idea>" },
-        { "title": "<feature title>", "description": "<short benefit description>", "iconIdea": "<icon idea>" }
-      ]
-    },
-    "socialProof": {
-      "testimonials": [
-        { "quote": "<testimonial>", "name": "<customer name>", "role": "<role>" },
-        { "quote": "<testimonial>", "name": "<customer name>", "role": "<role>" },
-        { "quote": "<testimonial>", "name": "<customer name>", "role": "<role>" }
-      ],
-      "ratingSummary": "<rating summary>",
-      "trustStatement": "<trust statement>"
-    },
-    "offerPromotion": {
-      "headline": "<offer headline>",
-      "explanation": "<offer explanation>",
-      "urgency": "<urgency element>",
-      "ctaText": "<CTA button text>"
-    },
-    "howItWorks": [
-      { "title": "<step 1>", "description": "<short explanation>" },
-      { "title": "<step 2>", "description": "<short explanation>" },
-      { "title": "<step 3>", "description": "<short explanation>" }
-    ],
-    "benefits": ["<benefit 1>", "<benefit 2>", "<benefit 3>", "<benefit 4>"],
-    "finalConversion": {
-      "headline": "<strong closing headline>",
-      "valueStatement": "<reinforced value statement>",
-      "ctaText": "<final CTA text>"
-    },
-    "footer": {
-      "companyDescription": "<short company description>",
-      "navigationLinks": ["<link 1>", "<link 2>", "<link 3>", "<link 4>"],
-      "legalMessaging": "<legal/trust messaging>"
-    }
-  }
+  return buildProgrammaticPreviewPrompt(env, vertical, goal, hints);
 }
 
-STYLE GUIDELINES:
-- Short blocks of text
-- Marketing-focused language
-- Conversion optimized
-- Clear hierarchy
-- Realistic website tone
-- Modern startup or brand voice
-- Avoid filler words
-- Avoid storytelling articles
-
-VERY IMPORTANT:
-- Content must feel like it belongs inside a LIVE commercial website where ads or creatives naturally exist.
-- Even for news-like environments, generate a conversion-focused commercial landing page or branded microsite, never a news article.
-- Do not add explanations.
-- Return valid JSON only.`;
-}
+const MAX_PREVIEW_PROMPT_CHARS = 6000;
 
 // ── Fallback content generator (no AI needed) ─────────────────────────────────
 function buildFallbackContent(
@@ -412,10 +303,14 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       const client = getClient();
       const prompt = buildContentPrompt(environment, vertical, goal, promptHints);
 
+      if (prompt.length > MAX_PREVIEW_PROMPT_CHARS) {
+        throw new Error("Preview prompt exceeded size limit");
+      }
+
       const completion = await client.chat.completions.create({
         model: process.env.OPENAI_MODEL || "gpt-4o",
         messages: [{ role: "user", content: prompt }],
-        temperature: 0.7,
+        temperature: 0.55,
         max_tokens: 1200,
         response_format: { type: "json_object" },
       });

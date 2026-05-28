@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { PreviewEngineOutput, EnvironmentFamily, DeviceType } from "@/app/lib/preview-engine/types";
+import { compactAnalyzerOutputForPreview } from "@/app/lib/previewAnalyzerCompact";
 import NewsEnvironment from "./environments/NewsEnvironment";
 import CommerceEnvironment from "./environments/CommerceEnvironment";
 import SocialEnvironment from "./environments/SocialEnvironment";
@@ -191,7 +192,7 @@ export default function ContextualPreviewEngine({ creatives, vertical, goal }: P
           device: device ?? undefined,
           creativeSize: targetCreative.size,
           creativeType: "display",
-          analyzerOutput: targetCreative.analyzerOutput ?? {},
+          analyzerOutput: compactAnalyzerOutputForPreview(targetCreative.analyzerOutput ?? {}),
           ctaText: targetCreative.ctaText,
           headline: targetCreative.headline,
           logoPresent: true,
@@ -239,29 +240,6 @@ export default function ContextualPreviewEngine({ creatives, vertical, goal }: P
 
     fetchPreview(activeCreative, true, selectedEnvironment);
   }, [activeCreative, buildCacheKey, fetchPreview, selectedEnvironment]);
-
-  useEffect(() => {
-    if (creatives.length <= 1 || !selectedEnvironment || !device) return;
-
-    let cancelled = false;
-    const runPrefetch = async () => {
-      for (let i = 0; i < creatives.length; i += 1) {
-        if (cancelled) return;
-        if (i === safeCreativeIndex) continue;
-
-        const c = creatives[i];
-        const key = buildCacheKey(c, selectedEnvironment);
-        if (previewCacheRef.current.has(key)) continue;
-
-        await fetchPreview(c, false, selectedEnvironment);
-      }
-    };
-
-    runPrefetch();
-    return () => {
-      cancelled = true;
-    };
-  }, [creatives, safeCreativeIndex, buildCacheKey, fetchPreview, selectedEnvironment]);
 
   const currentEnv: EnvironmentFamily = selectedEnvironment ?? "news";
   const isMobilePreview = device === "mobile";

@@ -8,6 +8,7 @@ import { PreviewEmptyState } from "./PreviewShared";
 export default function PreviewStudio({
   platform,
   creatives = [],
+  sourceCreatives = [],
   vertical,
   goal,
   brandName,
@@ -37,6 +38,7 @@ export default function PreviewStudio({
           tone={tone}
           keyMessage={keyMessage}
           imageUrls={imageUrls}
+          sourceCreatives={sourceCreatives}
           onCopyCreative={onCopyCreative}
           onEditCreative={onEditCreative}
         />
@@ -51,6 +53,7 @@ export default function PreviewStudio({
           tone={tone}
           keyMessage={keyMessage}
           imageUrls={imageUrls}
+          sourceCreatives={sourceCreatives}
           onCopyCreative={onCopyCreative}
           onEditCreative={onEditCreative}
         />

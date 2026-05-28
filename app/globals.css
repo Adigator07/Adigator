@@ -582,6 +582,37 @@ img, video {
   box-shadow: 0 0 0 1px #cbd5e1, 0 0 20px 6px rgba(148, 163, 184, 0.28) !important;
 }
 
+/* Step 3 analysis — ensure readable body text on white/light panels */
+.preview-tool-white .analysis-panel-light .text-slate-100,
+.preview-tool-white .analysis-panel-light .text-slate-200,
+.preview-tool-white .analysis-panel-light .text-slate-300 {
+  color: #0f172a !important;
+}
+
+.preview-tool-white .analysis-panel-light .text-emerald-100,
+.preview-tool-white .analysis-panel-light .text-emerald-200,
+.preview-tool-white .analysis-panel-light .text-emerald-200\/90 {
+  color: #065f46 !important;
+}
+
+.preview-tool-white .analysis-panel-light .text-amber-100,
+.preview-tool-white .analysis-panel-light .text-amber-200 {
+  color: #92400e !important;
+}
+
+.preview-tool-white .analysis-panel-light .bg-amber-500\/5,
+.preview-tool-white .analysis-panel-light .bg-amber-500\/10 {
+  background: #fffbeb !important;
+}
+
+.preview-tool-white .analysis-panel-light .bg-slate-900 {
+  background: #f1f5f9 !important;
+}
+
+.preview-tool-white .analysis-panel-light .border-cyan-500\/40 {
+  border-color: #67e8f9 !important;
+}
+
 .preview-tool-white .bg-purple-500\/20,
 .preview-tool-white .bg-purple-500\/10,
 .preview-tool-white .bg-fuchsia-500\/10,

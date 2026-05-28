@@ -95,6 +95,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const imageUrls = Array.isArray(body?.imageUrls)
+      ? body.imageUrls.filter((url: unknown) => typeof url === "string" && url.trim())
+      : [];
+    const imageCount = typeof body?.imageCount === "number"
+      ? body.imageCount
+      : imageUrls.length;
+
+    const stripUrls = platform === "meta_ads" || platform === "google_ads";
+
     const input = {
       brandName: cleanText(body?.brandName, "Brand"),
       vertical,
@@ -102,9 +111,8 @@ export async function POST(request: NextRequest) {
       goal: cleanText(body?.goal, "awareness"),
       tone: cleanText(body?.tone),
       keyMessage: cleanText(body?.keyMessage),
-      imageUrls: Array.isArray(body?.imageUrls)
-        ? body.imageUrls.filter((url: unknown) => typeof url === "string" && url.trim())
-        : [],
+      imageUrls: stripUrls ? [] : imageUrls,
+      imageCount: stripUrls ? imageCount : imageUrls.length,
     };
 
     const systemPrompt = platform === "google_ads"
@@ -117,7 +125,8 @@ export async function POST(request: NextRequest) {
     const client = getClient();
     const completion = await client.chat.completions.create({
       model: process.env.OPENAI_MODEL || "gpt-4o",
-      temperature: 0.7,
+      temperature: stripUrls ? 0.55 : 0.7,
+      max_tokens: stripUrls ? 3500 : 8000,
       response_format: { type: "json_object" },
       messages: [
         { role: "system", content: systemPrompt },
