@@ -367,26 +367,13 @@ function writeLocalActivity(event) {
   return { data: normalized, error: null, skipped: false };
 }
 
-export async function fetchActivityLogs(limit = 50) {
-  const token = await getActivityAccessToken();
-
-  if (token) {
-    try {
-      const response = await fetch(`/api/activity/list?limit=${limit}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      if (response.ok) {
-        const payload = await response.json();
-        const events = Array.isArray(payload.events) ? payload.events : [];
-        return events.map(normalizeActivityRow);
-      }
-    } catch (error) {
-      console.warn("[Adigator] Failed to fetch activity logs:", error);
-    }
+export async function fetchActivityLogs(_limit = 50) {
+  if (typeof console !== "undefined") {
+    console.warn(
+      "[Adigator] fetchActivityLogs is admin-only. Activity is still tracked in the background.",
+    );
   }
-
-  return readLocalActivity().slice(0, limit).map(normalizeActivityRow);
+  return [];
 }
 
 export async function fetchUserCreatives() {
@@ -424,20 +411,8 @@ export async function fetchAnalyzerResultCreativeIds() {
   return (data || []).map((row) => row.creative_id).filter(Boolean);
 }
 
-export async function countActivityByTypes(actionTypes = []) {
-  const user = await getAuthenticatedUser().catch(() => null);
-  if (!user || actionTypes.length === 0) return 0;
-
-  const { count, error } = await supabase
-    .from("activity_logs")
-    .select("*", { count: "exact", head: true })
-    .eq("user_id", user.id)
-    .in("action_type", actionTypes);
-
-  if (error) {
-    console.warn("[Adigator] Failed to count activity:", error.message);
-    return 0;
-  }
-
-  return count || 0;
+export async function countActivityByTypes(_actionTypes = []) {
+  // Aggregate reads from activity_logs are admin-only after RLS hardening.
+  // Dashboard stats should use creatives / analyzer_results instead.
+  return 0;
 }

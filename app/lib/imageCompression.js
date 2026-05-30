@@ -70,7 +70,12 @@ export function loadImageFromDataURL(dataUrl) {
 /** Prefer ImageBitmap for decode performance when source is a File/Blob. */
 export async function loadImageSource(source) {
   if (source instanceof Blob) {
-    const bitmap = await createImageBitmap(source);
+    let bitmap;
+    try {
+      bitmap = await createImageBitmap(source, { imageOrientation: "from-image" });
+    } catch {
+      bitmap = await createImageBitmap(source);
+    }
     return {
       drawable: bitmap,
       width: bitmap.width,

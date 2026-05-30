@@ -20,6 +20,10 @@ import FacebookMarketplaceEnvironment from "@/app/components/PreviewStudio/MetaA
 import MessengerEnvironment from "@/app/components/PreviewStudio/MetaAds/environments/MessengerEnvironment";
 import AudienceNetworkEnvironment from "@/app/components/PreviewStudio/MetaAds/environments/AudienceNetworkEnvironment";
 import FallbackEnvironment from "@/app/components/PreviewStudio/shared/FallbackEnvironment";
+import {
+  getPreviewPlacementTabs,
+  PREVIEW_PLACEMENT_REGISTRY,
+} from "./previewPlacementRegistry";
 
 export const environmentRegistry = {
   google_search: GoogleSearchEnvironment,
@@ -97,29 +101,17 @@ export function renderEnvironmentCreative(creative, handlers = {}, deviceMode = 
   );
 }
 
-export const GOOGLE_CHANNEL_TABS = [
-  { id: "all", label: "All", environments: null },
-  { id: "search", label: "Search", environments: ["google_search"] },
-  { id: "youtube", label: "YouTube", environments: ["youtube"] },
-  { id: "news", label: "Display/News", environments: ["news_site"] },
-  { id: "shopping", label: "Shopping", environments: ["google_shopping"] },
-  { id: "mobile", label: "Mobile App", environments: ["mobile_app"] },
-  { id: "discover", label: "Discover", environments: ["google_discover"] },
-  { id: "gmail", label: "Gmail", environments: ["gmail"] },
-  { id: "maps", label: "Maps", environments: ["google_maps"] },
-];
+/** @deprecated Use getPreviewPlacementTabs("google_ads") */
+export const GOOGLE_CHANNEL_TABS = getPreviewPlacementTabs("google_ads").map((tab) => {
+  const config = PREVIEW_PLACEMENT_REGISTRY.google_ads[tab.id];
+  return { ...tab, environments: config?.environments || null };
+});
 
-export const META_CHANNEL_TABS = [
-  { id: "all", label: "All", environments: null },
-  { id: "facebook_feed", label: "Facebook Feed", environments: ["facebook_feed", "facebook_feed_desktop"] },
-  { id: "instagram_feed", label: "Instagram Feed", environments: ["instagram_feed"] },
-  { id: "stories", label: "Stories", environments: ["instagram_story", "facebook_story"] },
-  { id: "reels", label: "Reels", environments: ["instagram_reels"] },
-  { id: "explore", label: "Explore", environments: ["instagram_explore"] },
-  { id: "marketplace", label: "Marketplace", environments: ["facebook_marketplace"] },
-  { id: "messenger", label: "Messenger", environments: ["messenger"] },
-  { id: "audience", label: "Audience Network", environments: ["audience_network"] },
-];
+/** @deprecated Use getPreviewPlacementTabs("meta_ads") */
+export const META_CHANNEL_TABS = getPreviewPlacementTabs("meta_ads").map((tab) => {
+  const config = PREVIEW_PLACEMENT_REGISTRY.meta_ads[tab.id];
+  return { ...tab, environments: config?.environments || null };
+});
 
 export const GOOGLE_MOBILE_ENVIRONMENTS = new Set(["mobile_app", "google_discover"]);
 export const GOOGLE_DESKTOP_ENVIRONMENTS = new Set(["gmail", "google_search", "news_site", "google_shopping", "google_maps", "youtube"]);

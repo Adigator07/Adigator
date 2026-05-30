@@ -4,16 +4,14 @@ import { supabase } from "../lib/supabase";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { SkeletonStatCard, SkeletonProjectCard } from "../components/SkeletonLoader";
-import { fetchUserActivity } from "../lib/userActivity";
 import {
   fetchUserCreatives,
   fetchAnalyzerResultCreativeIds,
-  countActivityByTypes,
   trackUserActivity,
 } from "../lib/supabaseDataService";
 import {
   Zap, TrendingUp, Eye, ImageIcon, Plus, ArrowRight, Clock,
-  ShoppingCart, Newspaper, Gamepad2, Coffee, Laptop, GraduationCap, Film, Sparkles, Activity
+  ShoppingCart, Newspaper, Gamepad2, Coffee, Laptop, GraduationCap, Film, Sparkles,
 } from "lucide-react";
 
 const TEMPLATE_CATEGORIES = [
@@ -31,8 +29,7 @@ const stagger = { hidden: {}, visible: { transition: { staggerChildren: 0.08 } }
 
 export default function Dashboard() {
   const [user, setUser] = useState<any>(null);
-  const [stats, setStats] = useState({ totalCreatives: 0, validCreatives: 0, invalidCreatives: 0, previewsRun: 0 });
-  const [activity, setActivity] = useState<any[]>([]);
+  const [stats, setStats] = useState({ totalCreatives: 0, validCreatives: 0, invalidCreatives: 0, platformsUsed: 0 });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -45,22 +42,25 @@ export default function Dashboard() {
           metadata: { page: "dashboard" },
         }, { dedupeKey: "page-visit-dashboard" });
 
-        const [creatives, analyzedCreativeIds, exportCount] = await Promise.all([
+        const [creatives, analyzedCreativeIds, analyzerPlatforms] = await Promise.all([
           fetchUserCreatives(),
           fetchAnalyzerResultCreativeIds(),
-          countActivityByTypes(["download", "generate_action"]),
+          supabase
+            .from("analyzer_results")
+            .select("platform")
+            .eq("user_id", user.id),
         ]);
 
         const analyzedSet = new Set(analyzedCreativeIds);
+        const platformSet = new Set(
+          (analyzerPlatforms.data || []).map((row) => row.platform).filter(Boolean),
+        );
         setStats({
           totalCreatives: creatives.length,
           validCreatives: analyzedSet.size,
           invalidCreatives: Math.max(creatives.length - analyzedSet.size, 0),
-          previewsRun: exportCount,
+          platformsUsed: platformSet.size,
         });
-
-        const events = await fetchUserActivity(30);
-        setActivity(events);
       }
       setLoading(false);
     };
@@ -138,7 +138,7 @@ export default function Dashboard() {
               { label: "Total Creatives", value: stats.totalCreatives, Icon: ImageIcon, color: "from-blue-500/20 to-blue-600/10", border: "border-blue-500/20", text: "text-blue-400" },
               { label: "Valid Creatives",  value: stats.validCreatives,  Icon: TrendingUp, color: "from-green-500/20 to-green-600/10", border: "border-green-500/20", text: "text-green-400" },
               { label: "Invalid",          value: stats.invalidCreatives,Icon: Zap,        color: "from-red-500/20 to-red-600/10",   border: "border-red-500/20",   text: "text-red-400" },
-              { label: "Previews Run",     value: stats.previewsRun,     Icon: Eye,        color: "from-purple-500/20 to-purple-600/10",border: "border-purple-500/20",text: "text-purple-400" },
+              { label: "Platforms Used",     value: stats.platformsUsed,     Icon: Eye,        color: "from-purple-500/20 to-purple-600/10",border: "border-purple-500/20",text: "text-purple-400" },
             ].map((s) => (
               <motion.div
                 key={s.label}
@@ -180,49 +180,6 @@ export default function Dashboard() {
             </div>
           </div>
         </Link>
-      </motion.div>
-
-      {/* ── Activity History ─────────────────────────────────── */}
-      <motion.div variants={fade}>
-        <div className="flex items-center gap-2 mb-3">
-          <Activity size={16} className="text-purple-400" />
-          <h2 className="text-sm font-bold text-white/40 uppercase tracking-widest">Activity History</h2>
-        </div>
-        {loading ? (
-          <div className="rounded-2xl border border-white/10 bg-white/5 p-6 text-sm text-white/40">Loading activity...</div>
-        ) : activity.length === 0 ? (
-          <div className="rounded-2xl border border-white/10 bg-white/5 p-8 text-center">
-            <p className="text-white font-semibold mb-1">No activity yet</p>
-            <p className="text-white/40 text-sm">Upload creatives and run analysis to build your activity timeline.</p>
-          </div>
-        ) : (
-          <div className="rounded-2xl border border-white/10 bg-white/5 overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[720px] text-sm">
-                <thead>
-                  <tr className="border-b border-white/10 text-left text-white/40">
-                    <th className="px-4 py-3 font-semibold">When</th>
-                    <th className="px-4 py-3 font-semibold">Action</th>
-                    <th className="px-4 py-3 font-semibold">Platform</th>
-                    <th className="px-4 py-3 font-semibold">Goal</th>
-                    <th className="px-4 py-3 font-semibold">Creative</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {activity.map((event) => (
-                    <tr key={event.id || `${event.created_at}-${event.event_type}`} className="border-b border-white/5 text-white/80">
-                      <td className="px-4 py-3 whitespace-nowrap">{new Date(event.created_at).toLocaleString()}</td>
-                      <td className="px-4 py-3">{event.event_label || event.event_type}</td>
-                      <td className="px-4 py-3">{event.platform || "—"}</td>
-                      <td className="px-4 py-3">{event.campaign_goal || "—"}</td>
-                      <td className="px-4 py-3">{event.creative_name || event.metadata?.creative_names?.[0] || "—"}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
       </motion.div>
 
       {/* ── Recent Projects ─────────────────────────────────── */}

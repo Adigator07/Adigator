@@ -195,13 +195,15 @@ export function getCreativeStatusLabel(payload) {
   const goalIsAligned = payload?.goal_alignment?.is_aligned;
   const verticalIsAligned = payload?.vertical_alignment?.is_aligned;
 
-  if (status === "misaligned" || goalIsAligned === false) return "Misaligned";
-  if (status === "partially_aligned" || verticalIsAligned === false) return "Moderate Risk";
+  if (status === "misaligned" || goalIsAligned === false || verticalIsAligned === false) {
+    return "Misaligned";
+  }
+  if (status === "partially_aligned") return "Needs Review";
 
   const score = getStrategicAlignmentScore(payload) ?? 0;
-  if (score >= 70) return "Strong Alignment";
-  if (score >= 45) return "Moderate Risk";
-  return "Needs Revision";
+  if (score >= 70) return "Aligned / Launch Ready";
+  if (score >= 45) return "Needs Review";
+  return "Misaligned";
 }
 
 export function getStrategicRecommendationText(recommendation) {

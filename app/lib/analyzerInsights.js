@@ -6,15 +6,24 @@
 
 import { PLATFORM_SUPPORTED_SIZE_GROUPS } from "./creativeValidation";
 import {
+  getPlacementColumns,
+  getDeviceColumns,
+  computePlacementCompatibility as computePlatformPlacements,
+  computeDeviceCompatibility,
+  getPrimaryPlacementKeys,
+  getPlacementLegend,
+} from "./placementCompatibility";
+import {
   getEntryPayload,
   getExtractionSignals,
   getGoalAlignment,
   getValidatedRecommendations,
   getVerticalAlignment,
+  getCampaignAlignment,
 } from "./strategicPresentation";
 
 export const LAUNCH_STATUS = {
-  ready: { emoji: "🟢", label: "Launch Ready", tone: "emerald" },
+  ready: { emoji: "🟢", label: "Aligned / Launch Ready", tone: "emerald" },
   review: { emoji: "🟡", label: "Needs Review", tone: "amber" },
   misaligned: { emoji: "🔴", label: "Misaligned", tone: "red" },
 };
@@ -30,6 +39,13 @@ const PLACEMENT_EMOJI = {
   warning: "🟡",
   bad: "🔴",
 };
+
+export { getPlacementColumns, getDeviceColumns, getPlacementLegend };
+
+function computePlacementCompatibility(creative, platform, payload) {
+  const signals = getExtractionSignals(payload) || {};
+  return computePlatformPlacements(creative, platform, signals);
+}
 
 function parseSize(size) {
   const [width, height] = String(size || "").split("x").map((n) => Number(n));
@@ -63,12 +79,66 @@ function isDesktopSize(size) {
   return desktopLists.includes(size);
 }
 
-function hasCriticalValidation(creative) {
+function isNativeCreativeSize(size, platform) {
+  const groups = PLATFORM_SUPPORTED_SIZE_GROUPS;
+  if (platform === "google_ads") {
+    return (groups.google_ads?.responsive_native_assets || []).includes(size);
+  }
+  if (platform === "meta_ads") {
+    return [
+      ...(groups.meta_ads?.feed_placements || []),
+      ...(groups.meta_ads?.flexible_native_assets || []),
+    ].includes(size);
+  }
+  if (platform === "programmatic") {
+    const prog = groups.programmatic || {};
+    return new Set([
+      ...(prog.native_social_display || []),
+      ...(prog.responsive_native || []),
+    ]).has(size);
+  }
+  return false;
+}
+
+function isStrategicallyAligned(goal, vertical) {
+  return goal?.is_aligned === true && vertical?.is_aligned === true;
+}
+
+/** High-severity upload issues that should block launch — not weight warnings on native assets. */
+function hasLaunchBlockingValidation(creative, platform) {
   const validation = creative?.validation;
   if (!validation) return false;
-  if (validation.status === "CRITICAL" || validation.valid === false) return true;
-  return Array.isArray(validation.issues)
-    && validation.issues.some((issue) => issue?.severity === "high" || issue?.severity === "critical");
+
+  const nonBlockingTypes = new Set([
+    "dimension_normalization",
+    "placement_fit",
+    "mobile_delivery",
+    "google_weight",
+    "meta_weight",
+    "delivery",
+    "technical",
+  ]);
+
+  if (Array.isArray(validation.issues) && validation.issues.length > 0) {
+    return validation.issues.some((issue) => {
+      const severity = issue?.severity;
+      if (severity !== "high" && severity !== "critical") return false;
+      const type = String(issue?.type || "");
+      if (nonBlockingTypes.has(type)) return false;
+      if (type === "weight" && isNativeCreativeSize(creative?.size, platform)) return false;
+      return true;
+    });
+  }
+
+  if (validation.status === "CRITICAL" && validation.valid === false) {
+    return !isNativeCreativeSize(creative?.size, platform);
+  }
+
+  return false;
+}
+
+function hasCriticalValidation(creative) {
+  return hasLaunchBlockingValidation(creative, "programmatic");
 }
 
 function hasValidationIssueType(creative, typePrefix) {
@@ -76,110 +146,21 @@ function hasValidationIssueType(creative, typePrefix) {
     && creative.validation.issues.some((issue) => String(issue?.type || "").startsWith(typePrefix));
 }
 
-export function getPlacementColumns(platform) {
-  if (platform === "meta_ads") {
-    return [
-      { id: "feed", label: "Feed" },
-      { id: "stories", label: "Stories" },
-      { id: "reels", label: "Reels" },
-      { id: "mobile", label: "Mobile" },
-      { id: "desktop", label: "Desktop" },
-    ];
-  }
-  if (platform === "google_ads") {
-    return [
-      { id: "display", label: "Display" },
-      { id: "youtube", label: "YouTube" },
-      { id: "discover", label: "Discover" },
-      { id: "shopping", label: "Shopping" },
-      { id: "mobile", label: "Mobile" },
-      { id: "desktop", label: "Desktop" },
-    ];
-  }
-  return [
-    { id: "standard", label: "Standard" },
-    { id: "premium", label: "Premium" },
-    { id: "mobile_web", label: "Mobile Web" },
-    { id: "native", label: "Native" },
-    { id: "desktop", label: "Desktop" },
-    { id: "mobile", label: "Mobile" },
-  ];
+function isGenericPositiveMessage(text) {
+  if (!text || typeof text !== "string") return true;
+  const normalized = text.toLowerCase();
+  return (
+    normalized.includes("no major strategic conflict")
+    || normalized.includes("largely consistent")
+    || normalized.includes("no critical fixes required")
+    || normalized.includes("ready for launch")
+    || normalized.includes("incremental improvement while preserving")
+    || normalized.includes("optimization opportunity is primarily incremental")
+  );
 }
 
-function metaPlacementScores(size, signals, creative) {
-  const dims = parseSize(size);
-  const ratio = dims?.ratio || 1;
-  const textHigh = signals?.text_density === "high";
-  const feedSizes = PLATFORM_SUPPORTED_SIZE_GROUPS.meta_ads.feed_placements;
-  const storySizes = PLATFORM_SUPPORTED_SIZE_GROUPS.meta_ads.story_reels;
-
-  let feed = feedSizes.includes(size) ? "good" : ratio >= 0.9 && ratio <= 1.2 ? "warning" : "bad";
-  let stories = storySizes.includes(size) ? (textHigh ? "warning" : "good") : ratio > 1.3 ? "warning" : "bad";
-  let reels = storySizes.includes(size) ? (textHigh ? "warning" : "good") : ratio >= 0.5 && ratio <= 0.65 ? "warning" : "bad";
-
-  if (hasValidationIssueType(creative, "safe_zone")) stories = "bad";
-  if (hasValidationIssueType(creative, "placement_fit")) {
-    if (feed === "good") feed = "warning";
-    if (reels === "good") reels = "warning";
-  }
-
-  const mobile = isMobileSize(size) || ratio <= 0.85 ? "good" : ratio <= 1.1 ? "warning" : "bad";
-  const desktop = isDesktopSize(size) || ratio >= 1.5 ? "warning" : ratio >= 1.9 ? "bad" : feed === "good" ? "warning" : "bad";
-
-  return { feed, stories, reels, mobile, desktop };
-}
-
-function googlePlacementScores(size, signals, creative) {
-  const dims = parseSize(size);
-  const ratio = dims?.ratio || 1;
-  const groups = PLATFORM_SUPPORTED_SIZE_GROUPS.google_ads;
-  const textHigh = signals?.text_density === "high";
-
-  const display = sizeInGroups(size, groups) ? "good" : "bad";
-  const youtube = ratio >= 1.6 && ratio <= 1.85 ? "good" : ratio >= 1.3 ? "warning" : "bad";
-  const discover = ["1200x628", "1080x1080", "960x1200"].includes(size) ? "good" : ratio >= 1.2 ? "warning" : "bad";
-  const shopping = ["1080x1080", "1200x1200", "1200x628"].includes(size) ? "good" : ratio >= 0.9 && ratio <= 1.1 ? "warning" : "bad";
-  const mobile = isMobileSize(size) ? "good" : groups.mobile_display.includes(size) ? "good" : "warning";
-  const desktop = isDesktopSize(size) ? "good" : groups.desktop_display.includes(size) ? "good" : "warning";
-
-  if (textHigh && display === "good") {
-    return { display: "warning", youtube, discover, shopping, mobile, desktop };
-  }
-  if (hasCriticalValidation(creative)) {
-    return { display: "bad", youtube: "warning", discover: "warning", shopping: "warning", mobile: "warning", desktop: "warning" };
-  }
-  return { display, youtube, discover, shopping, mobile, desktop };
-}
-
-function programmaticPlacementScores(size, signals, creative) {
-  const groups = PLATFORM_SUPPORTED_SIZE_GROUPS.programmatic;
-  const textHigh = signals?.text_density === "high";
-  const standard = groups.standard_display.includes(size) ? "good" : "warning";
-  const premium = groups.high_impact_premium.includes(size) ? "good" : standard === "good" ? "warning" : "bad";
-  const mobileWeb = groups.mobile_display.includes(size) ? "good" : isMobileSize(size) ? "warning" : "bad";
-  const native = groups.native_social_display.includes(size) ? "good" : "warning";
-  const desktop = isDesktopSize(size) ? "good" : standard === "good" ? "warning" : "bad";
-  const mobile = isMobileSize(size) ? "good" : mobileWeb === "good" ? "warning" : "bad";
-
-  if (textHigh && standard === "good") {
-    return { standard: "warning", premium, mobile_web: mobileWeb, native, desktop, mobile };
-  }
-  if (hasCriticalValidation(creative)) {
-    return { standard: "bad", premium: "warning", mobile_web: "warning", native: "warning", desktop: "warning", mobile: "warning" };
-  }
-  return { standard, premium, mobile_web: mobileWeb, native, desktop, mobile };
-}
-
-export function computePlacementCompatibility(creative, platform, payload) {
-  const size = creative?.size || "";
-  const signals = getExtractionSignals(payload) || {};
-  let scores;
-
-  if (platform === "meta_ads") scores = metaPlacementScores(size, signals, creative);
-  else if (platform === "google_ads") scores = googlePlacementScores(size, signals, creative);
-  else scores = programmaticPlacementScores(size, signals, creative);
-
-  return scores;
+function isMetaFeedNativeSize(size) {
+  return PLATFORM_SUPPORTED_SIZE_GROUPS.meta_ads.feed_placements.includes(size);
 }
 
 function buildEnrichedGoalReason(goalAlignment, signals, campaignGoal) {
@@ -418,39 +399,53 @@ function deriveMetaPlacementQa(creative, payload) {
   const metaEval = payload?.ai_analysis?.meta_ads_dynamic_eval;
   const items = [];
 
-  if (scores.feed === "good") {
-    items.push({ status: "pass", text: "Instagram & Facebook Feed — aspect ratio fits in-feed card without awkward crop" });
-  } else if (scores.feed === "warning") {
-    items.push({ status: "warn", text: "Feed may letterbox or crop — re-export as 1080×1080 or 1080×1350 for cleaner card fit" });
+  if (scores.facebook_feed === "good") {
+    items.push({ status: "pass", text: "Facebook Feed — aspect ratio fits in-feed card without awkward crop" });
+  } else if (scores.facebook_feed === "warning") {
+    items.push({ status: "warn", text: "Facebook Feed may letterbox — re-export as 1080×1080 or 1080×1350" });
   } else {
-    items.push({ status: "fail", text: "Feed placement not recommended — current ratio breaks Meta feed card layout" });
+    items.push({ status: "fail", text: "Facebook Feed not recommended — current ratio breaks feed card layout" });
+  }
+
+  if (scores.instagram_feed === "good") {
+    items.push({ status: "pass", text: "Instagram Feed — 1:1 or 4:5 ratio supports mobile-first card fit" });
+  } else if (scores.instagram_feed === "warning") {
+    items.push({ status: "warn", text: "Instagram Feed usable with crop — prefer 1080×1080 or 1080×1350" });
+  } else {
+    items.push({ status: "fail", text: "Instagram Feed blocked for this aspect ratio" });
   }
 
   if (scores.stories === "good") {
-    items.push({ status: "pass", text: "Stories — 9:16 canvas with safe margins for profile pill, swipe-up, and reply UI" });
+    items.push({ status: "pass", text: "Stories — 9:16 canvas with safe margins for profile pill and CTA strip" });
   } else if (scores.stories === "warning") {
-    items.push({ status: "warn", text: "Stories usable but copy/CTA may sit under top profile bar or bottom CTA strip — shift to center safe zone" });
+    items.push({ status: "warn", text: `Stories usable with crop — ${size === "1080x1080" ? "square letterboxes in Stories" : "shift CTA to center safe zone"}` });
   } else {
-    items.push({ status: "fail", text: `Stories blocked — ${size === "1080x1080" ? "square assets letterbox in Stories and lose immersion" : "needs 1080×1920 for full-screen Stories inventory"}` });
+    items.push({ status: "fail", text: "Stories blocked — export 1080×1920 for full-screen inventory" });
   }
 
   if (scores.reels === "good") {
-    items.push({ status: "pass", text: "Reels — vertical full-bleed format supports thumb-stop in first 1–2 seconds" });
+    items.push({ status: "pass", text: "Reels — vertical full-bleed supports thumb-stop in first 1–2 seconds" });
   } else if (scores.reels === "warning") {
-    items.push({ status: "warn", text: "Reels visibility reduced — vertical crop will shrink hero product/face in first frame" });
+    items.push({ status: "warn", text: "Reels visibility reduced — vertical crop may shrink hero in first frame" });
   } else {
-    items.push({ status: "fail", text: "Reels not viable — square/landscape creative loses ~35% of Meta short-form inventory" });
+    items.push({ status: "fail", text: "Reels not viable — needs 9:16 native canvas for short-form inventory" });
+  }
+
+  if (scores.messenger === "good") {
+    items.push({ status: "pass", text: "Messenger — inbox/card ratio fits sponsored message placements" });
+  } else if (scores.messenger === "warning") {
+    items.push({ status: "warn", text: "Messenger adaptability limited — square or link-ad ratio preferred" });
   }
 
   if (signals.text_density === "high") {
-    items.push({ status: "warn", text: "Heavy overlay text hurts Reels/Stories completion — lead with visual hook, move copy to caption" });
+    items.push({ status: "warn", text: "Heavy overlay text hurts Reels/Stories completion — move copy to caption" });
   }
 
   if (Array.isArray(metaEval?.missing_signals) && metaEval.missing_signals[0]) {
     items.push({ status: "warn", text: `Missing Meta placement signal: ${metaEval.missing_signals[0]}` });
   }
 
-  return items.slice(0, 5);
+  return items.slice(0, 6);
 }
 
 function deriveGooglePlacementQa(creative, payload) {
@@ -458,103 +453,107 @@ function deriveGooglePlacementQa(creative, payload) {
   const size = creative?.size || "";
   const signals = getExtractionSignals(payload) || {};
   const googleEval = payload?.ai_analysis?.google_ads_dynamic_eval;
+  const deviceScores = computeDeviceCompatibility(creative, "google_ads") || {};
   const items = [];
 
-  if (scores.display === "good") {
-    items.push({ status: "pass", text: "Display Network — IAB size fits premium publisher & GDN banner slots without distortion" });
-  } else if (scores.display === "warning") {
-    items.push({ status: "warn", text: "Display usable with crop risk — verify 300×250 or 728×90 masters for news site placements" });
+  if (scores.gdn === "good") {
+    items.push({ status: "pass", text: "GDN — IAB size fits publisher & banner rotation without distortion" });
+  } else if (scores.gdn === "warning") {
+    items.push({ status: "warn", text: "GDN usable with scale limits — verify 300×250 or 728×90 masters" });
   } else {
-    items.push({ status: "fail", text: "Display Network blocked — current dimensions not in Google supported display inventory" });
+    items.push({ status: "fail", text: "GDN blocked — dimensions outside core Google Display inventory" });
   }
 
-  if (scores.youtube === "good") {
-    items.push({ status: "pass", text: "YouTube — 16:9-friendly ratio suits in-stream skippable and bumper companion frames" });
-  } else if (scores.youtube === "warning") {
-    items.push({ status: "warn", text: "YouTube may letterbox — export 1280×720 or 1920×1080 for full player fill" });
+  if (scores.responsive_display === "good") {
+    items.push({ status: "pass", text: "Responsive Display — meets RDA ratio and minimum dimension guidance" });
+  } else if (scores.responsive_display === "warning") {
+    items.push({ status: "warn", text: "Responsive Display limited — export 600×314+ landscape or 300×300+ square" });
   } else {
-    items.push({ status: "fail", text: `YouTube weak — ${size === "1080x1080" || size === "300x250" ? "square/banner assets don't fill video player viewport" : "aspect ratio not suited to video placements"}` });
+    items.push({ status: "fail", text: "Responsive Display not recommended — fails RDA minimum specs" });
   }
 
-  if (scores.discover === "good") {
-    items.push({ status: "pass", text: "Discover — card ratio supports Google Discover feed cards on mobile" });
-  } else if (scores.discover === "warning") {
-    items.push({ status: "warn", text: "Discover card may crop hero — use 1200×628 or 960×1200 for native card fit" });
+  if (scores.demand_gen === "good") {
+    items.push({ status: "pass", text: "Demand Gen — native card ratio suits Discover/YouTube feed placements" });
+  } else if (scores.demand_gen === "warning") {
+    items.push({ status: "warn", text: "Demand Gen may crop — prefer 1200×628 or 1080×1080 native masters" });
   } else {
-    items.push({ status: "fail", text: "Discover placement not recommended for this aspect ratio" });
+    items.push({ status: "fail", text: "Demand Gen weak — aspect ratio not suited to feed-style inventory" });
   }
 
-  if (scores.shopping === "good") {
-    items.push({ status: "pass", text: "Shopping — square/product ratio aligns with Merchant Center image requirements" });
-  } else if (scores.shopping === "warning") {
-    items.push({ status: "warn", text: "Shopping may crop product — square 1080×1080 or 1200×1200 preferred" });
-  } else {
-    items.push({ status: "fail", text: "Shopping grid incompatible — product may clip in Shopping SERP tiles" });
+  if (scores.gmail === "good") {
+    items.push({ status: "pass", text: "Gmail — size supports Promotions tab and inbox ad rendering" });
+  } else if (scores.gmail === "warning") {
+    items.push({ status: "warn", text: "Gmail limited — reduce text density for promo tab scan speed" });
   }
 
-  if (signals.text_density === "high" && scores.mobile !== "good") {
-    items.push({ status: "warn", text: "Dense copy on mobile display sizes hurts AdMob/ mobile web scan clarity" });
+  if (deviceScores.mobile === "good") {
+    items.push({ status: "pass", text: "Mobile device fit — sized for phone web and in-app display contexts" });
+  } else if (deviceScores.mobile === "warning") {
+    items.push({ status: "warn", text: "Mobile fit limited — consider 320×50, 300×250, or vertical native exports" });
   }
 
   if (Array.isArray(googleEval?.missing_signals) && googleEval.missing_signals[0]) {
     items.push({ status: "warn", text: `Missing Google signal: ${googleEval.missing_signals[0]}` });
   }
 
-  return items.slice(0, 5);
+  return items.slice(0, 6);
 }
 
 function deriveProgrammaticPlacementQa(creative, payload) {
   const scores = computePlacementCompatibility(creative, "programmatic", payload);
   const signals = getExtractionSignals(payload) || {};
   const progEval = payload?.ai_analysis?.programmatic_ads_dynamic_eval;
-  const intel = creative?.validation?.intelligence;
   const items = [];
 
-  if (scores.standard === "good") {
-    items.push({ status: "pass", text: "Standard IAB display — fits news, finance, and lifestyle publisher inline/sidebar slots" });
-  } else if (scores.standard === "warning") {
-    items.push({ status: "warn", text: "Standard display usable with scale limits — verify 300×250 or 728×90 for broad RTB fill" });
+  if (scores.native_ads === "good") {
+    items.push({ status: "pass", text: "Native Ads — ratio suits in-feed content-recommendation modules" });
+  } else if (scores.native_ads === "warning") {
+    items.push({ status: "warn", text: "Native Ads limited — 1200×628 or 1080×1080 improves card fit" });
   } else {
-    items.push({ status: "fail", text: "Standard display weak — size outside core open-exchange banner inventory" });
+    items.push({ status: "fail", text: "Native Ads weak — banner aspect won't render cleanly in native units" });
   }
 
-  if (scores.premium === "good") {
-    items.push({ status: "pass", text: "Premium/high-impact — eligible for billboard (970×250) and large sidebar packages" });
-  } else if (scores.premium === "warning") {
-    items.push({ status: "warn", text: "Premium packages may down-tier — export 970×250 or 300×600 for high-CPM sections" });
+  if (scores.display_banners === "good") {
+    items.push({ status: "pass", text: "Display Banners — core IAB size for open-exchange publisher fill" });
+  } else if (scores.display_banners === "warning") {
+    items.push({ status: "warn", text: "Display Banners usable with scale limits — verify 300×250 or 728×90" });
   } else {
-    items.push({ status: "fail", text: "Not premium-eligible — unlikely to win above-the-fold homepage or takeover bids" });
+    items.push({ status: "fail", text: "Display Banners blocked — outside standard RTB banner inventory" });
   }
 
-  if (scores.mobile_web === "good") {
-    items.push({ status: "pass", text: "Mobile web — sized for sticky banners and in-app mobile browser placements" });
-  } else if (scores.mobile_web === "warning") {
-    items.push({ status: "warn", text: "Mobile web may crop — 320×50 or 300×250 preferred for mobile publisher fill" });
-  } else {
-    items.push({ status: "fail", text: "Mobile web blocked — format too large or wrong orientation for mobile slots" });
+  if (scores.mobile_app === "good") {
+    items.push({ status: "pass", text: "Mobile App Inventory — sized for in-app and mobile web placements" });
+  } else if (scores.mobile_app === "warning") {
+    items.push({ status: "warn", text: "Mobile App limited — 320×50 or 300×250 preferred for app fill" });
   }
 
-  if (scores.native === "good") {
-    items.push({ status: "pass", text: "Native/social-display — ratio suits content-recommendation and in-feed native units" });
-  } else if (scores.native === "warning") {
-    items.push({ status: "warn", text: "Native adaptability limited — 1200×628 or 1080×1080 improves in-feed card fit" });
-  } else {
-    items.push({ status: "fail", text: "Native placement weak — banner aspect won't render cleanly in content modules" });
+  if (scores.ctv === "good") {
+    items.push({ status: "pass", text: "CTV — 16:9 ratio suits connected TV and OTT video placements" });
+  } else if (scores.ctv === "warning") {
+    items.push({ status: "warn", text: "CTV limited — export 1920×1080 for full-screen TV delivery" });
   }
 
-  if (intel?.premiumPlacement?.eligible === false && scores.premium !== "good") {
-    items.push({ status: "warn", text: "Standard-only inventory tier — premium publisher PMP deals may filter this format" });
+  if (scores.video_inventory === "good") {
+    items.push({ status: "pass", text: "Video Inventory — aspect ratio supports pre-roll and in-stream slots" });
+  } else if (scores.video_inventory === "warning") {
+    items.push({ status: "warn", text: "Video Inventory limited — 16:9 master recommended for video packages" });
   }
 
-  if (signals.text_density === "high" && scores.mobile_web !== "good") {
-    items.push({ status: "warn", text: "Dense copy on mobile web sizes reduces scan clarity in sticky and interstitial slots" });
+  if (scores.open_web === "good") {
+    items.push({ status: "pass", text: "Open Web — strong fit for publisher page inline and sidebar rotation" });
+  } else if (scores.open_web === "warning") {
+    items.push({ status: "warn", text: "Open Web scale may be limited for this format tier" });
+  }
+
+  if (signals.text_density === "high" && scores.display_banners !== "good") {
+    items.push({ status: "warn", text: "Dense copy reduces scan clarity on small display and mobile slots" });
   }
 
   if (Array.isArray(progEval?.missing_signals) && progEval.missing_signals[0]) {
     items.push({ status: "warn", text: `Missing programmatic signal: ${progEval.missing_signals[0]}` });
   }
 
-  return items.slice(0, 5);
+  return items.slice(0, 6);
 }
 
 function derivePlacementQa(creative, payload, platform) {
@@ -596,25 +595,11 @@ function deriveMetaMainRisk(creative, payload, campaignVertical) {
   const goal = getGoalAlignment(payload);
   const vertical = getVerticalAlignment(payload);
   const metaEval = payload?.ai_analysis?.meta_ads_dynamic_eval;
+  const feedNative = isMetaFeedNativeSize(size);
+  const primaryKeys = getPrimaryPlacementKeys("meta_ads", creative);
 
   if (vertical?.is_aligned === false) {
     return `Vertical bleed — creative reads as ${vertical.detected_vertical || "another category"}, not ${campaignVertical || vertical.selected_vertical}. Meta's interest targeting may deliver to the wrong audience cluster.`;
-  }
-
-  if (size === "1080x1080" && (scores.stories === "bad" || scores.reels === "bad")) {
-    return "Square format wins Feed but forfeits Stories/Reels — you lose full-screen Meta inventory where CPMs are often lower and engagement is higher.";
-  }
-
-  if (signals.text_density === "high" && (scores.stories !== "good" || scores.reels !== "good")) {
-    return "Text-heavy overlay plus non-vertical canvas — Meta may suppress delivery in Stories/Reels where UI chrome covers bottom-third CTAs.";
-  }
-
-  if (hasValidationIssueType(creative, "safe_zone")) {
-    return "Story-safe zone violation — headline or CTA sits in Meta's top/bottom UI overlay area, making the ad ineffective when users tap through.";
-  }
-
-  if (scores.reels === "bad" || scores.reels === "warning") {
-    return "Reels thumb-stop risk — first-frame hook may not fill vertical viewport, reducing scroll-stop power in Instagram's highest-growth surface.";
   }
 
   if (goal?.is_aligned === false) {
@@ -622,12 +607,36 @@ function deriveMetaMainRisk(creative, payload, campaignVertical) {
     return `Message tone signals ${detected}-stage intent — emotional hook and CTA pressure don't match your selected ${goal.selected_goal || "campaign"} goal on Meta.`;
   }
 
+  if (hasValidationIssueType(creative, "safe_zone")) {
+    return "Story-safe zone violation — headline or CTA sits in Meta's top/bottom UI overlay area, making the ad ineffective when users tap through.";
+  }
+
+  if (primaryKeys.some((key) => scores[key] === "bad")) {
+    if (scores.facebook_feed === "bad" || scores.instagram_feed === "bad") {
+      return "Feed placement not recommended — current aspect ratio breaks Meta in-feed card layout.";
+    }
+    return "Primary Meta placement blocked — re-export to 1080×1080, 1080×1350, or 1080×1920 for the inventory you plan to run.";
+  }
+
+  if (!feedNative) {
+    if (signals.text_density === "high" && (scores.stories === "bad" || scores.reels === "bad")) {
+      return "Text-heavy overlay plus non-vertical canvas — Meta may suppress delivery in Stories/Reels where UI chrome covers bottom-third CTAs.";
+    }
+    if (scores.reels === "bad" || scores.stories === "bad") {
+      return "Vertical Stories/Reels inventory blocked — export 1080×1920 for full-screen short-form placements.";
+    }
+  }
+
+  if (feedNative && signals.text_density === "high" && scores.facebook_feed !== "good" && scores.instagram_feed !== "good") {
+    return "Heavy text overlay on feed canvas — Meta may throttle delivery; keep copy under ~20% of frame.";
+  }
+
   if (Array.isArray(metaEval?.avoided_elements_found) && metaEval.avoided_elements_found[0]) {
     return metaEval.avoided_elements_found[0];
   }
 
-  if (payload?.adigator_analysis?.main_risk) return payload.adigator_analysis.main_risk;
-  if (payload?.main_strategic_problem) return payload.main_strategic_problem;
+  const apiRisk = payload?.adigator_analysis?.main_risk || payload?.main_strategic_problem;
+  if (apiRisk && !isGenericPositiveMessage(apiRisk)) return apiRisk;
 
   return null;
 }
@@ -645,24 +654,31 @@ function deriveGoogleMainRisk(creative, payload, campaignVertical) {
     return `Vertical mismatch — creative cues read as ${vertical.detected_vertical || "another industry"}, not ${campaignVertical || vertical.selected_vertical}. Google audience signals may misalign with keyword/theme targeting.`;
   }
 
-  if (size === "1080x1080" && scores.youtube === "bad") {
-    return "Square master wins Shopping/Discover but loses YouTube in-stream — video placements will letterbox and reduce brand impact in skippable ads.";
+  if (size === "1080x1080" && scores.youtube_companion === "bad" && !isNativeCreativeSize(size, "google_ads")) {
+    return "Square master fits Demand Gen but not YouTube Companion — export 728×90 or 300×250 for companion slots.";
   }
 
   if ((size === "728x90" || size === "320x50") && signals.text_density === "high") {
     return "Leaderboard/mobile banner with heavy text — users scan in under 1 second on GDN; message won't land before scroll.";
   }
 
-  if (hasValidationIssueType(creative, "rda") || (dims && dims.width < 600 && dims.height < 314)) {
-    return "Responsive Display Asset failure — Google won't expand this creative across all eligible Display Network sizes.";
+  if (hasValidationIssueType(creative, "rda") && !isNativeCreativeSize(size, "google_ads")) {
+    if (dims && dims.width < 600 && dims.height < 314) {
+      return "Responsive Display Asset failure — Google won't expand this creative across all eligible Display Network sizes.";
+    }
   }
 
-  if (creative?.fileSizeKB && creative.fileSizeKB > 150 && sizeInGroups(size, PLATFORM_SUPPORTED_SIZE_GROUPS.google_ads)) {
+  if (
+    creative?.fileSizeKB
+    && creative.fileSizeKB > 150
+    && !isNativeCreativeSize(size, "google_ads")
+    && sizeInGroups(size, PLATFORM_SUPPORTED_SIZE_GROUPS.google_ads)
+  ) {
     return "File size exceeds Google Display 150KB guidance — slower loads can hurt viewability metrics and Quality Score on display placements.";
   }
 
-  if (scores.display === "bad") {
-    return `Display Network delivery blocked — ${size} is outside core IAB sizes Google expects for news site and GDN banner rotation.`;
+  if (scores.gdn === "bad" && getPrimaryPlacementKeys("google_ads", creative).includes("gdn")) {
+    return `GDN delivery blocked — ${size} is outside core IAB sizes Google expects for news site and banner rotation.`;
   }
 
   if (goal?.is_aligned === false) {
@@ -673,8 +689,8 @@ function deriveGoogleMainRisk(creative, payload, campaignVertical) {
     return googleEval.avoided_elements_found[0];
   }
 
-  if (payload?.adigator_analysis?.main_risk) return payload.adigator_analysis.main_risk;
-  if (payload?.main_strategic_problem) return payload.main_strategic_problem;
+  const apiRisk = payload?.adigator_analysis?.main_risk || payload?.main_strategic_problem;
+  if (apiRisk && !isGenericPositiveMessage(apiRisk)) return apiRisk;
 
   return null;
 }
@@ -701,11 +717,15 @@ function deriveProgrammaticMainRisk(creative, payload, campaignVertical) {
     return "Leaderboard/mobile banner overloaded with text — peripheral vision won't decode the offer before scroll in RTB environments.";
   }
 
-  if (scores.standard === "bad") {
+  if (scores.display_banners === "bad" && getPrimaryPlacementKeys("programmatic", creative).includes("display_banners")) {
     return `${size} sits outside core IAB programmatic inventory — expect thin fill and higher CPMs on open exchange.`;
   }
 
-  if (creative?.fileSizeKB && creative.fileSizeKB > 150) {
+  if (
+    creative?.fileSizeKB
+    && creative.fileSizeKB > 150
+    && !isNativeCreativeSize(size, "programmatic")
+  ) {
     return "150KB+ payload slows first render — viewability providers may score below threshold, reducing bid competitiveness in DV360/TTD.";
   }
 
@@ -717,16 +737,16 @@ function deriveProgrammaticMainRisk(creative, payload, campaignVertical) {
     return "Low auction readiness — format may struggle to win impressions against higher-fill 300×250 and 728×90 competition.";
   }
 
-  if (scores.premium === "bad" && scores.standard === "warning") {
-    return "Neither standard nor premium inventory strong — creative may float in remnant tiers with low viewability.";
+  if (scores.native_ads === "bad" && scores.display_banners === "warning") {
+    return "Neither native nor standard display inventory strong — creative may float in remnant tiers with low viewability.";
   }
 
   if (Array.isArray(progEval?.avoided_elements_found) && progEval.avoided_elements_found[0]) {
     return progEval.avoided_elements_found[0];
   }
 
-  if (payload?.adigator_analysis?.main_risk) return payload.adigator_analysis.main_risk;
-  if (payload?.main_strategic_problem) return payload.main_strategic_problem;
+  const apiRisk = payload?.adigator_analysis?.main_risk || payload?.main_strategic_problem;
+  if (apiRisk && !isGenericPositiveMessage(apiRisk)) return apiRisk;
 
   return null;
 }
@@ -746,14 +766,13 @@ function deriveMainRisk(creative, payload, platform, campaignVertical) {
   if (goal?.is_aligned === false) {
     risks.push(`Goal mismatch — message tone fits ${goal.detected_goal || "different"} intent more than selected goal`);
   }
-  if (hasCriticalValidation(creative)) {
+  if (hasLaunchBlockingValidation(creative, platform)) {
     risks.push("Technical validation failed — dimensions or format not platform-safe");
   }
-  if (payload?.adigator_analysis?.main_risk) {
-    risks.push(payload.adigator_analysis.main_risk);
-  }
-  if (payload?.main_strategic_problem && risks.length < 2) {
-    risks.push(payload.main_strategic_problem);
+
+  const apiRisk = payload?.adigator_analysis?.main_risk || payload?.main_strategic_problem;
+  if (apiRisk && !isGenericPositiveMessage(apiRisk) && risks.length < 2) {
+    risks.push(apiRisk);
   }
 
   return risks[0] || null;
@@ -767,13 +786,15 @@ function deriveRecommendedFix(creative, payload, platform) {
   if (Array.isArray(fixes) && fixes[0]) return fixes[0];
 
   if (platform === "google_ads") {
-    const size = creative?.size || "";
     const scores = computePlacementCompatibility(creative, "google_ads", payload);
-    if (scores.youtube === "bad") {
-      return "Export a 1280×720 (16:9) variant for YouTube in-stream while keeping 300×250 or 728×90 for Display Network.";
+    if (scores.youtube_companion === "bad") {
+      return "Export a 728×90 or 300×250 companion banner for YouTube while keeping GDN masters.";
     }
-    if (scores.display === "bad") {
-      return "Re-export to a core Google IAB size (300×250, 728×90, 320×50, or 970×250) before launching Display campaigns.";
+    if (scores.gdn === "bad") {
+      return "Re-export to a core Google IAB size (300×250, 728×90, 320×50, or 970×250) before launching GDN campaigns.";
+    }
+    if (scores.responsive_display === "bad") {
+      return "Export a 600×314+ landscape or 300×300+ square asset for Responsive Display Ads.";
     }
     if (creative?.fileSizeKB && creative.fileSizeKB > 150) {
       return "Compress the asset below 150KB to meet Google Display load-speed and viewability standards.";
@@ -782,21 +803,21 @@ function deriveRecommendedFix(creative, payload, platform) {
 
   if (platform === "programmatic") {
     const scores = computePlacementCompatibility(creative, "programmatic", payload);
-    if (scores.standard === "bad") {
+    if (scores.display_banners === "bad") {
       return "Re-export to 300×250 or 728×90 for maximum open-exchange fill before launching programmatic line items.";
     }
     if (creative?.fileSizeKB && creative.fileSizeKB > 150) {
       return "Compress below 150KB to protect viewability metrics and improve RTB win rates across DSPs.";
     }
-    if (scores.premium === "bad" && scores.standard === "good") {
-      return "Add a 970×250 billboard variant to unlock premium publisher inventory and high-impact packages.";
+    if (scores.video_inventory === "bad" && scores.ctv === "bad") {
+      return "Add a 1920×1080 (16:9) variant to unlock video and CTV inventory packages.";
     }
-    if (scores.native === "bad") {
+    if (scores.native_ads === "bad") {
       return "Export a 1200×628 or 1080×1080 native master for in-feed and content-recommendation placements.";
     }
   }
 
-  if (hasCriticalValidation(creative)) {
+  if (hasLaunchBlockingValidation(creative, platform)) {
     return "Resize or re-export to a supported platform dimension, then re-upload before launch.";
   }
 
@@ -810,25 +831,73 @@ function deriveRecommendedFix(creative, payload, platform) {
     return `Reframe visuals and copy toward ${vertical.selected_vertical || "the selected vertical"} cues before launch.`;
   }
 
-  return "No critical fixes required — optional polish may still improve placement performance.";
+  return null;
 }
 
 function deriveLaunchStatus(creative, payload, platform) {
   const goal = getGoalAlignment(payload);
   const vertical = getVerticalAlignment(payload);
+  const campaign = getCampaignAlignment(payload);
+  const campaignStatus = String(campaign.alignment_status || "unknown").toLowerCase();
+  const campaignSeverity = String(campaign.severity || "low").toLowerCase();
+  const signals = getExtractionSignals(payload) || {};
+  const strategicallyAligned = isStrategicallyAligned(goal, vertical);
 
-  if (goal?.is_aligned === false || vertical?.is_aligned === false || hasCriticalValidation(creative)) {
+  if (hasLaunchBlockingValidation(creative, platform)) return "misaligned";
+  if (goal?.is_aligned === false || vertical?.is_aligned === false) return "misaligned";
+
+  const scores = computePlacementCompatibility(creative, platform, payload);
+  const primaryKeys = getPrimaryPlacementKeys(platform, creative);
+  const primaryScores = primaryKeys.map((key) => scores[key]).filter(Boolean);
+  const primaryBad = primaryScores.includes("bad");
+  const primaryWarn = primaryScores.includes("warning");
+
+  if (primaryBad) return "misaligned";
+
+  if (
+    !strategicallyAligned
+    && campaignStatus === "misaligned"
+    && campaignSeverity !== "low"
+  ) {
     return "misaligned";
   }
 
-  const scores = computePlacementCompatibility(creative, platform, payload);
-  const badCount = Object.values(scores).filter((v) => v === "bad").length;
-  const warnCount = Object.values(scores).filter((v) => v === "warning").length;
-  const signals = getExtractionSignals(payload) || {};
+  if (
+    hasValidationIssueType(creative, "safe_zone")
+    && platform === "meta_ads"
+    && (primaryKeys.includes("stories") || primaryKeys.includes("reels"))
+  ) {
+    return "misaligned";
+  }
 
-  if (badCount >= 2 || (goal?.is_aligned === false)) return "misaligned";
-  if (badCount >= 1 || warnCount >= 2 || signals?.text_density === "high") return "review";
-  if (goal?.is_aligned === true && vertical?.is_aligned === true) return "ready";
+  const textAffectsPrimary =
+    signals?.text_density === "high"
+    && (primaryWarn || primaryBad);
+
+  const hasMinorIssue =
+    primaryWarn
+    || textAffectsPrimary
+    || hasValidationIssueType(creative, "placement_fit")
+    || (
+      !strategicallyAligned
+      && (campaignStatus === "partially_aligned" || campaignStatus === "misaligned")
+    )
+    || (
+      strategicallyAligned
+      && campaignStatus === "partially_aligned"
+      && (primaryWarn || textAffectsPrimary)
+    );
+
+  if (hasMinorIssue) return "review";
+
+  if (strategicallyAligned && !primaryBad) {
+    return "ready";
+  }
+
+  if (goal?.is_aligned !== false && vertical?.is_aligned !== false && !primaryBad) {
+    return "ready";
+  }
+
   return "review";
 }
 
@@ -840,6 +909,25 @@ export function computeCreativeInsight(entry, platform, campaignGoal, campaignVe
   const extractionSignals = getExtractionSignals(payload);
   const launchStatusKey = deriveLaunchStatus(creative, payload, platform);
   const placementScores = computePlacementCompatibility(creative, platform, payload);
+  let mainRisk = deriveMainRisk(creative, payload, platform, campaignVertical);
+  let recommendedFix = deriveRecommendedFix(creative, payload, platform);
+  const strategicallyAligned = isStrategicallyAligned(goalAlignment, verticalAlignment);
+  const primaryKeys = getPrimaryPlacementKeys(platform, creative);
+  const primaryBad = primaryKeys.some((key) => placementScores[key] === "bad");
+
+  if (launchStatusKey === "ready") {
+    mainRisk = null;
+    recommendedFix = null;
+  } else if (strategicallyAligned && !primaryBad && !hasLaunchBlockingValidation(creative, platform)) {
+    if (launchStatusKey === "review" && goalAlignment?.is_aligned !== false && verticalAlignment?.is_aligned !== false) {
+      const riskFromGoalOrVertical =
+        goalAlignment?.is_aligned === false
+        || verticalAlignment?.is_aligned === false;
+      if (!riskFromGoalOrVertical) {
+        mainRisk = null;
+      }
+    }
+  }
 
   return {
     creativeId: creative.id,
@@ -855,9 +943,10 @@ export function computeCreativeInsight(entry, platform, campaignGoal, campaignVe
     extractionSignals,
     technicalQa: deriveTechnicalQa(creative, payload, platform),
     placementQa: derivePlacementQa(creative, payload, platform),
-    mainRisk: deriveMainRisk(creative, payload, platform, campaignVertical),
-    recommendedFix: deriveRecommendedFix(creative, payload, platform),
+    mainRisk,
+    recommendedFix,
     placementScores,
+    deviceScores: computeDeviceCompatibility(creative, platform),
   };
 }
 
@@ -885,13 +974,17 @@ export function computeCampaignOverview(entries, platform, campaignGoal, campaig
   }
 
   if (platform === "meta_ads") {
-    const reelsWeak = insights.filter((i) => i.placementScores.reels === "bad" || i.placementScores.reels === "warning");
-    if (reelsWeak.length > 0) {
-      launchRisks.push(`⚠️ Reels visibility weak in ${reelsWeak.length} Meta Ads creative${reelsWeak.length === 1 ? "" : "s"}`);
+    const reelsBlocked = insights.filter((i) => {
+      if (i.launchStatusKey === "ready") return false;
+      return i.placementScores.reels === "bad" && i.launchStatusKey === "misaligned";
+    });
+    if (reelsBlocked.length > 0) {
+      launchRisks.push(`⚠️ Reels inventory blocked in ${reelsBlocked.length} Meta Ads creative${reelsBlocked.length === 1 ? "" : "s"}`);
     }
     const storyRisk = insights.filter((i) =>
-      i.placementScores.stories === "bad"
-      || i.technicalQa.some((t) => /safe.?zone/i.test(t.text)),
+      i.launchStatusKey !== "ready"
+      && (i.placementScores.stories === "bad"
+        || i.technicalQa.some((t) => t.status === "fail" && /safe.?zone/i.test(t.text))),
     );
     if (storyRisk.length > 0) {
       launchRisks.push(`⚠️ Story-safe zones affected in ${storyRisk.length} creative${storyRisk.length === 1 ? "" : "s"} — text may sit too close to UI overlays`);
@@ -899,16 +992,16 @@ export function computeCampaignOverview(entries, platform, campaignGoal, campaig
   }
 
   if (platform === "google_ads") {
-    const displayWeak = insights.filter((i) => i.placementScores.display === "bad");
-    if (displayWeak.length > 0) {
-      launchRisks.push(`⚠️ Display inventory mismatch in ${displayWeak.length} Google Ads creative${displayWeak.length === 1 ? "" : "s"}`);
+    const gdnWeak = insights.filter((i) => i.placementScores.gdn === "bad" && i.launchStatusKey !== "ready");
+    if (gdnWeak.length > 0) {
+      launchRisks.push(`⚠️ GDN inventory mismatch in ${gdnWeak.length} Google Ads creative${gdnWeak.length === 1 ? "" : "s"}`);
     }
   }
 
   if (platform === "programmatic") {
-    const viewWeak = insights.filter((i) => i.placementScores.standard === "bad");
+    const viewWeak = insights.filter((i) => i.placementScores.display_banners === "bad" && i.launchStatusKey !== "ready");
     if (viewWeak.length > 0) {
-      launchRisks.push(`⚠️ Standard IAB compatibility weak in ${viewWeak.length} programmatic creative${viewWeak.length === 1 ? "" : "s"}`);
+      launchRisks.push(`⚠️ Display banner compatibility weak in ${viewWeak.length} programmatic creative${viewWeak.length === 1 ? "" : "s"}`);
     }
     const blindnessRisk = insights.filter((i) =>
       i.technicalQa.some((t) => /banner.?blindness/i.test(t.text)),
@@ -923,7 +1016,9 @@ export function computeCampaignOverview(entries, platform, campaignGoal, campaig
     launchRisks.push("⚠️ Visual consistency fragmented across the campaign");
   }
 
-  const textHeavy = insights.filter((i) => i.extractionSignals?.text_density === "high");
+  const textHeavy = insights.filter((i) =>
+    i.extractionSignals?.text_density === "high" && i.launchStatusKey !== "ready",
+  );
   if (textHeavy.length > 0) {
     launchRisks.push(`⚠️ Text density high in ${textHeavy.length} creative${textHeavy.length === 1 ? "" : "s"}`);
   }
@@ -931,21 +1026,24 @@ export function computeCampaignOverview(entries, platform, campaignGoal, campaig
   const mobileSafe = insights.every((i) => !i.technicalQa.some((t) => t.status === "fail" && /mobile/i.test(t.text)));
   if (mobileSafe) qaSummary.push({ status: "pass", text: "Mobile-safe layouts detected" });
 
+  if (platform === "google_ads") {
+    const gdnOk = insights.filter((i) => i.placementScores.gdn !== "bad").length;
+    if (gdnOk === insights.length) qaSummary.push({ status: "pass", text: "GDN-compatible sizes recognized across set" });
+    else if (gdnOk > 0) qaSummary.push({ status: "warn", text: `GDN ready in ${gdnOk}/${insights.length} creatives` });
+  }
+
   if (platform === "meta_ads") {
-    const feedOk = insights.filter((i) => i.placementScores.feed === "good").length;
+    const feedOk = insights.filter((i) =>
+      i.placementScores.facebook_feed === "good" || i.placementScores.instagram_feed === "good",
+    ).length;
     if (feedOk === insights.length) qaSummary.push({ status: "pass", text: "Meta Feed compatible" });
     else if (feedOk > 0) qaSummary.push({ status: "warn", text: `Meta Feed compatible in ${feedOk}/${insights.length} creatives` });
   }
 
-  if (platform === "google_ads") {
-    const displayOk = insights.filter((i) => i.placementScores.display !== "bad").length;
-    if (displayOk === insights.length) qaSummary.push({ status: "pass", text: "Google Display sizes recognized" });
-  }
-
   if (platform === "programmatic") {
-    const standardOk = insights.filter((i) => i.placementScores.standard === "good").length;
-    if (standardOk === insights.length) qaSummary.push({ status: "pass", text: "Core IAB programmatic sizes recognized across set" });
-    else if (standardOk > 0) qaSummary.push({ status: "warn", text: `Standard display ready in ${standardOk}/${insights.length} creatives` });
+    const bannerOk = insights.filter((i) => i.placementScores.display_banners === "good").length;
+    if (bannerOk === insights.length) qaSummary.push({ status: "pass", text: "Display banner sizes recognized across set" });
+    else if (bannerOk > 0) qaSummary.push({ status: "warn", text: `Display banners ready in ${bannerOk}/${insights.length} creatives` });
   }
 
   if (textHeavy.length > 0) {
@@ -977,7 +1075,7 @@ export function computeCampaignOverview(entries, platform, campaignGoal, campaig
 
   let campaignLaunchStatus = CAMPAIGN_LAUNCH_STATUS.ready;
   if (misalignedCount > 0) campaignLaunchStatus = CAMPAIGN_LAUNCH_STATUS.revision;
-  else if (reviewCount > 0 || launchRisks.length > 0) campaignLaunchStatus = CAMPAIGN_LAUNCH_STATUS.minor;
+  else if (reviewCount > 0) campaignLaunchStatus = CAMPAIGN_LAUNCH_STATUS.minor;
 
   const recommendationBullets = [];
   if (readyCount > 0) {
@@ -994,6 +1092,7 @@ export function computeCampaignOverview(entries, platform, campaignGoal, campaig
   }
 
   const columns = getPlacementColumns(platform);
+  const deviceColumns = getDeviceColumns(platform);
   const placementMatrix = insights.map((insight) => ({
     name: insight.creativeName,
     cells: columns.map((col) => ({
@@ -1003,12 +1102,26 @@ export function computeCampaignOverview(entries, platform, campaignGoal, campaig
     })),
   }));
 
+  const deviceMatrix = deviceColumns.length
+    ? insights.map((insight) => ({
+      name: insight.creativeName,
+      cells: deviceColumns.map((col) => ({
+        column: col.label,
+        status: insight.deviceScores?.[col.id] || "warning",
+        emoji: PLACEMENT_EMOJI[insight.deviceScores?.[col.id] || "warning"],
+      })),
+    }))
+    : null;
+
   return {
     hasNoRisk: launchRisks.length === 0 && misalignedCount === 0,
     launchRisks,
     qaSummary,
     placementMatrix,
     placementColumns: columns,
+    deviceMatrix,
+    deviceColumns,
+    placementLegend: getPlacementLegend(platform),
     campaignLaunchStatus,
     recommendationBullets,
     insights,
@@ -1027,4 +1140,55 @@ export function qaItemIcon(status) {
   if (status === "pass") return "✓";
   if (status === "warn") return "⚠️";
   return "✕";
+}
+
+/** Dev verification matrix — aligned goal/vertical creatives should not be red. */
+export function runAnalyzerStatusMatrix() {
+  const alignedPayload = {
+    goal_alignment: { is_aligned: true, selected_goal: "awareness", detected_goal: "awareness" },
+    vertical_alignment: { is_aligned: true, selected_vertical: "fashion", detected_vertical: "fashion" },
+    campaign_alignment: { alignment_status: "partially_aligned", severity: "medium", strategic_conflict: "Minor tone nuance" },
+    extraction_signals: { text_density: "moderate" },
+    adigator_analysis: { main_risk: "No major strategic conflict detected." },
+  };
+
+  const passValidation = { valid: true, status: "PASS", issues: [] };
+  const nativeWeightWarning = {
+    valid: true,
+    status: "WARNING",
+    issues: [{ type: "weight", severity: "medium", message: "Native asset exceeds 150KB banner guidance" }],
+  };
+
+  const scenarios = [
+    { platform: "meta_ads", size: "1080x1080", expected: "ready", validation: passValidation },
+    { platform: "meta_ads", size: "1080x1350", expected: "ready", validation: passValidation },
+    { platform: "meta_ads", size: "1080x1920", expected: "ready", validation: passValidation },
+    { platform: "google_ads", size: "1080x1080", expected: "ready", validation: passValidation },
+    { platform: "google_ads", size: "1200x628", expected: "ready", validation: passValidation },
+    { platform: "google_ads", size: "300x250", expected: "ready", validation: passValidation },
+    { platform: "programmatic", size: "1200x628", expected: "ready", validation: nativeWeightWarning },
+    { platform: "programmatic", size: "1080x1080", expected: "ready", validation: nativeWeightWarning },
+    { platform: "programmatic", size: "1080x1350", expected: "ready", validation: nativeWeightWarning },
+    { platform: "programmatic", size: "300x250", expected: "ready", validation: passValidation },
+  ];
+
+  return scenarios.map(({ platform, size, expected, validation }) => {
+    const insight = computeCreativeInsight(
+      {
+        creative: { id: `test-${platform}-${size}`, size, validation, fileSizeKB: 220 },
+        data: alignedPayload,
+      },
+      platform,
+      "awareness",
+      "fashion",
+    );
+    return {
+      platform,
+      size,
+      expected,
+      actual: insight.launchStatusKey,
+      label: insight.launchStatus.label,
+      pass: insight.launchStatusKey === expected,
+    };
+  });
 }

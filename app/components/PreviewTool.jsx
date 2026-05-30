@@ -84,6 +84,7 @@ const PLATFORM_SIZES = {
     mobile_display: SUPPORTED_DISPLAY_SIZE_GROUPS.mobile,
     high_impact_premium: SUPPORTED_DISPLAY_SIZE_GROUPS.high_impact,
     native_social_display: SUPPORTED_DISPLAY_SIZE_GROUPS.native,
+    responsive_native: SUPPORTED_DISPLAY_SIZE_GROUPS.responsive_native,
   },
 };
 
@@ -104,17 +105,7 @@ const GROUP_LABELS = {
   standard_display: "Standard Display",
   high_impact_premium: "High-Impact / Premium",
   native_social_display: "Native / Social Display",
-};
-
-const GOAL_CTA = {
-  awareness: ["Learn More", "Discover", "Explore", "Watch Now", "See Now"],
-  conversion: ["Buy Now", "Sign Up", "Get Started", "Download", "Claim Offer"],
-  traffic: ["Visit Site", "Learn More", "Read More", "Explore Now"],
-  app_installs: ["Install Now", "Download App", "Get the App", "Try It Free"],
-  lead_generation: ["Get Quote", "Request Demo", "Contact Sales", "Book Consultation"],
-  engagement: ["Comment", "Share", "React", "Join the Conversation"],
-  video_views: ["Watch Video", "Watch More", "Play Now", "See How It Works"],
-  retargeting: ["Complete Purchase", "Return to Cart", "Claim Offer", "Shop Again"],
+  responsive_native: "Responsive / Native Assets",
 };
 
 const ANALYSIS_SESSION_STORAGE_KEY = "adigator_analysis_session_id";
@@ -1194,13 +1185,12 @@ export default function PreviewTool() {
       const preparedCreatives = await mapWithConcurrency(fileList, 2, async (file, fileIndex) => {
         const imageSource = await loadImageSource(file);
         try {
-          const size = `${imageSource.width}x${imageSource.height}`;
           const validation = await validateCreativeAsset({
             file,
             image: { width: imageSource.width, height: imageSource.height },
             platform,
           });
-
+          const size = validation.size || `${imageSource.width}x${imageSource.height}`;
           const normalizedValidation = finalizeValidationForPlatform(validation, platform, size);
 
           const creativeId = `${Date.now()}-${fileIndex}-${file.name}-${size}`;
@@ -1363,7 +1353,6 @@ export default function PreviewTool() {
         finalCompressedBytes = finalBlob.size;
       }
 
-      const finalSize = `${bestCandidate.width}x${bestCandidate.height}`;
       const extension = getFileExtensionForMime(outputType);
       const compressedFileName = `${creative.name || "creative"}.${extension}`;
       const finalFile = new File([finalBlob], compressedFileName, {
@@ -1379,6 +1368,7 @@ export default function PreviewTool() {
         image: { width: bestCandidate.width, height: bestCandidate.height },
         platform,
       });
+      const finalSize = validation.size || `${bestCandidate.width}x${bestCandidate.height}`;
 
       let finalValidation = finalizeValidationForPlatform(validation, platform, finalSize);
 
@@ -1982,16 +1972,6 @@ export default function PreviewTool() {
                       <p className="text-xs font-bold text-sky-600 uppercase tracking-widest mb-1">{g.subtitle}</p>
                       <h3 className={`text-2xl font-extrabold mb-2 ${campaignGoal === g.id ? "text-sky-600" : "text-slate-800"}`}>{getGoalTitle(g.id, platform)}</h3>
                       <p className="text-sm text-slate-700 leading-relaxed mb-6">{g.desc}</p>
-                      {campaignGoal === g.id && (
-                        <div className="bg-white/10 p-3 rounded-xl">
-                          <p className="text-[10px] font-bold text-gray-300 uppercase mb-2">Recommended CTAs:</p>
-                          <div className="flex flex-wrap gap-1.5">
-                            {(GOAL_CTA[g.id] || GOAL_CTA.awareness).map(cta => (
-                              <span key={cta} className="px-2 py-1 bg-purple-500/20 text-purple-200 border border-purple-500/30 rounded text-[10px]">{cta}</span>
-                            ))}
-                          </div>
-                        </div>
-                      )}
                     </SelectionCard>
                   ))}
                 </div>

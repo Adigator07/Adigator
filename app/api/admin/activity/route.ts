@@ -1,14 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
-
-import { createServerSupabaseClient, getAccessTokenFromRequest, getAuthenticatedUser } from "@/app/lib/supabaseServer";
+import {
+  createServerSupabaseClient,
+  createWritableSupabaseClient,
+  getAccessTokenFromRequest,
+  getAuthenticatedUser,
+} from "@/app/lib/supabaseServer";
 import { requireAdminUser } from "@/app/lib/admin/permissions";
 import { formatActivityLogForAdmin, queryActivityLogs } from "@/app/lib/admin/activityAdmin";
 
 export const runtime = "nodejs";
 
 /**
- * @deprecated Use GET /api/admin/activity from the Admin Dashboard.
- * Activity log reads are restricted to admin users.
+ * Admin Dashboard activity feed (future UI: /dashboard/admin).
+ * GET /api/admin/activity?limit=50&user_id=&action_type=&since=
  */
 export async function GET(request: NextRequest) {
   try {
@@ -22,30 +26,31 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: authError || "Unauthorized" }, { status: 401 });
     }
 
-    const supabase = createServerSupabaseClient(accessToken);
-    const adminCheck = await requireAdminUser(supabase, user.id);
+    const readClient = createServerSupabaseClient(accessToken);
+    const adminCheck = await requireAdminUser(readClient, user.id);
     if (!adminCheck.ok) {
-      return NextResponse.json(
-        { error: "Activity logs are only available in the Admin Dashboard" },
-        { status: 403 },
-      );
+      return NextResponse.json({ error: adminCheck.error }, { status: 403 });
     }
 
-    const limitParam = Number(request.nextUrl.searchParams.get("limit") || "50");
-    const limit = Number.isFinite(limitParam) ? Math.min(Math.max(limitParam, 1), 200) : 50;
+    const params = request.nextUrl.searchParams;
+    const supabase = createWritableSupabaseClient(accessToken);
 
     const { data, error } = await queryActivityLogs(supabase, {
-      limit,
-      userId: user.id,
+      limit: Number(params.get("limit") || "50"),
+      userId: params.get("user_id"),
+      actionType: params.get("action_type"),
+      since: params.get("since"),
     });
 
     if (error) {
       return NextResponse.json({ error }, { status: 400 });
     }
 
-    return NextResponse.json({ events: data.map(formatActivityLogForAdmin) });
+    return NextResponse.json({
+      events: data.map(formatActivityLogForAdmin),
+    });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Failed to fetch activity";
+    const message = error instanceof Error ? error.message : "Failed to fetch admin activity";
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

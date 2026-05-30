@@ -108,6 +108,7 @@ export async function fetchPreviewTemplates({
   tone,
   keyMessage,
   imageUrls = [],
+  placement,
 }) {
   const stripUrls = platform === "meta_ads" || platform === "google_ads";
   const safeUrls = (imageUrls || []).filter(Boolean);
@@ -123,6 +124,7 @@ export async function fetchPreviewTemplates({
       goal,
       tone,
       keyMessage,
+      placement,
       imageUrls: stripUrls ? [] : safeUrls,
       imageCount: stripUrls ? safeUrls.length : undefined,
     }),

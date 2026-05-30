@@ -13,10 +13,6 @@ export default function AnalyzerOverview({
 }) {
   if (!overview) return null;
 
-  const isMeta = platform === "meta_ads";
-  const isGoogle = platform === "google_ads";
-  const isProgrammatic = platform === "programmatic";
-
   return (
     <div className="space-y-5">
       <div className="rounded-2xl border border-slate-200 bg-gradient-to-br from-slate-50 to-white p-5">
@@ -29,7 +25,7 @@ export default function AnalyzerOverview({
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <StatCard label="Total Creatives" value={overview.totalCount} />
-        <StatCard label="Launch Ready" value={overview.readyCount} accent="emerald" />
+        <StatCard label="Aligned / Launch Ready" value={overview.readyCount} accent="emerald" />
         <StatCard label="Needs Review" value={overview.reviewCount} accent="amber" />
         <StatCard label="Misaligned" value={overview.misalignedCount} accent="red" />
       </div>
@@ -60,46 +56,21 @@ export default function AnalyzerOverview({
         )}
       </section>
 
-      <section className="rounded-xl border border-slate-200 bg-white p-4 overflow-x-auto">
-        <h4 className="text-sm font-semibold text-slate-900 mb-3">Placement Compatibility</h4>
-        <table className="w-full min-w-[520px] text-sm border-collapse">
-          <thead>
-            <tr className="border-b border-slate-200">
-              <th className="text-left py-2 pr-3 text-[10px] font-semibold uppercase tracking-wider text-slate-600">Creative</th>
-              {overview.placementColumns.map((col) => (
-                <th key={col.id} className="text-center py-2 px-2 text-[10px] font-semibold uppercase tracking-wider text-slate-600">
-                  {col.label}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {overview.placementMatrix.map((row) => (
-              <tr key={row.name} className="border-b border-slate-100">
-                <td className="py-2.5 pr-3 font-medium text-slate-900 truncate max-w-[140px]">{row.name}</td>
-                {row.cells.map((cell) => (
-                  <td key={`${row.name}-${cell.column}`} className="text-center py-2.5 px-2 text-base" title={cell.column}>
-                    {cell.emoji}
-                  </td>
-                ))}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        {isMeta ? (
-          <p className="mt-2 text-xs text-slate-600">
-            Meta legend: 🟢 Feed/Stories/Reels ready · 🟡 usable with crop or copy edits · 🔴 wrong aspect ratio for that placement
-          </p>
-        ) : isGoogle ? (
-          <p className="mt-2 text-xs text-slate-600">
-            Google legend: 🟢 Display/YouTube/Discover/Shopping ready · 🟡 usable with crop or RDA edits · 🔴 wrong size for that GDN or video placement
-          </p>
-        ) : isProgrammatic ? (
-          <p className="mt-2 text-xs text-slate-600">
-            Programmatic legend: 🟢 Standard/Premium/Mobile/Native ready · 🟡 scale or crop edits needed · 🔴 weak for that inventory tier
-          </p>
-        ) : null}
-      </section>
+      <PlacementMatrixSection
+        title="Placement Compatibility"
+        columns={overview.placementColumns}
+        matrix={overview.placementMatrix}
+        legend={overview.placementLegend}
+      />
+
+      {overview.deviceMatrix && overview.deviceColumns?.length > 0 ? (
+        <PlacementMatrixSection
+          title="Device Compatibility"
+          columns={overview.deviceColumns}
+          matrix={overview.deviceMatrix}
+          legend={overview.placementLegend}
+        />
+      ) : null}
 
       <section className="rounded-xl border border-slate-200 bg-white p-4">
         <h4 className="text-sm font-semibold text-slate-900 mb-3">Creative QA Summary</h4>
@@ -145,6 +116,43 @@ export default function AnalyzerOverview({
         Open <span className="font-semibold text-slate-900">Creative Analysis</span> for Technical QA, placement checks, and per-creative fixes.
       </p>
     </div>
+  );
+}
+
+function PlacementMatrixSection({ title, columns, matrix, legend }) {
+  if (!columns?.length || !matrix?.length) return null;
+
+  return (
+    <section className="rounded-xl border border-slate-200 bg-white p-4 overflow-x-auto">
+      <h4 className="text-sm font-semibold text-slate-900 mb-3">{title}</h4>
+      <table className="w-full min-w-[520px] text-sm border-collapse">
+        <thead>
+          <tr className="border-b border-slate-200">
+            <th className="text-left py-2 pr-3 text-[10px] font-semibold uppercase tracking-wider text-slate-600">Creative</th>
+            {columns.map((col) => (
+              <th key={col.id} className="text-center py-2 px-2 text-[10px] font-semibold uppercase tracking-wider text-slate-600 min-w-[72px]">
+                {col.label}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {matrix.map((row) => (
+            <tr key={row.name} className="border-b border-slate-100">
+              <td className="py-2.5 pr-3 font-medium text-slate-900 truncate max-w-[140px]">{row.name}</td>
+              {row.cells.map((cell) => (
+                <td key={`${row.name}-${cell.column}`} className="text-center py-2.5 px-2 text-base" title={cell.column}>
+                  {cell.emoji}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      {legend ? (
+        <p className="mt-2 text-xs text-slate-600">{legend}</p>
+      ) : null}
+    </section>
   );
 }
 

@@ -98,10 +98,14 @@ function CreativeSelectCard({ insight, isActive, onSelect, index }) {
             <p className="mt-2 text-[11px] text-amber-900 leading-snug">
               <span className="font-semibold">Risk:</span> {insight.mainRisk}
             </p>
+          ) : insight.launchStatusKey === "ready" ? (
+            <p className="mt-2 text-[11px] text-emerald-800">No issues detected — creative is fully aligned for launch.</p>
           ) : (
-            <p className="mt-2 text-[11px] text-emerald-800">No major risks flagged.</p>
+            <p className="mt-2 text-[11px] text-amber-800">Minor recommendations available — see details below.</p>
           )}
-          <p className="mt-2 text-[11px] text-slate-800 leading-snug">{insight.recommendedFix}</p>
+          {insight.recommendedFix ? (
+            <p className="mt-2 text-[11px] text-slate-800 leading-snug">{insight.recommendedFix}</p>
+          ) : null}
         </div>
       ) : null}
     </div>
@@ -232,17 +236,19 @@ export default function AnalyzerCreativeSection({
         <QaList title={platformLabel ? `Technical QA · ${platformLabel}` : "Technical QA"} icon={Wrench} items={insight.technicalQa} accent="cyan" />
         <QaList title={platformLabel ? `Placement QA · ${platformLabel}` : "Placement QA"} icon={Target} items={insight.placementQa} accent="purple" />
 
-        <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
-          <p className="text-[10px] font-semibold uppercase tracking-wider text-amber-800 mb-1">Main Risk</p>
-          <p className="text-sm text-amber-950 leading-relaxed">
-            {insight.mainRisk || "No major risk detected for this creative."}
-          </p>
-        </div>
+        {insight.mainRisk ? (
+          <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-amber-800 mb-1">Main Risk</p>
+            <p className="text-sm text-amber-950 leading-relaxed">{insight.mainRisk}</p>
+          </div>
+        ) : null}
 
-        <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4">
-          <p className="text-[10px] font-semibold uppercase tracking-wider text-emerald-800 mb-1">Recommended Fix</p>
-          <p className="text-sm text-emerald-950 leading-relaxed">{insight.recommendedFix}</p>
-        </div>
+        {insight.recommendedFix ? (
+          <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4">
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-emerald-800 mb-1">Recommended Fix</p>
+            <p className="text-sm text-emerald-950 leading-relaxed">{insight.recommendedFix}</p>
+          </div>
+        ) : null}
       </div>
     </div>
   );

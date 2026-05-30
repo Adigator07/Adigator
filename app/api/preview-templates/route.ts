@@ -13,6 +13,12 @@ import {
   buildMetaAdsSystemPrompt,
   buildMetaAdsUserPrompt,
 } from "@/app/lib/metaAdsAnalyzerPrompt";
+import {
+  estimatePreviewTokenBudget,
+  getDefaultPreviewPlacement,
+  getEnvironmentsForPlacement,
+  getPreviewPlacement,
+} from "@/app/lib/previewPlacementRegistry";
 
 export const runtime = "nodejs";
 
@@ -104,6 +110,18 @@ export async function POST(request: NextRequest) {
 
     const stripUrls = platform === "meta_ads" || platform === "google_ads";
 
+    const placement = cleanText(
+      body?.placement,
+      getDefaultPreviewPlacement(platform) || "",
+    );
+    const placementConfig = getPreviewPlacement(platform, placement);
+    if (!placementConfig) {
+      return NextResponse.json(
+        { error: `Unknown placement "${placement}" for platform ${platform}` },
+        { status: 400 },
+      );
+    }
+
     const input = {
       brandName: cleanText(body?.brandName, "Brand"),
       vertical,
@@ -113,20 +131,25 @@ export async function POST(request: NextRequest) {
       keyMessage: cleanText(body?.keyMessage),
       imageUrls: stripUrls ? [] : imageUrls,
       imageCount: stripUrls ? imageCount : imageUrls.length,
+      placement,
     };
 
     const systemPrompt = platform === "google_ads"
-      ? buildGoogleAdsSystemPrompt()
-      : buildMetaAdsSystemPrompt();
+      ? buildGoogleAdsSystemPrompt(placement)
+      : buildMetaAdsSystemPrompt(placement);
     const userPrompt = platform === "google_ads"
       ? buildGoogleAdsUserPrompt(input)
       : buildMetaAdsUserPrompt(input);
+
+    const maxTokens = stripUrls
+      ? estimatePreviewTokenBudget(platform, placement)
+      : 8000;
 
     const client = getClient();
     const completion = await client.chat.completions.create({
       model: process.env.OPENAI_MODEL || "gpt-4o",
       temperature: stripUrls ? 0.55 : 0.7,
-      max_tokens: stripUrls ? 3500 : 8000,
+      max_tokens: maxTokens,
       response_format: { type: "json_object" },
       messages: [
         { role: "system", content: systemPrompt },
@@ -145,7 +168,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const creatives = parseCreatives(parsed, platform, vertical);
+    const allowedEnvironments = new Set(getEnvironmentsForPlacement(platform, placement));
+    const creatives = parseCreatives(parsed, platform, vertical)
+      .filter((creative) => !creative?.environment || allowedEnvironments.has(creative.environment));
     if (!creatives.length) {
       return NextResponse.json(
         { error: "No creatives generated", raw: parsed },
@@ -153,7 +178,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    return NextResponse.json({ creatives, platform, vertical });
+    return NextResponse.json({ creatives, platform, vertical, placement });
   } catch (error) {
     console.error("[preview-templates]", error);
     return NextResponse.json(

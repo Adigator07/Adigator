@@ -1,3 +1,7 @@
+import { normalizeCreativeDimensions } from "./imageDimensions";
+
+export { normalizeCreativeDimensions, readImageDimensionsFromBlob } from "./imageDimensions";
+
 export const DSP_PARTNERS = [
   "DV360",
   "The Trade Desk",
@@ -23,8 +27,8 @@ export const SUPPORTED_DISPLAY_SIZE_GROUPS = {
   ],
   mobile: ["320x50", "320x100", "300x250", "320x480", "480x320"],
   high_impact: ["970x250", "300x600", "970x90"],
-  native: ["1200x628", "1080x1080", "1080x1350", "1200x1200"],
-  responsive_native: ["1200x628", "1200x1200", "1080x1080", "960x1200", "1200x1500"],
+  native: ["1200x628", "1080x1080", "1080x1350", "1200x1200", "960x1200", "1200x1500"],
+  responsive_native: ["1200x628", "1200x1200", "1080x1080", "960x1200", "1200x1500", "1080x1350"],
   stories: ["1080x1920"],
 };
 
@@ -45,6 +49,7 @@ export const PLATFORM_SUPPORTED_SIZE_GROUPS = {
     mobile_display: SUPPORTED_DISPLAY_SIZE_GROUPS.mobile,
     high_impact_premium: SUPPORTED_DISPLAY_SIZE_GROUPS.high_impact,
     native_social_display: SUPPORTED_DISPLAY_SIZE_GROUPS.native,
+    responsive_native: SUPPORTED_DISPLAY_SIZE_GROUPS.responsive_native,
   },
 };
 
@@ -511,8 +516,126 @@ function buildUnsupportedSizeIssue(size, platformLabel) {
   };
 }
 
+function isNativeOrResponsiveSize(size, intelligence) {
+  if (intelligence?.sizeGroup === "native" || intelligence?.placementType === "native") return true;
+  const nativeSizes = new Set([
+    ...(SUPPORTED_DISPLAY_SIZE_GROUPS.native || []),
+    ...(SUPPORTED_DISPLAY_SIZE_GROUPS.responsive_native || []),
+    "1080x1350", "1080x1920",
+  ]);
+  return nativeSizes.has(size);
+}
+
+function isStandardDisplayBanner(size, intelligence) {
+  if (intelligence?.sizeGroup === "desktop" || intelligence?.sizeGroup === "mobile") return true;
+  const bannerSizes = new Set([
+    ...(SUPPORTED_DISPLAY_SIZE_GROUPS.desktop || []),
+    ...(SUPPORTED_DISPLAY_SIZE_GROUPS.mobile || []),
+  ]);
+  return bannerSizes.has(size);
+}
+
+function buildFileWeightIssues(file, platform, size, intelligence) {
+  const fileSize = file?.size || 0;
+  if (!fileSize) return [];
+
+  const fileMime = String(file?.type || "").toLowerCase();
+  const isNative = isNativeOrResponsiveSize(size, intelligence);
+  const isBanner = isStandardDisplayBanner(size, intelligence);
+
+  if (platform === "meta_ads") {
+    if (fileMime.startsWith("image/") && fileSize > 30 * 1024 * 1024) {
+      return [{
+        type: "meta_weight",
+        severity: "high",
+        message: "Image exceeds Meta image size limit (30MB).",
+        recommendation: "Compress image below 30MB and optimize for mobile loading speed.",
+        scorePenalty: 26,
+      }];
+    }
+    if (fileMime.startsWith("video/") && fileSize > 4 * 1024 * 1024 * 1024) {
+      return [{
+        type: "meta_weight",
+        severity: "high",
+        message: "Video exceeds Meta upload size limit (4GB).",
+        recommendation: "Compress video below 4GB; prioritize lightweight delivery for feed/reels performance.",
+        scorePenalty: 26,
+      }];
+    }
+    if (fileMime.startsWith("image/") && fileSize > 5 * 1024 * 1024) {
+      return [{
+        type: "mobile_delivery",
+        severity: "medium",
+        message: "Heavy image payload may reduce mobile-first engagement and thumb-stop performance.",
+        recommendation: "Export lighter assets for faster in-feed render and stronger first-second retention.",
+        scorePenalty: 10,
+      }];
+    }
+    return [];
+  }
+
+  if (isBanner && fileSize > 150 * 1024) {
+    return [{
+      type: "weight",
+      severity: "high",
+      message: "File size exceeds the 150KB limit for standard display banners.",
+      recommendation: "Compress the creative to 150KB or below before analysis.",
+      scorePenalty: 30,
+    }];
+  }
+
+  if (isNative) {
+    if (fileSize > 5 * 1024 * 1024) {
+      return [{
+        type: "weight",
+        severity: "high",
+        message: "Native asset exceeds 5MB — may fail upload or slow delivery on some platforms.",
+        recommendation: "Compress the native creative below 5MB while preserving legibility.",
+        scorePenalty: 22,
+      }];
+    }
+    if (fileSize > 150 * 1024) {
+      return [{
+        type: "weight",
+        severity: "medium",
+        message: "Native asset exceeds 150KB banner guidance but is within typical native export range.",
+        recommendation: "Optional: compress further for faster load; most native placements accept larger files.",
+        scorePenalty: 5,
+      }];
+    }
+    return [];
+  }
+
+  if (platform === "google_ads" && fileSize > 5120 * 1024) {
+    return [{
+      type: "google_weight",
+      severity: "medium",
+      message: "Asset exceeds 5MB — may fail Google Ads upload limits for some formats.",
+      recommendation: "Compress toward 150KB for banners or under 5MB for responsive/native assets.",
+      scorePenalty: 12,
+    }];
+  }
+
+  if (fileSize > 150 * 1024) {
+    return [{
+      type: "weight",
+      severity: platform === "programmatic" && !isBanner ? "medium" : "high",
+      message: platform === "programmatic"
+        ? "File size exceeds 150KB display guidance — may affect viewability scores."
+        : "File size exceeds the required 150KB limit.",
+      recommendation: "Compress the creative to 150KB or below for optimal display delivery.",
+      scorePenalty: platform === "programmatic" ? 12 : 30,
+    }];
+  }
+
+  return [];
+}
+
 export async function validateCreativeAsset({ file, image, platform }) {
-  const size = `${image?.width || 0}x${image?.height || 0}`;
+  const rawWidth = image?.width || 0;
+  const rawHeight = image?.height || 0;
+  const normalized = normalizeCreativeDimensions(rawWidth, rawHeight);
+  const size = normalized.size;
   const normalizedPlatform = platform || "programmatic";
   const platformLabel = normalizedPlatform === "google_ads"
     ? "Google Ads"
@@ -533,14 +656,19 @@ export async function validateCreativeAsset({ file, image, platform }) {
     issues.push(buildUnsupportedSizeIssue(size, platformLabel));
   }
 
-  if ((file?.size || 0) > 150 * 1024) {
-    issues.push({
-      type: "weight",
-      severity: "high",
-      message: "File size exceeds the required 150KB limit.",
-      recommendation: "Compress the creative to 150KB or below before analysis.",
-      scorePenalty: 30,
-    });
+  issues.push(...buildFileWeightIssues(file, normalizedPlatform, size, intelligence));
+
+  if (normalized.normalized && normalized.detectedWidth && normalized.detectedHeight) {
+    const detectedLabel = `${normalized.detectedWidth}x${normalized.detectedHeight}`;
+    if (detectedLabel !== size && normalized.normalizationReason?.includes("orientation")) {
+      issues.push({
+        type: "dimension_normalization",
+        severity: "medium",
+        message: `Detected ${detectedLabel} — corrected to ${size} using orientation metadata.`,
+        recommendation: "Re-export with embedded orientation or use the corrected dimensions for placement matching.",
+        scorePenalty: 0,
+      });
+    }
   }
 
   if (normalizedPlatform === "google_ads") {
@@ -565,7 +693,7 @@ export async function validateCreativeAsset({ file, image, platform }) {
       });
     }
 
-    if (rdaFit && !rdaFit.satisfiesMinimum) {
+    if (rdaFit && !rdaFit.satisfiesMinimum && !isNativeOrResponsiveSize(size, intelligence)) {
       issues.push({
         type: "rda",
         severity: "high",
@@ -584,36 +712,6 @@ export async function validateCreativeAsset({ file, image, platform }) {
         message: `${fileMime} is not in the Meta support set for V1 (JPG, PNG, GIF, MP4, MOV).`,
         recommendation: "Use JPG/PNG for static ads or MP4/MOV for video-first Meta placements.",
         scorePenalty: 35,
-      });
-    }
-
-    if ((file?.size || 0) > 30 * 1024 * 1024 && fileMime.startsWith("image/")) {
-      issues.push({
-        type: "meta_weight",
-        severity: "high",
-        message: "Image exceeds Meta image size limit (30MB).",
-        recommendation: "Compress image below 30MB and optimize for mobile loading speed.",
-        scorePenalty: 26,
-      });
-    }
-
-    if ((file?.size || 0) > 4 * 1024 * 1024 * 1024 && fileMime.startsWith("video/")) {
-      issues.push({
-        type: "meta_weight",
-        severity: "high",
-        message: "Video exceeds Meta upload size limit (4GB).",
-        recommendation: "Compress video below 4GB; prioritize lightweight delivery for feed/reels performance.",
-        scorePenalty: 26,
-      });
-    }
-
-    if ((file?.size || 0) > 5 * 1024 * 1024 && fileMime.startsWith("image/")) {
-      issues.push({
-        type: "mobile_delivery",
-        severity: "medium",
-        message: "Heavy image payload may reduce mobile-first engagement and thumb-stop performance.",
-        recommendation: "Export lighter assets for faster in-feed render and stronger first-second retention.",
-        scorePenalty: 10,
       });
     }
 
@@ -656,6 +754,14 @@ export async function validateCreativeAsset({ file, image, platform }) {
     issues,
     status: normalizeStatus(issues),
     size,
+    dimensions: {
+      width: normalized.width,
+      height: normalized.height,
+      detectedWidth: normalized.detectedWidth,
+      detectedHeight: normalized.detectedHeight,
+      normalized: normalized.normalized,
+      normalizationReason: normalized.normalizationReason || null,
+    },
     platform: normalizedPlatform,
     supportedSizes,
     supportedSizeGroups: platformGroups,
@@ -769,15 +875,17 @@ export async function revalidateCreativeForPlatform(creative, platform) {
   const dims = parseSize(creative.size);
   if (!dims) return creative;
 
+  const normalized = normalizeCreativeDimensions(dims.width, dims.height);
+
   const baseValidation = await validateCreativeAsset({
     file: creative.mimeType
       ? { type: creative.mimeType, size: Number(creative.fileSizeBytes || 0) }
       : null,
-    image: { width: dims.width, height: dims.height },
+    image: { width: normalized.width, height: normalized.height },
     platform,
   });
-  const validation = finalizeValidationForPlatform(baseValidation, platform, creative.size);
-  return applyValidationFields(creative, validation);
+  const validation = finalizeValidationForPlatform(baseValidation, platform, normalized.size);
+  return applyValidationFields({ ...creative, size: normalized.size }, validation);
 }
 
 export async function revalidateCreativesForPlatform(creatives, platform) {
@@ -814,7 +922,7 @@ function classifyMetaPlacement(size) {
   if (size === "1080x1350") return "feed_mobile_4_5";
   if (size === "1080x1080") return "feed_carousel_square";
   if (size === "1200x628") return "feed_landscape";
-  if (size === "1200x1200") return "native_assets";
+  if (size === "1200x1200" || size === "960x1200" || size === "1200x1500") return "native_assets";
   return "non_core";
 }
 

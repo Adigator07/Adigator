@@ -93,7 +93,12 @@ export function revokeCreativeObjectUrls(creative) {
 }
 
 export async function createPreviewBlob(source, maxEdge = 420) {
-  const bitmap = await createImageBitmap(source);
+  let bitmap;
+  try {
+    bitmap = await createImageBitmap(source, { imageOrientation: "from-image" });
+  } catch {
+    bitmap = await createImageBitmap(source);
+  }
   try {
     const longest = Math.max(bitmap.width, bitmap.height, 1);
     const scale = Math.min(1, maxEdge / longest);

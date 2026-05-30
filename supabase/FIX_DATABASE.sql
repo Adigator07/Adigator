@@ -89,3 +89,6 @@ notify pgrst, 'reload schema';
 
 -- IMPORTANT: Also run supabase/FIX_CONVERSATIONS_RLS.sql if you see
 -- "new row violates row-level security policy for table conversations"
+
+-- Admin-only reads on activity_logs (users can still insert via /api/activity/log):
+-- Run supabase/migrations/20260528_activity_logs_admin_only_read.sql

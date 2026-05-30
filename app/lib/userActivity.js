@@ -1,16 +1,16 @@
 /**
  * Client-side user activity logging.
- * Persists to Supabase `activity_logs` for authenticated users; local fallback for guests.
+ * Writes persist to Supabase `activity_logs` in the background for all authenticated users.
+ * Reading logs is admin-only — see app/lib/admin/activityAdmin.ts and GET /api/admin/activity.
  */
 
 export {
   LOCAL_ACTIVITY_KEY,
   getActivityAccessToken,
   trackUserActivity,
-  fetchActivityLogs,
 } from "./supabaseDataService";
 
-import { trackUserActivity, fetchActivityLogs } from "./supabaseDataService";
+import { trackUserActivity } from "./supabaseDataService";
 
 /** @deprecated Use trackUserActivity — kept for existing imports */
 export async function logUserActivity(eventType, payload = {}) {
@@ -25,7 +25,9 @@ export async function logUserActivity(eventType, payload = {}) {
   };
 }
 
-/** @deprecated Use fetchActivityLogs */
-export async function fetchUserActivity(limit = 50) {
-  return fetchActivityLogs(limit);
+/**
+ * @deprecated Activity history is admin-only. Use fetchAdminActivityLogs from ../admin/activityAdminClient.
+ */
+export async function fetchUserActivity() {
+  return [];
 }
