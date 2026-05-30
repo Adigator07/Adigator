@@ -3,6 +3,7 @@
 import { useMemo } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import type { GeneratedEnvironment, SlotType } from "@/app/lib/preview-engine/types";
+import { analyzeCreativeSlotFit, getFitNoticeMessage } from "@/app/lib/creativeFitAnalysis";
 
 export interface EnvironmentProps {
   content: GeneratedEnvironment;
@@ -137,7 +138,9 @@ export function WebsiteAdSlot({
   const [cw = targetSize.width, ch = targetSize.height] = creativeSize.split("x").map(Number);
   const sourceRatio = cw / Math.max(ch, 1);
   const slotRatio = targetSize.width / targetSize.height;
-  const useContain = Math.abs(sourceRatio - slotRatio) > 0.25 || fit === "contain";
+  const fitAnalysis = analyzeCreativeSlotFit(creativeSize, targetSize.width, targetSize.height, "cover");
+  const fitMessage = isUsingUserCreative ? getFitNoticeMessage(fitAnalysis) : null;
+  const useContain = Math.abs(sourceRatio - slotRatio) > 0.25;
 
   return (
     <div className={className} style={{ width: "100%", maxWidth: `${targetSize.width}px` }}>
@@ -167,6 +170,11 @@ export function WebsiteAdSlot({
           )}
         </AnimatePresence>
       </div>
+      {fitMessage ? (
+        <p className="mt-2 rounded-md border border-amber-500/30 bg-amber-500/10 px-2 py-1.5 text-[11px] leading-relaxed text-amber-100">
+          {fitMessage}
+        </p>
+      ) : null}
     </div>
   );
 }

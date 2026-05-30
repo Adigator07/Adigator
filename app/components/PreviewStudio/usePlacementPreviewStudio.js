@@ -14,6 +14,11 @@ import {
   getPreviewPlacement,
   getPreviewPlacementTabs,
 } from "@/app/lib/previewPlacementRegistry";
+import {
+  filterSourceCreativesByDevice,
+  getSupportedDevicesForCreative,
+  validatePreviewDeviceCompatibility,
+} from "@/app/lib/previewDeviceCompatibility";
 
 /**
  * Shared placement-aware preview studio state for Google and Meta studios.
@@ -58,6 +63,11 @@ export function usePlacementPreviewStudio({
   const deviceOptions = useMemo(
     () => getDeviceOptionsForPlacement(platform, activePlacement),
     [platform, activePlacement],
+  );
+
+  const deviceCompatibleSourceCreatives = useMemo(
+    () => filterSourceCreativesByDevice(compatibleSourceCreatives, platform, activePlacement, device),
+    [compatibleSourceCreatives, platform, activePlacement, device],
   );
 
   const templates = templateCacheRef.current[activePlacement] || [];
@@ -134,6 +144,16 @@ export function usePlacementPreviewStudio({
     [compatibleSourceCreatives, selectedSourceId],
   );
 
+  const selectedSourceDeviceValidation = useMemo(() => {
+    if (!selectedSource) return { supported: true, message: null };
+    return validatePreviewDeviceCompatibility({
+      platform,
+      placementId: activePlacement,
+      device,
+      size: selectedSource.size || selectedSource.validation?.size,
+    });
+  }, [selectedSource, platform, activePlacement, device]);
+
   const handlePlacementChange = useCallback((placementId) => {
     setActivePlacement(placementId);
   }, []);
@@ -151,8 +171,11 @@ export function usePlacementPreviewStudio({
     setDevice,
     deviceOptions,
     compatibleSourceCreatives,
+    deviceCompatibleSourceCreatives,
     selectedSource,
     selectedSourceId,
+    selectedSourceDeviceValidation,
+    getSupportedDevicesForCreative: (size) => getSupportedDevicesForCreative(platform, activePlacement, size),
     setSelectedSourceId,
     templates,
     cacheVersion,

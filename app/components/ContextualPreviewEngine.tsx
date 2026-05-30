@@ -14,6 +14,10 @@ import GamingEnvironment from "./environments/GamingEnvironment";
 import SaasEnvironment from "./environments/SaasEnvironment";
 import LuxuryEnvironment from "./environments/LuxuryEnvironment";
 import BookingEnvironment from "./environments/BookingEnvironment";
+import { analyzeCreativeSlotFit, getFitNoticeMessage } from "@/app/lib/creativeFitAnalysis";
+import { validatePreviewDeviceCompatibility } from "@/app/lib/previewDeviceCompatibility";
+import { pickPlacement, SLOT_DIMENSIONS } from "./environments/adSlotUtils";
+import { PreviewDeviceIncompatibleState } from "./PreviewStudio/PreviewShared";
 
 interface Props {
   creatives: Array<{
@@ -27,6 +31,12 @@ interface Props {
   }>;
   vertical: string;
   goal: "awareness" | "consideration" | "conversion";
+  controlledDevice?: DeviceType | null;
+  onDeviceChange?: (device: DeviceType) => void;
+  hideDeviceToggle?: boolean;
+  previewPlatform?: string;
+  previewPlacement?: string;
+  getSupportedDevicesForCreative?: (size: string) => string[];
 }
 
 const ENV_LABELS: Record<EnvironmentFamily, { label: string; icon: string; color: string }> = {
@@ -128,11 +138,23 @@ function EnvironmentRenderer({
   }
 }
 
-export default function ContextualPreviewEngine({ creatives, vertical, goal }: Props) {
+export default function ContextualPreviewEngine({
+  creatives,
+  vertical,
+  goal,
+  controlledDevice,
+  onDeviceChange,
+  hideDeviceToggle = false,
+  previewPlatform,
+  previewPlacement,
+  getSupportedDevicesForCreative,
+}: Props) {
   const [output, setOutput] = useState<PreviewEngineOutput | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [device, setDevice] = useState<DeviceType | null>(null);
+  const [internalDevice, setInternalDevice] = useState<DeviceType | null>(null);
+  const device = controlledDevice ?? internalDevice;
+  const setDevice = onDeviceChange ?? setInternalDevice;
   const [selectedEnvironment, setSelectedEnvironment] = useState<EnvironmentFamily | null>(null);
   const [activeCreativeIndex, setActiveCreativeIndex] = useState(0);
   const previewCacheRef = useRef<Map<string, PreviewEngineOutput>>(new Map());
@@ -146,9 +168,13 @@ export default function ContextualPreviewEngine({ creatives, vertical, goal }: P
   useEffect(() => {
     // Guard against stale local state from hot reloads where "tablet" was previously selected.
     if (device === "tablet") {
-      setDevice(null);
+      if (onDeviceChange) {
+        onDeviceChange("mobile");
+      } else {
+        setInternalDevice(null);
+      }
     }
-  }, [device]);
+  }, [device, onDeviceChange]);
 
   const buildCacheKey = useCallback((creative: Props["creatives"][number], envOverride: EnvironmentFamily | null = selectedEnvironment) => {
     return [vertical, goal, device ?? "unselected", envOverride ?? "auto", creative.url, creative.size].join("|");
@@ -318,22 +344,24 @@ export default function ContextualPreviewEngine({ creatives, vertical, goal }: P
               ))}
           </div>
 
-          <div className="flex items-center gap-1 bg-white/5 border border-white/10 rounded-xl p-1 ml-auto">
-            {DEVICE_OPTIONS.map((d) => (
-              <button
-                key={d.id}
-                onClick={() => setDevice(d.id)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1 ${
-                  device === d.id
-                    ? "bg-white/15 text-white"
-                    : "text-gray-400 hover:text-white hover:bg-white/5"
-                }`}
-                title={d.label}
-              >
-                {d.icon} <span className="hidden sm:inline">{d.label}</span>
-              </button>
-            ))}
-          </div>
+          {!hideDeviceToggle ? (
+            <div className="flex items-center gap-1 bg-white/5 border border-white/10 rounded-xl p-1 ml-auto">
+              {DEVICE_OPTIONS.map((d) => (
+                <button
+                  key={d.id}
+                  onClick={() => setDevice(d.id)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1 ${
+                    device === d.id
+                      ? "bg-white/15 text-white"
+                      : "text-gray-400 hover:text-white hover:bg-white/5"
+                  }`}
+                  title={d.label}
+                >
+                  {d.icon} <span className="hidden sm:inline">{d.label}</span>
+                </button>
+              ))}
+            </div>
+          ) : null}
         </div>
 
         <div className="rounded-2xl border border-white/10 bg-white/5 p-6 text-center">
@@ -349,6 +377,24 @@ export default function ContextualPreviewEngine({ creatives, vertical, goal }: P
   const { previewDecision, creativeMapping } = output;
   const slotLabel = SLOT_LABELS[creativeMapping?.slotType] || "Strategic Placement";
   const templateLabel = TEMPLATE_LABELS[previewDecision?.primaryTemplate] || "Strategic Template";
+  const activePlacementKey = activeCreative
+    ? pickPlacement(activeCreative.size, creativeMapping?.slotType)
+    : null;
+  const slotDims = activePlacementKey ? SLOT_DIMENSIONS[activePlacementKey] : null;
+  const templateFitMessage = activeCreative && slotDims
+    ? getFitNoticeMessage(analyzeCreativeSlotFit(activeCreative.size, slotDims.width, slotDims.height, "cover"))
+    : null;
+
+  const deviceValidation = previewPlatform && previewPlacement && activeCreative && device
+    ? validatePreviewDeviceCompatibility({
+        platform: previewPlatform,
+        placementId: previewPlacement,
+        device,
+        size: activeCreative.size,
+      })
+    : { supported: true, message: null };
+
+  const alternateDevice = device === "mobile" ? "desktop" : "mobile";
 
   return (
     <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
@@ -376,22 +422,24 @@ export default function ContextualPreviewEngine({ creatives, vertical, goal }: P
             ))}
         </div>
 
-        <div className="flex items-center gap-1 bg-white/5 border border-white/10 rounded-xl p-1 ml-auto">
-          {DEVICE_OPTIONS.map((d) => (
-            <button
-              key={d.id}
-              onClick={() => setDevice(d.id)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1 ${
-                device === d.id
-                  ? "bg-white/15 text-white"
-                  : "text-gray-400 hover:text-white hover:bg-white/5"
-              }`}
-              title={d.label}
-            >
-              {d.icon} <span className="hidden sm:inline">{d.label}</span>
-            </button>
-          ))}
-        </div>
+        {!hideDeviceToggle ? (
+          <div className="flex items-center gap-1 bg-white/5 border border-white/10 rounded-xl p-1 ml-auto">
+            {DEVICE_OPTIONS.map((d) => (
+              <button
+                key={d.id}
+                onClick={() => setDevice(d.id)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1 ${
+                  device === d.id
+                    ? "bg-white/15 text-white"
+                    : "text-gray-400 hover:text-white hover:bg-white/5"
+                }`}
+                title={d.label}
+              >
+                {d.icon} <span className="hidden sm:inline">{d.label}</span>
+              </button>
+            ))}
+          </div>
+        ) : null}
 
         <button
           onClick={() => activeCreative && fetchPreview(activeCreative, true, selectedEnvironment)}
@@ -508,6 +556,8 @@ export default function ContextualPreviewEngine({ creatives, vertical, goal }: P
               {creatives.map((creative, index) => {
                 const expectedSlot = getExpectedSlotForSize(creative.size);
                 const isSupported = Boolean(expectedSlot);
+                const supportedDevices = getSupportedDevicesForCreative?.(creative.size) || [];
+                const deviceSupported = !device || supportedDevices.includes(device);
 
                 return (
                   <button
@@ -526,6 +576,9 @@ export default function ContextualPreviewEngine({ creatives, vertical, goal }: P
                         {isSupported ? `aligned: ${expectedSlot}` : "fallback"}
                       </span>
                     </div>
+                    {!deviceSupported && supportedDevices.length ? (
+                      <p className="mt-1 text-[10px] text-amber-300">{supportedDevices.join("/")} only</p>
+                    ) : null}
                   </button>
                 );
               })}
@@ -547,6 +600,15 @@ export default function ContextualPreviewEngine({ creatives, vertical, goal }: P
           </div>
 
           <div className="flex-1 min-w-0">
+            {!deviceValidation.supported ? (
+              <PreviewDeviceIncompatibleState
+                message={deviceValidation.message || undefined}
+                device={device || "desktop"}
+                creativeSize={activeCreative.size}
+                alternateDevice={alternateDevice}
+                onSwitchDevice={onDeviceChange ? () => onDeviceChange(alternateDevice) : undefined}
+              />
+            ) : (
             <AnimatePresence mode="wait">
               <motion.div
                 key={`${currentEnv}-${device}`}
@@ -563,8 +625,14 @@ export default function ContextualPreviewEngine({ creatives, vertical, goal }: P
                   creativeSize={activeCreative.size}
                   device={device}
                 />
+                {templateFitMessage ? (
+                  <div className="mx-4 mb-4 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs leading-relaxed text-amber-100">
+                    {templateFitMessage}
+                  </div>
+                ) : null}
               </motion.div>
             </AnimatePresence>
+            )}
           </div>
         </div>
       </div>

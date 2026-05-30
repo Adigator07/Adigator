@@ -128,6 +128,38 @@ export function PreviewErrorState({ message, onRetry }) {
   );
 }
 
+export function PreviewDeviceIncompatibleState({
+  title = undefined,
+  message,
+  device,
+  creativeSize,
+  onSwitchDevice,
+  alternateDevice,
+}) {
+  const deviceLabel = device === "desktop" ? "Desktop" : "Mobile";
+  return (
+    <div className="flex flex-col items-center justify-center py-16 text-center rounded-2xl border border-amber-500/25 bg-amber-500/5">
+      <span className="text-3xl mb-3">⚠️</span>
+      <p className="text-amber-100 font-semibold max-w-lg">
+        {title || `Not supported for ${deviceLabel} placements`}
+      </p>
+      <p className="text-amber-200/80 text-sm mt-2 max-w-md leading-relaxed">{message}</p>
+      {creativeSize ? (
+        <p className="mt-3 text-[11px] font-mono text-amber-300/60">Creative size: {creativeSize}</p>
+      ) : null}
+      {onSwitchDevice && alternateDevice ? (
+        <button
+          type="button"
+          onClick={() => onSwitchDevice(alternateDevice)}
+          className="mt-5 rounded-lg border border-amber-400/40 bg-amber-500/15 px-4 py-2 text-sm font-semibold text-amber-100 hover:bg-amber-500/25"
+        >
+          Switch to {alternateDevice === "desktop" ? "Desktop" : "Mobile"} view
+        </button>
+      ) : null}
+    </div>
+  );
+}
+
 export function StudioTabBar({ tabs, activeTab, onChange }) {
   return (
     <div className="flex flex-wrap gap-2">

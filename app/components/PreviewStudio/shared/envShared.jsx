@@ -1,17 +1,48 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Copy, Pencil, RefreshCw } from "lucide-react";
 import { calculateScale, formatScaleLabel } from "@/app/lib/scalingEngine";
+import {
+  analyzeAspectRatioFit,
+  analyzeCreativeSlotFit,
+  getCreativeSourceSize,
+  getFitNoticeMessage,
+} from "@/app/lib/creativeFitAnalysis";
+import { getDeviceFrame } from "./previewDeviceLayouts";
+
+export function TemplateFitNotice({ message, className = "" }) {
+  if (!message) return null;
+  return (
+    <p className={`mt-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs leading-relaxed text-amber-100 ${className}`}>
+      {message}
+    </p>
+  );
+}
 
 /** Fixed-ratio container so uploaded creatives always fill placements cleanly. */
-export function MediaFrame({ creative, aspectRatio = "1 / 1", className = "", fit = "cover" }) {
+export function MediaFrame({
+  creative,
+  aspectRatio = "1 / 1",
+  className = "",
+  fit = "cover",
+  showFitNotice = true,
+}) {
+  const fitAnalysis = useMemo(
+    () => analyzeAspectRatioFit(getCreativeSourceSize(creative), aspectRatio, fit),
+    [creative, aspectRatio, fit],
+  );
+  const fitMessage = showFitNotice ? getFitNoticeMessage(fitAnalysis) : null;
+
   return (
-    <div
-      className={`relative w-full overflow-hidden bg-gray-100 ${className}`}
-      style={{ aspectRatio }}
-    >
-      <AdImage creative={creative} className="absolute inset-0" fit={fit} />
+    <div>
+      <div
+        className={`relative w-full overflow-hidden bg-gray-100 ${className}`}
+        style={{ aspectRatio }}
+      >
+        <AdImage creative={creative} className="absolute inset-0" fit={fitAnalysis.fitMode || fit} />
+      </div>
+      <TemplateFitNotice message={fitMessage} />
     </div>
   );
 }
@@ -50,7 +81,15 @@ export function DisplayAdSlot({
   label,
   showAd = true,
   className = "",
+  showFitNotice = true,
 }) {
+  const fitAnalysis = useMemo(
+    () => analyzeCreativeSlotFit(getCreativeSourceSize(creative), width, height, "cover"),
+    [creative, width, height],
+  );
+  const fitMessage = showAd && showFitNotice ? getFitNoticeMessage(fitAnalysis) : null;
+  const sourceSize = getCreativeSourceSize(creative);
+
   if (!showAd) {
     return (
       <div className={className}>
@@ -70,16 +109,17 @@ export function DisplayAdSlot({
       {label ? (
         <p className="text-[10px] uppercase tracking-wide text-gray-400 mb-1">
           {label}
-          {creative?.size ? ` · ${creative.size}` : ""}
+          {sourceSize ? ` · ${sourceSize}` : creative?.size ? ` · ${creative.size}` : ""}
         </p>
       ) : null}
       <div
         className="relative overflow-hidden border border-[#dadce0] bg-white shadow-sm"
         style={{ width, height, maxWidth: "100%" }}
       >
-        <AdImage creative={creative} className="absolute inset-0" />
+        <AdImage creative={creative} className="absolute inset-0" fit={fitAnalysis.fitMode || "cover"} />
         <AdChoicesMark className="absolute top-1 right-1 rounded bg-white/90 px-1" />
       </div>
+      <TemplateFitNotice message={fitMessage} />
     </div>
   );
 }
@@ -169,10 +209,15 @@ export function EnvironmentPreviewCard({
   platformBadge,
   badgeClassName = "bg-blue-500/20 text-blue-200 border-blue-400/30",
   scaleLabel,
+  deviceMode,
+  fitNotice,
   onCopy,
   onEdit,
   children,
 }) {
+  const sourceSize = getCreativeSourceSize(creative);
+  const deviceLabel = deviceMode === "desktop" ? "Desktop view" : deviceMode === "mobile" ? "Mobile view" : null;
+
   return (
     <article className="rounded-2xl border border-white/10 bg-[#0b1020] overflow-hidden shadow-2xl">
       <div className="flex items-center justify-between gap-3 border-b border-white/10 px-4 py-3 bg-black/30">
@@ -180,7 +225,12 @@ export function EnvironmentPreviewCard({
           <span className={`rounded-full border px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${badgeClassName}`}>
             {platformBadge || creative.placement}
           </span>
-          {creative.size ? (
+          {deviceLabel ? (
+            <span className="text-[10px] text-cyan-300/80">{deviceLabel}</span>
+          ) : null}
+          {sourceSize ? (
+            <span className="text-[10px] font-mono text-gray-400">{sourceSize}</span>
+          ) : creative.size ? (
             <span className="text-[10px] font-mono text-gray-400">{creative.size}</span>
           ) : null}
           {scaleLabel ? (
@@ -200,7 +250,10 @@ export function EnvironmentPreviewCard({
           ) : null}
         </div>
       </div>
-      <div className="p-3 sm:p-4 bg-[#111827]/40">{children}</div>
+      <div className="p-3 sm:p-4 bg-[#111827]/40">
+        {children}
+        <TemplateFitNotice message={fitNotice} />
+      </div>
     </article>
   );
 }
@@ -271,5 +324,67 @@ export function PhoneFrame({ width = 390, height = 820, children, className = ""
     >
       {children}
     </div>
+  );
+}
+
+export function DesktopBrowserFrame({ width = 1280, height = 820, children, className = "", style = {} }) {
+  return (
+    <div
+      className={`mx-auto overflow-hidden rounded-xl border border-gray-700 bg-[#1c1f27] shadow-2xl ${className}`}
+      style={{ width, maxWidth: "100%", ...style }}
+    >
+      <div className="flex items-center gap-2 border-b border-white/10 px-4 py-2.5">
+        <div className="flex gap-1.5">
+          <div className="h-3 w-3 rounded-full bg-red-500/70" />
+          <div className="h-3 w-3 rounded-full bg-yellow-500/70" />
+          <div className="h-3 w-3 rounded-full bg-green-500/70" />
+        </div>
+        <div className="flex-1 rounded-lg border border-white/10 bg-white/5 px-3 py-1 text-[11px] text-gray-400 font-mono truncate">
+          https://preview.adigator.app/placement
+        </div>
+      </div>
+      <div className="overflow-hidden bg-white" style={{ height }}>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+export function ScaledDeviceEnvironment({
+  deviceMode,
+  mobile,
+  desktop,
+  forceMobile = false,
+  onScaleChange,
+  children,
+  className = "",
+}) {
+  const frame = getDeviceFrame(deviceMode, { mobile, desktop, forceMobile });
+
+  return (
+    <ScaledEnvironment
+      naturalWidth={frame.width}
+      naturalHeight={frame.height}
+      onScaleChange={onScaleChange}
+      className={className}
+    >
+      {typeof children === "function" ? children(frame) : children}
+    </ScaledEnvironment>
+  );
+}
+
+export function DeviceChrome({ isMobile, width, height, children, className = "", style = {} }) {
+  if (isMobile) {
+    return (
+      <PhoneFrame width={width} height={height} className={className} style={style}>
+        {children}
+      </PhoneFrame>
+    );
+  }
+
+  return (
+    <DesktopBrowserFrame width={width} height={height} className={className} style={style}>
+      {children}
+    </DesktopBrowserFrame>
   );
 }

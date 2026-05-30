@@ -92,10 +92,12 @@ export function dedupeTemplatesByEnvironment(creatives) {
 export function applySourceCreativeToTemplates(templates, sourceCreative) {
   if (!sourceCreative || !Array.isArray(templates)) return templates;
   const imageUrl = sourceCreative.url || sourceCreative.fullUrl || sourceCreative.imageUrl || "";
+  const sourceCreativeSize = sourceCreative.size || sourceCreative.validation?.size || "";
   return templates.map((template) => ({
     ...template,
     imageUrl: imageUrl || template.imageUrl,
     pageName: template.pageName || sourceCreative.name || "Brand",
+    sourceCreativeSize: sourceCreativeSize || template.size || "",
   }));
 }
 

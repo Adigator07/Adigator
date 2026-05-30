@@ -2,6 +2,7 @@
 
 import { Brain, Eye, Target, Wrench } from "lucide-react";
 import { qaItemIcon } from "@/app/lib/analyzerInsights";
+import AnalyzerCreativeThumbnail from "./AnalyzerCreativeThumbnail";
 
 function AlignmentBadge({ isAligned }) {
   if (isAligned === true) {
@@ -59,7 +60,7 @@ function QaList({ title, icon: Icon, items, accent = "cyan" }) {
   );
 }
 
-function CreativeSelectCard({ insight, isActive, onSelect, index }) {
+function CreativeSelectCard({ insight, isActive, onSelect, index, previewUrl }) {
   return (
     <div className="space-y-0">
       <button
@@ -72,14 +73,12 @@ function CreativeSelectCard({ insight, isActive, onSelect, index }) {
         }`}
       >
         <div className="flex items-start gap-2.5">
-          {insight.creativeUrl ? (
-            <div className="relative flex-shrink-0 w-14 h-12 rounded-md overflow-hidden border border-slate-200 bg-slate-100">
-              <img src={insight.creativeUrl} alt={insight.creativeName} className="w-full h-full object-cover" />
-              <span className="absolute bottom-0 inset-x-0 bg-black/70 text-[9px] text-center text-white py-0.5">
-                {insight.launchStatus.emoji}
-              </span>
-            </div>
-          ) : null}
+          <AnalyzerCreativeThumbnail
+            creativeId={insight.creativeId}
+            src={previewUrl || insight.creativeUrl}
+            alt={insight.creativeName}
+            badge={insight.launchStatus.emoji}
+          />
           <div className="flex-1 min-w-0">
             <p className="text-[10px] font-semibold text-slate-500">#{index + 1}</p>
             <p className="truncate text-xs font-semibold text-slate-900">{insight.creativeName}</p>
@@ -116,6 +115,7 @@ export default function AnalyzerCreativeSection({
   insights,
   selectedInsight,
   onSelectCreative,
+  creativePreviewById,
   labelGoal,
   labelVertical,
   campaignGoal,
@@ -142,6 +142,7 @@ export default function AnalyzerCreativeSection({
             key={item.creativeId}
             insight={item}
             index={index}
+            previewUrl={creativePreviewById?.get(item.creativeId)}
             isActive={item.creativeId === insight.creativeId}
             onSelect={() => onSelectCreative(item.creativeId)}
           />

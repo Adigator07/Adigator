@@ -18,6 +18,7 @@ export default function FacebookFeedDesktopEnvironment({ creative, deviceMode, o
       platformBadge="Facebook Feed · Desktop"
       badgeClassName="bg-[#1877F2]/20 text-blue-100 border-blue-400/30"
       scaleLabel={scaleLabel}
+      deviceMode={deviceMode}
       onCopy={onCopy}
       onEdit={onEdit}
     >

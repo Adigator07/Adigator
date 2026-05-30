@@ -11,7 +11,8 @@ import { parseSize } from "@/app/components/PreviewStudio/previewUtils";
 
 export default function FallbackEnvironment({ creative, deviceMode, onCopy, onEdit }) {
   const [scaleLabel, setScaleLabel] = useState(null);
-  const dims = parseSize(creative.size) || { width: 300, height: 250, label: "300x250" };
+  const sourceSize = creative.sourceCreativeSize || creative.size;
+  const dims = parseSize(sourceSize) || { width: 300, height: 250, label: "300x250" };
 
   return (
     <EnvironmentPreviewCard
@@ -19,6 +20,7 @@ export default function FallbackEnvironment({ creative, deviceMode, onCopy, onEd
       platformBadge={creative.placement || "Ad Preview"}
       badgeClassName="bg-gray-500/20 text-gray-100 border-gray-400/30"
       scaleLabel={scaleLabel}
+      deviceMode={deviceMode}
       onCopy={onCopy}
       onEdit={onEdit}
     >

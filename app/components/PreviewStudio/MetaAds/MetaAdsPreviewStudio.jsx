@@ -3,11 +3,13 @@
 import { useMemo } from "react";
 import {
   DeviceToggle,
+  PreviewDeviceIncompatibleState,
   PreviewEmptyState,
   PreviewErrorState,
   PreviewLoadingState,
   StudioTabBar,
 } from "../PreviewShared";
+import { CompatibleCreativePicker } from "../CompatibleCreativePicker";
 import { StudioToolbar } from "../shared/envShared";
 import { applySourceCreativeToTemplates } from "../previewUtils";
 import { renderEnvironmentCreative } from "@/app/lib/environmentRegistry";
@@ -48,6 +50,8 @@ export default function MetaAdsPreviewStudio({
     compatibleSourceCreatives,
     selectedSource,
     selectedSourceId,
+    selectedSourceDeviceValidation,
+    getSupportedDevicesForCreative,
     setSelectedSourceId,
     templates,
     loading,
@@ -60,8 +64,7 @@ export default function MetaAdsPreviewStudio({
   const creativesForSelectedSource = useMemo(() => {
     const base = filterCreativesByVertical(templates, vertical);
     const scoped = filterTemplatesByPlacement(base);
-    const withImage = applySourceCreativeToTemplates(scoped, selectedSource);
-    return withImage;
+    return applySourceCreativeToTemplates(scoped, selectedSource);
   }, [templates, vertical, selectedSource, filterCreativesByVertical, filterTemplatesByPlacement]);
 
   const handlers = useMemo(
@@ -70,6 +73,8 @@ export default function MetaAdsPreviewStudio({
   );
 
   const showDeviceToggle = deviceOptions.length > 1;
+  const alternateDevice = deviceOptions.find((option) => option.id !== device)?.id;
+  const canPreview = selectedSourceDeviceValidation.supported;
 
   if (loading && !templates.length) {
     return <PreviewLoadingState label={`Building ${activePlacementConfig?.label || "Meta Ads"} previews…`} />;
@@ -86,50 +91,16 @@ export default function MetaAdsPreviewStudio({
         <p className="text-xs text-gray-500 -mt-2">{activePlacementConfig.description}</p>
       ) : null}
 
-      {sourceCreatives.length > 0 ? (
-        <div className="rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3">
-          <p className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-2">
-            Compatible creatives
-          </p>
-          {compatibleSourceCreatives.length ? (
-            <>
-              <div className="flex flex-wrap gap-2">
-                {compatibleSourceCreatives.map((creative) => {
-                  const active = creative.id === selectedSourceId;
-                  return (
-                    <button
-                      key={creative.id}
-                      type="button"
-                      onClick={() => setSelectedSourceId(creative.id)}
-                      className={`inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-xs font-semibold transition ${
-                        active
-                          ? "border-cyan-400/50 bg-cyan-500/15 text-cyan-100"
-                          : "border-white/10 bg-white/5 text-gray-300 hover:border-white/20"
-                      }`}
-                    >
-                      {creative.url ? (
-                        <img src={creative.url} alt="" className="h-8 w-8 rounded object-cover" />
-                      ) : null}
-                      <span className="truncate max-w-[120px]">{creative.name || "Creative"}</span>
-                      {creative.size ? (
-                        <span className="font-mono text-[10px] text-gray-500">{creative.size}</span>
-                      ) : null}
-                    </button>
-                  );
-                })}
-              </div>
-              <p className="mt-2 text-[11px] text-gray-500">
-                Showing {selectedSource?.name || "selected creative"} in {activePlacementConfig?.label} placements.
-              </p>
-            </>
-          ) : (
-            <PreviewEmptyState
-              title="No compatible creatives for this placement"
-              description={`Upload a creative matching ${activePlacementConfig?.label} sizes (e.g. ${(activePlacementConfig?.compatibleSizes || []).slice(0, 3).join(", ")})`}
-            />
-          )}
-        </div>
-      ) : null}
+      <CompatibleCreativePicker
+        sourceCreatives={sourceCreatives}
+        compatibleCreatives={compatibleSourceCreatives}
+        selectedSourceId={selectedSourceId}
+        onSelect={setSelectedSourceId}
+        activePlacementLabel={activePlacementConfig?.label || "this placement"}
+        selectedSource={selectedSource}
+        getSupportedDevicesForCreative={getSupportedDevicesForCreative}
+        activeDevice={device}
+      />
 
       <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
         {showDeviceToggle ? (
@@ -142,7 +113,7 @@ export default function MetaAdsPreviewStudio({
           <div />
         )}
         <StudioToolbar
-          count={creativesForSelectedSource.length}
+          count={canPreview ? creativesForSelectedSource.length : 0}
           device={device}
           onRegenerate={loadTemplates}
           isRegenerating={loading}
@@ -160,10 +131,18 @@ export default function MetaAdsPreviewStudio({
             ? "Try regenerating templates or switch placement."
             : "Upload a compatible creative size for this placement."}
         />
+      ) : !canPreview ? (
+        <PreviewDeviceIncompatibleState
+          message={selectedSourceDeviceValidation.message}
+          device={device}
+          creativeSize={selectedSource?.size || selectedSource?.validation?.size}
+          alternateDevice={alternateDevice}
+          onSwitchDevice={alternateDevice ? setDevice : undefined}
+        />
       ) : (
         <div className="grid grid-cols-1 gap-8">
           {creativesForSelectedSource.map((creative) => (
-            <div key={`${selectedSourceId}-${creative.id}-${creative.environment}`}>
+            <div key={`${selectedSourceId}-${creative.id}-${creative.environment}-${device}`}>
               {renderEnvironmentCreative(creative, handlers, device)}
             </div>
           ))}

@@ -62,6 +62,7 @@ export default function FacebookFeedEnvironment({ creative, deviceMode, onCopy, 
       platformBadge="Facebook Feed"
       badgeClassName="bg-[#1877F2]/20 text-blue-100 border-blue-400/30"
       scaleLabel={scaleLabel}
+      deviceMode={deviceMode}
       onCopy={onCopy}
       onEdit={onEdit}
     >

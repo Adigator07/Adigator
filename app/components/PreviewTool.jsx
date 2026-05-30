@@ -117,9 +117,9 @@ function clampStep(value) {
 }
 import {
   UploadCloud, CheckCircle2, XCircle, AlertCircle,
-  Download, LayoutGrid, Square, CheckSquare,
+  Download, LayoutGrid, Square, CheckSquare, RotateCcw,
   Newspaper, ShoppingCart, Coffee, Activity, Laptop, Briefcase, GraduationCap, Gamepad2, Film,
-  Monitor, Smartphone
+  Monitor, Smartphone,
 } from "lucide-react";
 
 // ── Toast Component ──────────────────────────────────────────
@@ -1041,6 +1041,65 @@ export default function PreviewTool() {
     }, { dedupeKey: `nav-back-${step}-${prevStep}` });
     router.push(`${pathname}?step=${prevStep}`, { scroll: true });
   }, [step, router, pathname, platform, campaignGoal, campaignVertical, campaignAudienceStage]);
+
+  const handleStartNewAnalysis = useCallback(() => {
+    const currentCreatives = creativesRef.current;
+    currentCreatives.forEach((creative) => revokeCreativeObjectUrls(creative));
+    void Promise.all(currentCreatives.map((creative) => deleteCreativeAssets(creative.id)));
+
+    setCreatives([]);
+    setPlatform(null);
+    setCampaignGoal(null);
+    setCampaignVertical(null);
+    setCampaignAudienceStage("cold");
+    setAnalysisResult(null);
+    setAnalysisLoading(false);
+    setAnalysisSessionId(null);
+    setEditModalCreative(null);
+    setEditingId(null);
+    setEditingName("");
+    setOriginalBackups({});
+    setCompressingCreativeIds([]);
+    setTargetSizeByCreative({});
+    setIsBulkCompressing(false);
+    setBulkCompressProgress({ current: 0, total: 0 });
+    setViewMode("multiple");
+    setShowSlotLabels(false);
+    setIsHydratingCreatives(false);
+    setIsExporting(false);
+
+    sessionInitRef.current = false;
+    lastSessionPayloadRef.current = null;
+
+    localStorage.removeItem("adigator_platform");
+    localStorage.removeItem("adigator_goal");
+    localStorage.removeItem("adigator_vertical");
+    localStorage.removeItem("adigator_audience_stage");
+    localStorage.removeItem(ANALYSIS_SESSION_STORAGE_KEY);
+
+    try {
+      writeStoredWorkflow({
+        step: 1,
+        creatives: [],
+        viewMode: "multiple",
+        showSlotLabels: false,
+      });
+      writeStoredAnalysisResult(null);
+    } catch {
+      // Keep going — runtime state is already cleared.
+    }
+
+    void trackUserActivity("button_click", {
+      action_label: "Start new analysis",
+      platform,
+      campaign_goal: campaignGoal,
+      vertical: campaignVertical,
+      metadata: { action: "start_new_analysis", from_step: step },
+    }, { dedupeKey: "start-new-analysis" });
+
+    addToast("Session cleared. Starting a new analysis.", "success");
+    router.push(`${pathname}?step=1`, { scroll: true });
+  }, [addToast, pathname, router, step, platform, campaignGoal, campaignVertical]);
 
   useEffect(() => {
     if (!mountRef.current) return;
@@ -2396,6 +2455,7 @@ export default function PreviewTool() {
                     campaignVertical={campaignVertical}
                     platform={platform}
                     viewerName={viewerName}
+                    creatives={validCreatives}
                     onDownloadReport={handleDownloadReport}
                   />
                 </>

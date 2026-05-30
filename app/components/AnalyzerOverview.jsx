@@ -4,6 +4,13 @@ import { motion } from "framer-motion";
 import { AlertTriangle, CheckCircle, Shield } from "lucide-react";
 import { qaItemIcon } from "@/app/lib/analyzerInsights";
 
+function getPlacementCompatibilityTitle(platform) {
+  if (platform === "google_ads") return "Google Ads Placement Compatibility";
+  if (platform === "meta_ads") return "Meta Ads Placement Compatibility";
+  if (platform === "programmatic") return "Programmatic Ads Placement Compatibility";
+  return "Placement Compatibility";
+}
+
 export default function AnalyzerOverview({
   overview,
   greetingName,
@@ -57,7 +64,7 @@ export default function AnalyzerOverview({
       </section>
 
       <PlacementMatrixSection
-        title="Placement Compatibility"
+        title={getPlacementCompatibilityTitle(platform)}
         columns={overview.placementColumns}
         matrix={overview.placementMatrix}
         legend={overview.placementLegend}

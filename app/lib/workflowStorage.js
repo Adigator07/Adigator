@@ -84,4 +84,12 @@ export function writeStoredAnalysisResult(analysisResult) {
   localStorage.setItem(ANALYSIS_STORAGE_KEY, JSON.stringify(analysisResult));
 }
 
+/** Clear all persisted workflow and analysis state for a fresh session. */
+export function clearStoredWorkflow() {
+  if (typeof window === "undefined") return;
+  localStorage.removeItem(WORKFLOW_STORAGE_KEY);
+  localStorage.removeItem(ANALYSIS_STORAGE_KEY);
+  refreshWorkflowCache(null, {});
+}
+
 export { WORKFLOW_STORAGE_KEY, ANALYSIS_STORAGE_KEY };
