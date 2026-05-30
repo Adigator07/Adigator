@@ -5,10 +5,13 @@ import Link from "next/link";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import {
   MARKETING_CTA,
+  MARKETING_DEMO_VIDEO,
   MARKETING_FOOTER_COLUMNS,
   MARKETING_NAV_LINKS,
   MARKETING_PARTNER_BADGES,
+  MARKETING_SIGN_IN,
 } from "@/app/lib/siteNavigation";
+import MarketingNav from "@/app/components/MarketingNav";
 
 const ROTATING_WORDS = ["analysis", "validation", "preview", "optimization"];
 
@@ -96,38 +99,8 @@ export default function HomePage() {
   const moduleCards = useMemo(() => [...CASE_STUDIES, ...CASE_STUDIES], []);
 
   return (
-    <div className="min-h-screen scroll-smooth bg-[#F5F5F0] text-[#0D0D0D]">
-      <nav
-        className={`fixed inset-x-0 top-0 z-50 transition-all duration-300 ${
-          scrolled
-            ? "bg-[#F5F5F0]/95 py-3 shadow-[0_8px_25px_rgba(15,23,42,0.08)] backdrop-blur"
-            : "bg-transparent py-6"
-        }`}
-      >
-        <div className="mx-auto flex w-[min(1280px,92vw)] items-center justify-between">
-          <Link href="/" className="text-2xl font-black tracking-tight">
-            Adigator
-          </Link>
-
-          <div className="hidden items-center gap-10 md:flex">
-            {MARKETING_NAV_LINKS.map((item) => (
-              <div key={item.href} className="group relative cursor-pointer text-sm font-semibold text-[#1E1E1E]">
-                <Link href={item.href} className="inline-flex items-center gap-1">
-                  {item.label}
-                  <span className="text-xs text-[#4D4D4D]">▾</span>
-                </Link>
-                <div className="pointer-events-none absolute left-1/2 top-8 hidden w-44 -translate-x-1/2 rounded-xl border border-[#D9D9D1] bg-white p-3 text-xs text-[#525252] shadow-lg group-hover:block">
-                  {item.hint}
-                </div>
-              </div>
-            ))}
-          </div>
-
-          <Link href={MARKETING_CTA.href} className="saas-hover rounded-full border border-[#B9DA4A] bg-[#C8F04D] px-6 py-3 text-sm font-semibold text-[#0D0D0D] shadow-[0_8px_24px_rgba(200,240,77,0.35)] transition hover:bg-[#D4F46A]">
-            {MARKETING_CTA.label}
-          </Link>
-        </div>
-      </nav>
+    <div className="marketing-page min-h-screen scroll-smooth bg-[#F5F5F0] text-[#0D0D0D]">
+      <MarketingNav activePath="/" />
 
       <main className="pt-28">
         <section className="mx-auto w-[min(1280px,92vw)] py-32 md:py-36">
@@ -176,10 +149,10 @@ export default function HomePage() {
               transition={{ duration: 0.6, delay: 0.7 }}
               className="mt-10 flex flex-wrap gap-4"
             >
-              <Link href="/login" className="saas-hover rounded-full bg-[#0D0D0D] px-8 py-4 text-base font-semibold text-white">
-                Start Free Trial
+              <Link href={MARKETING_SIGN_IN.href} className="marketing-btn-dark saas-hover rounded-full px-8 py-4 text-base font-semibold">
+                Sign In
               </Link>
-              <Link href="/preview-tool" className="saas-hover rounded-full border border-[#222] bg-transparent px-8 py-4 text-base font-semibold text-[#0D0D0D]">
+              <Link href={MARKETING_DEMO_VIDEO.href} className="marketing-btn-outline saas-hover rounded-full px-8 py-4 text-base font-semibold">
                 Watch Demo
               </Link>
             </motion.div>

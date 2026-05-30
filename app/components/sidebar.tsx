@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "../lib/supabase";
 import {
   LayoutDashboard, PlusSquare, FolderOpen, Download, Settings,
-  Eye, Brain, LogOut, ChevronLeft, ChevronRight
+  Eye, Brain, LogOut, ChevronLeft, ChevronRight, MessageSquare
 } from "lucide-react";
 
 const NAV_SECTIONS = [
@@ -13,6 +13,7 @@ const NAV_SECTIONS = [
     label: "Main",
     items: [
       { icon: LayoutDashboard, label: "Strategic Workspace", href: "/dashboard" },
+      { icon: MessageSquare,    label: "Communications",     href: "/dashboard/communications", badge: "NEW" },
       { icon: PlusSquare,      label: "Create Template",  href: "/preview",    badge: "NEW" },
       { icon: FolderOpen,      label: "My Projects",      href: "/projects" },
       { icon: Download,        label: "Downloads",        href: "/downloads" },
@@ -78,7 +79,10 @@ export default function Sidebar({ collapsed, setCollapsed, user }: any) {
             )}
             <div className="space-y-0.5">
               {section.items.map((item) => {
-                const active = pathname === item.href || pathname.startsWith(item.href + "/");
+                const isDashboardHome = item.href === "/dashboard";
+                const active = isDashboardHome
+                  ? pathname === "/dashboard"
+                  : pathname === item.href || pathname.startsWith(`${item.href}/`);
                 const Icon = item.icon;
                 return (
                   <Link key={item.href + item.label} href={item.href}>

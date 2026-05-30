@@ -83,6 +83,39 @@ a {
   text-decoration: none;
 }
 
+/* Marketing site — ensure CTA buttons stay readable on light pages */
+.marketing-page .marketing-btn-dark,
+.marketing-page a.marketing-btn-dark {
+  background-color: #0d0d0d;
+  color: #ffffff !important;
+}
+
+.marketing-page .marketing-btn-outline,
+.marketing-page a.marketing-btn-outline {
+  border: 1px solid #0d0d0d;
+  background-color: #ffffff;
+  color: #0d0d0d !important;
+}
+
+.marketing-page .marketing-btn-lime,
+.marketing-page a.marketing-btn-lime {
+  border: 1px solid #b9da4a;
+  background-color: #c8f04d;
+  color: #0d0d0d !important;
+  box-shadow: 0 8px 24px rgba(200, 240, 77, 0.35);
+  transition: background-color 0.2s ease, transform 0.2s ease;
+}
+
+.marketing-page .marketing-btn-lime:hover,
+.marketing-page a.marketing-btn-lime:hover {
+  background-color: #d4f46a;
+}
+
+.marketing-page .marketing-btn-dark:hover,
+.marketing-page a.marketing-btn-dark:hover {
+  background-color: #1b1b1b;
+}
+
 img, video {
   display: block;
   max-width: 100%;

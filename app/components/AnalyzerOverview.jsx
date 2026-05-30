@@ -142,7 +142,7 @@ export default function AnalyzerOverview({
       </motion.section>
 
       <p className="text-sm text-slate-600 rounded-xl border border-slate-200 bg-slate-50 p-3">
-        Open <span className="font-semibold text-slate-900">Creative Analysis</span> to inspect Technical QA, Placement QA, and per-creative fixes. Select any creative in the sidebar for full details.
+        Open <span className="font-semibold text-slate-900">Creative Analysis</span> for Technical QA, placement checks, and per-creative fixes.
       </p>
     </div>
   );

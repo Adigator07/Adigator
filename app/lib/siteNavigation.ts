@@ -14,7 +14,17 @@ export const MARKETING_NAV_LINKS: MarketingNavLink[] = [
 
 export const MARKETING_CTA = {
   label: "Get a Demo",
-  href: "/preview-tool",
+  href: "/preview-tool?demo=1&step=1",
+};
+
+export const MARKETING_DEMO_VIDEO = {
+  label: "Watch Demo",
+  href: "/demo",
+};
+
+export const MARKETING_SIGN_IN = {
+  label: "Sign In",
+  href: "/login",
 };
 
 export const MARKETING_FOOTER_COLUMNS = [
@@ -39,7 +49,7 @@ export const MARKETING_FOOTER_COLUMNS = [
   {
     title: "Resources",
     items: [
-      { label: "Preview Tool", href: "/preview-tool" },
+      { label: "Preview Tool", href: "/preview-tool?demo=1&step=1" },
       { label: "Live Preview", href: "/preview" },
       { label: "Login", href: "/login" },
       { label: "Home", href: "/" },

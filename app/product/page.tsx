@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
+import MarketingNav from "@/app/components/MarketingNav";
 import {
   ArrowRight,
   Check,
@@ -15,11 +16,7 @@ import {
   X,
 } from "lucide-react";
 
-const NAV_LINKS = [
-  { label: "Home", href: "/" },
-  { label: "Products", href: "/product", active: true },
-  { label: "Solutions", href: "/solutions" },
-];
+import { MARKETING_CTA } from "@/app/lib/siteNavigation";
 
 const HERO_LINKS = [
   { label: "Discover Platform", href: "#overview" },
@@ -213,41 +210,8 @@ export default function ProductPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#F5F5F0] text-[#0D0D0D]">
-      <nav
-        className={`fixed inset-x-0 top-0 z-50 transition-all duration-300 ${
-          scrolled
-            ? "bg-[rgba(245,245,240,0.84)] backdrop-blur-xl shadow-[0_8px_24px_rgba(13,13,13,0.06)]"
-            : "bg-transparent"
-        }`}
-      >
-        <div className="mx-auto flex w-[min(1320px,92vw)] items-center justify-between gap-4 py-5">
-          <Link href="/" className="text-2xl font-black tracking-tight">
-            Adigator
-          </Link>
-
-          <div className="hidden items-center gap-8 lg:flex">
-            {NAV_LINKS.map((item) => (
-              <Link
-                key={item.label}
-                href={item.href}
-                className={`pb-1 text-sm font-semibold transition hover:text-[#0D0D0D] ${
-                  item.active ? "border-b-2 border-[#0D0D0D] text-[#0D0D0D]" : "border-b-2 border-transparent text-[#3A3A35]"
-                }`}
-              >
-                {item.label}
-              </Link>
-            ))}
-          </div>
-
-          <Link
-            href="/preview-tool"
-            className="inline-flex items-center rounded-full bg-[#0D0D0D] px-6 py-3 text-sm font-semibold text-white transition duration-200 hover:scale-[1.02] hover:shadow-[0_10px_24px_rgba(13,13,13,0.10)]"
-          >
-            Get a Demo
-          </Link>
-        </div>
-      </nav>
+    <div className="marketing-page min-h-screen bg-[#F5F5F0] text-[#0D0D0D]">
+      <MarketingNav activePath="/product" />
 
       <main>
         <section className="px-4 pb-[120px] pt-36 sm:px-6 lg:px-8">

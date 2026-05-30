@@ -47,6 +47,13 @@ import {
   writeStoredAnalysisResult,
   writeStoredWorkflow,
 } from "../lib/workflowStorage";
+import {
+  trackUserActivity,
+  saveCreative,
+  saveAnalyzerResult,
+  deleteCreativeRecord,
+} from "../lib/supabaseDataService";
+import { isAuthenticatedUser } from "../lib/demoAccess";
 
 // Platform and CTA constants (previously from localAnalyzer)
 const PLATFORM_SIZES = {
@@ -739,13 +746,31 @@ export default function PreviewTool() {
       } catch {
         // Ignore parse errors and keep fallback message.
       }
-      throw new Error(message);
+
+      const isMissingTable = /analysis_sessions|schema cache|does not exist/i.test(message);
+      if (isMissingTable) {
+        if (!sessionNetworkWarningShownRef.current) {
+          sessionNetworkWarningShownRef.current = true;
+          console.warn(
+            "Analysis sessions table not found in Supabase. Preview tool will continue without server session persistence. Run supabase/RUN_PREVIEW_TOOL_TABLES.sql in the SQL editor.",
+            message,
+          );
+        }
+        return null;
+      }
+
+      if (!sessionNetworkWarningShownRef.current) {
+        sessionNetworkWarningShownRef.current = true;
+        console.warn("Session create failed:", message);
+      }
+      return null;
     }
 
     const payload = await response.json();
     const sessionId = payload?.sessionId;
     if (!sessionId) {
-      throw new Error("Session creation succeeded but no sessionId was returned.");
+      console.warn("Session creation succeeded but no sessionId was returned.");
+      return null;
     }
 
     setAnalysisSessionId(sessionId);
@@ -829,6 +854,20 @@ export default function PreviewTool() {
     }
     scrollToSection(goalSectionRef);
 
+    void trackUserActivity("platform_selection", {
+      action_label: `Platform selected: ${id}`,
+      platform: id,
+      campaign_goal: nextGoal,
+      vertical: campaignVertical,
+      metadata: {
+        previous_platform: platform,
+        audience_stage: campaignAudienceStage,
+        campaign_types: PLATFORM_GOAL_IDS[id] || [],
+        ad_sizes: [...new Set(Object.values(PLATFORM_SIZES[id] || {}).flat())],
+        placements: Object.keys(PLATFORM_SIZES[id] || {}),
+      },
+    }, { dedupeKey: `platform-${id}` });
+
     void ensureAnalysisSession()
       .then((sessionId) => {
         if (!sessionId) return;
@@ -841,13 +880,25 @@ export default function PreviewTool() {
       .catch((error) => {
         console.error("Failed to persist platform selection", error);
       });
-  }, [campaignGoal, platform, scrollToSection, ensureAnalysisSession, updateAnalysisSession]);
+  }, [campaignGoal, platform, scrollToSection, ensureAnalysisSession, updateAnalysisSession, campaignVertical, campaignAudienceStage]);
 
   const handleGoalSelect = useCallback((id) => {
     if (!platform) return;
     const goalIds = PLATFORM_GOAL_IDS[platform] || PLATFORM_GOAL_IDS.programmatic;
     if (!goalIds.includes(id)) return;
     setCampaignGoal(id);
+
+    void trackUserActivity("button_click", {
+      action_label: "Campaign goal selected",
+      platform,
+      campaign_goal: id,
+      vertical: campaignVertical,
+      metadata: {
+        action: "goal_select",
+        objective: id,
+        audience_stage: campaignAudienceStage,
+      },
+    }, { dedupeKey: `goal-${platform}-${id}` });
 
     void ensureAnalysisSession()
       .then((sessionId) => {
@@ -857,10 +908,21 @@ export default function PreviewTool() {
       .catch((error) => {
         console.error("Failed to persist campaign goal", error);
       });
-  }, [platform, ensureAnalysisSession, updateAnalysisSession]);
+  }, [platform, ensureAnalysisSession, updateAnalysisSession, campaignVertical, campaignAudienceStage]);
 
   const handleVerticalSelect = useCallback((id) => {
     setCampaignVertical(id);
+
+    void trackUserActivity("button_click", {
+      action_label: "Vertical selected",
+      platform,
+      campaign_goal: campaignGoal,
+      vertical: id,
+      metadata: {
+        action: "vertical_select",
+        audience_stage: campaignAudienceStage,
+      },
+    }, { dedupeKey: `vertical-${id}` });
 
     void ensureAnalysisSession()
       .then((sessionId) => {
@@ -870,7 +932,7 @@ export default function PreviewTool() {
       .catch((error) => {
         console.error("Failed to persist campaign vertical", error);
       });
-  }, [ensureAnalysisSession, updateAnalysisSession]);
+  }, [ensureAnalysisSession, updateAnalysisSession, platform, campaignGoal, campaignAudienceStage]);
 
   const selectedPlatformConfig = PLATFORMS.find((p) => p.id === platform);
   const availableGoalIds = PLATFORM_GOAL_IDS[platform] || PLATFORM_GOAL_IDS.programmatic;
@@ -945,17 +1007,49 @@ export default function PreviewTool() {
     if (step === 1 && !isConfigComplete) return;
     if (step === 2 && !canAdvanceToAnalysis) return;
     const nextStep = Math.min(step + 1, TOTAL_STEPS);
+    void trackUserActivity("navigation", {
+      action_label: `Navigate to step ${nextStep}`,
+      platform,
+      campaign_goal: campaignGoal,
+      vertical: campaignVertical,
+      step: nextStep,
+      metadata: {
+        direction: "forward",
+        from_step: step,
+        to_step: nextStep,
+        audience_stage: campaignAudienceStage,
+      },
+    }, { dedupeKey: `nav-forward-${step}-${nextStep}` });
     router.push(`${pathname}?step=${nextStep}`, { scroll: true });
-  }, [step, isConfigComplete, canAdvanceToAnalysis, pathname, router]);
+  }, [step, isConfigComplete, canAdvanceToAnalysis, pathname, router, platform, campaignGoal, campaignVertical, campaignAudienceStage]);
 
   const goBack = useCallback(() => {
     if (step === 1) {
+      void trackUserActivity("navigation", {
+        action_label: "Exit preview tool",
+        platform,
+        campaign_goal: campaignGoal,
+        metadata: { direction: "exit", from_step: step },
+      }, { dedupeKey: "nav-exit-step-1" });
       router.push("/");
       return;
     }
     const prevStep = Math.max(step - 1, 1);
+    void trackUserActivity("navigation", {
+      action_label: `Navigate to step ${prevStep}`,
+      platform,
+      campaign_goal: campaignGoal,
+      vertical: campaignVertical,
+      step: prevStep,
+      metadata: {
+        direction: "back",
+        from_step: step,
+        to_step: prevStep,
+        audience_stage: campaignAudienceStage,
+      },
+    }, { dedupeKey: `nav-back-${step}-${prevStep}` });
     router.push(`${pathname}?step=${prevStep}`, { scroll: true });
-  }, [step, router, pathname]);
+  }, [step, router, pathname, platform, campaignGoal, campaignVertical, campaignAudienceStage]);
 
   useEffect(() => {
     if (!mountRef.current) return;
@@ -963,6 +1057,29 @@ export default function PreviewTool() {
       router.replace(`${pathname}?step=1`, { scroll: false });
     }
   }, [step, isConfigComplete, pathname, router]);
+
+  useEffect(() => {
+    if (!mountRef.current) return;
+    trackUserActivity("page_visit", {
+      action_label: `Preview tool step ${step}`,
+      step,
+      platform,
+      campaign_goal: campaignGoal,
+      vertical: campaignVertical,
+      metadata: {
+        page: "preview_tool",
+        audience_stage: campaignAudienceStage,
+        placements: platform ? Object.keys(PLATFORM_SIZES[platform] || {}) : [],
+        ad_sizes: platform ? [...new Set(Object.values(PLATFORM_SIZES[platform] || {}).flat())] : [],
+      },
+    }, { dedupeKey: `page-visit-step-${step}` });
+  }, [step, platform, campaignGoal, campaignVertical, campaignAudienceStage]);
+
+  useEffect(() => {
+    if (step === 4) {
+      isAuthenticatedUser().then(() => {});
+    }
+  }, [step]);
 
   // Warn user before they leave with unsaved progress
   useEffect(() => {
@@ -1035,21 +1152,37 @@ export default function PreviewTool() {
     };
   }, [getUser]);
 
-  const saveToSupabase = useCallback(async (creative) => {
+  const persistCreative = useCallback(async (creative) => {
     try {
-      const user = await getUser();
-      if (!user) return;
-      await supabase.from("creatives").upsert({
-        id: creative.id,
-        user_id: user.id,
-        name: creative.name,
-        size: creative.size,
-        valid: creative.valid,
-        previewed: false,
-        created_at: new Date().toISOString(),
+      const result = await saveCreative({
+        creative,
+        platform,
+        supabaseCreativeId: creative.supabaseCreativeId || null,
       });
-    } catch (e) { console.error("saveToSupabase error:", e); }
-  }, [getUser]);
+
+      if (result.error) {
+        if (!result.skipped && !result.schemaUnavailable) {
+          console.error("saveCreative error:", result.error.message || result.error);
+        }
+        return null;
+      }
+
+      if (result.skipped) return creative.supabaseCreativeId || null;
+
+      if (result.supabaseCreativeId && result.supabaseCreativeId !== creative.supabaseCreativeId) {
+        setCreatives((prev) => prev.map((entry) => (
+          entry.id === creative.id
+            ? { ...entry, supabaseCreativeId: result.supabaseCreativeId }
+            : entry
+        )));
+      }
+
+      return result.supabaseCreativeId || creative.supabaseCreativeId || null;
+    } catch (error) {
+      console.error("persistCreative error:", error);
+      return null;
+    }
+  }, [platform]);
 
   const handleFiles = async (files) => {
     if (!platform) { addToast("Please select a platform first.", "error"); return; }
@@ -1105,11 +1238,26 @@ export default function PreviewTool() {
 
       window.setTimeout(() => {
         preparedCreatives.forEach((creative) => {
-          void saveToSupabase(creative);
+          void persistCreative(creative);
         });
       }, 0);
 
       const uploadSummary = buildValidationSummary(preparedCreatives.map((c) => c.validation));
+      void trackUserActivity("upload", {
+        action_label: "Creative uploaded",
+        platform,
+        campaign_goal: campaignGoal,
+        vertical: campaignVertical,
+        metadata: {
+          count: preparedCreatives.length,
+          creative_names: preparedCreatives.map((c) => c.name),
+          sizes: preparedCreatives.map((c) => c.size),
+          ad_sizes: preparedCreatives.map((c) => c.size),
+          valid_count: preparedCreatives.filter((c) => c.valid).length,
+          invalid_count: preparedCreatives.filter((c) => !c.valid).length,
+          audience_stage: campaignAudienceStage,
+        },
+      }, { dedupeKey: `upload-${platform}-${preparedCreatives.length}-${preparedCreatives[0]?.name || "batch"}` });
       if (uploadSummary.criticalCount > 0) {
         addToast(`Uploaded ${preparedCreatives.length} creatives: ${uploadSummary.warningCount} warning(s), ${uploadSummary.criticalCount} critical.`, "error");
       } else if (uploadSummary.warningCount > 0) {
@@ -1262,7 +1410,7 @@ export default function PreviewTool() {
       startTransition(() => {
         setCreatives((prev) => prev.map((entry) => (entry.id === creativeId ? updatedCreative : entry)));
       });
-      void saveToSupabase(updatedCreative);
+      void persistCreative(updatedCreative);
 
       const reduction = originalBytes > 0
         ? Math.round(((originalBytes - finalCompressedBytes) / originalBytes) * 100)
@@ -1327,7 +1475,7 @@ export default function PreviewTool() {
       compressingIdsRef.current.delete(creativeId);
       setCompressingCreativeIds((prev) => prev.filter((id) => id !== creativeId));
     }
-  }, [platform, addToast, saveToSupabase]);
+  }, [platform, addToast, persistCreative]);
 
   const handleBulkTargetSizeChange = useCallback((value) => {
     const sanitized = String(value || "").replace(/[^\d]/g, "");
@@ -1407,8 +1555,19 @@ export default function PreviewTool() {
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(objectUrl);
+    void trackUserActivity("download", {
+      action_label: "Creative downloaded",
+      platform,
+      campaign_goal: campaignGoal,
+      creative_name: creative.name,
+      creative_size: creative.size,
+      metadata: {
+        format: extension,
+        mime_type: creative.mimeType || blob.type,
+      },
+    }, { dedupeKey: `download-creative-${creative.id}` });
     addToast(`Downloaded: ${creative.name}`, "success");
-  }, [addToast]);
+  }, [addToast, platform, campaignGoal]);
 
   const removeCreative = async (id) => {
     const existing = creativesRef.current.find((c) => c.id === id);
@@ -1424,8 +1583,10 @@ export default function PreviewTool() {
     void deleteCreativeAssets(id);
 
     try {
-      const user = await getUser();
-      if (user) await supabase.from("creatives").delete().eq("id", id).eq("user_id", user.id);
+      const existing = creativesRef.current.find((c) => c.id === id);
+      if (existing?.supabaseCreativeId) {
+        await deleteCreativeRecord(existing.supabaseCreativeId);
+      }
     } catch (e) { console.error("removeCreative error:", e); }
   };
 
@@ -1447,11 +1608,11 @@ export default function PreviewTool() {
           ? newValidation.valid && newValidation.status !== "CRITICAL"
           : allowedSizes.includes(updates.size || c.size);
         const updated = { ...c, ...updates, validation: newValidation, valid: newValid };
-        saveToSupabase(updated);
+        void persistCreative(updated);
         return updated;
       });
     });
-  }, [originalBackups, allowedSizes, saveToSupabase]);
+  }, [originalBackups, allowedSizes, persistCreative]);
 
   const startEdit = (id, currentName) => { setEditingId(id); setEditingName(currentName); };
   const saveEdit = (id) => {
@@ -1470,8 +1631,57 @@ export default function PreviewTool() {
 
     setAnalysisLoading(true); setAnalysisResult(null);
     try {
+      void trackUserActivity("analyzer_usage", {
+        action_label: "Analysis started",
+        platform,
+        campaign_goal: campaignGoal,
+        vertical: campaignVertical,
+        metadata: {
+          creative_count: validCreatives.length,
+          audience_stage: campaignAudienceStage,
+          ad_sizes: validCreatives.map((c) => c.size),
+          placements: platform ? Object.keys(PLATFORM_SIZES[platform] || {}) : [],
+        },
+      }, { dedupeKey: `analyzer-start-${platform}-${campaignGoal}-${validCreatives.length}` });
+
       const results = await analyzeAllCreatives(validCreatives, campaignGoal, platform, campaignVertical, campaignAudienceStage);
       setAnalysisResult(results);
+
+      const linkedCreatives = await Promise.all(
+        validCreatives.map(async (creative) => {
+          const supabaseCreativeId = creative.supabaseCreativeId || await persistCreative(creative);
+          return { creative, supabaseCreativeId };
+        }),
+      );
+
+      await Promise.all(
+        results.map(async (entry, index) => {
+          const supabaseCreativeId = linkedCreatives[index]?.supabaseCreativeId;
+          if (!supabaseCreativeId) return;
+          await saveAnalyzerResult({
+            creativeId: supabaseCreativeId,
+            platform,
+            goal: campaignGoal,
+            resultJson: getEntryPayload(entry) || {},
+          });
+        }),
+      );
+
+      await trackUserActivity("analyzer_usage", {
+        action_label: "Analysis completed",
+        platform,
+        campaign_goal: campaignGoal,
+        vertical: campaignVertical,
+        metadata: {
+          creative_count: results.length,
+          audience_stage: campaignAudienceStage,
+          creative_names: validCreatives.map((c) => c.name).filter(Boolean),
+          ad_sizes: validCreatives.map((c) => c.size),
+        },
+      }, { dedupeKey: `analyzer-complete-${platform}-${campaignGoal}-${results.length}` });
+
+      const authed = await isAuthenticatedUser();
+      if (!authed) { /* guest demo already consumed on entry */ }
 
       const goalMisaligned = results.filter((entry) => getEntryPayload(entry)?.goal_alignment?.is_aligned === false);
       const verticalMisaligned = results.filter((entry) => getEntryPayload(entry)?.vertical_alignment?.is_aligned === false);
@@ -1489,7 +1699,7 @@ export default function PreviewTool() {
     } finally {
       setAnalysisLoading(false);
     }
-  }, [validCreatives, campaignGoal, platform, campaignVertical, campaignAudienceStage, addToast]);
+  }, [validCreatives, campaignGoal, platform, campaignVertical, campaignAudienceStage, addToast, persistCreative]);
 
   useEffect(() => {
     if (step !== 3) return;
@@ -1595,6 +1805,15 @@ export default function PreviewTool() {
       }
 
       doc.save("Campaign_Analysis_Report.pdf");
+      void trackUserActivity("download", {
+        action_label: "PDF report downloaded",
+        platform,
+        campaign_goal: campaignGoal,
+        metadata: {
+          format: "pdf",
+          creative_count: Array.isArray(analysisResult) ? analysisResult.length : 0,
+        },
+      }, { dedupeKey: `download-pdf-${platform}-${campaignGoal}` });
     } catch (err) { console.error(err); addToast("Failed to generate PDF", "error"); }
   }, [analysisResult, campaignGoal, platform, addToast]);
 
@@ -1610,6 +1829,23 @@ export default function PreviewTool() {
         templateName,
         { goal: campaignGoal, platform }
       );
+      void trackUserActivity("generate_action", {
+        action_label: "PPTX export generated",
+        platform,
+        campaign_goal: campaignGoal,
+        metadata: {
+          format: "pptx",
+          template: templateName,
+          view_mode: viewMode,
+          creative_count: creatives.filter((c) => c.valid).length,
+        },
+      }, { dedupeKey: `generate-pptx-${platform}-${selectedTemplate}` });
+      void trackUserActivity("download", {
+        action_label: "PPTX downloaded",
+        platform,
+        campaign_goal: campaignGoal,
+        metadata: { format: "pptx", filename },
+      }, { dedupeKey: `download-pptx-${filename}` });
       addToast(`Downloaded: ${filename}`, "success");
     } catch { addToast("Export failed.", "error"); }
     finally { setIsExporting(false); }

@@ -4,9 +4,16 @@ import { supabase } from "../lib/supabase";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { SkeletonStatCard, SkeletonProjectCard } from "../components/SkeletonLoader";
+import { fetchUserActivity } from "../lib/userActivity";
+import {
+  fetchUserCreatives,
+  fetchAnalyzerResultCreativeIds,
+  countActivityByTypes,
+  trackUserActivity,
+} from "../lib/supabaseDataService";
 import {
   Zap, TrendingUp, Eye, ImageIcon, Plus, ArrowRight, Clock,
-  ShoppingCart, Newspaper, Gamepad2, Coffee, Laptop, GraduationCap, Film, Sparkles
+  ShoppingCart, Newspaper, Gamepad2, Coffee, Laptop, GraduationCap, Film, Sparkles, Activity
 } from "lucide-react";
 
 const TEMPLATE_CATEGORIES = [
@@ -25,6 +32,7 @@ const stagger = { hidden: {}, visible: { transition: { staggerChildren: 0.08 } }
 export default function Dashboard() {
   const [user, setUser] = useState<any>(null);
   const [stats, setStats] = useState({ totalCreatives: 0, validCreatives: 0, invalidCreatives: 0, previewsRun: 0 });
+  const [activity, setActivity] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -32,15 +40,27 @@ export default function Dashboard() {
       const { data: { user } } = await supabase.auth.getUser();
       setUser(user);
       if (user) {
-        const { data: creatives } = await supabase.from("creatives").select("*").eq("user_id", user.id);
-        if (creatives) {
-          setStats({
-            totalCreatives: creatives.length,
-            validCreatives: creatives.filter((c: any) => c.valid).length,
-            invalidCreatives: creatives.filter((c: any) => !c.valid).length,
-            previewsRun: creatives.filter((c: any) => c.previewed).length,
-          });
-        }
+        void trackUserActivity("page_visit", {
+          action_label: "Dashboard visited",
+          metadata: { page: "dashboard" },
+        }, { dedupeKey: "page-visit-dashboard" });
+
+        const [creatives, analyzedCreativeIds, exportCount] = await Promise.all([
+          fetchUserCreatives(),
+          fetchAnalyzerResultCreativeIds(),
+          countActivityByTypes(["download", "generate_action"]),
+        ]);
+
+        const analyzedSet = new Set(analyzedCreativeIds);
+        setStats({
+          totalCreatives: creatives.length,
+          validCreatives: analyzedSet.size,
+          invalidCreatives: Math.max(creatives.length - analyzedSet.size, 0),
+          previewsRun: exportCount,
+        });
+
+        const events = await fetchUserActivity(30);
+        setActivity(events);
       }
       setLoading(false);
     };
@@ -65,12 +85,12 @@ export default function Dashboard() {
           </h1>
           <p className="text-white/40 mt-1 text-sm">Create stunning creatives in seconds</p>
         </div>
-        <Link href="/preview">
+        <Link href="/preview-tool">
           <motion.button
             whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.96 }}
             className="flex items-center gap-2 px-5 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white font-semibold rounded-xl shadow-lg shadow-purple-500/25 hover:shadow-purple-500/40 transition-shadow"
           >
-            <Plus size={18} /> New Creative
+            <Plus size={18} /> Open Preview Tool
           </motion.button>
         </Link>
       </motion.div>
@@ -80,8 +100,8 @@ export default function Dashboard() {
         <h2 className="text-sm font-bold text-white/40 uppercase tracking-widest mb-3">Quick Actions</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {[
-            { href: "/preview", icon: Plus, label: "Create New Template", sub: "Start fresh with a new creative", color: "from-purple-600 to-blue-600" },
-            { href: "/preview", icon: Clock, label: "Resume Last Project", sub: "Continue where you left off", color: "from-blue-600 to-cyan-600" },
+            { href: "/preview-tool", icon: Plus, label: "Open Preview Tool", sub: "Launch the full analyzer workflow", color: "from-purple-600 to-blue-600" },
+            { href: "/preview-tool?step=3", icon: Clock, label: "Resume Analysis", sub: "Continue where you left off", color: "from-blue-600 to-cyan-600" },
           ].map((a) => {
             const Icon = a.icon;
             return (
@@ -137,7 +157,7 @@ export default function Dashboard() {
       {/* ── Core Product ─────────────────────────────────────── */}
       <motion.div variants={fade}>
         <h2 className="text-sm font-bold text-white/40 uppercase tracking-widest mb-3">Core Product</h2>
-        <Link href="/preview" className="group relative rounded-2xl border-2 border-purple-500/50 bg-gradient-to-br from-purple-600/25 via-blue-600/15 to-purple-600/10 p-8 hover:border-purple-400 hover:shadow-2xl hover:shadow-purple-500/30 transition-all duration-300 block overflow-hidden">
+        <Link href="/preview-tool" className="group relative rounded-2xl border-2 border-purple-500/50 bg-gradient-to-br from-purple-600/25 via-blue-600/15 to-purple-600/10 p-8 hover:border-purple-400 hover:shadow-2xl hover:shadow-purple-500/30 transition-all duration-300 block overflow-hidden">
           <div className="absolute inset-0 bg-gradient-to-r from-purple-600/0 via-purple-600/5 to-blue-600/0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
           <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center gap-6">
             <div className="shrink-0 w-16 h-16 rounded-2xl bg-gradient-to-br from-purple-600 to-blue-600 flex items-center justify-center text-3xl shadow-lg shadow-purple-500/30">
@@ -160,6 +180,49 @@ export default function Dashboard() {
             </div>
           </div>
         </Link>
+      </motion.div>
+
+      {/* ── Activity History ─────────────────────────────────── */}
+      <motion.div variants={fade}>
+        <div className="flex items-center gap-2 mb-3">
+          <Activity size={16} className="text-purple-400" />
+          <h2 className="text-sm font-bold text-white/40 uppercase tracking-widest">Activity History</h2>
+        </div>
+        {loading ? (
+          <div className="rounded-2xl border border-white/10 bg-white/5 p-6 text-sm text-white/40">Loading activity...</div>
+        ) : activity.length === 0 ? (
+          <div className="rounded-2xl border border-white/10 bg-white/5 p-8 text-center">
+            <p className="text-white font-semibold mb-1">No activity yet</p>
+            <p className="text-white/40 text-sm">Upload creatives and run analysis to build your activity timeline.</p>
+          </div>
+        ) : (
+          <div className="rounded-2xl border border-white/10 bg-white/5 overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[720px] text-sm">
+                <thead>
+                  <tr className="border-b border-white/10 text-left text-white/40">
+                    <th className="px-4 py-3 font-semibold">When</th>
+                    <th className="px-4 py-3 font-semibold">Action</th>
+                    <th className="px-4 py-3 font-semibold">Platform</th>
+                    <th className="px-4 py-3 font-semibold">Goal</th>
+                    <th className="px-4 py-3 font-semibold">Creative</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {activity.map((event) => (
+                    <tr key={event.id || `${event.created_at}-${event.event_type}`} className="border-b border-white/5 text-white/80">
+                      <td className="px-4 py-3 whitespace-nowrap">{new Date(event.created_at).toLocaleString()}</td>
+                      <td className="px-4 py-3">{event.event_label || event.event_type}</td>
+                      <td className="px-4 py-3">{event.platform || "—"}</td>
+                      <td className="px-4 py-3">{event.campaign_goal || "—"}</td>
+                      <td className="px-4 py-3">{event.creative_name || event.metadata?.creative_names?.[0] || "—"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
       </motion.div>
 
       {/* ── Recent Projects ─────────────────────────────────── */}

@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Search, Bell, ChevronDown, User, Settings, LogOut } from "lucide-react";
 import { supabase } from "../lib/supabase";
 import { useRouter } from "next/navigation";
+import { getRoleLabel } from "../lib/communications/roleLabels";
 
 const MOCK_NOTIFICATIONS = [
   { id: 1, title: "Preview generated", desc: "Your Ecommerce preview is ready.", time: "2m ago", unread: true },
@@ -13,6 +14,7 @@ const MOCK_NOTIFICATIONS = [
 export default function Topbar({ user }: any) {
   const [showNotif, setShowNotif]   = useState(false);
   const [showProfile, setShowProfile] = useState(false);
+  const [roleLabel, setRoleLabel] = useState("");
   const router = useRouter();
   const notifRef   = useRef<HTMLDivElement>(null);
   const profileRef = useRef<HTMLDivElement>(null);
@@ -26,6 +28,27 @@ export default function Topbar({ user }: any) {
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, []);
+
+  useEffect(() => {
+    if (!user?.id) {
+      setRoleLabel("");
+      return;
+    }
+
+    const metaRole = user.user_metadata?.role;
+    if (metaRole) {
+      setRoleLabel(getRoleLabel(metaRole));
+    }
+
+    void (async () => {
+      const { data } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", user.id)
+        .maybeSingle();
+      if (data?.role) setRoleLabel(getRoleLabel(data.role));
+    })();
+  }, [user?.id, user?.user_metadata?.role]);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -109,7 +132,7 @@ export default function Topbar({ user }: any) {
                 {user?.user_metadata?.full_name || user?.email?.split("@")[0] || "User"}
               </p>
               <p className="text-[10px] text-white/30 leading-tight">
-                {user?.email?.split("@")[1] ? `@${user.email.split("@")[1]}` : "Admin"}
+                {roleLabel || user?.email?.split("@")[1] ? `@${user.email.split("@")[1]}` : "Member"}
               </p>
             </div>
             <ChevronDown size={14} className="text-white/30 hidden sm:block" />

@@ -3,14 +3,22 @@
 import { FormEvent, useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { MARKETING_CTA } from "@/app/lib/siteNavigation";
+import { supabase } from "@/app/lib/supabase";
+import { logUserActivity } from "@/app/lib/userActivity";
+import { REGISTRATION_ROLES, getPostAuthRedirect } from "@/app/lib/communications/roleLabels";
+import type { UserRole } from "@/app/lib/communications/types";
+
+type RegisterRole = Extract<UserRole, "usa_client" | "end_client">;
 
 type FieldErrors = {
   username?: string;
   email?: string;
   password?: string;
   confirmPassword?: string;
+  role?: string;
+  form?: string;
 };
 
 const VALUE_CARDS = [
@@ -21,17 +29,19 @@ const VALUE_CARDS = [
 ];
 
 export default function LoginContent() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const isRegisterMode = searchParams.get("mode") === "register";
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [selectedRole, setSelectedRole] = useState<RegisterRole>("usa_client");
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState<FieldErrors>({});
-  const [submitted, setSubmitted] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
     const nextErrors: FieldErrors = {};
@@ -54,18 +64,108 @@ export default function LoginContent() {
       } else if (password.trim() !== confirmPassword.trim()) {
         nextErrors.confirmPassword = "Passwords do not match.";
       }
+      if (!selectedRole) {
+        nextErrors.role = "Please select your role.";
+      }
     }
 
-    setErrors(nextErrors);
-    setSubmitted(Object.keys(nextErrors).length === 0);
+    if (Object.keys(nextErrors).length > 0) {
+      setErrors(nextErrors);
+      return;
+    }
+
+    setLoading(true);
+    setErrors({});
+
+    const syncProfileRole = async (userId: string, userEmail: string, fullName: string, role: RegisterRole) => {
+      await supabase.from("profiles").upsert({
+        id: userId,
+        email: userEmail,
+        full_name: fullName,
+        role,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: "id" });
+    };
+
+    try {
+      if (isRegisterMode) {
+        const { data, error } = await supabase.auth.signUp({
+          email: email.trim(),
+          password: password.trim(),
+          options: {
+            data: {
+              full_name: username.trim(),
+              username: username.trim(),
+              role: selectedRole,
+            },
+          },
+        });
+
+        if (error) throw error;
+
+        if (data.user) {
+          await syncProfileRole(data.user.id, email.trim(), username.trim(), selectedRole);
+        }
+
+        if (data.session) {
+          await logUserActivity("user_registered", {
+            event_label: "User registered and signed in",
+            metadata: { email: email.trim(), role: selectedRole },
+          });
+          router.replace(getPostAuthRedirect(selectedRole));
+          return;
+        }
+
+        setErrors({
+          form: "Registration successful. Check your email to confirm your account, then log in.",
+        });
+        return;
+      }
+
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password: password.trim(),
+      });
+
+      if (error) throw error;
+
+      if (data.session?.user) {
+        const metaRole = data.session.user.user_metadata?.role as RegisterRole | undefined;
+        if (metaRole) {
+          await syncProfileRole(
+            data.session.user.id,
+            data.session.user.email || email.trim(),
+            data.session.user.user_metadata?.full_name || username.trim(),
+            metaRole,
+          );
+        }
+
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("role")
+          .eq("id", data.session.user.id)
+          .maybeSingle();
+
+        await logUserActivity("user_login", {
+          event_label: "User logged in",
+          metadata: { email: email.trim(), role: profile?.role || metaRole },
+        });
+        router.replace(getPostAuthRedirect(profile?.role || metaRole || "end_client"));
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Authentication failed.";
+      setErrors({ form: message });
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
-    <div className="min-h-screen bg-[#F5F5F0] text-[#0D0D0D]">
+    <div className="marketing-page min-h-screen bg-[#F5F5F0] text-[#0D0D0D]">
       <div className="grid min-h-screen grid-cols-1 lg:grid-cols-2">
         <section className="relative flex min-h-[42vh] flex-col overflow-hidden bg-[#0D0D0D] px-7 py-8 text-white sm:px-10 lg:min-h-screen lg:px-12 lg:py-10">
           <div className="flex items-start justify-between">
-            <Link href="/" className="text-3xl font-black tracking-tight">
+            <Link href="/" className="text-3xl font-black tracking-tight text-white">
               Adigator
             </Link>
           </div>
@@ -74,7 +174,7 @@ export default function LoginContent() {
             <p className="text-sm uppercase tracking-[0.18em] text-white/60">
               {isRegisterMode ? "Create Account" : "Welcome Back"}
             </p>
-            <h1 className="mt-5 text-[clamp(2.2rem,6vw,4.8rem)] font-black leading-[0.96] tracking-[-0.03em]">
+            <h1 className="mt-5 text-[clamp(2.2rem,6vw,4.8rem)] font-black leading-[0.96] tracking-[-0.03em] text-white">
               {isRegisterMode ? "Create your account." : "Welcome back."}
             </h1>
             <p className="mt-4 max-w-md text-base text-white/70">
@@ -92,7 +192,7 @@ export default function LoginContent() {
                   whileHover={{ y: -2 }}
                 >
                   <motion.p
-                    className="text-2xl font-black tracking-tight"
+                    className="text-2xl font-black tracking-tight text-white"
                     animate={{ y: [0, -2, 0] }}
                     transition={{ duration: 3.2 + index * 0.3, repeat: Infinity, ease: "easeInOut" }}
                   >
@@ -119,7 +219,7 @@ export default function LoginContent() {
 
         <section className="flex min-h-[58vh] items-center justify-center px-6 py-10 sm:px-10 lg:min-h-screen lg:px-14">
           <div className="w-full max-w-md">
-            <h2 className="text-4xl font-black tracking-tight">{isRegisterMode ? "Register" : "Log in"}</h2>
+            <h2 className="text-4xl font-black tracking-tight text-[#0D0D0D]">{isRegisterMode ? "Register" : "Log in"}</h2>
 
             <button
               type="button"
@@ -142,6 +242,40 @@ export default function LoginContent() {
 
             <form onSubmit={handleSubmit} noValidate>
               {isRegisterMode && (
+                <div className="mb-5">
+                  <p className="text-xs font-medium uppercase tracking-[0.12em] text-[#75756D] mb-3">
+                    I am a...
+                  </p>
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    {REGISTRATION_ROLES.map((option) => {
+                      const active = selectedRole === option.value;
+                      return (
+                        <button
+                          key={option.value}
+                          type="button"
+                          onClick={() => {
+                            setSelectedRole(option.value as RegisterRole);
+                            if (errors.role) setErrors((prev) => ({ ...prev, role: undefined }));
+                          }}
+                          className={`rounded-xl border px-4 py-4 text-left transition ${
+                            active
+                              ? "border-[#0D0D0D] bg-[#0D0D0D] text-white shadow-md"
+                              : "border-[#D0D0C8] bg-white text-[#0D0D0D] hover:border-[#0D0D0D]/40"
+                          }`}
+                        >
+                          <p className="text-sm font-bold">{option.label}</p>
+                          <p className={`mt-1 text-xs leading-relaxed ${active ? "text-white/70" : "text-[#66665F]"}`}>
+                            {option.description}
+                          </p>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {errors.role ? <p className="mt-2 text-xs text-red-600">{errors.role}</p> : null}
+                </div>
+              )}
+
+              {isRegisterMode && (
                 <div className="relative mb-4">
                   <input
                     id="username"
@@ -152,25 +286,16 @@ export default function LoginContent() {
                       setUsername(e.target.value);
                       if (errors.username) setErrors((prev) => ({ ...prev, username: undefined }));
                     }}
-                    className={`peer w-full rounded-lg border bg-transparent px-4 pb-2 pt-6 text-sm outline-none transition ${
+                    className={`peer w-full rounded-lg border bg-transparent px-4 pb-2 pt-6 text-sm text-[#0D0D0D] outline-none transition ${
                       errors.username
                         ? "border-red-400 focus:ring-2 focus:ring-red-200"
                         : "border-[#D0D0C8] focus:border-[#0D0D0D] focus:ring-2 focus:ring-[#E0E3D5]"
                     }`}
-                    aria-invalid={Boolean(errors.username)}
-                    aria-describedby={errors.username ? "username-error" : undefined}
                   />
-                  <label
-                    htmlFor="username"
-                    className="pointer-events-none absolute left-4 top-2 text-xs font-medium uppercase tracking-[0.12em] text-[#75756D] transition peer-placeholder-shown:top-4 peer-placeholder-shown:text-sm peer-placeholder-shown:normal-case peer-focus:top-2 peer-focus:text-xs peer-focus:uppercase"
-                  >
+                  <label htmlFor="username" className="pointer-events-none absolute left-4 top-2 text-xs font-medium uppercase tracking-[0.12em] text-[#75756D]">
                     Username
                   </label>
-                  {errors.username && (
-                    <p id="username-error" className="mt-2 text-xs text-red-600">
-                      {errors.username}
-                    </p>
-                  )}
+                  {errors.username ? <p className="mt-2 text-xs text-red-600">{errors.username}</p> : null}
                 </div>
               )}
 
@@ -184,25 +309,16 @@ export default function LoginContent() {
                     setEmail(e.target.value);
                     if (errors.email) setErrors((prev) => ({ ...prev, email: undefined }));
                   }}
-                  className={`peer w-full rounded-lg border bg-transparent px-4 pb-2 pt-6 text-sm outline-none transition ${
+                  className={`peer w-full rounded-lg border bg-transparent px-4 pb-2 pt-6 text-sm text-[#0D0D0D] outline-none transition ${
                     errors.email
                       ? "border-red-400 focus:ring-2 focus:ring-red-200"
                       : "border-[#D0D0C8] focus:border-[#0D0D0D] focus:ring-2 focus:ring-[#E0E3D5]"
                   }`}
-                  aria-invalid={Boolean(errors.email)}
-                  aria-describedby={errors.email ? "email-error" : undefined}
                 />
-                <label
-                  htmlFor="email"
-                  className="pointer-events-none absolute left-4 top-2 text-xs font-medium uppercase tracking-[0.12em] text-[#75756D] transition peer-placeholder-shown:top-4 peer-placeholder-shown:text-sm peer-placeholder-shown:normal-case peer-focus:top-2 peer-focus:text-xs peer-focus:uppercase"
-                >
+                <label htmlFor="email" className="pointer-events-none absolute left-4 top-2 text-xs font-medium uppercase tracking-[0.12em] text-[#75756D]">
                   Email
                 </label>
-                {errors.email && (
-                  <p id="email-error" className="mt-2 text-xs text-red-600">
-                    {errors.email}
-                  </p>
-                )}
+                {errors.email ? <p className="mt-2 text-xs text-red-600">{errors.email}</p> : null}
               </div>
 
               <div className="relative mt-4">
@@ -215,36 +331,26 @@ export default function LoginContent() {
                     setPassword(e.target.value);
                     if (errors.password) setErrors((prev) => ({ ...prev, password: undefined }));
                   }}
-                  className={`peer w-full rounded-lg border bg-transparent px-4 pb-2 pt-6 text-sm outline-none transition ${
+                  className={`peer w-full rounded-lg border bg-transparent px-4 pb-2 pt-6 text-sm text-[#0D0D0D] outline-none transition ${
                     errors.password
                       ? "border-red-400 focus:ring-2 focus:ring-red-200"
                       : "border-[#D0D0C8] focus:border-[#0D0D0D] focus:ring-2 focus:ring-[#E0E3D5]"
                   }`}
-                  aria-invalid={Boolean(errors.password)}
-                  aria-describedby={errors.password ? "password-error" : undefined}
                 />
-                <label
-                  htmlFor="password"
-                  className="pointer-events-none absolute left-4 top-2 text-xs font-medium uppercase tracking-[0.12em] text-[#75756D] transition peer-placeholder-shown:top-4 peer-placeholder-shown:text-sm peer-placeholder-shown:normal-case peer-focus:top-2 peer-focus:text-xs peer-focus:uppercase"
-                >
+                <label htmlFor="password" className="pointer-events-none absolute left-4 top-2 text-xs font-medium uppercase tracking-[0.12em] text-[#75756D]">
                   Password
                 </label>
                 <button
                   type="button"
                   onClick={() => setShowPassword((prev) => !prev)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 rounded px-2 py-1 text-xs font-semibold text-[#5E5E58] hover:text-[#171717]"
-                  aria-label={showPassword ? "Hide password" : "Show password"}
                 >
                   {showPassword ? "Hide" : "Show"}
                 </button>
-                {errors.password && (
-                  <p id="password-error" className="mt-2 text-xs text-red-600">
-                    {errors.password}
-                  </p>
-                )}
+                {errors.password ? <p className="mt-2 text-xs text-red-600">{errors.password}</p> : null}
               </div>
 
-              {isRegisterMode && (
+              {isRegisterMode ? (
                 <div className="relative mt-4">
                   <input
                     id="confirm-password"
@@ -255,48 +361,40 @@ export default function LoginContent() {
                       setConfirmPassword(e.target.value);
                       if (errors.confirmPassword) setErrors((prev) => ({ ...prev, confirmPassword: undefined }));
                     }}
-                    className={`peer w-full rounded-lg border bg-transparent px-4 pb-2 pt-6 text-sm outline-none transition ${
+                    className={`peer w-full rounded-lg border bg-transparent px-4 pb-2 pt-6 text-sm text-[#0D0D0D] outline-none transition ${
                       errors.confirmPassword
                         ? "border-red-400 focus:ring-2 focus:ring-red-200"
                         : "border-[#D0D0C8] focus:border-[#0D0D0D] focus:ring-2 focus:ring-[#E0E3D5]"
                     }`}
-                    aria-invalid={Boolean(errors.confirmPassword)}
-                    aria-describedby={errors.confirmPassword ? "confirm-password-error" : undefined}
                   />
-                  <label
-                    htmlFor="confirm-password"
-                    className="pointer-events-none absolute left-4 top-2 text-xs font-medium uppercase tracking-[0.12em] text-[#75756D] transition peer-placeholder-shown:top-4 peer-placeholder-shown:text-sm peer-placeholder-shown:normal-case peer-focus:top-2 peer-focus:text-xs peer-focus:uppercase"
-                  >
+                  <label htmlFor="confirm-password" className="pointer-events-none absolute left-4 top-2 text-xs font-medium uppercase tracking-[0.12em] text-[#75756D]">
                     Confirm password
                   </label>
-                  {errors.confirmPassword && (
-                    <p id="confirm-password-error" className="mt-2 text-xs text-red-600">
-                      {errors.confirmPassword}
-                    </p>
-                  )}
+                  {errors.confirmPassword ? <p className="mt-2 text-xs text-red-600">{errors.confirmPassword}</p> : null}
                 </div>
-              )}
+              ) : null}
 
-              {!isRegisterMode && (
+              {!isRegisterMode ? (
                 <div className="mt-3 flex justify-end">
                   <Link href="/login?reset=1" className="text-xs font-medium text-[#77776E] hover:text-[#171717]">
                     Forgot password?
                   </Link>
                 </div>
-              )}
+              ) : null}
+
+              {errors.form ? (
+                <p className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+                  {errors.form}
+                </p>
+              ) : null}
 
               <button
                 type="submit"
-                className="mt-6 w-full rounded-full bg-[#0D0D0D] px-6 py-3.5 text-sm font-semibold text-white transition hover:bg-[#1B1B1B] active:scale-[0.99]"
+                disabled={loading}
+                className="marketing-btn-dark mt-6 w-full rounded-full px-6 py-3.5 text-sm font-semibold disabled:opacity-60"
               >
-                {isRegisterMode ? "Register" : "Log in"}
+                {loading ? "Please wait..." : isRegisterMode ? "Register" : "Log in"}
               </button>
-
-              {submitted && (
-                <p className="mt-3 text-center text-xs text-[#4A4A45]">
-                  Demo mode: {isRegisterMode ? "registration" : "login"} form validated successfully.
-                </p>
-              )}
             </form>
 
             <p className="mt-6 text-center text-sm text-[#66665F]">
