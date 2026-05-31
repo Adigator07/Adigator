@@ -69,10 +69,7 @@ const META_AUDIENCE_SIZES = [
 ];
 
 const PROG_NATIVE_SIZES = [
-  ...(PROG.native_social_display || []),
-  ...(PROG.responsive_native || []),
-  "1200x628",
-  "1080x1080",
+  ...(PROG.native_responsive_assets || []),
 ];
 
 const PROG_BANNER_SIZES = [
@@ -90,11 +87,32 @@ const PROG_MOBILE_APP_SIZES = [
 
 const PROG_OPEN_WEB_SIZES = [...new Set([...PROG_BANNER_SIZES, ...PROG_NATIVE_SIZES])];
 
-const PROG_CTV_SIZES = ["1920x1080", "1280x720"];
+/** All publisher context templates for programmatic Display Website Preview. */
+export const PROGRAMMATIC_DISPLAY_WEBSITE_ENVIRONMENTS = [
+  "news",
+  "commerce",
+  "social",
+  "luxury",
+  "sports",
+  "gaming",
+  "finance",
+  "travel",
+  "saas",
+  "booking",
+];
 
-const PROG_VIDEO_SIZES = ["1920x1080", "1280x720", "1080x1920", "1080x1080"];
-
-const PROG_AUDIO_SIZES = ["300x250", "728x90", "320x50", "970x250"];
+export const PROGRAMMATIC_ENVIRONMENT_LABELS = {
+  news: "Editorial / News",
+  commerce: "E-Commerce",
+  social: "Social Feed",
+  luxury: "Premium / Luxury",
+  sports: "Sports Media",
+  gaming: "Gaming",
+  finance: "Finance",
+  travel: "Travel",
+  saas: "Enterprise / SaaS",
+  booking: "Booking / Reservations",
+};
 
 /** @typedef {{ id: string, label: string, environments: string[], compatibleSizes: string[], devices?: string[], environmentFamilies?: string[], description?: string }} PreviewPlacement */
 
@@ -229,7 +247,7 @@ export const PREVIEW_PLACEMENT_REGISTRY = {
       id: "native_ads",
       label: "Native Ads",
       compatibleSizes: PROG_NATIVE_SIZES,
-      environmentFamilies: ["news", "social", "commerce"],
+      environmentFamilies: ["news", "social", "commerce", "finance", "travel"],
       devices: ["desktop", "mobile"],
       description: "In-feed native and content-matched placements.",
     },
@@ -237,7 +255,7 @@ export const PREVIEW_PLACEMENT_REGISTRY = {
       id: "display_banners",
       label: "Display Banners",
       compatibleSizes: PROG_BANNER_SIZES,
-      environmentFamilies: ["news", "sports", "finance"],
+      environmentFamilies: ["news", "sports", "finance", "commerce", "gaming"],
       devices: ["desktop", "mobile"],
       description: "Standard IAB display banner inventory.",
     },
@@ -245,7 +263,7 @@ export const PREVIEW_PLACEMENT_REGISTRY = {
       id: "mobile_app_inventory",
       label: "Mobile App Inventory",
       compatibleSizes: PROG_MOBILE_APP_SIZES,
-      environmentFamilies: ["gaming", "social", "commerce"],
+      environmentFamilies: ["gaming", "social", "commerce", "news", "sports"],
       devices: ["mobile"],
       description: "In-app mobile display and interstitial inventory.",
     },
@@ -253,33 +271,9 @@ export const PREVIEW_PLACEMENT_REGISTRY = {
       id: "open_web",
       label: "Open Web",
       compatibleSizes: PROG_OPEN_WEB_SIZES,
-      environmentFamilies: ["news", "travel", "booking"],
+      environmentFamilies: ["news", "travel", "booking", "finance", "luxury", "commerce"],
       devices: ["desktop", "mobile"],
       description: "Open web publisher placements across premium sites.",
-    },
-    ctv: {
-      id: "ctv",
-      label: "Connected TV",
-      compatibleSizes: PROG_CTV_SIZES,
-      environmentFamilies: ["luxury", "sports", "travel"],
-      devices: ["desktop"],
-      description: "Connected TV and large-screen video inventory.",
-    },
-    video_inventory: {
-      id: "video_inventory",
-      label: "Video Inventory",
-      compatibleSizes: PROG_VIDEO_SIZES,
-      environmentFamilies: ["news", "sports", "gaming"],
-      devices: ["desktop", "mobile"],
-      description: "Pre-roll, mid-roll, and outstream video placements.",
-    },
-    digital_audio: {
-      id: "digital_audio",
-      label: "Digital Audio",
-      compatibleSizes: PROG_AUDIO_SIZES,
-      environmentFamilies: ["news", "finance"],
-      devices: ["mobile"],
-      description: "Streaming audio with optional companion display.",
     },
   },
 };

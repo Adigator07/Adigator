@@ -6,6 +6,9 @@ import { parseSize } from "@/app/components/PreviewStudio/previewUtils";
 
 const RATIO_TOLERANCE = 0.06;
 
+/** Preview studios never crop user creatives — always preserve aspect ratio. */
+export const PREVIEW_CREATIVE_FIT_MODE = "contain";
+
 export function getCreativeSourceSize(creative) {
   return creative?.sourceCreativeSize
     || creative?.sourceSize
@@ -22,9 +25,15 @@ function ratioDelta(sourceRatio, slotRatio) {
   return Math.abs(sourceRatio - slotRatio) / slotRatio;
 }
 
-export function analyzeCreativeSlotFit(sourceSize, slotWidth, slotHeight, fitMode = "cover") {
+export function analyzeCreativeSlotFit(
+  sourceSize,
+  slotWidth,
+  slotHeight,
+  fitMode = PREVIEW_CREATIVE_FIT_MODE,
+) {
   const source = parseDimensions(sourceSize);
   const slotRatio = slotWidth / slotHeight;
+  const effectiveFit = fitMode === "cover" ? PREVIEW_CREATIVE_FIT_MODE : fitMode;
 
   if (!source) {
     return {
@@ -32,7 +41,7 @@ export function analyzeCreativeSlotFit(sourceSize, slotWidth, slotHeight, fitMod
       requiresAdjustment: false,
       adjustmentType: "unknown",
       message: null,
-      fitMode,
+      fitMode: effectiveFit,
     };
   }
 
@@ -41,37 +50,13 @@ export function analyzeCreativeSlotFit(sourceSize, slotWidth, slotHeight, fitMod
   const exactMatch = source.width === slotWidth && source.height === slotHeight;
   const ratioMatch = delta <= RATIO_TOLERANCE;
 
-  if (exactMatch) {
+  if (exactMatch || ratioMatch) {
     return {
-      fitsPerfectly: true,
+      fitsPerfectly: exactMatch,
       requiresAdjustment: false,
       adjustmentType: "none",
       message: null,
-      fitMode: "cover",
-      source,
-      slot: { width: slotWidth, height: slotHeight },
-    };
-  }
-
-  if (ratioMatch) {
-    return {
-      fitsPerfectly: false,
-      requiresAdjustment: true,
-      adjustmentType: "scale",
-      message: `Note: This creative has been automatically scaled to fit the ${slotWidth}×${slotHeight} template slot. Original size: ${source.label}.`,
-      fitMode: "cover",
-      source,
-      slot: { width: slotWidth, height: slotHeight },
-    };
-  }
-
-  if (fitMode === "contain") {
-    return {
-      fitsPerfectly: false,
-      requiresAdjustment: true,
-      adjustmentType: "letterbox",
-      message: `Note: This creative has been letterboxed to preserve its aspect ratio within the ${slotWidth}×${slotHeight} template slot. Original size: ${source.label}.`,
-      fitMode: "contain",
+      fitMode: effectiveFit,
       source,
       slot: { width: slotWidth, height: slotHeight },
     };
@@ -80,16 +65,19 @@ export function analyzeCreativeSlotFit(sourceSize, slotWidth, slotHeight, fitMod
   return {
     fitsPerfectly: false,
     requiresAdjustment: true,
-    adjustmentType: "crop",
-    message: "Note: This creative has been automatically cropped and resized to fit the selected template due to aspect ratio or size differences.",
-    detailMessage: `Original: ${source.label} → Template slot: ${slotWidth}×${slotHeight}.`,
-    fitMode: "cover",
+    adjustmentType: "letterbox",
+    message: `Creative displayed at original aspect ratio (${source.label}) within the ${slotWidth}×${slotHeight} placement frame.`,
+    fitMode: effectiveFit,
     source,
     slot: { width: slotWidth, height: slotHeight },
   };
 }
 
-export function analyzeAspectRatioFit(sourceSize, aspectRatio, fitMode = "cover") {
+export function analyzeAspectRatioFit(
+  sourceSize,
+  aspectRatio,
+  fitMode = PREVIEW_CREATIVE_FIT_MODE,
+) {
   const parts = String(aspectRatio || "1 / 1")
     .split("/")
     .map((value) => Number(value.trim()));

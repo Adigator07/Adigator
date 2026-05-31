@@ -23,9 +23,12 @@ export default function PreviewStudio({
     case "programmatic":
       return (
         <ProgrammaticPreviewStudio
+          sourceCreatives={sourceCreatives}
           creatives={creatives}
           vertical={vertical}
           goal={goal}
+          onCopyCreative={onCopyCreative}
+          onEditCreative={onEditCreative}
         />
       );
     case "google_ads":

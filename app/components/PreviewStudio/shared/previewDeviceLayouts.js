@@ -4,6 +4,10 @@ export function isMobileDeviceMode(deviceMode) {
   return deviceMode !== "desktop";
 }
 
+export function shouldUseFullEnvironmentLayout(deviceMode) {
+  return deviceMode === "desktop";
+}
+
 export const DEVICE_FRAME_PRESETS = {
   mobile: { width: 390, height: 844 },
   desktop: { width: 1280, height: 820 },

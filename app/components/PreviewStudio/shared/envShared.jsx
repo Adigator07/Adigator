@@ -21,13 +21,13 @@ export function TemplateFitNotice({ message, className = "" }) {
   );
 }
 
-/** Fixed-ratio container so uploaded creatives always fill placements cleanly. */
+/** Fixed-ratio container — creatives preserve original aspect ratio (contain, never crop). */
 export function MediaFrame({
   creative,
   aspectRatio = "1 / 1",
   className = "",
-  fit = "cover",
-  showFitNotice = true,
+  fit = "contain",
+  showFitNotice = false,
 }) {
   const fitAnalysis = useMemo(
     () => analyzeAspectRatioFit(getCreativeSourceSize(creative), aspectRatio, fit),
@@ -48,7 +48,7 @@ export function MediaFrame({
   );
 }
 
-export function AdImage({ creative, className = "", alt = "Ad creative", fit = "cover" }) {
+export function AdImage({ creative, className = "", alt = "Ad creative", fit = "contain" }) {
   const src = creative?.imageUrl || creative?.image;
   const fitClass = fit === "contain" ? "object-contain" : "object-cover";
 
@@ -84,8 +84,8 @@ export function DisplayAdSlot({
   showLabel = true,
   showAd = true,
   className = "",
-  showFitNotice = true,
-  fitMode = "cover",
+  showFitNotice = false,
+  fitMode = "contain",
   placeholderIndex = 0,
 }) {
   const fitAnalysis = useMemo(
@@ -93,7 +93,7 @@ export function DisplayAdSlot({
     [creative, width, height, fitMode],
   );
   const fitMessage = showAd && showFitNotice ? getFitNoticeMessage(fitAnalysis) : null;
-  const resolvedFit = fitAnalysis.fitMode || fitMode;
+  const resolvedFit = "contain";
 
   if (!showAd) {
     return (

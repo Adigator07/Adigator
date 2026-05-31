@@ -79,7 +79,7 @@ export default function CommerceEnvironment({ content, slotType, creativeUrl, cr
       {/* Leaderboard / Sale banner */}
       <section className="bg-gradient-to-r from-orange-500 to-rose-500 px-4 py-4 md:px-8">
         <div className="mx-auto max-w-6xl">
-          <WebsiteAdSlot slot="top-leaderboard" activePlacement={activePlacement} creativeUrl={creativeUrl} creativeSize={creativeSize} fallbackSrc={fallback["top-leaderboard"]} fit="cover" className="mx-auto" />
+          <WebsiteAdSlot slot="top-leaderboard" activePlacement={activePlacement} creativeUrl={creativeUrl} creativeSize={creativeSize} fallbackSrc={fallback["top-leaderboard"]} fit="contain" className="mx-auto" />
         </div>
       </section>
 
@@ -194,7 +194,7 @@ export default function CommerceEnvironment({ content, slotType, creativeUrl, cr
               <p className="text-sm text-slate-600">Based on your browsing history and top-rated picks this week.</p>
               <button className="mt-4 bg-slate-900 text-white text-xs font-bold px-4 py-2 rounded-lg hover:bg-slate-700 transition">View Collection</button>
             </div>
-            <WebsiteAdSlot slot="native-feed" activePlacement={activePlacement} creativeUrl={creativeUrl} creativeSize={creativeSize} fallbackSrc={fallback["native-feed"]} fit="cover" className="mx-auto" />
+            <WebsiteAdSlot slot="native-feed" activePlacement={activePlacement} creativeUrl={creativeUrl} creativeSize={creativeSize} fallbackSrc={fallback["native-feed"]} fit="contain" className="mx-auto" />
           </div>
         </main>
       </div>

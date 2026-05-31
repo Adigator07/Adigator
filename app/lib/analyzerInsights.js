@@ -92,10 +92,7 @@ function isNativeCreativeSize(size, platform) {
   }
   if (platform === "programmatic") {
     const prog = groups.programmatic || {};
-    return new Set([
-      ...(prog.native_social_display || []),
-      ...(prog.responsive_native || []),
-    ]).has(size);
+    return new Set(prog.native_responsive_assets || []).has(size);
   }
   return false;
 }
@@ -527,18 +524,6 @@ function deriveProgrammaticPlacementQa(creative, payload) {
     items.push({ status: "warn", text: "Mobile App limited — 320×50 or 300×250 preferred for app fill" });
   }
 
-  if (scores.ctv === "good") {
-    items.push({ status: "pass", text: "CTV — 16:9 ratio suits connected TV and OTT video placements" });
-  } else if (scores.ctv === "warning") {
-    items.push({ status: "warn", text: "CTV limited — export 1920×1080 for full-screen TV delivery" });
-  }
-
-  if (scores.video_inventory === "good") {
-    items.push({ status: "pass", text: "Video Inventory — aspect ratio supports pre-roll and in-stream slots" });
-  } else if (scores.video_inventory === "warning") {
-    items.push({ status: "warn", text: "Video Inventory limited — 16:9 master recommended for video packages" });
-  }
-
   if (scores.open_web === "good") {
     items.push({ status: "pass", text: "Open Web — strong fit for publisher page inline and sidebar rotation" });
   } else if (scores.open_web === "warning") {
@@ -808,9 +793,6 @@ function deriveRecommendedFix(creative, payload, platform) {
     }
     if (creative?.fileSizeKB && creative.fileSizeKB > 150) {
       return "Compress below 150KB to protect viewability metrics and improve RTB win rates across DSPs.";
-    }
-    if (scores.video_inventory === "bad" && scores.ctv === "bad") {
-      return "Add a 1920×1080 (16:9) variant to unlock video and CTV inventory packages.";
     }
     if (scores.native_ads === "bad") {
       return "Export a 1200×628 or 1080×1080 native master for in-feed and content-recommendation placements.";

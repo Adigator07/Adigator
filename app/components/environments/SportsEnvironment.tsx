@@ -67,7 +67,7 @@ export default function SportsEnvironment({ content, slotType, creativeUrl, crea
       {/* Leaderboard */}
       <section className="border-b border-white/10 px-4 py-4 md:px-8 bg-slate-800">
         <div className="mx-auto max-w-6xl">
-          <WebsiteAdSlot slot="top-leaderboard" activePlacement={activePlacement} creativeUrl={creativeUrl} creativeSize={creativeSize} fallbackSrc={fallback["top-leaderboard"]} fit="cover" className="mx-auto" />
+          <WebsiteAdSlot slot="top-leaderboard" activePlacement={activePlacement} creativeUrl={creativeUrl} creativeSize={creativeSize} fallbackSrc={fallback["top-leaderboard"]} fit="contain" className="mx-auto" />
         </div>
       </section>
 
@@ -147,7 +147,7 @@ export default function SportsEnvironment({ content, slotType, creativeUrl, crea
               <p className="text-sm text-slate-400 leading-relaxed">Expert picks, live projections, and draft tools for all major leagues. Get the edge this season.</p>
               <button className="mt-4 bg-red-600 hover:bg-red-500 text-white text-xs font-bold px-4 py-2 rounded-lg transition">Get Draft Kit</button>
             </div>
-            <WebsiteAdSlot slot="native-feed" activePlacement={activePlacement} creativeUrl={creativeUrl} creativeSize={creativeSize} fallbackSrc={fallback["native-feed"]} fit="cover" className="mx-auto" />
+            <WebsiteAdSlot slot="native-feed" activePlacement={activePlacement} creativeUrl={creativeUrl} creativeSize={creativeSize} fallbackSrc={fallback["native-feed"]} fit="contain" className="mx-auto" />
           </div>
         </main>
 

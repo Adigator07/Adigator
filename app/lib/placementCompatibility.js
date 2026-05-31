@@ -28,8 +28,6 @@ const YOUTUBE_COMPANION_SIZES = new Set([
   "300x250", "728x90", "970x90", "468x60", "336x280", "1280x720", "1920x1080",
 ]);
 
-const CTV_SIZES = new Set(["1920x1080", "1280x720", "1080x1920"]);
-
 function parseSize(size) {
   const [width, height] = String(size || "").split("x").map((n) => Number(n));
   if (!width || !height) return null;
@@ -96,9 +94,6 @@ export function getPlacementColumns(platform) {
     { id: "native_ads", label: "Native Ads" },
     { id: "display_banners", label: "Display Banners" },
     { id: "mobile_app", label: "Mobile App Inventory" },
-    { id: "ctv", label: "Connected TV (CTV)" },
-    { id: "digital_audio", label: "Digital Audio" },
-    { id: "video_inventory", label: "Video Inventory" },
     { id: "open_web", label: "Open Web Placements" },
   ];
 }
@@ -223,8 +218,7 @@ function scoreMetaAudienceNetwork(size, textHigh) {
 }
 
 function scoreProgNative(size, textHigh) {
-  const prog = PLATFORM_SUPPORTED_SIZE_GROUPS.programmatic || {};
-  const native = new Set([...(prog.native_social_display || []), ...(prog.responsive_native || [])]);
+  const native = new Set(PLATFORM_SUPPORTED_SIZE_GROUPS.programmatic?.native_responsive_assets || []);
   if (native.has(size)) return textHigh ? "warning" : "good";
   return "bad";
 }
@@ -240,25 +234,6 @@ function scoreProgMobileApp(size, textHigh) {
   const mobile = PLATFORM_SUPPORTED_SIZE_GROUPS.programmatic?.mobile_display || [];
   if (mobile.includes(size)) return textHigh ? "warning" : "good";
   if (isMobileSize(size)) return "warning";
-  return "bad";
-}
-
-function scoreProgCtv(size) {
-  if (CTV_SIZES.has(size)) return "good";
-  const dims = parseSize(size);
-  if (dims && dims.ratio >= 1.6 && dims.ratio <= 1.85) return "good";
-  return "bad";
-}
-
-function scoreProgDigitalAudio() {
-  return "bad";
-}
-
-function scoreProgVideo(size) {
-  const dims = parseSize(size);
-  if (dims && dims.ratio >= 1.6 && dims.ratio <= 1.85) return "good";
-  if (CTV_SIZES.has(size)) return "good";
-  if (size === "1080x1080" || size === "1200x628") return "warning";
   return "bad";
 }
 
@@ -306,9 +281,6 @@ function programmaticPlacementScores(size, signals) {
     native_ads: scoreProgNative(size, textHigh),
     display_banners: scoreProgDisplayBanners(size, textHigh),
     mobile_app: scoreProgMobileApp(size, textHigh),
-    ctv: scoreProgCtv(size),
-    digital_audio: scoreProgDigitalAudio(),
-    video_inventory: scoreProgVideo(size),
     open_web: scoreProgOpenWeb(size, textHigh),
   };
 }
@@ -351,7 +323,7 @@ export function getPrimaryPlacementKeys(platform, creative) {
 
   if (platform === "programmatic") {
     const prog = PLATFORM_SUPPORTED_SIZE_GROUPS.programmatic || {};
-    const native = new Set([...(prog.native_social_display || []), ...(prog.responsive_native || [])]);
+    const native = new Set(prog.native_responsive_assets || []);
     if (native.has(size)) return ["native_ads"];
     if ((prog.mobile_display || []).includes(size)) return ["mobile_app"];
     if ((prog.standard_display || []).includes(size)) return ["display_banners"];
@@ -367,6 +339,9 @@ export function getPlacementLegend(platform) {
   }
   if (platform === "meta_ads") {
     return "🟢 Feed/Stories/Reels ready · 🟡 usable with crop or copy edits · 🔴 wrong aspect ratio for that placement";
+  }
+  if (platform === "programmatic") {
+    return "🟢 Strong display inventory fit · 🟡 limited scale or format friction · 🔴 weak or unsupported for that display channel";
   }
   return "🟢 Strong inventory fit · 🟡 limited scale or format friction · 🔴 weak or unsupported for that channel";
 }

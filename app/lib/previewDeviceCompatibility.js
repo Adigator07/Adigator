@@ -8,15 +8,9 @@ import {
   isSizeCompatibleWithPlacement,
   normalizePreviewSize,
 } from "./previewPlacementRegistry";
-import { PLATFORM_SUPPORTED_SIZE_GROUPS } from "./creativeValidation";
 
-const GOOGLE = PLATFORM_SUPPORTED_SIZE_GROUPS.google_ads;
-const PROG = PLATFORM_SUPPORTED_SIZE_GROUPS.programmatic;
-
-/** Sizes that only serve on mobile inventory across platforms. */
-const MOBILE_ONLY_SIZES = new Set([
-  ...(GOOGLE.mobile_display || []),
-  ...(PROG.mobile_display || []),
+/** Sizes that only serve on mobile inventory. */
+const TRUE_MOBILE_ONLY_SIZES = new Set([
   "320x50",
   "320x100",
   "320x480",
@@ -26,21 +20,16 @@ const MOBILE_ONLY_SIZES = new Set([
 ]);
 
 /** Sizes that only serve on desktop / large-screen inventory. */
-const DESKTOP_ONLY_SIZES = new Set([
-  ...(GOOGLE.desktop_display || []),
-  ...(PROG.standard_display || []),
+const TRUE_DESKTOP_ONLY_SIZES = new Set([
   "728x90",
   "970x90",
   "970x250",
   "160x600",
   "300x600",
   "468x60",
-  "970x250",
-  "1920x1080",
-  "1280x720",
 ]);
 
-/** Sizes that work on both mobile and desktop for feed/native placements. */
+/** Sizes that work on both mobile and desktop for feed/native/banner placements. */
 const CROSS_DEVICE_SIZES = new Set([
   "300x250",
   "336x280",
@@ -52,6 +41,8 @@ const CROSS_DEVICE_SIZES = new Set([
   "1200x1500",
   "250x250",
   "200x200",
+  "1920x1080",
+  "1280x720",
 ]);
 
 /** Placement-specific size overrides (placement → size → device support). */
@@ -67,7 +58,7 @@ const PLACEMENT_SIZE_DEVICE_OVERRIDES = {
       "300x600": "desktop",
       "468x60": "desktop",
     },
-    mobile_display: null, // all sizes mobile-only via placement.devices
+    mobile_display: null,
     app_inventory: null,
     youtube_companion: {
       "728x90": "desktop",
@@ -87,12 +78,6 @@ const PLACEMENT_SIZE_DEVICE_OVERRIDES = {
   },
   programmatic: {
     mobile_app_inventory: null,
-    ctv: null,
-    digital_audio: {
-      "320x50": "mobile",
-      "728x90": "desktop",
-      "970x250": "desktop",
-    },
     display_banners: {
       "320x50": "mobile",
       "320x100": "mobile",
@@ -113,9 +98,9 @@ function parseDimensions(size) {
 }
 
 function classifySizeDeviceSupport(size) {
-  if (MOBILE_ONLY_SIZES.has(size)) return "mobile";
-  if (DESKTOP_ONLY_SIZES.has(size)) return "desktop";
   if (CROSS_DEVICE_SIZES.has(size)) return "both";
+  if (TRUE_MOBILE_ONLY_SIZES.has(size)) return "mobile";
+  if (TRUE_DESKTOP_ONLY_SIZES.has(size)) return "desktop";
 
   const dims = parseDimensions(size);
   if (!dims) return "both";
@@ -269,7 +254,6 @@ export function getSupportedDevicesForCreative(platform, placementId, size) {
   const normalized = normalizePreviewSize(size);
   const placement = getPreviewPlacement(platform, placementId);
   const placementDevices = placement?.devices || ["desktop", "mobile"];
-  const sizeSupport = getSizeDeviceSupport(platform, placementId, normalized);
 
   return placementDevices.filter((device) => {
     const result = validatePreviewDeviceCompatibility({

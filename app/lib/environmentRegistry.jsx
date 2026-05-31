@@ -20,6 +20,8 @@ import FacebookMarketplaceEnvironment from "@/app/components/PreviewStudio/MetaA
 import MessengerEnvironment from "@/app/components/PreviewStudio/MetaAds/environments/MessengerEnvironment";
 import AudienceNetworkEnvironment from "@/app/components/PreviewStudio/MetaAds/environments/AudienceNetworkEnvironment";
 import FallbackEnvironment from "@/app/components/PreviewStudio/shared/FallbackEnvironment";
+import MobileEnvironmentTemplatePreview from "@/app/components/PreviewStudio/shared/MobileEnvironmentTemplatePreview";
+import { shouldUseFullEnvironmentLayout } from "@/app/components/PreviewStudio/shared/previewDeviceLayouts";
 import {
   getPreviewPlacementTabs,
   PREVIEW_PLACEMENT_REGISTRY,
@@ -89,6 +91,19 @@ export function resolveCreativeEnvironment(creative, deviceMode = "desktop") {
 
 export function renderEnvironmentCreative(creative, handlers = {}, deviceMode = "desktop") {
   const environmentKey = resolveCreativeEnvironment(creative, deviceMode);
+
+  if (!shouldUseFullEnvironmentLayout(deviceMode)) {
+    return (
+      <MobileEnvironmentTemplatePreview
+        creative={{ ...creative, environment: environmentKey || creative.environment }}
+        environmentKey={environmentKey}
+        deviceMode={deviceMode}
+        onCopy={handlers.onCopy}
+        onEdit={handlers.onEdit}
+      />
+    );
+  }
+
   const Component = environmentKey ? environmentRegistry[environmentKey] : FallbackEnvironment;
 
   return (

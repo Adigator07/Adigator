@@ -54,7 +54,7 @@ export default function GamingEnvironment({ content, slotType, creativeUrl, crea
       {/* Leaderboard */}
       <section className="border-b px-4 py-4 md:px-8" style={{ borderColor: "rgba(255,255,255,0.07)", background: "rgba(0,0,0,0.3)" }}>
         <div className="mx-auto max-w-6xl">
-          <WebsiteAdSlot slot="top-leaderboard" activePlacement={activePlacement} creativeUrl={creativeUrl} creativeSize={creativeSize} fallbackSrc={fallback["top-leaderboard"]} fit="cover" className="mx-auto" />
+          <WebsiteAdSlot slot="top-leaderboard" activePlacement={activePlacement} creativeUrl={creativeUrl} creativeSize={creativeSize} fallbackSrc={fallback["top-leaderboard"]} fit="contain" className="mx-auto" />
         </div>
       </section>
 
@@ -145,7 +145,7 @@ export default function GamingEnvironment({ content, slotType, creativeUrl, crea
               <p className="text-sm text-slate-400 leading-relaxed">Get 1,500 coins, 3 exclusive skins, and unlimited season access. Limited time deal.</p>
               <button className="mt-4 text-black text-xs font-black px-5 py-2.5 rounded-xl transition" style={{ background: "linear-gradient(to right, #34d399, #06b6d4)" }}>Claim Offer</button>
             </div>
-            <WebsiteAdSlot slot="native-feed" activePlacement={activePlacement} creativeUrl={creativeUrl} creativeSize={creativeSize} fallbackSrc={fallback["native-feed"]} fit="cover" className="mx-auto" />
+            <WebsiteAdSlot slot="native-feed" activePlacement={activePlacement} creativeUrl={creativeUrl} creativeSize={creativeSize} fallbackSrc={fallback["native-feed"]} fit="contain" className="mx-auto" />
           </div>
         </main>
 

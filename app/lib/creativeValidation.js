@@ -32,6 +32,14 @@ export const SUPPORTED_DISPLAY_SIZE_GROUPS = {
   stories: ["1080x1920"],
 };
 
+/** Programmatic native / responsive display assets (Step 2 validation + analyzer). */
+export const PROGRAMMATIC_NATIVE_RESPONSIVE_SIZES = [
+  "1200x628",
+  "1200x1200",
+  "1080x1080",
+  "960x1200",
+];
+
 export const PLATFORM_SUPPORTED_SIZE_GROUPS = {
   google_ads: {
     desktop_display: ["300x250", "336x280", "728x90", "970x90", "970x250", "160x600", "300x600", "468x60", "250x250", "200x200"],
@@ -47,10 +55,7 @@ export const PLATFORM_SUPPORTED_SIZE_GROUPS = {
   programmatic: {
     standard_display: SUPPORTED_DISPLAY_SIZE_GROUPS.desktop,
     mobile_display: SUPPORTED_DISPLAY_SIZE_GROUPS.mobile,
-    high_impact_premium: SUPPORTED_DISPLAY_SIZE_GROUPS.high_impact,
-    native_social_display: SUPPORTED_DISPLAY_SIZE_GROUPS.native,
-    responsive_native: SUPPORTED_DISPLAY_SIZE_GROUPS.responsive_native,
-    story_vertical: ["1080x1920"],
+    native_responsive_assets: PROGRAMMATIC_NATIVE_RESPONSIVE_SIZES,
   },
 };
 
@@ -570,6 +575,7 @@ function buildUnsupportedSizeIssue(size, platformLabel) {
 function isNativeOrResponsiveSize(size, intelligence) {
   if (intelligence?.sizeGroup === "native" || intelligence?.placementType === "native") return true;
   const nativeSizes = new Set([
+    ...PROGRAMMATIC_NATIVE_RESPONSIVE_SIZES,
     ...(SUPPORTED_DISPLAY_SIZE_GROUPS.native || []),
     ...(SUPPORTED_DISPLAY_SIZE_GROUPS.responsive_native || []),
     "1080x1350", "1080x1920",

@@ -95,7 +95,7 @@ export default function FinanceEnvironment({ content, slotType, creativeUrl, cre
 
           {/* Leaderboard */}
           <section className="bg-slate-900/50 border-b border-white/10 px-5 py-4">
-            <WebsiteAdSlot slot="top-leaderboard" activePlacement={activePlacement} creativeUrl={creativeUrl} creativeSize={creativeSize} fallbackSrc={fallback["top-leaderboard"]} fit="cover" className="mx-auto" />
+            <WebsiteAdSlot slot="top-leaderboard" activePlacement={activePlacement} creativeUrl={creativeUrl} creativeSize={creativeSize} fallbackSrc={fallback["top-leaderboard"]} fit="contain" className="mx-auto" />
           </section>
 
           <main className="flex-1 px-5 py-5 space-y-6">
@@ -192,7 +192,7 @@ export default function FinanceEnvironment({ content, slotType, creativeUrl, cre
                   <p className="text-xs text-slate-400 leading-relaxed">Analyst-grade insights on top 500 stocks. Daily briefings. Earnings previews.</p>
                 </div>
                 <div className="flex-1">
-                  <WebsiteAdSlot slot="native-feed" activePlacement={activePlacement} creativeUrl={creativeUrl} creativeSize={creativeSize} fallbackSrc={fallback["native-feed"]} fit="cover" className="mx-auto" />
+                  <WebsiteAdSlot slot="native-feed" activePlacement={activePlacement} creativeUrl={creativeUrl} creativeSize={creativeSize} fallbackSrc={fallback["native-feed"]} fit="contain" className="mx-auto" />
                 </div>
               </div>
             </div>

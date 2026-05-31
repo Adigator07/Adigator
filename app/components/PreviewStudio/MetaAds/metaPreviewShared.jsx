@@ -5,7 +5,7 @@ export function MetaImageBlock({ creative, className = "", ratioClass = "" }) {
   return (
     <div className={`overflow-hidden bg-slate-200 ${ratioClass} ${className}`}>
       {src ? (
-        <img src={src} alt={creative.headline} className="h-full w-full object-cover" />
+        <img src={src} alt={creative.headline} className="h-full w-full object-contain" />
       ) : (
         <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-slate-300 to-slate-400 text-slate-600 text-xs">
           Image Placeholder

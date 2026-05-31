@@ -1,5 +1,6 @@
 "use client";
 
+import { Fragment } from "react";
 import type { EnvironmentProps } from "./adSlotUtils";
 import { pickPlacement, useFallbackMap, WebsiteAdSlot } from "./adSlotUtils";
 
@@ -88,7 +89,7 @@ export default function SocialEnvironment({ content, slotType, creativeUrl, crea
       {/* Leaderboard */}
       <section className="border-b border-white/10 px-4 py-3 md:px-8 bg-slate-900">
         <div className="mx-auto max-w-6xl">
-          <WebsiteAdSlot slot="top-leaderboard" activePlacement={activePlacement} creativeUrl={creativeUrl} creativeSize={creativeSize} fallbackSrc={fallback["top-leaderboard"]} fit="cover" className="mx-auto" />
+          <WebsiteAdSlot slot="top-leaderboard" activePlacement={activePlacement} creativeUrl={creativeUrl} creativeSize={creativeSize} fallbackSrc={fallback["top-leaderboard"]} fit="contain" className="mx-auto" />
         </div>
       </section>
 
@@ -114,8 +115,8 @@ export default function SocialEnvironment({ content, slotType, creativeUrl, crea
         {/* Feed */}
         <div className="space-y-5">
           {POSTS.map((post, idx) => (
-            <>
-              <div key={post.username} className="bg-slate-900 border border-white/10 rounded-2xl overflow-hidden">
+            <Fragment key={`${post.username}-${idx}`}>
+              <div className="bg-slate-900 border border-white/10 rounded-2xl overflow-hidden">
                 {/* Post header */}
                 <div className="flex items-center justify-between px-4 pt-4 pb-3">
                   <div className="flex items-center gap-3">
@@ -162,7 +163,7 @@ export default function SocialEnvironment({ content, slotType, creativeUrl, crea
                       <p className="text-xs text-slate-400 leading-relaxed">Join millions of creators and brands connecting on Flair.</p>
                       <button className="mt-3 bg-fuchsia-600 hover:bg-fuchsia-500 text-white text-xs font-bold px-4 py-2 rounded-full transition">Explore Now</button>
                     </div>
-                    <WebsiteAdSlot slot="native-feed" activePlacement={activePlacement} creativeUrl={creativeUrl} creativeSize={creativeSize} fallbackSrc={fallback["native-feed"]} fit="cover" className="mx-auto" />
+                    <WebsiteAdSlot slot="native-feed" activePlacement={activePlacement} creativeUrl={creativeUrl} creativeSize={creativeSize} fallbackSrc={fallback["native-feed"]} fit="contain" className="mx-auto" />
                   </div>
                 </div>
               )}
@@ -174,7 +175,7 @@ export default function SocialEnvironment({ content, slotType, creativeUrl, crea
                   <WebsiteAdSlot slot="inline-article" activePlacement={activePlacement} creativeUrl={creativeUrl} creativeSize={creativeSize} fallbackSrc={fallback["inline-article"]} fit="contain" className="mx-auto" />
                 </div>
               )}
-            </>
+            </Fragment>
           ))}
         </div>
 

@@ -3,7 +3,6 @@
 import { useMemo } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import type { GeneratedEnvironment, SlotType } from "@/app/lib/preview-engine/types";
-import { analyzeCreativeSlotFit, getFitNoticeMessage } from "@/app/lib/creativeFitAnalysis";
 
 export interface EnvironmentProps {
   content: GeneratedEnvironment;
@@ -122,7 +121,7 @@ export function WebsiteAdSlot({
   creativeSize,
   fallbackSrc,
   className,
-  fit = "cover",
+  fit = "contain",
 }: {
   slot: PlacementKey;
   activePlacement: PlacementKey;
@@ -135,24 +134,21 @@ export function WebsiteAdSlot({
   const targetSize = SLOT_DIMENSIONS[slot];
   const isUsingUserCreative = slot === activePlacement && Boolean(creativeUrl);
   const renderSrc = isUsingUserCreative ? creativeUrl : fallbackSrc;
-  const [cw = targetSize.width, ch = targetSize.height] = creativeSize.split("x").map(Number);
-  const sourceRatio = cw / Math.max(ch, 1);
-  const slotRatio = targetSize.width / targetSize.height;
-  const fitAnalysis = analyzeCreativeSlotFit(creativeSize, targetSize.width, targetSize.height, "cover");
-  const fitMessage = isUsingUserCreative ? getFitNoticeMessage(fitAnalysis) : null;
-  const useContain = Math.abs(sourceRatio - slotRatio) > 0.25;
 
   return (
     <div className={className} style={{ width: "100%", maxWidth: `${targetSize.width}px` }}>
-      <div className="overflow-hidden" style={{ width: "100%", aspectRatio: `${targetSize.width} / ${targetSize.height}` }}>
+      <div
+        className="flex items-center justify-center overflow-hidden bg-slate-100"
+        style={{ width: "100%", aspectRatio: `${targetSize.width} / ${targetSize.height}` }}
+      >
         <AnimatePresence mode="wait">
           {renderSrc ? (
             <motion.img
               key={`${renderSrc}-${slot}`}
               src={renderSrc}
               alt="Sponsored"
-              className="h-full w-full"
-              style={{ objectFit: isUsingUserCreative ? (useContain ? "contain" : "cover") : "cover" }}
+              className="max-h-full max-w-full"
+              style={{ objectFit: isUsingUserCreative ? "contain" : "cover" }}
               initial={{ opacity: 0.45 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0.45 }}
@@ -170,11 +166,42 @@ export function WebsiteAdSlot({
           )}
         </AnimatePresence>
       </div>
-      {fitMessage ? (
-        <p className="mt-2 rounded-md border border-amber-500/30 bg-amber-500/10 px-2 py-1.5 text-[11px] leading-relaxed text-amber-100">
-          {fitMessage}
-        </p>
-      ) : null}
+    </div>
+  );
+}
+
+/** Mobile view: creative ad unit only — no publisher website chrome. */
+export function ProgrammaticMobileAdPreview({
+  creativeUrl,
+  creativeSize,
+  slotType,
+  publisherName,
+  device = "mobile",
+}: {
+  creativeUrl: string;
+  creativeSize: string;
+  slotType: SlotType;
+  publisherName?: string;
+  device?: "desktop" | "tablet" | "mobile";
+}) {
+  const activePlacement = pickPlacement(creativeSize, slotType);
+  const fallback = useFallbackMap(publisherName, "Publisher", device);
+
+  return (
+    <div className="mx-auto w-full max-w-[460px]">
+      <div className="overflow-hidden rounded-[2rem] border-[10px] border-gray-900 bg-[#eceff1] shadow-xl">
+        <div className="flex min-h-[280px] items-center justify-center p-5">
+          <WebsiteAdSlot
+            slot={activePlacement}
+            activePlacement={activePlacement}
+            creativeUrl={creativeUrl}
+            creativeSize={creativeSize}
+            fallbackSrc={fallback[activePlacement]}
+            fit="contain"
+            className="mx-auto"
+          />
+        </div>
+      </div>
     </div>
   );
 }

@@ -95,7 +95,7 @@ export default function SaasEnvironment({ content, slotType, creativeUrl, creati
 
           {/* Leaderboard */}
           <section className="bg-slate-900/40 border-b border-white/10 px-5 py-4">
-            <WebsiteAdSlot slot="top-leaderboard" activePlacement={activePlacement} creativeUrl={creativeUrl} creativeSize={creativeSize} fallbackSrc={fallback["top-leaderboard"]} fit="cover" className="mx-auto" />
+            <WebsiteAdSlot slot="top-leaderboard" activePlacement={activePlacement} creativeUrl={creativeUrl} creativeSize={creativeSize} fallbackSrc={fallback["top-leaderboard"]} fit="contain" className="mx-auto" />
           </section>
 
           <main className="px-5 py-5 space-y-6 flex-1">
@@ -196,7 +196,7 @@ export default function SaasEnvironment({ content, slotType, creativeUrl, creati
                   <button className="mt-3 bg-violet-600 hover:bg-violet-500 text-white text-xs font-bold px-4 py-2 rounded-xl transition">Start Free Trial</button>
                 </div>
                 <div className="flex-1">
-                  <WebsiteAdSlot slot="native-feed" activePlacement={activePlacement} creativeUrl={creativeUrl} creativeSize={creativeSize} fallbackSrc={fallback["native-feed"]} fit="cover" className="mx-auto" />
+                  <WebsiteAdSlot slot="native-feed" activePlacement={activePlacement} creativeUrl={creativeUrl} creativeSize={creativeSize} fallbackSrc={fallback["native-feed"]} fit="contain" className="mx-auto" />
                 </div>
               </div>
             </div>

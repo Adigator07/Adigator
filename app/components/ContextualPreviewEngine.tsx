@@ -14,10 +14,10 @@ import GamingEnvironment from "./environments/GamingEnvironment";
 import SaasEnvironment from "./environments/SaasEnvironment";
 import LuxuryEnvironment from "./environments/LuxuryEnvironment";
 import BookingEnvironment from "./environments/BookingEnvironment";
-import { analyzeCreativeSlotFit, getFitNoticeMessage } from "@/app/lib/creativeFitAnalysis";
 import { validatePreviewDeviceCompatibility } from "@/app/lib/previewDeviceCompatibility";
-import { pickPlacement, SLOT_DIMENSIONS } from "./environments/adSlotUtils";
-import { PreviewDeviceIncompatibleState } from "./PreviewStudio/PreviewShared";
+import { pickPlacement, ProgrammaticMobileAdPreview } from "./environments/adSlotUtils";
+import { PreviewDeviceIncompatibleState, PreviewErrorState, PreviewLoadingState } from "./PreviewStudio/PreviewShared";
+import { EnvironmentPreviewCard } from "./PreviewStudio/shared/envShared";
 
 interface Props {
   creatives: Array<{
@@ -37,6 +37,14 @@ interface Props {
   previewPlatform?: string;
   previewPlacement?: string;
   getSupportedDevicesForCreative?: (size: string) => string[];
+  studioMode?: boolean;
+  fixedEnvironment?: EnvironmentFamily | null;
+  placementLabel?: string;
+  onCopyCreative?: (creative: Record<string, unknown>) => void;
+  onEditCreative?: (creative: Record<string, unknown>) => void;
+  allowedEnvironmentFamilies?: EnvironmentFamily[];
+  hideCreativeSidebar?: boolean;
+  hideEnvironmentSelector?: boolean;
 }
 
 const ENV_LABELS: Record<EnvironmentFamily, { label: string; icon: string; color: string }> = {
@@ -148,6 +156,14 @@ export default function ContextualPreviewEngine({
   previewPlatform,
   previewPlacement,
   getSupportedDevicesForCreative,
+  studioMode = false,
+  fixedEnvironment = null,
+  placementLabel,
+  onCopyCreative,
+  onEditCreative,
+  allowedEnvironmentFamilies,
+  hideCreativeSidebar = false,
+  hideEnvironmentSelector = false,
 }: Props) {
   const [output, setOutput] = useState<PreviewEngineOutput | null>(null);
   const [loading, setLoading] = useState(false);
@@ -155,7 +171,11 @@ export default function ContextualPreviewEngine({
   const [internalDevice, setInternalDevice] = useState<DeviceType | null>(null);
   const device = controlledDevice ?? internalDevice;
   const setDevice = onDeviceChange ?? setInternalDevice;
-  const [selectedEnvironment, setSelectedEnvironment] = useState<EnvironmentFamily | null>(null);
+  const [selectedEnvironment, setSelectedEnvironment] = useState<EnvironmentFamily | null>(
+    studioMode && fixedEnvironment
+      ? fixedEnvironment
+      : allowedEnvironmentFamilies?.[0] ?? null,
+  );
   const [activeCreativeIndex, setActiveCreativeIndex] = useState(0);
   const previewCacheRef = useRef<Map<string, PreviewEngineOutput>>(new Map());
   const activeKeyRef = useRef<string>("");
@@ -164,6 +184,20 @@ export default function ContextualPreviewEngine({
   const activeCreative = creatives[safeCreativeIndex];
   const resolvedCreativeUrl = activeCreative?.url || "";
   const availableSizes = Array.from(new Set(creatives.map((creative) => creative.size)));
+
+  useEffect(() => {
+    if (studioMode && fixedEnvironment) {
+      setSelectedEnvironment(fixedEnvironment);
+      return;
+    }
+    if (allowedEnvironmentFamilies?.length) {
+      setSelectedEnvironment((current) => (
+        current && allowedEnvironmentFamilies.includes(current)
+          ? current
+          : allowedEnvironmentFamilies[0]
+      ));
+    }
+  }, [studioMode, fixedEnvironment, allowedEnvironmentFamilies]);
 
   useEffect(() => {
     // Guard against stale local state from hot reloads where "tablet" was previously selected.
@@ -270,7 +304,13 @@ export default function ContextualPreviewEngine({
   const currentEnv: EnvironmentFamily = selectedEnvironment ?? "news";
   const isMobilePreview = device === "mobile";
   const envMeta = ENV_LABELS[currentEnv] ?? ENV_LABELS.news;
-  const activeExpectedSlot = getExpectedSlotForSize(activeCreative.size);
+  const activeExpectedSlot = activeCreative ? getExpectedSlotForSize(activeCreative.size) : null;
+  const visibleEnvironmentEntries = (Object.entries(ENV_LABELS) as [EnvironmentFamily, typeof ENV_LABELS[EnvironmentFamily]][])
+    .filter(([key]) => !allowedEnvironmentFamilies?.length || allowedEnvironmentFamilies.includes(key));
+  const useStudioChrome = hideCreativeSidebar || Boolean(allowedEnvironmentFamilies?.length);
+  const showSidebar = !hideCreativeSidebar && !isMobilePreview;
+  const showBrowserChrome = !isMobilePreview;
+  const showEnvironmentSelector = !hideEnvironmentSelector && visibleEnvironmentEntries.length > 1;
 
   const creativeAlignment = creatives.map((creative) => {
     const expectedSlot = getExpectedSlotForSize(creative.size);
@@ -284,8 +324,22 @@ export default function ContextualPreviewEngine({
 
   const alignedCount = creativeAlignment.filter((item) => item.isSupported).length;
   const unsupportedCount = creativeAlignment.length - alignedCount;
+  const studioEnvMeta = fixedEnvironment ? ENV_LABELS[fixedEnvironment] : null;
 
   if (loading) {
+    if (studioMode) {
+      return (
+        <article className="rounded-2xl border border-white/10 bg-[#0b1020] overflow-hidden shadow-2xl">
+          <div className="border-b border-white/10 px-4 py-3 bg-black/30">
+            <span className="rounded-full border bg-cyan-500/15 text-cyan-200 border-cyan-400/30 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider">
+              Programmatic · {studioEnvMeta?.label.replace(" Context", "") || "Context"}
+            </span>
+          </div>
+          <PreviewLoadingState label={`Building ${studioEnvMeta?.label || "context"} preview…`} />
+        </article>
+      );
+    }
+
     return (
       <div className="flex flex-col items-center justify-center py-20 gap-6">
         <div className="relative w-16 h-16">
@@ -302,6 +356,22 @@ export default function ContextualPreviewEngine({
   }
 
   if (error) {
+    if (studioMode) {
+      return (
+        <article className="rounded-2xl border border-white/10 bg-[#0b1020] overflow-hidden shadow-2xl">
+          <div className="border-b border-white/10 px-4 py-3 bg-black/30">
+            <span className="rounded-full border bg-cyan-500/15 text-cyan-200 border-cyan-400/30 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider">
+              Programmatic · {studioEnvMeta?.label.replace(" Context", "") || "Context"}
+            </span>
+          </div>
+          <PreviewErrorState
+            message={error}
+            onRetry={() => activeCreative && fetchPreview(activeCreative, true, fixedEnvironment || selectedEnvironment)}
+          />
+        </article>
+      );
+    }
+
     return (
       <div className="flex flex-col items-center justify-center py-16 gap-4">
         <div className="w-14 h-14 bg-red-500/10 border border-red-500/30 rounded-2xl flex items-center justify-center text-2xl">!</div>
@@ -321,7 +391,7 @@ export default function ContextualPreviewEngine({
 
   if (!activeCreative) return null;
 
-  if (!selectedEnvironment || !device) {
+  if (!studioMode && !allowedEnvironmentFamilies?.length && (!selectedEnvironment || !device)) {
     return (
       <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
         <div className="flex flex-wrap items-center gap-3">
@@ -380,10 +450,6 @@ export default function ContextualPreviewEngine({
   const activePlacementKey = activeCreative
     ? pickPlacement(activeCreative.size, creativeMapping?.slotType)
     : null;
-  const slotDims = activePlacementKey ? SLOT_DIMENSIONS[activePlacementKey] : null;
-  const templateFitMessage = activeCreative && slotDims
-    ? getFitNoticeMessage(analyzeCreativeSlotFit(activeCreative.size, slotDims.width, slotDims.height, "cover"))
-    : null;
 
   const deviceValidation = previewPlatform && previewPlacement && activeCreative && device
     ? validatePreviewDeviceCompatibility({
@@ -396,103 +462,182 @@ export default function ContextualPreviewEngine({
 
   const alternateDevice = device === "mobile" ? "desktop" : "mobile";
 
+  if (studioMode) {
+    const previewCreative = {
+      id: `${activeCreative.id ?? "creative"}-${currentEnv}`,
+      platform: "programmatic",
+      placement: placementLabel || previewPlacement || "Programmatic",
+      environment: currentEnv,
+      type: "contextual_preview",
+      size: activeCreative.size,
+      imageUrl: resolvedCreativeUrl,
+      image: resolvedCreativeUrl,
+      previewOutput: output,
+    };
+
+    return (
+      <EnvironmentPreviewCard
+        creative={previewCreative}
+        platformBadge={`Programmatic · ${envMeta.label.replace(" Context", "")}`}
+        badgeClassName="bg-cyan-500/15 text-cyan-200 border-cyan-400/30"
+        scaleLabel={null}
+        deviceMode={device || "desktop"}
+        hideSizeLabel
+        fitNotice={null}
+        onCopy={onCopyCreative ? () => onCopyCreative(previewCreative) : undefined}
+        onEdit={onEditCreative ? () => onEditCreative(previewCreative) : undefined}
+      >
+        <div className={`mx-auto transition-all duration-300 ${isMobilePreview ? "w-full max-w-[460px]" : "w-full"}`}>
+          <div className="bg-[#1c1f27] border border-white/10 rounded-t-xl px-4 py-2.5 flex items-center gap-3">
+            <div className="flex gap-1.5">
+              <div className="w-3 h-3 rounded-full bg-red-500/60" />
+              <div className="w-3 h-3 rounded-full bg-yellow-500/60" />
+              <div className="w-3 h-3 rounded-full bg-green-500/60" />
+            </div>
+            <div className="flex-1 bg-white/5 border border-white/10 rounded-lg px-3 py-1 text-xs text-gray-400 font-mono truncate">
+              https://www.{output.generatedEnvironment.publisherName?.toLowerCase().replace(/\s+/g, "") ?? "publisher"}.com/
+              {output.generatedEnvironment.contextBlocks[0]?.text?.toLowerCase().replace(/\s+/g, "-").slice(0, 30) ?? "article"}
+            </div>
+            <div className="flex items-center gap-2 text-gray-600 text-xs">
+              <span className="bg-green-900/40 text-green-400 border border-green-900/60 px-2 py-0.5 rounded text-[10px] font-bold">Secure</span>
+            </div>
+          </div>
+
+          <div className={`border-x border-b border-white/10 rounded-b-xl overflow-hidden ${isMobilePreview ? "max-h-none" : "max-h-175 overflow-y-auto"}`}>
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={`${currentEnv}-${device}`}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.25 }}
+                className={isMobilePreview ? "max-h-[calc(100vh-320px)] overflow-y-auto" : ""}
+              >
+                <EnvironmentRenderer
+                  env={currentEnv}
+                  output={output}
+                  creativeUrl={resolvedCreativeUrl}
+                  creativeSize={activeCreative.size}
+                  device={device || "desktop"}
+                />
+              </motion.div>
+            </AnimatePresence>
+          </div>
+        </div>
+      </EnvironmentPreviewCard>
+    );
+  }
+
   return (
     <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
-      <div className="flex flex-wrap items-center gap-3">
-        <div className="flex items-center gap-2 bg-white/5 border border-white/10 rounded-xl p-1">
-          {(Object.entries(ENV_LABELS) as [EnvironmentFamily, typeof ENV_LABELS[EnvironmentFamily]][])
-            .map(([k, v]) => (
+      {showEnvironmentSelector ? (
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex flex-wrap items-center gap-2">
+            {visibleEnvironmentEntries.map(([k, v]) => (
               <button
                 key={k}
+                type="button"
                 onClick={() => {
                   setSelectedEnvironment(k);
                   if (activeCreative) {
                     fetchPreview(activeCreative, true, k);
                   }
                 }}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1 ${
+                className={`rounded-full px-4 py-2 text-xs font-semibold transition flex items-center gap-1 ${
                   currentEnv === k
-                    ? "bg-purple-600 text-white shadow-lg shadow-purple-500/30"
-                    : "text-gray-400 hover:text-white hover:bg-white/5"
+                    ? useStudioChrome
+                      ? "bg-cyan-500 text-slate-950 shadow-lg shadow-cyan-500/20"
+                      : "bg-purple-600 text-white shadow-lg shadow-purple-500/30"
+                    : "bg-white/5 text-gray-300 border border-white/10 hover:bg-white/10"
                 }`}
               >
                 <span>{v.icon}</span>
-                <span className="hidden sm:inline">{v.label}</span>
+                <span>{v.label.replace(" Context", "")}</span>
               </button>
             ))}
-        </div>
+          </div>
 
-        {!hideDeviceToggle ? (
-          <div className="flex items-center gap-1 bg-white/5 border border-white/10 rounded-xl p-1 ml-auto">
-            {DEVICE_OPTIONS.map((d) => (
-              <button
-                key={d.id}
-                onClick={() => setDevice(d.id)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1 ${
-                  device === d.id
-                    ? "bg-white/15 text-white"
-                    : "text-gray-400 hover:text-white hover:bg-white/5"
-                }`}
-                title={d.label}
-              >
-                {d.icon} <span className="hidden sm:inline">{d.label}</span>
-              </button>
-            ))}
+          {!hideDeviceToggle ? (
+            <div className="flex items-center gap-1 bg-white/5 border border-white/10 rounded-xl p-1 ml-auto">
+              {DEVICE_OPTIONS.map((d) => (
+                <button
+                  key={d.id}
+                  onClick={() => setDevice(d.id)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1 ${
+                    device === d.id
+                      ? "bg-white/15 text-white"
+                      : "text-gray-400 hover:text-white hover:bg-white/5"
+                  }`}
+                  title={d.label}
+                >
+                  {d.icon} <span className="hidden sm:inline">{d.label}</span>
+                </button>
+              ))}
+            </div>
+          ) : null}
+
+          {!hideCreativeSidebar ? (
+            <button
+              onClick={() => activeCreative && fetchPreview(activeCreative, true, selectedEnvironment)}
+              disabled={!selectedEnvironment || !device}
+              className="px-4 py-2 bg-white/5 border border-white/10 hover:bg-white/10 text-white text-xs font-semibold rounded-xl transition flex items-center gap-2"
+            >
+              Refresh Context
+            </button>
+          ) : null}
+        </div>
+      ) : null}
+
+      {!isMobilePreview ? (
+        <>
+          <div className={`flex flex-wrap items-center gap-3 bg-linear-to-r ${envMeta.color} border rounded-xl px-4 py-3`}>
+            <span className="text-2xl">{envMeta.icon}</span>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-bold text-white">{envMeta.label} Environment</p>
+              <p className="text-xs text-gray-400 mt-0.5 truncate">{previewDecision.reason}</p>
+            </div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-xs bg-white/10 text-gray-300 px-2 py-1 rounded-lg">{slotLabel}</span>
+              <span className="text-xs bg-white/10 text-gray-300 px-2 py-1 rounded-lg">{templateLabel}</span>
+            </div>
+          </div>
+
+          {output.compatibility.deviceFit !== "pass" && (
+            <div
+              className={`rounded-xl border px-4 py-3 text-sm ${
+                output.compatibility.deviceFit === "fail"
+                  ? "bg-red-500/10 border-red-500/30 text-red-200"
+                  : "bg-yellow-500/10 border-yellow-500/30 text-yellow-200"
+              }`}
+            >
+              <p className="font-semibold">Campaign Alignment Check</p>
+              <p className="mt-1">{output.compatibility.message}</p>
+              <p className="mt-1 text-xs opacity-90">Suggested sizes: {output.compatibility.suggestedSizes.join(", ")}</p>
+            </div>
+          )}
+        </>
+      ) : null}
+
+      <div className={`mx-auto transition-all duration-300 ${isMobilePreview ? "w-full max-w-[460px]" : (DEVICE_OPTIONS.find((d) => d.id === device)?.width ?? "w-full")}`}>
+        {showBrowserChrome ? (
+          <div className="bg-[#1c1f27] border border-white/10 rounded-t-xl px-4 py-2.5 flex items-center gap-3">
+            <div className="flex gap-1.5">
+              <div className="w-3 h-3 rounded-full bg-red-500/60" />
+              <div className="w-3 h-3 rounded-full bg-yellow-500/60" />
+              <div className="w-3 h-3 rounded-full bg-green-500/60" />
+            </div>
+            <div className="flex-1 bg-white/5 border border-white/10 rounded-lg px-3 py-1 text-xs text-gray-400 font-mono truncate">
+              https://www.{output.generatedEnvironment.publisherName?.toLowerCase().replace(/\s+/g, "") ?? "publisher"}.com/
+              {output.generatedEnvironment.contextBlocks[0]?.text?.toLowerCase().replace(/\s+/g, "-").slice(0, 30) ?? "article"}
+            </div>
+            <div className="flex items-center gap-2 text-gray-600 text-xs">
+              <span className="bg-green-900/40 text-green-400 border border-green-900/60 px-2 py-0.5 rounded text-[10px] font-bold">Secure</span>
+            </div>
           </div>
         ) : null}
 
-        <button
-          onClick={() => activeCreative && fetchPreview(activeCreative, true, selectedEnvironment)}
-          disabled={!selectedEnvironment || !device}
-          className="px-4 py-2 bg-white/5 border border-white/10 hover:bg-white/10 text-white text-xs font-semibold rounded-xl transition flex items-center gap-2"
-        >
-          Refresh Context
-        </button>
-      </div>
-
-      <div className={`flex flex-wrap items-center gap-3 bg-linear-to-r ${envMeta.color} border rounded-xl px-4 py-3`}>
-        <span className="text-2xl">{envMeta.icon}</span>
-        <div className="flex-1 min-w-0">
-          <p className="text-sm font-bold text-white">{envMeta.label} Environment</p>
-          <p className="text-xs text-gray-400 mt-0.5 truncate">{previewDecision.reason}</p>
-        </div>
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-xs bg-white/10 text-gray-300 px-2 py-1 rounded-lg">{slotLabel}</span>
-          <span className="text-xs bg-white/10 text-gray-300 px-2 py-1 rounded-lg">{templateLabel}</span>
-        </div>
-      </div>
-
-      {output.compatibility.deviceFit !== "pass" && (
-        <div
-          className={`rounded-xl border px-4 py-3 text-sm ${
-            output.compatibility.deviceFit === "fail"
-              ? "bg-red-500/10 border-red-500/30 text-red-200"
-              : "bg-yellow-500/10 border-yellow-500/30 text-yellow-200"
-          }`}
-        >
-          <p className="font-semibold">Campaign Alignment Check</p>
-          <p className="mt-1">{output.compatibility.message}</p>
-          <p className="mt-1 text-xs opacity-90">Suggested sizes: {output.compatibility.suggestedSizes.join(", ")}</p>
-        </div>
-      )}
-
-      <div className={`mx-auto transition-all duration-300 ${isMobilePreview ? "w-full max-w-[460px]" : (DEVICE_OPTIONS.find((d) => d.id === device)?.width ?? "w-full")}`}>
-        <div className="bg-[#1c1f27] border border-white/10 rounded-t-xl px-4 py-2.5 flex items-center gap-3">
-          <div className="flex gap-1.5">
-            <div className="w-3 h-3 rounded-full bg-red-500/60" />
-            <div className="w-3 h-3 rounded-full bg-yellow-500/60" />
-            <div className="w-3 h-3 rounded-full bg-green-500/60" />
-          </div>
-          <div className="flex-1 bg-white/5 border border-white/10 rounded-lg px-3 py-1 text-xs text-gray-400 font-mono truncate">
-            https://www.{output.generatedEnvironment.publisherName?.toLowerCase().replace(/\s+/g, "") ?? "publisher"}.com/
-            {output.generatedEnvironment.contextBlocks[0]?.text?.toLowerCase().replace(/\s+/g, "-").slice(0, 30) ?? "article"}
-          </div>
-          <div className="flex items-center gap-2 text-gray-600 text-xs">
-            <span className="bg-green-900/40 text-green-400 border border-green-900/60 px-2 py-0.5 rounded text-[10px] font-bold">Secure</span>
-          </div>
-        </div>
-
-        <div className={`border-x border-b border-white/10 rounded-b-xl overflow-hidden ${isMobilePreview ? "max-h-none" : "max-h-175 overflow-y-auto"} flex ${isMobilePreview ? "flex-col" : ""}`}>
+        <div className={`${showBrowserChrome ? "border-x border-b border-white/10 rounded-b-xl" : "rounded-2xl border border-white/10"} overflow-hidden ${isMobilePreview ? "max-h-none" : "max-h-175 overflow-y-auto"} flex ${isMobilePreview ? "flex-col" : ""}`}>
+          {showSidebar ? (
           <div className={`${isMobilePreview ? "w-full border-b border-white/10" : "w-1/3 border-r border-white/10"} bg-gray-900 p-4 space-y-3`}>
             <div className="flex items-center justify-between">
               <p className="text-xs text-gray-500 font-semibold">CREATIVE SET ({creatives.length})</p>
@@ -598,6 +743,7 @@ export default function ContextualPreviewEngine({
             </div>
             <p className="text-[10px] text-gray-500 text-center font-mono">{activeCreative.size}</p>
           </div>
+          ) : null}
 
           <div className="flex-1 min-w-0">
             {!deviceValidation.supported ? (
@@ -608,6 +754,16 @@ export default function ContextualPreviewEngine({
                 alternateDevice={alternateDevice}
                 onSwitchDevice={onDeviceChange ? () => onDeviceChange(alternateDevice) : undefined}
               />
+            ) : isMobilePreview ? (
+              <div className="p-4">
+                <ProgrammaticMobileAdPreview
+                  creativeUrl={resolvedCreativeUrl}
+                  creativeSize={activeCreative.size}
+                  slotType={creativeMapping.slotType}
+                  publisherName={output.generatedEnvironment.publisherName}
+                  device={device || "mobile"}
+                />
+              </div>
             ) : (
             <AnimatePresence mode="wait">
               <motion.div
@@ -616,20 +772,14 @@ export default function ContextualPreviewEngine({
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
                 transition={{ duration: 0.25 }}
-                className={isMobilePreview ? "max-h-[calc(100vh-320px)] overflow-y-auto" : ""}
               >
                 <EnvironmentRenderer
                   env={currentEnv}
                   output={output}
                   creativeUrl={resolvedCreativeUrl}
                   creativeSize={activeCreative.size}
-                  device={device}
+                  device={device || "desktop"}
                 />
-                {templateFitMessage ? (
-                  <div className="mx-4 mb-4 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs leading-relaxed text-amber-100">
-                    {templateFitMessage}
-                  </div>
-                ) : null}
               </motion.div>
             </AnimatePresence>
             )}

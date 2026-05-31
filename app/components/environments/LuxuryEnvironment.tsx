@@ -63,7 +63,7 @@ export default function LuxuryEnvironment({ content, slotType, creativeUrl, crea
       <section className="bg-stone-100 border-b border-stone-200 px-4 py-5 md:px-12">
         <div className="mx-auto max-w-5xl">
           <p className="text-[9px] font-sans uppercase tracking-widest text-stone-400 text-center mb-2">Advertisement</p>
-          <WebsiteAdSlot slot="top-leaderboard" activePlacement={activePlacement} creativeUrl={creativeUrl} creativeSize={creativeSize} fallbackSrc={fallback["top-leaderboard"]} fit="cover" className="mx-auto" />
+          <WebsiteAdSlot slot="top-leaderboard" activePlacement={activePlacement} creativeUrl={creativeUrl} creativeSize={creativeSize} fallbackSrc={fallback["top-leaderboard"]} fit="contain" className="mx-auto" />
         </div>
       </section>
 
@@ -134,7 +134,7 @@ export default function LuxuryEnvironment({ content, slotType, creativeUrl, crea
                 <p className="text-sm text-stone-600 leading-relaxed mb-4">Our editors curate the season's most coveted pieces across fashion, jewellery, and the art of living well.</p>
                 <a href="#" className="text-[11px] font-sans uppercase tracking-wider text-stone-700 border-b border-stone-400 hover:text-stone-900 transition">Explore the Edition</a>
               </div>
-              <WebsiteAdSlot slot="native-feed" activePlacement={activePlacement} creativeUrl={creativeUrl} creativeSize={creativeSize} fallbackSrc={fallback["native-feed"]} fit="cover" className="mx-auto" />
+              <WebsiteAdSlot slot="native-feed" activePlacement={activePlacement} creativeUrl={creativeUrl} creativeSize={creativeSize} fallbackSrc={fallback["native-feed"]} fit="contain" className="mx-auto" />
             </div>
           </main>
 

@@ -108,7 +108,7 @@ export default function NewsEnvironment({ content, slotType, creativeUrl, creati
       <section className="bg-slate-100 border-b border-slate-200 px-4 py-4 md:px-8">
         <div className="mx-auto max-w-6xl">
           <p className="text-[9px] font-sans uppercase tracking-widest text-slate-400 text-center mb-2">Advertisement</p>
-          <WebsiteAdSlot slot="top-leaderboard" activePlacement={activePlacement} creativeUrl={creativeUrl} creativeSize={creativeSize} fallbackSrc={fallback["top-leaderboard"]} fit="cover" className="mx-auto" />
+          <WebsiteAdSlot slot="top-leaderboard" activePlacement={activePlacement} creativeUrl={creativeUrl} creativeSize={creativeSize} fallbackSrc={fallback["top-leaderboard"]} fit="contain" className="mx-auto" />
         </div>
       </section>
 
@@ -162,7 +162,7 @@ export default function NewsEnvironment({ content, slotType, creativeUrl, creati
                 <p className="text-[11px] font-sans text-slate-500">Editorial Board · 8 min read</p>
                 <p className="text-xs leading-relaxed text-slate-600">The integrity of public information depends on editorial gatekeeping that no algorithm can replicate.</p>
               </article>
-              <WebsiteAdSlot slot="native-feed" activePlacement={activePlacement} creativeUrl={creativeUrl} creativeSize={creativeSize} fallbackSrc={fallback["native-feed"]} fit="cover" className="mx-auto" />
+              <WebsiteAdSlot slot="native-feed" activePlacement={activePlacement} creativeUrl={creativeUrl} creativeSize={creativeSize} fallbackSrc={fallback["native-feed"]} fit="contain" className="mx-auto" />
             </div>
           </div>
 

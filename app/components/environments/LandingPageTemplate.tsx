@@ -114,7 +114,7 @@ function WebsiteAdSlot({
   creativeSize,
   fallbackSrc,
   className,
-  fit = "cover",
+  fit = "contain",
 }: {
   slot: PlacementKey;
   activePlacement: PlacementKey;
@@ -127,10 +127,6 @@ function WebsiteAdSlot({
   const targetSize = SLOT_DIMENSIONS[slot];
   const isUsingUserCreative = slot === activePlacement && Boolean(creativeUrl);
   const renderSrc = isUsingUserCreative ? creativeUrl : fallbackSrc;
-  const [cw = targetSize.width, ch = targetSize.height] = creativeSize.split("x").map(Number);
-  const sourceRatio = cw / Math.max(ch, 1);
-  const slotRatio = targetSize.width / targetSize.height;
-  const useContain = Math.abs(sourceRatio - slotRatio) > 0.25 || fit === "contain";
 
   return (
     <div
@@ -141,7 +137,7 @@ function WebsiteAdSlot({
       }}
     >
       <div
-        className="overflow-hidden"
+        className="flex items-center justify-center overflow-hidden bg-slate-900/20"
         style={{
           width: "100%",
           aspectRatio: `${targetSize.width} / ${targetSize.height}`,
@@ -153,8 +149,8 @@ function WebsiteAdSlot({
               key={`${renderSrc}-${slot}`}
               src={renderSrc}
               alt="Sponsored creative"
-              className="h-full w-full"
-              style={{ objectFit: isUsingUserCreative ? (useContain ? "contain" : "cover") : "cover" }}
+              className="max-h-full max-w-full"
+              style={{ objectFit: isUsingUserCreative ? "contain" : "cover" }}
               initial={{ opacity: 0.45 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0.45 }}
@@ -267,7 +263,7 @@ export default function LandingPageTemplate({ theme, content, slotType, creative
             creativeUrl={creativeUrl}
             creativeSize={creativeSize}
             fallbackSrc={fallbackByPlacement["top-leaderboard"]}
-            fit="cover"
+            fit="contain"
             className="mx-auto"
           />
         </div>
@@ -380,7 +376,7 @@ export default function LandingPageTemplate({ theme, content, slotType, creative
                   creativeUrl={creativeUrl}
                   creativeSize={creativeSize}
                   fallbackSrc={fallbackByPlacement["native-feed"]}
-                  fit="cover"
+                  fit="contain"
                   className="mx-auto"
                 />
               </div>

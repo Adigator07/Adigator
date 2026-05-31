@@ -22,6 +22,7 @@ import {
   finalizeValidationForPlatform,
   revalidateCreativesForPlatform,
   SUPPORTED_DISPLAY_SIZE_GROUPS,
+  PROGRAMMATIC_NATIVE_RESPONSIVE_SIZES,
   DSP_PARTNERS,
 } from "../lib/creativeValidation";
 import {
@@ -82,9 +83,7 @@ const PLATFORM_SIZES = {
   programmatic: {
     standard_display: SUPPORTED_DISPLAY_SIZE_GROUPS.desktop,
     mobile_display: SUPPORTED_DISPLAY_SIZE_GROUPS.mobile,
-    high_impact_premium: SUPPORTED_DISPLAY_SIZE_GROUPS.high_impact,
-    native_social_display: SUPPORTED_DISPLAY_SIZE_GROUPS.native,
-    responsive_native: SUPPORTED_DISPLAY_SIZE_GROUPS.responsive_native,
+    native_responsive_assets: PROGRAMMATIC_NATIVE_RESPONSIVE_SIZES,
   },
 };
 
@@ -103,9 +102,7 @@ const GROUP_LABELS = {
   carousel: "Carousel",
   flexible_native_assets: "Flexible Native Assets",
   standard_display: "Standard Display",
-  high_impact_premium: "High-Impact / Premium",
-  native_social_display: "Native / Social Display",
-  responsive_native: "Responsive / Native Assets",
+  native_responsive_assets: "Native & Responsive Assets",
 };
 
 const ANALYSIS_SESSION_STORAGE_KEY = "adigator_analysis_session_id";

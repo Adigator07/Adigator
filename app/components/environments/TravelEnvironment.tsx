@@ -83,7 +83,7 @@ export default function TravelEnvironment({ content, slotType, creativeUrl, crea
       {/* Leaderboard */}
       <section className="bg-slate-100 border-b border-slate-200 px-4 py-4 md:px-8">
         <div className="mx-auto max-w-6xl">
-          <WebsiteAdSlot slot="top-leaderboard" activePlacement={activePlacement} creativeUrl={creativeUrl} creativeSize={creativeSize} fallbackSrc={fallback["top-leaderboard"]} fit="cover" className="mx-auto" />
+          <WebsiteAdSlot slot="top-leaderboard" activePlacement={activePlacement} creativeUrl={creativeUrl} creativeSize={creativeSize} fallbackSrc={fallback["top-leaderboard"]} fit="contain" className="mx-auto" />
         </div>
       </section>
 
@@ -172,7 +172,7 @@ export default function TravelEnvironment({ content, slotType, creativeUrl, crea
               <p className="text-sm text-slate-600 leading-relaxed">Medical coverage, trip cancellation, and lost luggage. Book in minutes.</p>
               <button className="mt-4 bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-bold px-5 py-2.5 rounded-xl transition">Get a Quote</button>
             </div>
-            <WebsiteAdSlot slot="native-feed" activePlacement={activePlacement} creativeUrl={creativeUrl} creativeSize={creativeSize} fallbackSrc={fallback["native-feed"]} fit="cover" className="mx-auto" />
+            <WebsiteAdSlot slot="native-feed" activePlacement={activePlacement} creativeUrl={creativeUrl} creativeSize={creativeSize} fallbackSrc={fallback["native-feed"]} fit="contain" className="mx-auto" />
           </div>
         </div>
 

@@ -73,7 +73,7 @@ export default function BookingEnvironment({ content, slotType, creativeUrl, cre
         <div className="mx-auto max-w-6xl">
           {/* Leaderboard inside map banner */}
           <div className="bg-slate-100 px-4 py-3 md:px-8">
-            <WebsiteAdSlot slot="top-leaderboard" activePlacement={activePlacement} creativeUrl={creativeUrl} creativeSize={creativeSize} fallbackSrc={fallback["top-leaderboard"]} fit="cover" className="mx-auto" />
+            <WebsiteAdSlot slot="top-leaderboard" activePlacement={activePlacement} creativeUrl={creativeUrl} creativeSize={creativeSize} fallbackSrc={fallback["top-leaderboard"]} fit="contain" className="mx-auto" />
           </div>
           {/* Simulated map */}
           <div className="relative h-56 bg-gradient-to-br from-slate-100 to-slate-200 overflow-hidden">
@@ -205,7 +205,7 @@ export default function BookingEnvironment({ content, slotType, creativeUrl, cre
               <p className="text-sm text-slate-600 leading-relaxed">Exclusive deals at the best local restaurants. Book in seconds, no service fees.</p>
               <button className="mt-4 bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold px-5 py-2.5 rounded-xl transition">Find Availability</button>
             </div>
-            <WebsiteAdSlot slot="native-feed" activePlacement={activePlacement} creativeUrl={creativeUrl} creativeSize={creativeSize} fallbackSrc={fallback["native-feed"]} fit="cover" className="mx-auto" />
+            <WebsiteAdSlot slot="native-feed" activePlacement={activePlacement} creativeUrl={creativeUrl} creativeSize={creativeSize} fallbackSrc={fallback["native-feed"]} fit="contain" className="mx-auto" />
           </div>
         </div>
 
