@@ -28,7 +28,7 @@ function MobileYouTubeLayout({ creative, isSkippable }) {
           <span className="text-lg text-white">🔔</span>
         </div>
         <div className="relative flex-1 bg-black">
-          <MediaFrame creative={creative} aspectRatio="16 / 9" />
+          <MediaFrame creative={creative} aspectRatio="16 / 9" fit="contain" />
           {isSkippable ? (
             <div className="absolute bottom-16 right-3 rounded border border-white/20 bg-black/60 px-3 py-1 text-xs text-white">Skip Ad ›</div>
           ) : null}
@@ -58,7 +58,7 @@ function DesktopYouTubeLayout({ creative, isSkippable, sidebarSlot }) {
           </div>
           <div className="flex-1 p-4">
             <div className="relative overflow-hidden rounded-xl bg-black">
-              <MediaFrame creative={creative} aspectRatio="16 / 9" />
+              <MediaFrame creative={creative} aspectRatio="16 / 9" fit="contain" />
               <div className="absolute inset-x-0 bottom-0 flex h-10 items-end bg-gradient-to-t from-black/80 to-transparent px-3 pb-1">
                 <div className="h-1 flex-1 rounded bg-gray-600"><div className="h-full w-[18%] rounded bg-[#ff0000]" /></div>
                 <span className="ml-2 text-[10px] text-white">0:05 / 0:30</span>
@@ -77,7 +77,8 @@ function DesktopYouTubeLayout({ creative, isSkippable, sidebarSlot }) {
               creative={creative}
               width={sidebarSlot.width}
               height={sidebarSlot.height}
-              label="Display companion ad"
+              showLabel={false}
+              fitMode="contain"
               className="mt-4"
             />
           </div>
@@ -99,6 +100,7 @@ export default function YouTubeEnvironment({ creative, deviceMode = "desktop", o
       badgeClassName="bg-red-500/20 text-red-100 border-red-400/30"
       scaleLabel={scaleLabel}
       deviceMode={deviceMode}
+      hideSizeLabel
       onCopy={onCopy}
       onEdit={onEdit}
     >

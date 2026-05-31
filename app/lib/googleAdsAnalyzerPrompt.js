@@ -38,7 +38,6 @@ const PLACEMENT_ENV_SPECS = {
   ],
   youtube_companion: [
     { environment: "youtube", type: "youtube_instream", placement: "YouTube In-Stream", size: "1280x720" },
-    { environment: "news_site", type: "display_ad", placement: "YouTube Companion Banner", size: "300x250" },
   ],
 };
 

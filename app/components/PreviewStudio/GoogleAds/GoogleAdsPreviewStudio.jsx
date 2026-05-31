@@ -64,8 +64,18 @@ export default function GoogleAdsPreviewStudio({
   const creativesForSelectedSource = useMemo(() => {
     const base = filterCreativesByVertical(templates, vertical);
     const scoped = filterTemplatesByPlacement(base);
-    return applySourceCreativeToTemplates(scoped, selectedSource);
-  }, [templates, vertical, selectedSource, filterCreativesByVertical, filterTemplatesByPlacement]);
+    const withCreative = applySourceCreativeToTemplates(scoped, selectedSource);
+    const allowedEnvironments = new Set(activePlacementConfig?.environments || []);
+    if (!allowedEnvironments.size) return withCreative;
+    return withCreative.filter((template) => allowedEnvironments.has(template?.environment));
+  }, [
+    templates,
+    vertical,
+    selectedSource,
+    activePlacementConfig,
+    filterCreativesByVertical,
+    filterTemplatesByPlacement,
+  ]);
 
   const handlers = useMemo(
     () => ({ onCopy: onCopyCreative, onEdit: onEditCreative }),

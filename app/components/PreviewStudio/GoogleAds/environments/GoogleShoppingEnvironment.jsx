@@ -14,7 +14,7 @@ function ProductCard({ creative, sponsored = false }) {
   const reviews = creative.reviewCount || 1204;
   return (
     <div className="overflow-hidden rounded-lg border border-[#dadce0] bg-white transition-shadow hover:shadow-md">
-      <MediaFrame creative={creative} aspectRatio="1 / 1" />
+      <MediaFrame creative={creative} aspectRatio="1 / 1" fit="contain" />
       <div className="p-3">
         {sponsored ? <p className="mb-1 text-[10px] text-gray-500">Sponsored</p> : null}
         <p className="line-clamp-2 text-sm text-[#202124]">{creative.headline}</p>
@@ -35,6 +35,7 @@ export default function GoogleShoppingEnvironment({ creative, deviceMode, onCopy
       platformBadge="Google Shopping"
       badgeClassName="bg-green-500/20 text-green-100 border-green-400/30"
       scaleLabel={scaleLabel}
+      hideSizeLabel
       onCopy={onCopy}
       onEdit={onEdit}
     >

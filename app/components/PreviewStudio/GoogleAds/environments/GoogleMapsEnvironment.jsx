@@ -19,6 +19,7 @@ export default function GoogleMapsEnvironment({ creative, deviceMode, onCopy, on
       platformBadge="Google Maps"
       badgeClassName="bg-teal-500/20 text-teal-100 border-teal-400/30"
       scaleLabel={scaleLabel}
+      hideSizeLabel
       onCopy={onCopy}
       onEdit={onEdit}
     >
@@ -57,7 +58,7 @@ export default function GoogleMapsEnvironment({ creative, deviceMode, onCopy, on
             </div>
           </div>
           <div className="absolute inset-x-0 bottom-0 rounded-t-3xl bg-white p-4 shadow-2xl">
-            <MediaFrame creative={creative} aspectRatio="3 / 1" className="mb-3 rounded-xl" />
+            <MediaFrame creative={creative} aspectRatio="3 / 1" className="mb-3 rounded-xl" fit="contain" />
             <div className="flex items-start gap-3">
               <BrandAvatar creative={creative} />
               <div>

@@ -31,6 +31,9 @@ export async function POST(request: NextRequest) {
     const creativeName = String(body.creative_name || "").trim();
     const creativeType = String(body.creative_type || "image").trim();
     const fileUrl = body.file_url ? String(body.file_url) : null;
+    const adSize = body.ad_size ? String(body.ad_size) : null;
+    const validationStatus = body.validation_status ? String(body.validation_status) : null;
+    const isValid = typeof body.is_valid === "boolean" ? body.is_valid : null;
     const existingId = body.id ? String(body.id) : null;
 
     if (!creativeName) {
@@ -44,6 +47,9 @@ export async function POST(request: NextRequest) {
       creative_type: creativeType,
       file_url: fileUrl,
       uploaded_at: new Date().toISOString(),
+      ...(adSize ? { ad_size: adSize } : {}),
+      ...(validationStatus ? { validation_status: validationStatus } : {}),
+      ...(isValid !== null ? { is_valid: isValid } : {}),
     };
 
     if (existingId) {

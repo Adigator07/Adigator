@@ -3,7 +3,7 @@
  * Handles EXIF orientation and near-match snapping for native/display exports.
  */
 
-const SIZE_TOLERANCE_PX = 4;
+export const SIZE_TOLERANCE_PX = 4;
 
 /** Canonical sizes — kept in sync with creativeValidation.js matrices. */
 const ALL_KNOWN_CREATIVE_SIZES = [

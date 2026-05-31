@@ -2,26 +2,20 @@
 
 import { Brain, Eye, Target, Wrench } from "lucide-react";
 import { qaItemIcon } from "@/app/lib/analyzerInsights";
+import { resolveVerticalAlignmentStatus } from "@/app/lib/strategicPresentation";
 import AnalyzerCreativeThumbnail from "./AnalyzerCreativeThumbnail";
 
-function AlignmentBadge({ isAligned }) {
-  if (isAligned === true) {
-    return (
-      <span className="inline-flex items-center gap-1 rounded-full border border-emerald-300 bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-800">
-        🟢 Aligned
-      </span>
-    );
-  }
-  if (isAligned === false) {
-    return (
-      <span className="inline-flex items-center gap-1 rounded-full border border-red-300 bg-red-50 px-2 py-0.5 text-[10px] font-bold text-red-800">
-        🔴 Misaligned
-      </span>
-    );
-  }
+function AlignmentBadge({ status }) {
+  const toneClasses = {
+    emerald: "border-emerald-300 bg-emerald-50 text-emerald-800",
+    amber: "border-amber-300 bg-amber-50 text-amber-800",
+    red: "border-red-300 bg-red-50 text-red-800",
+  };
+  const resolved = status || { emoji: "🟡", label: "Needs Review", tone: "amber" };
+
   return (
-    <span className="inline-flex items-center gap-1 rounded-full border border-amber-300 bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-800">
-      🟡 Review
+    <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-bold ${toneClasses[resolved.tone] || toneClasses.amber}`}>
+      {resolved.emoji} {resolved.label}
     </span>
   );
 }
@@ -126,6 +120,12 @@ export default function AnalyzerCreativeSection({
   if (!insight) return null;
 
   const { goalAlignment, verticalAlignment, extractionSignals } = insight;
+  const verticalStatus = resolveVerticalAlignmentStatus(verticalAlignment);
+  const goalStatus = goalAlignment?.is_aligned === true
+    ? { emoji: "🟢", label: "Aligned", tone: "emerald" }
+    : goalAlignment?.is_aligned === false
+      ? { emoji: "🔴", label: "Misaligned", tone: "red" }
+      : { emoji: "🟡", label: "Needs Review", tone: "amber" };
   const isMeta = platform === "meta_ads";
   const isGoogle = platform === "google_ads";
   const isProgrammatic = platform === "programmatic";
@@ -172,7 +172,7 @@ export default function AnalyzerCreativeSection({
               <Target size={15} className="text-sky-600" />
               <h4 className="text-sm font-semibold text-slate-900">Goal Alignment</h4>
             </div>
-            <AlignmentBadge isAligned={goalAlignment?.is_aligned} />
+            <AlignmentBadge status={goalStatus} />
           </div>
           <div className="space-y-2 text-sm text-slate-800 leading-relaxed">
             <p>
@@ -185,19 +185,43 @@ export default function AnalyzerCreativeSection({
           </div>
         </div>
 
-        <div className="rounded-xl border border-slate-200 bg-white p-4">
+        <div className={`rounded-xl border p-4 ${
+          verticalStatus.tone === "emerald"
+            ? "border-emerald-200 bg-emerald-50/40"
+            : verticalStatus.tone === "red"
+              ? "border-red-200 bg-red-50/40"
+              : "border-amber-200 bg-amber-50/40"
+        }`}>
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
               <Brain size={15} className="text-violet-600" />
               <h4 className="text-sm font-semibold text-slate-900">Vertical Alignment</h4>
             </div>
-            <AlignmentBadge isAligned={verticalAlignment?.is_aligned} />
+            <AlignmentBadge status={verticalStatus} />
+          </div>
+          <div className={`rounded-lg border px-3 py-2 mb-3 text-sm font-semibold ${
+            verticalStatus.tone === "emerald"
+              ? "border-emerald-200 bg-white text-emerald-900"
+              : verticalStatus.tone === "red"
+                ? "border-red-200 bg-white text-red-900"
+                : "border-amber-200 bg-white text-amber-900"
+          }`}>
+            {verticalStatus.emoji} {verticalStatus.label}
+            {verticalStatus.key === "misaligned" ? " — Creative does not match the selected vertical." : null}
+            {verticalStatus.key === "review" ? " — Creative partially matches the selected vertical." : null}
+            {verticalStatus.key === "aligned" ? " — Creative matches the selected vertical." : null}
           </div>
           <div className="space-y-2 text-sm text-slate-800 leading-relaxed">
             <p>
               Selected: <span className="font-semibold text-slate-900">{labelVertical(verticalAlignment?.selected_vertical || campaignVertical)}</span>
               {verticalAlignment?.detected_vertical && verticalAlignment.detected_vertical !== "unknown" ? (
-                <> · Detected: <span className={`font-semibold ${verticalAlignment.is_aligned === false ? "text-amber-700" : "text-emerald-700"}`}>{labelVertical(verticalAlignment.detected_vertical)}</span></>
+                <> · Detected: <span className={`font-semibold ${
+                  verticalStatus.tone === "red"
+                    ? "text-red-700"
+                    : verticalStatus.tone === "amber"
+                      ? "text-amber-700"
+                      : "text-emerald-700"
+                }`}>{labelVertical(verticalAlignment.detected_vertical)}</span></>
               ) : null}
             </p>
             {verticalAlignment?.reason ? <p>{verticalAlignment.reason}</p> : null}

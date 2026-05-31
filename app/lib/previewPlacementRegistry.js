@@ -152,10 +152,10 @@ export const PREVIEW_PLACEMENT_REGISTRY = {
     youtube_companion: {
       id: "youtube_companion",
       label: "YouTube Companion",
-      environments: ["youtube", "news_site"],
+      environments: ["youtube"],
       compatibleSizes: YOUTUBE_COMPANION_SIZES,
       devices: ["desktop", "mobile"],
-      description: "YouTube in-stream with companion display banners.",
+      description: "YouTube in-stream video with companion display banner in the player layout.",
     },
   },
   meta_ads: {

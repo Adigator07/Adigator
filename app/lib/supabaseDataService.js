@@ -157,6 +157,9 @@ export async function saveCreative({ creative, platform, supabaseCreativeId = nu
     creative_name: creative.name,
     creative_type: buildCreativeType(creative, platform),
     file_url: fileUrl,
+    ad_size: creative.size || creative.validation?.size || null,
+    is_valid: Boolean(creative.valid),
+    validation_status: creative.validation?.status || null,
   };
 
   const token = await getActivityAccessToken();

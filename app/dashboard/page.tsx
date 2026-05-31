@@ -6,7 +6,6 @@ import { motion } from "framer-motion";
 import { SkeletonStatCard, SkeletonProjectCard } from "../components/SkeletonLoader";
 import {
   fetchUserCreatives,
-  fetchAnalyzerResultCreativeIds,
   trackUserActivity,
 } from "../lib/supabaseDataService";
 import {
@@ -42,23 +41,23 @@ export default function Dashboard() {
           metadata: { page: "dashboard" },
         }, { dedupeKey: "page-visit-dashboard" });
 
-        const [creatives, analyzedCreativeIds, analyzerPlatforms] = await Promise.all([
+        const [creatives, analyzerPlatforms] = await Promise.all([
           fetchUserCreatives(),
-          fetchAnalyzerResultCreativeIds(),
           supabase
             .from("analyzer_results")
             .select("platform")
             .eq("user_id", user.id),
         ]);
 
-        const analyzedSet = new Set(analyzedCreativeIds);
+        const validCreatives = creatives.filter((creative) => creative.is_valid === true).length;
+        const invalidCreatives = creatives.filter((creative) => creative.is_valid === false).length;
         const platformSet = new Set(
           (analyzerPlatforms.data || []).map((row) => row.platform).filter(Boolean),
         );
         setStats({
           totalCreatives: creatives.length,
-          validCreatives: analyzedSet.size,
-          invalidCreatives: Math.max(creatives.length - analyzedSet.size, 0),
+          validCreatives,
+          invalidCreatives,
           platformsUsed: platformSet.size,
         });
       }

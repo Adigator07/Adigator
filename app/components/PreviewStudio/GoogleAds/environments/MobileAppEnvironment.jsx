@@ -17,7 +17,7 @@ export default function MobileAppEnvironment({ creative, deviceMode = "mobile", 
   const isInterstitial = creative.type === "interstitial_ad" || creative.size === "320x480";
   const dims = parseSize(getCreativeSourceSize(creative) || creative.size);
   const bannerHeight = dims?.height && dims.height <= 100 ? dims.height : 50;
-  const interstitialFit = analyzeCreativeSlotFit(getCreativeSourceSize(creative), 320, isInterstitial ? 480 : bannerHeight, "cover");
+  const interstitialFit = analyzeCreativeSlotFit(getCreativeSourceSize(creative), 320, isInterstitial ? 480 : bannerHeight, "contain");
   const interstitialNotice = getFitNoticeMessage(interstitialFit);
 
   return (
@@ -27,6 +27,7 @@ export default function MobileAppEnvironment({ creative, deviceMode = "mobile", 
       badgeClassName="bg-emerald-500/20 text-emerald-100 border-emerald-400/30"
       scaleLabel={scaleLabel}
       deviceMode={deviceMode}
+      hideSizeLabel
       onCopy={onCopy}
       onEdit={onEdit}
     >
@@ -56,7 +57,7 @@ export default function MobileAppEnvironment({ creative, deviceMode = "mobile", 
                 <div className="absolute inset-0 z-10 flex flex-col bg-black/90">
                   <div className="flex flex-1 items-center justify-center p-4">
                     <div className="relative h-[480px] w-[320px] overflow-hidden rounded-lg bg-white">
-                      <AdImage creative={creative} className="absolute inset-0" fit={interstitialFit.fitMode || "cover"} />
+                      <AdImage creative={creative} className="absolute inset-0" fit={interstitialFit.fitMode || "contain"} />
                       <AdChoicesMark className="absolute top-2 right-2" />
                     </div>
                   </div>
@@ -65,7 +66,7 @@ export default function MobileAppEnvironment({ creative, deviceMode = "mobile", 
               ) : (
                 <div className="border-t bg-gray-100">
                   <div className="relative mx-auto my-1 overflow-hidden border border-gray-300 bg-white" style={{ width: 320, height: bannerHeight }}>
-                    <AdImage creative={creative} className="absolute inset-0" fit={interstitialFit.fitMode || "cover"} />
+                    <AdImage creative={creative} className="absolute inset-0" fit={interstitialFit.fitMode || "contain"} />
                     <span className="absolute left-1 top-0.5 rounded bg-black/50 px-1 text-[8px] text-white">Ad</span>
                   </div>
                   <TemplateFitNotice message={interstitialNotice} className="mx-3 mb-2" />

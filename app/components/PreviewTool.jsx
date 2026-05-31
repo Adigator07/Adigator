@@ -148,7 +148,9 @@ function NavBtn({ onClick, children, variant = "primary", disabled = false, clas
     ? "bg-sky-500 border-sky-600 text-white hover:bg-sky-600 hover:shadow-lg"
     : variant === "back"
       ? "bg-white border-sky-500 text-sky-700 hover:bg-sky-50 hover:border-sky-600 hover:shadow-md"
-      : "bg-emerald-500 border-emerald-600 text-white hover:bg-emerald-600 hover:shadow-lg";
+      : variant === "secondary"
+        ? "bg-white border-gray-300 text-black hover:bg-gray-50 hover:shadow-md"
+        : "bg-emerald-500 border-emerald-600 text-white hover:bg-emerald-600 hover:shadow-lg";
 
   return (
     <motion.button
@@ -2482,10 +2484,16 @@ export default function PreviewTool() {
                         : "See your creatives in realistic interactive website contexts."}
                   </p>
                 </div>
+                <div className="flex flex-wrap items-center gap-3">
+                <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} onClick={handleStartNewAnalysis}
+                  className="px-6 py-3 bg-white border border-gray-200 text-black rounded-xl font-semibold flex items-center gap-2 hover:bg-gray-50 shadow-md">
+                  <RotateCcw size={18} className="text-black" /> Start New Analysis
+                </motion.button>
                 <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} onClick={handleExportPptx} disabled={isExporting}
                   className="px-8 py-3 bg-linear-to-r from-green-600 to-emerald-600 text-white rounded-xl font-semibold flex items-center gap-2 disabled:opacity-60">
                   <Download size={20} /> {isExporting ? "Exporting..." : "Export PPTX"}
                 </motion.button>
+              </div>
               </div>
 
               {(platform === "programmatic" ? validCreatives.length > 0 : Boolean(platform)) && (
@@ -2518,8 +2526,11 @@ export default function PreviewTool() {
                 </div>
               )}
 
-              <div className="flex gap-4 pt-4">
+              <div className="flex gap-4 pt-4 flex-wrap">
                 <NavBtn variant="back" onClick={goBack}>← Back</NavBtn>
+                <NavBtn variant="secondary" onClick={handleStartNewAnalysis} className="flex items-center gap-2">
+                  <RotateCcw size={16} /> Start New Analysis
+                </NavBtn>
                 <NavBtn variant="success" onClick={handleExportPptx} disabled={isExporting} className="flex justify-center items-center gap-2">
                   <Download size={20} /> {isExporting ? "Generating..." : "Download PPTX"}
                 </NavBtn>

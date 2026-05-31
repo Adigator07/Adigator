@@ -1,4 +1,4 @@
-import { normalizeCreativeDimensions } from "./imageDimensions";
+import { normalizeCreativeDimensions, SIZE_TOLERANCE_PX } from "./imageDimensions";
 
 export { normalizeCreativeDimensions, readImageDimensionsFromBlob } from "./imageDimensions";
 
@@ -42,7 +42,7 @@ export const PLATFORM_SUPPORTED_SIZE_GROUPS = {
     feed_placements: ["1080x1080", "1080x1350", "1200x628"],
     story_reels: ["1080x1920"],
     carousel: ["1080x1080"],
-    flexible_native_assets: ["1200x1200", "1200x628"],
+    flexible_native_assets: ["1200x1200", "1200x628", "960x1200", "1200x1500"],
   },
   programmatic: {
     standard_display: SUPPORTED_DISPLAY_SIZE_GROUPS.desktop,
@@ -50,6 +50,7 @@ export const PLATFORM_SUPPORTED_SIZE_GROUPS = {
     high_impact_premium: SUPPORTED_DISPLAY_SIZE_GROUPS.high_impact,
     native_social_display: SUPPORTED_DISPLAY_SIZE_GROUPS.native,
     responsive_native: SUPPORTED_DISPLAY_SIZE_GROUPS.responsive_native,
+    story_vertical: ["1080x1920"],
   },
 };
 
@@ -498,6 +499,56 @@ function normalizeStatus(issues) {
   return "PASS";
 }
 
+function withinTolerance(a, b, tolerance = SIZE_TOLERANCE_PX) {
+  return Math.abs(a - b) <= tolerance;
+}
+
+/** Match raw pixel dimensions to a platform-supported canonical size (with tolerance). */
+export function matchPlatformSupportedSize(rawWidth, rawHeight, platform) {
+  const rawW = Math.max(1, Math.round(Number(rawWidth) || 0));
+  const rawH = Math.max(1, Math.round(Number(rawHeight) || 0));
+  const platformGroups = PLATFORM_SUPPORTED_SIZE_GROUPS[platform] || PLATFORM_SUPPORTED_SIZE_GROUPS.programmatic;
+  const supportedSizes = [...new Set(Object.values(platformGroups).flat())];
+
+  let best = null;
+  let bestDistance = Infinity;
+
+  for (const candidate of supportedSizes) {
+    const dims = parseSize(candidate);
+    if (!dims) continue;
+
+    const orientations = [
+      { w: dims.width, h: dims.height, swapped: false },
+      { w: dims.height, h: dims.width, swapped: true },
+    ];
+
+    for (const orientation of orientations) {
+      if (!withinTolerance(rawW, orientation.w) || !withinTolerance(rawH, orientation.h)) continue;
+
+      const distance = Math.abs(rawW - orientation.w) + Math.abs(rawH - orientation.h);
+      if (distance >= bestDistance) continue;
+
+      let matchType = "tolerance";
+      if (rawW === dims.width && rawH === dims.height) {
+        matchType = "exact";
+      } else if (orientation.swapped && (rawW !== dims.width || rawH !== dims.height)) {
+        matchType = "orientation";
+      } else if (distance === 0) {
+        matchType = "exact";
+      }
+
+      bestDistance = distance;
+      best = {
+        match: candidate,
+        type: matchType,
+        detectedSize: `${rawW}x${rawH}`,
+      };
+    }
+  }
+
+  return best;
+}
+
 function isSizeSupportedForPlatform(size, platform, intelligence) {
   const platformGroups = PLATFORM_SUPPORTED_SIZE_GROUPS[platform] || PLATFORM_SUPPORTED_SIZE_GROUPS.programmatic;
   const supportedSizes = [...new Set(Object.values(platformGroups).flat())];
@@ -632,10 +683,9 @@ function buildFileWeightIssues(file, platform, size, intelligence) {
 }
 
 export async function validateCreativeAsset({ file, image, platform }) {
-  const rawWidth = image?.width || 0;
-  const rawHeight = image?.height || 0;
-  const normalized = normalizeCreativeDimensions(rawWidth, rawHeight);
-  const size = normalized.size;
+  const rawW = Math.max(1, Math.round(Number(image?.width) || 0));
+  const rawH = Math.max(1, Math.round(Number(image?.height) || 0));
+  const actualSize = `${rawW}x${rawH}`;
   const normalizedPlatform = platform || "programmatic";
   const platformLabel = normalizedPlatform === "google_ads"
     ? "Google Ads"
@@ -644,31 +694,41 @@ export async function validateCreativeAsset({ file, image, platform }) {
       : "Programmatic";
   const platformGroups = PLATFORM_SUPPORTED_SIZE_GROUPS[normalizedPlatform] || PLATFORM_SUPPORTED_SIZE_GROUPS.programmatic;
   const supportedSizes = [...new Set(Object.values(platformGroups).flat())];
+  const sizeMatch = matchPlatformSupportedSize(rawW, rawH, normalizedPlatform);
+  const canonicalSize = sizeMatch?.match || actualSize;
+  const size = actualSize;
   const issues = [];
-  const intelligence = resolveSizeIntelligence(size);
+  const intelligence = resolveSizeIntelligence(canonicalSize);
   const fileMime = String(file?.type || "").toLowerCase();
-  const rdaFit = normalizedPlatform === "google_ads" ? evaluateGoogleRdaFit(size) : null;
-  const googleSizeTier = normalizedPlatform === "google_ads" ? classifyGoogleSizeTier(size) : null;
-  const metaPlacement = normalizedPlatform === "meta_ads" ? classifyMetaPlacement(size) : null;
-  const metaSafeZone = normalizedPlatform === "meta_ads" ? evaluateMetaSafeZoneRisk(size) : null;
+  const rdaFit = normalizedPlatform === "google_ads" ? evaluateGoogleRdaFit(canonicalSize) : null;
+  const googleSizeTier = normalizedPlatform === "google_ads" ? classifyGoogleSizeTier(canonicalSize) : null;
+  const metaPlacement = normalizedPlatform === "meta_ads" ? classifyMetaPlacement(canonicalSize) : null;
+  const metaSafeZone = normalizedPlatform === "meta_ads" ? evaluateMetaSafeZoneRisk(canonicalSize) : null;
 
-  if (!isSizeSupportedForPlatform(size, normalizedPlatform, intelligence)) {
-    issues.push(buildUnsupportedSizeIssue(size, platformLabel));
+  if (!sizeMatch) {
+    issues.push(buildUnsupportedSizeIssue(actualSize, platformLabel));
+  } else if (normalizedPlatform === "programmatic" && !intelligence) {
+    issues.push(buildUnsupportedSizeIssue(actualSize, platformLabel));
   }
 
-  issues.push(...buildFileWeightIssues(file, normalizedPlatform, size, intelligence));
+  issues.push(...buildFileWeightIssues(file, normalizedPlatform, canonicalSize, intelligence));
 
-  if (normalized.normalized && normalized.detectedWidth && normalized.detectedHeight) {
-    const detectedLabel = `${normalized.detectedWidth}x${normalized.detectedHeight}`;
-    if (detectedLabel !== size && normalized.normalizationReason?.includes("orientation")) {
-      issues.push({
-        type: "dimension_normalization",
-        severity: "medium",
-        message: `Detected ${detectedLabel} — corrected to ${size} using orientation metadata.`,
-        recommendation: "Re-export with embedded orientation or use the corrected dimensions for placement matching.",
-        scorePenalty: 0,
-      });
-    }
+  if (sizeMatch && sizeMatch.type === "orientation" && sizeMatch.detectedSize !== canonicalSize) {
+    issues.push({
+      type: "dimension_normalization",
+      severity: "medium",
+      message: `Detected ${sizeMatch.detectedSize} — orientation matches supported ${canonicalSize}.`,
+      recommendation: "Re-export with embedded orientation or use the canonical dimensions for placement matching.",
+      scorePenalty: 0,
+    });
+  } else if (sizeMatch && sizeMatch.type === "tolerance" && sizeMatch.detectedSize !== canonicalSize) {
+    issues.push({
+      type: "dimension_normalization",
+      severity: "medium",
+      message: `Detected ${sizeMatch.detectedSize} — within export tolerance of supported ${canonicalSize}.`,
+      recommendation: "Dimensions are accepted; re-export at exact pixel size if your ad server requires it.",
+      scorePenalty: 0,
+    });
   }
 
   if (normalizedPlatform === "google_ads") {
@@ -693,7 +753,7 @@ export async function validateCreativeAsset({ file, image, platform }) {
       });
     }
 
-    if (rdaFit && !rdaFit.satisfiesMinimum && !isNativeOrResponsiveSize(size, intelligence)) {
+    if (rdaFit && !rdaFit.satisfiesMinimum && !isNativeOrResponsiveSize(canonicalSize, intelligence)) {
       issues.push({
         type: "rda",
         severity: "high",
@@ -719,7 +779,7 @@ export async function validateCreativeAsset({ file, image, platform }) {
       issues.push({
         type: "placement_fit",
         severity: "medium",
-        message: `${size} is non-core for Meta feed/story/reels placements in V1.`,
+        message: `${canonicalSize} is non-core for Meta feed/story/reels placements in V1.`,
         recommendation: "Prefer 1080x1080, 1080x1350, 1080x1920, or 1200x628 for stronger Meta placement compatibility.",
         scorePenalty: 8,
       });
@@ -754,13 +814,17 @@ export async function validateCreativeAsset({ file, image, platform }) {
     issues,
     status: normalizeStatus(issues),
     size,
+    canonicalSize,
+    sizeMatch,
     dimensions: {
-      width: normalized.width,
-      height: normalized.height,
-      detectedWidth: normalized.detectedWidth,
-      detectedHeight: normalized.detectedHeight,
-      normalized: normalized.normalized,
-      normalizationReason: normalized.normalizationReason || null,
+      width: rawW,
+      height: rawH,
+      detectedWidth: rawW,
+      detectedHeight: rawH,
+      canonicalWidth: parseSize(canonicalSize)?.width || rawW,
+      canonicalHeight: parseSize(canonicalSize)?.height || rawH,
+      normalized: Boolean(sizeMatch && sizeMatch.detectedSize !== canonicalSize),
+      normalizationReason: sizeMatch?.type || null,
     },
     platform: normalizedPlatform,
     supportedSizes,
@@ -875,17 +939,19 @@ export async function revalidateCreativeForPlatform(creative, platform) {
   const dims = parseSize(creative.size);
   if (!dims) return creative;
 
-  const normalized = normalizeCreativeDimensions(dims.width, dims.height);
-
   const baseValidation = await validateCreativeAsset({
     file: creative.mimeType
       ? { type: creative.mimeType, size: Number(creative.fileSizeBytes || 0) }
       : null,
-    image: { width: normalized.width, height: normalized.height },
+    image: { width: dims.width, height: dims.height },
     platform,
   });
-  const validation = finalizeValidationForPlatform(baseValidation, platform, normalized.size);
-  return applyValidationFields({ ...creative, size: normalized.size }, validation);
+  const validation = finalizeValidationForPlatform(
+    baseValidation,
+    platform,
+    baseValidation.canonicalSize || creative.size,
+  );
+  return applyValidationFields({ ...creative, size: baseValidation.size || creative.size }, validation);
 }
 
 export async function revalidateCreativesForPlatform(creatives, platform) {

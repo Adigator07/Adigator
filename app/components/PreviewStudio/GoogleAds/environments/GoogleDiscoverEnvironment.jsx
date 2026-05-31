@@ -20,6 +20,7 @@ export default function GoogleDiscoverEnvironment({ creative, deviceMode = "mobi
       badgeClassName="bg-orange-500/20 text-orange-100 border-orange-400/30"
       scaleLabel={scaleLabel}
       deviceMode={deviceMode}
+      hideSizeLabel
       onCopy={onCopy}
       onEdit={onEdit}
     >
@@ -40,7 +41,7 @@ export default function GoogleDiscoverEnvironment({ creative, deviceMode = "mobi
                 </div>
                 <div className="flex-1 space-y-3 overflow-y-auto px-3 pb-4">
                   <div className="overflow-hidden rounded-2xl border bg-white shadow-sm">
-                    <MediaFrame creative={creative} aspectRatio="16 / 9" />
+                    <MediaFrame creative={creative} aspectRatio="16 / 9" fit="contain" />
                     <div className="p-3">
                       <p className="text-[10px] text-gray-500">Sponsored · {creative.storeName || creative.pageName || "Brand"}</p>
                       <p className="mt-1 text-sm font-semibold text-[#202124]">{creative.headline}</p>
@@ -62,7 +63,7 @@ export default function GoogleDiscoverEnvironment({ creative, deviceMode = "mobi
                 </div>
                 <div className="grid max-w-5xl grid-cols-3 gap-4">
                   <div className="col-span-2 overflow-hidden rounded-2xl border bg-white shadow-sm">
-                    <MediaFrame creative={creative} aspectRatio="16 / 9" />
+                    <MediaFrame creative={creative} aspectRatio="16 / 9" fit="contain" />
                     <div className="p-4">
                       <p className="text-xs text-gray-500">Sponsored · {creative.storeName || creative.pageName || "Brand"}</p>
                       <p className="mt-2 text-xl font-semibold text-[#202124]">{creative.headline}</p>

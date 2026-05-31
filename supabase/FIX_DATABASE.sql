@@ -20,7 +20,9 @@ create table if not exists public.creatives (
 alter table public.creatives add column if not exists creative_name text;
 alter table public.creatives add column if not exists creative_type text;
 alter table public.creatives add column if not exists file_url text;
-alter table public.creatives add column if not exists uploaded_at timestamptz default now();
+alter table public.creatives add column if not exists ad_size text;
+alter table public.creatives add column if not exists is_valid boolean;
+alter table public.creatives add column if not exists validation_status text;
 
 update public.creatives set creative_name = coalesce(creative_name, 'Untitled Creative') where creative_name is null;
 update public.creatives set creative_type = coalesce(creative_type, 'image') where creative_type is null;

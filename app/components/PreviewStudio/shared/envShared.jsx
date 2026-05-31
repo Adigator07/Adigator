@@ -10,6 +10,7 @@ import {
   getFitNoticeMessage,
 } from "@/app/lib/creativeFitAnalysis";
 import { getDeviceFrame } from "./previewDeviceLayouts";
+import { DummyDisplayAd } from "./dummyAdPlaceholders";
 
 export function TemplateFitNotice({ message, className = "" }) {
   if (!message) return null;
@@ -58,7 +59,8 @@ export function AdImage({ creative, className = "", alt = "Ad creative", fit = "
         alt={alt}
         loading="lazy"
         decoding="async"
-        className={`block w-full h-full ${fitClass} ${className}`}
+        className={`block ${fitClass} ${className}`}
+        style={fit === "contain" ? { width: "100%", height: "100%" } : undefined}
       />
     );
   }
@@ -73,50 +75,44 @@ export function AdImage({ creative, className = "", alt = "Ad creative", fit = "
   );
 }
 
-/** Renders the user's creative inside a fixed IAB slot — always visible, properly scaled. */
+/** Renders the user's creative inside a fixed IAB slot — scaled to preserve full creative when possible. */
 export function DisplayAdSlot({
   creative,
   width,
   height,
   label,
+  showLabel = true,
   showAd = true,
   className = "",
   showFitNotice = true,
+  fitMode = "cover",
+  placeholderIndex = 0,
 }) {
   const fitAnalysis = useMemo(
-    () => analyzeCreativeSlotFit(getCreativeSourceSize(creative), width, height, "cover"),
-    [creative, width, height],
+    () => analyzeCreativeSlotFit(getCreativeSourceSize(creative), width, height, fitMode),
+    [creative, width, height, fitMode],
   );
   const fitMessage = showAd && showFitNotice ? getFitNoticeMessage(fitAnalysis) : null;
-  const sourceSize = getCreativeSourceSize(creative);
+  const resolvedFit = fitAnalysis.fitMode || fitMode;
 
   if (!showAd) {
     return (
       <div className={className}>
-        {label ? <p className="text-[10px] uppercase tracking-wide text-gray-400 mb-1">{label}</p> : null}
-        <div
-          className="flex items-center justify-center border border-dashed border-gray-300 bg-gray-50 text-[10px] text-gray-400"
-          style={{ width, height, maxWidth: "100%" }}
-        >
-          Ad placement
-        </div>
+        <DummyDisplayAd width={width} height={height} index={placeholderIndex} />
       </div>
     );
   }
 
   return (
     <div className={className}>
-      {label ? (
-        <p className="text-[10px] uppercase tracking-wide text-gray-400 mb-1">
-          {label}
-          {sourceSize ? ` · ${sourceSize}` : creative?.size ? ` · ${creative.size}` : ""}
-        </p>
+      {label && showLabel ? (
+        <p className="text-[10px] uppercase tracking-wide text-gray-400 mb-1">{label}</p>
       ) : null}
       <div
-        className="relative overflow-hidden border border-[#dadce0] bg-white shadow-sm"
+        className="relative overflow-hidden border border-[#dadce0] bg-white shadow-sm flex items-center justify-center"
         style={{ width, height, maxWidth: "100%" }}
       >
-        <AdImage creative={creative} className="absolute inset-0" fit={fitAnalysis.fitMode || "cover"} />
+        <AdImage creative={creative} className="max-w-full max-h-full" fit={resolvedFit} />
         <AdChoicesMark className="absolute top-1 right-1 rounded bg-white/90 px-1" />
       </div>
       <TemplateFitNotice message={fitMessage} />
@@ -211,6 +207,7 @@ export function EnvironmentPreviewCard({
   scaleLabel,
   deviceMode,
   fitNotice,
+  hideSizeLabel = false,
   onCopy,
   onEdit,
   children,
@@ -228,9 +225,9 @@ export function EnvironmentPreviewCard({
           {deviceLabel ? (
             <span className="text-[10px] text-cyan-300/80">{deviceLabel}</span>
           ) : null}
-          {sourceSize ? (
+          {!hideSizeLabel && sourceSize ? (
             <span className="text-[10px] font-mono text-gray-400">{sourceSize}</span>
-          ) : creative.size ? (
+          ) : !hideSizeLabel && creative.size ? (
             <span className="text-[10px] font-mono text-gray-400">{creative.size}</span>
           ) : null}
           {scaleLabel ? (
