@@ -13,6 +13,8 @@ import {
   getPrimaryPlacementKeys,
   getPlacementLegend,
 } from "./placementCompatibility";
+import { buildPlatformOverviewSections } from "./campaignOverviewSections";
+import { enrichExtractionSignals } from "./creativeExtractionEnrichment";
 import {
   getEntryPayload,
   getExtractionSignals,
@@ -888,9 +890,16 @@ export function computeCreativeInsight(entry, platform, campaignGoal, campaignVe
   const payload = getEntryPayload(entry) || {};
   const goalAlignment = getGoalAlignment(payload);
   const verticalAlignment = getVerticalAlignment(payload);
-  const extractionSignals = getExtractionSignals(payload);
   const launchStatusKey = deriveLaunchStatus(creative, payload, platform);
   const placementScores = computePlacementCompatibility(creative, platform, payload);
+  const extractionSignals = enrichExtractionSignals(
+    getExtractionSignals(payload),
+    payload,
+    creative,
+    platform,
+    campaignGoal,
+    placementScores,
+  );
   let mainRisk = deriveMainRisk(creative, payload, platform, campaignVertical);
   let recommendedFix = deriveRecommendedFix(creative, payload, platform);
   const strategicallyAligned = isStrategicallyAligned(goalAlignment, verticalAlignment);
@@ -939,10 +948,12 @@ function countVisualFragmentation(entries) {
   return cues.size;
 }
 
-export function computeCampaignOverview(entries, platform, campaignGoal, campaignVertical, verticalLabelFn) {
+export function computeCampaignOverview(entries, platform, campaignGoal, campaignVertical, verticalLabelFn, goalLabelFn) {
   const insights = entries.map((e) => computeCreativeInsight(e, platform, campaignGoal, campaignVertical));
   const launchRisks = [];
   const qaSummary = [];
+  const goalText = goalLabelFn?.(campaignGoal || "awareness") || campaignGoal || "awareness";
+  const verticalText = verticalLabelFn?.(campaignVertical) || campaignVertical || "general";
 
   const verticalMisaligned = insights.filter((i) => i.verticalAlignment?.is_aligned === false);
   if (verticalMisaligned.length > 0) {
@@ -1095,7 +1106,7 @@ export function computeCampaignOverview(entries, platform, campaignGoal, campaig
     }))
     : null;
 
-  return {
+  const overviewCore = {
     hasNoRisk: launchRisks.length === 0 && misalignedCount === 0,
     launchRisks,
     qaSummary,
@@ -1111,6 +1122,19 @@ export function computeCampaignOverview(entries, platform, campaignGoal, campaig
     reviewCount,
     misalignedCount,
     totalCount: insights.length,
+  };
+
+  const sections = buildPlatformOverviewSections({
+    platform,
+    insights,
+    overview: overviewCore,
+    goalText,
+    verticalText,
+  });
+
+  return {
+    ...overviewCore,
+    sections,
   };
 }
 

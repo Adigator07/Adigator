@@ -21,10 +21,13 @@ import {
   buildValidationSummary,
   finalizeValidationForPlatform,
   revalidateCreativesForPlatform,
-  SUPPORTED_DISPLAY_SIZE_GROUPS,
-  PROGRAMMATIC_NATIVE_RESPONSIVE_SIZES,
+  attachSourceDimensions,
+  PLATFORM_SUPPORTED_SIZE_GROUPS,
+  PLATFORM_SIZE_GROUP_LABELS,
   DSP_PARTNERS,
 } from "../lib/creativeValidation";
+import { readImageDimensionsFromBlob } from "../lib/imageDimensions";
+import { resolvePersistedDimensions } from "../lib/creativeFitAnalysis";
 import {
   compressImageToTarget,
   getFileExtensionForMime,
@@ -56,36 +59,8 @@ import {
 } from "../lib/supabaseDataService";
 import { isAuthenticatedUser } from "../lib/demoAccess";
 
-// Platform and CTA constants (previously from localAnalyzer)
-const PLATFORM_SIZES = {
-  google_ads: {
-    desktop_display: [
-      "300x250",
-      "336x280",
-      "728x90",
-      "970x90",
-      "970x250",
-      "160x600",
-      "300x600",
-      "468x60",
-      "250x250",
-      "200x200",
-    ],
-    mobile_display: ["320x50", "320x100", "300x250", "320x480", "480x320"],
-    responsive_native_assets: ["1200x628", "1200x1200", "1080x1080", "960x1200", "1200x1500"],
-  },
-  meta_ads: {
-    feed_placements: ["1080x1080", "1080x1350", "1200x628"],
-    story_reels: ["1080x1920"],
-    carousel: ["1080x1080"],
-    flexible_native_assets: ["1200x1200", "1200x628"],
-  },
-  programmatic: {
-    standard_display: SUPPORTED_DISPLAY_SIZE_GROUPS.desktop,
-    mobile_display: SUPPORTED_DISPLAY_SIZE_GROUPS.mobile,
-    native_responsive_assets: PROGRAMMATIC_NATIVE_RESPONSIVE_SIZES,
-  },
-};
+// Platform size matrix — sourced from creativeSizeRegistry via creativeValidation
+const PLATFORM_SIZES = PLATFORM_SUPPORTED_SIZE_GROUPS;
 
 const PLATFORM_INTELLIGENCE_LABEL = {
   google_ads: "Inventory Intelligence",
@@ -93,17 +68,7 @@ const PLATFORM_INTELLIGENCE_LABEL = {
   programmatic: "Cross-Inventory Intelligence",
 };
 
-const GROUP_LABELS = {
-  desktop_display: "Desktop Display",
-  mobile_display: "Mobile Display",
-  responsive_native_assets: "Responsive / Native Assets",
-  feed_placements: "Feed Placements",
-  story_reels: "Story / Reels",
-  carousel: "Carousel",
-  flexible_native_assets: "Flexible Native Assets",
-  standard_display: "Standard Display",
-  native_responsive_assets: "Native & Responsive Assets",
-};
+const GROUP_LABELS = PLATFORM_SIZE_GROUP_LABELS;
 
 const ANALYSIS_SESSION_STORAGE_KEY = "adigator_analysis_session_id";
 
@@ -305,7 +270,6 @@ const VERTICALS = [
   { id: "entertainment", title: "Entertainment / OTT / Streaming" },
   { id: "ecommerce", title: "E-commerce / Retail" },
   { id: "fashion", title: "Fashion" },
-  { id: "saas", title: "SaaS" },
 ];
 
 const VERTICAL_TITLE_MAP = Object.fromEntries(VERTICALS.map((v) => [v.id, v.title]));
@@ -317,7 +281,7 @@ const itemVariants = { hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 
 const VALID_VERTICALS = new Set([
   "automotive", "banking", "ecommerce", "education", "entertainment",
   "fashion", "finance", "food", "gaming", "healthcare", "hotels", "luxury",
-  "news_media", "real_estate", "saas", "sports", "technology", "travel",
+  "news_media", "real_estate", "sports", "technology", "travel",
 ]);
 
 // ── OpenAI-Only Analyzer ─────────────────────────────────────────────────────
@@ -487,7 +451,9 @@ export default function PreviewTool() {
   });
   const [campaignVertical, setCampaignVertical] = useState(() => {
     if (typeof window === "undefined") return null;
-    return localStorage.getItem("adigator_vertical") || null;
+    const stored = localStorage.getItem("adigator_vertical");
+    if (stored === "saas") return "technology";
+    return stored;
   });
   const [campaignAudienceStage, setCampaignAudienceStage] = useState(() => {
     if (typeof window === "undefined") return "cold";
@@ -1241,43 +1207,39 @@ export default function PreviewTool() {
     setIsLoading(true);
     try {
       const preparedCreatives = await mapWithConcurrency(fileList, 2, async (file, fileIndex) => {
-        const imageSource = await loadImageSource(file);
-        try {
-          const validation = await validateCreativeAsset({
-            file,
-            image: { width: imageSource.width, height: imageSource.height },
-            platform,
-          });
-          const size = validation.size || `${imageSource.width}x${imageSource.height}`;
-          const normalizedValidation = finalizeValidationForPlatform(validation, platform, size);
+        const dimensions = await readImageDimensionsFromBlob(file);
+        const validation = await validateCreativeAsset({
+          file,
+          image: { width: dimensions.width, height: dimensions.height },
+          platform,
+        });
+        const size = dimensions.size;
+        const normalizedValidation = finalizeValidationForPlatform(validation, platform, size);
 
-          const creativeId = `${Date.now()}-${fileIndex}-${file.name}-${size}`;
-          const { displayUrl, fullUrl } = await storeUploadedCreativeFile(creativeId, file);
+        const creativeId = `${Date.now()}-${fileIndex}-${file.name}-${size}`;
+        const { displayUrl, fullUrl } = await storeUploadedCreativeFile(creativeId, file);
 
-          return {
-            id: creativeId,
-            name: file.name.replace(/\.[^/.]+$/, ""),
-            url: displayUrl,
-            fullUrl,
-            hasStoredAssets: true,
-            size,
-            valid: normalizedValidation.valid && normalizedValidation.status !== "CRITICAL",
-            originalFile: file.name,
-            mimeType: file.type || "image/jpeg",
-            fileSizeBytes: file.size,
-            fileSizeKB: Math.round(file.size / 1024),
-            validation: normalizedValidation,
-            placementType: normalizedValidation.intelligence?.placementType,
-            deviceClassification: normalizedValidation.intelligence?.deviceClassification,
-            iabCompatibility: normalizedValidation.intelligence?.iabCompatibility,
-            dspCompatibility: normalizedValidation.intelligence?.dspCompatibility,
-            inventoryAvailability: normalizedValidation.intelligence?.inventory,
-            auctionReadiness: normalizedValidation.intelligence?.auctionReadiness,
-            premiumPlacementPotential: normalizedValidation.intelligence?.premiumPlacement,
-          };
-        } finally {
-          imageSource.release();
-        }
+        return attachSourceDimensions({
+          id: creativeId,
+          name: file.name.replace(/\.[^/.]+$/, ""),
+          url: displayUrl,
+          fullUrl,
+          hasStoredAssets: true,
+          size,
+          valid: normalizedValidation.valid && normalizedValidation.status !== "CRITICAL",
+          originalFile: file.name,
+          mimeType: file.type || "image/jpeg",
+          fileSizeBytes: file.size,
+          fileSizeKB: Math.round(file.size / 1024),
+          validation: normalizedValidation,
+          placementType: normalizedValidation.intelligence?.placementType,
+          deviceClassification: normalizedValidation.intelligence?.deviceClassification,
+          iabCompatibility: normalizedValidation.intelligence?.iabCompatibility,
+          dspCompatibility: normalizedValidation.intelligence?.dspCompatibility,
+          inventoryAvailability: normalizedValidation.intelligence?.inventory,
+          auctionReadiness: normalizedValidation.intelligence?.auctionReadiness,
+          premiumPlacementPotential: normalizedValidation.intelligence?.premiumPlacement,
+        }, dimensions.width, dimensions.height);
       });
 
       startTransition(() => {
@@ -1421,12 +1383,20 @@ export default function PreviewTool() {
       revokeCreativeObjectUrls(creative);
       const { displayUrl, fullUrl } = await storeCompressedCreativeBlobs(creative.id, finalBlob);
 
+      const sourceDims = resolvePersistedDimensions(creative) || {
+        width: imageSource.width,
+        height: imageSource.height,
+      };
+      const scaledDown = (bestCandidate.scale ?? 1) < 0.999;
+      const outputWidth = scaledDown ? bestCandidate.width : sourceDims.width;
+      const outputHeight = scaledDown ? bestCandidate.height : sourceDims.height;
+
       const validation = await validateCreativeAsset({
         file: finalFile,
-        image: { width: bestCandidate.width, height: bestCandidate.height },
+        image: { width: outputWidth, height: outputHeight },
         platform,
       });
-      const finalSize = validation.size || `${bestCandidate.width}x${bestCandidate.height}`;
+      const finalSize = `${outputWidth}x${outputHeight}`;
 
       let finalValidation = finalizeValidationForPlatform(validation, platform, finalSize);
 
@@ -1435,12 +1405,11 @@ export default function PreviewTool() {
         finalValidation = hideFileSizeIssues(finalValidation);
       }
 
-      const updatedCreative = {
+      const updatedCreative = attachSourceDimensions({
         ...creative,
         url: displayUrl,
         fullUrl,
         hasStoredAssets: true,
-        size: finalSize,
         mimeType: outputType,
         fileSizeBytes: finalCompressedBytes,
         fileSizeKB: Math.round(finalCompressedBytes / 1024),
@@ -1453,7 +1422,7 @@ export default function PreviewTool() {
         inventoryAvailability: finalValidation.intelligence?.inventory,
         auctionReadiness: finalValidation.intelligence?.auctionReadiness,
         premiumPlacementPotential: finalValidation.intelligence?.premiumPlacement,
-      };
+      }, outputWidth, outputHeight);
 
       startTransition(() => {
         setCreatives((prev) => prev.map((entry) => (entry.id === creativeId ? updatedCreative : entry)));
@@ -1655,7 +1624,12 @@ export default function PreviewTool() {
         const newValid = newValidation
           ? newValidation.valid && newValidation.status !== "CRITICAL"
           : allowedSizes.includes(updates.size || c.size);
-        const updated = { ...c, ...updates, validation: newValidation, valid: newValid };
+        const merged = { ...c, ...updates, validation: newValidation, valid: newValid };
+        const nextSize = updates.size || c.size;
+        const [nextW, nextH] = String(nextSize || "").split("x").map(Number);
+        const updated = nextW > 0 && nextH > 0
+          ? attachSourceDimensions(merged, nextW, nextH)
+          : merged;
         void persistCreative(updated);
         return updated;
       });
@@ -1870,12 +1844,33 @@ export default function PreviewTool() {
     setIsExporting(true); addToast("Generating PPTX...", "info");
     try {
       const { exportToPptx } = await import("../lib/exportPptx");
+      const { computeCampaignOverview } = await import("../lib/analyzerInsights");
       const templateName = TEMPLATES.find((t) => t.id === selectedTemplate)?.name || "Template";
+      const exportCreatives = validCreatives.map((creative, index) => ({
+        ...creative,
+        analysisData: getEntryPayload(analysisResult?.[index]) || null,
+      }));
+      const overview = analysisResult?.length
+        ? computeCampaignOverview(
+          analysisResult,
+          platform,
+          campaignGoal,
+          campaignVertical,
+          (v) => VERTICAL_TITLE_MAP[v] || v,
+          (g) => g?.replace(/_/g, " "),
+        )
+        : null;
       const filename = await exportToPptx(
-        creatives.filter((c) => c.valid), 
-        viewMode, 
+        exportCreatives,
+        viewMode,
         templateName,
-        { goal: campaignGoal, platform }
+        {
+          goal: campaignGoal,
+          platform,
+          vertical: campaignVertical,
+          verticalLabel: VERTICAL_TITLE_MAP[campaignVertical] || campaignVertical,
+          overview,
+        },
       );
       void trackUserActivity("generate_action", {
         action_label: "PPTX export generated",
@@ -1897,7 +1892,7 @@ export default function PreviewTool() {
       addToast(`Downloaded: ${filename}`, "success");
     } catch { addToast("Export failed.", "error"); }
     finally { setIsExporting(false); }
-  }, [isExporting, creatives, viewMode, selectedTemplate, addToast, campaignGoal, platform]);
+  }, [isExporting, validCreatives, analysisResult, viewMode, selectedTemplate, addToast, campaignGoal, platform, campaignVertical]);
 
   const previewEngineCreatives = useMemo(
     () => validCreatives.map((creative, index) => ({

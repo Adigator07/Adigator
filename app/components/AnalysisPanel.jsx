@@ -88,7 +88,7 @@ export default function AnalysisPanel({
 
   const overview = useMemo(() => {
     if (!sorted.length) return null;
-    return computeCampaignOverview(sorted, activePlatform, campaignGoal, campaignVertical, labelVertical);
+    return computeCampaignOverview(sorted, activePlatform, campaignGoal, campaignVertical, labelVertical, labelGoal);
   }, [sorted, activePlatform, campaignGoal, campaignVertical]);
 
   const insights = overview?.insights || [];

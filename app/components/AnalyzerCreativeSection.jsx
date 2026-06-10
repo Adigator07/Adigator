@@ -30,6 +30,71 @@ function FieldBlock({ label, value }) {
   );
 }
 
+const PRESENCE_TONES = {
+  detected: "border-emerald-200 bg-emerald-50 text-emerald-900",
+  partial: "border-amber-200 bg-amber-50 text-amber-950",
+  not_detected: "border-red-200 bg-red-50 text-red-950",
+};
+
+function PresenceBadge({ presence }) {
+  const label = presence === "detected" ? "Detected" : presence === "partial" ? "Partial" : "Not detected";
+  return (
+    <span className={`rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${PRESENCE_TONES[presence] || PRESENCE_TONES.partial}`}>
+      {label}
+    </span>
+  );
+}
+
+function DetectionSignalBlock({ title, detection, scoreLabel }) {
+  if (!detection) return null;
+  return (
+    <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 space-y-2">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-600">{title}</p>
+        <PresenceBadge presence={detection.presence} />
+      </div>
+      <p className="text-xs text-slate-900 leading-relaxed">{detection.summary}</p>
+      <div className="flex flex-wrap gap-2 text-[10px]">
+        {detection.prominence ? (
+          <span className="rounded-md bg-white border border-slate-200 px-2 py-0.5 text-slate-700">
+            Prominence: <span className="font-semibold capitalize">{detection.prominence}</span>
+          </span>
+        ) : null}
+        {detection.positioning ? (
+          <span className="rounded-md bg-white border border-slate-200 px-2 py-0.5 text-slate-700">
+            Position: {detection.positioning}
+          </span>
+        ) : null}
+        {typeof detection.visibility_score === "number" ? (
+          <span className="rounded-md bg-white border border-slate-200 px-2 py-0.5 text-slate-700">
+            Visibility: <span className="font-semibold tabular-nums">{detection.visibility_score}/100</span>
+          </span>
+        ) : null}
+        {detection.visibility ? (
+          <span className="rounded-md bg-white border border-slate-200 px-2 py-0.5 text-slate-700">
+            Visibility: <span className="font-semibold capitalize">{detection.visibility}</span>
+          </span>
+        ) : null}
+        {typeof detection.effectiveness_score === "number" ? (
+          <span className="rounded-md bg-white border border-slate-200 px-2 py-0.5 text-slate-700">
+            {scoreLabel}: <span className="font-semibold tabular-nums">{detection.effectiveness_score}/100</span>
+          </span>
+        ) : null}
+        {detection.text ? (
+          <span className="rounded-md bg-sky-50 border border-sky-200 px-2 py-0.5 text-sky-900">
+            Text: &quot;{detection.text}&quot;
+          </span>
+        ) : null}
+      </div>
+      {detection.recommendation ? (
+        <p className="text-[11px] text-slate-700 leading-relaxed border-t border-slate-200 pt-2">
+          <span className="font-semibold text-slate-900">Recommendation:</span> {detection.recommendation}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
 function QaList({ title, icon: Icon, items, accent = "cyan" }) {
   const accentMap = {
     cyan: "text-sky-600",
@@ -230,18 +295,38 @@ export default function AnalyzerCreativeSection({
 
         {extractionSignals ? (
           <div className="rounded-xl border border-slate-200 bg-white p-4">
-            <div className="flex items-center gap-2 mb-3">
+            <div className="flex items-center gap-2 mb-1">
               <Eye size={15} className="text-blue-600" />
               <h4 className="text-sm font-semibold text-slate-900">Creative Extraction Signals</h4>
             </div>
+            <p className="text-[11px] text-slate-500 mb-3">
+              {platformLabel} analysis — logo, CTA, and layout signals validated for this platform&apos;s placements and formats.
+            </p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               <FieldBlock label="Headline" value={extractionSignals.headline} />
-              <FieldBlock label="CTA" value={extractionSignals.cta} />
+              <FieldBlock label="Primary Message" value={extractionSignals.primary_message} />
               <FieldBlock label="Dominant Visual" value={extractionSignals.dominant_visual_cue} />
               <FieldBlock label="Persuasion Style" value={extractionSignals.persuasion_style} />
+              <FieldBlock label="Creative Type" value={extractionSignals.creative_type} />
               <FieldBlock label="Text Density" value={extractionSignals.text_density} />
+              <FieldBlock label="Readability" value={extractionSignals.readability} />
+              <FieldBlock label="Brand Presence" value={extractionSignals.brand_presence} />
               <FieldBlock label="Product Category" value={extractionSignals.product_category} />
+              <FieldBlock label="Platform Context" value={extractionSignals.platform_context} />
             </div>
+
+            <div className="mt-3 grid grid-cols-1 gap-2">
+              <DetectionSignalBlock
+                title="Logo Detection"
+                detection={extractionSignals.logo_detection}
+              />
+              <DetectionSignalBlock
+                title="CTA Detection"
+                detection={extractionSignals.cta_detection}
+                scoreLabel="Effectiveness"
+              />
+            </div>
+
             {extractionSignals.topic_summary ? (
               <div className="mt-2 rounded-lg bg-blue-50 border border-blue-200 p-3">
                 <p className="text-[10px] font-semibold uppercase tracking-wider text-blue-700 mb-1">What This Creative Communicates</p>

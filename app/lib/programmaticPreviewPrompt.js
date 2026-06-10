@@ -12,7 +12,6 @@ const ENV_LABELS = {
   gaming: "gaming platform",
   finance: "financial news site",
   travel: "travel booking site",
-  saas: "SaaS product site",
   booking: "local services booking site",
 };
 

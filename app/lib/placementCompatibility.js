@@ -4,15 +4,10 @@
  */
 
 import { PLATFORM_SUPPORTED_SIZE_GROUPS } from "./creativeValidation";
+import { GOOGLE_TIER1_SIZES, GOOGLE_TIER2_SIZES } from "./creativeSizeRegistry";
 
-const GDN_TIER1 = new Set([
-  "300x250", "336x280", "728x90", "970x90", "970x250", "160x600", "300x600",
-  "320x50", "320x100", "468x60", "250x250", "200x200",
-]);
-
-const GDN_TIER2 = new Set([
-  "1200x628", "1080x1080", "1200x1200", "1280x720", "960x1200", "1200x1500",
-]);
+const GDN_TIER1 = GOOGLE_TIER1_SIZES;
+const GDN_TIER2 = GOOGLE_TIER2_SIZES;
 
 const DEMAND_GEN_NATIVE = new Set([
   "1200x628", "1080x1080", "1200x1200", "960x1200", "1200x1500", "1080x1920", "1080x1350",

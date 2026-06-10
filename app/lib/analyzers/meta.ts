@@ -307,9 +307,9 @@ export const META_VERTICAL_SIGNALS: Record<string, { label: string; signals: str
     label: "Fashion",
     signals: ["Lifestyle aspiration", "Trend appeal", "Influencer feel", "Instagrammable aesthetic", "Premium styling"],
   },
-  saas: {
-    label: "SaaS",
-    signals: ["Productivity visuals", "UI clarity", "Problem-solving message", "Startup-modern feel", "Tech trust"],
+  technology: {
+    label: "Technology",
+    signals: ["Productivity visuals", "UI clarity", "Problem-solving message", "Modern tech feel", "Innovation trust"],
   },
   food: {
     label: "Restaurants / Food",

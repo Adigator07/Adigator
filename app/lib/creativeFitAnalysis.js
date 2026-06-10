@@ -10,10 +10,43 @@ const RATIO_TOLERANCE = 0.06;
 export const PREVIEW_CREATIVE_FIT_MODE = "contain";
 
 export function getCreativeSourceSize(creative) {
-  return creative?.sourceCreativeSize
-    || creative?.sourceSize
-    || creative?.size
-    || "";
+  if (creative?.sourceCreativeSize) return creative.sourceCreativeSize;
+  if (creative?.sourceWidth && creative?.sourceHeight) {
+    return `${creative.sourceWidth}x${creative.sourceHeight}`;
+  }
+  const detectedW = creative?.validation?.dimensions?.detectedWidth;
+  const detectedH = creative?.validation?.dimensions?.detectedHeight;
+  if (detectedW && detectedH) return `${detectedW}x${detectedH}`;
+  return creative?.sourceSize || creative?.size || "";
+}
+
+export function resolvePersistedDimensions(creative) {
+  const sourceW = Number(creative?.sourceWidth);
+  const sourceH = Number(creative?.sourceHeight);
+  if (sourceW > 0 && sourceH > 0) {
+    return { width: sourceW, height: sourceH };
+  }
+
+  const detectedW = Number(creative?.validation?.dimensions?.detectedWidth);
+  const detectedH = Number(creative?.validation?.dimensions?.detectedHeight);
+  if (detectedW > 0 && detectedH > 0) {
+    return { width: detectedW, height: detectedH };
+  }
+
+  const parsed = parseDimensions(getCreativeSourceSize(creative));
+  return parsed || null;
+}
+
+/** Source-of-truth pixel dimensions for preview-studio analysis (not preview/thumbnail decode). */
+export function getCreativeAnalysisDimensions(creative, imageFallback) {
+  const persisted = resolvePersistedDimensions(creative);
+  if (persisted) {
+    return { width: persisted.width, height: persisted.height };
+  }
+  return {
+    width: imageFallback?.naturalWidth || imageFallback?.width || 0,
+    height: imageFallback?.naturalHeight || imageFallback?.height || 0,
+  };
 }
 
 export function parseDimensions(size) {

@@ -351,6 +351,8 @@ interface AIAnalysisOutput {
   vertical_match: boolean;
   goal_match: boolean;
   platform_fit: boolean;
+  explicit_vertical_match?: boolean;
+  explicit_goal_match?: boolean;
   status: "Approved" | "Needs Improvement" | "Rejected";
   scores: {
     visual_impact: number;
@@ -636,7 +638,7 @@ const PLATFORM_BMI_PROFILE: Record<PlatformContext, {
 
 const PRODUCT_CATEGORY_HINTS: Record<string, string[]> = {
   healthcare: ["hospital", "clinic", "doctor", "medical", "patient", "wellness", "care", "treatment", "pharma", "health"],
-  technology: ["software", "saas", "platform", "cloud", "ai", "app", "tech", "automation", "digital"],
+  technology: ["software", "saas", "platform", "cloud", "ai", "app", "tech", "automation", "digital", "workflow", "trial", "subscription", "dashboard", "integrate", "api", "enterprise", "product-led"],
   automotive: ["car", "vehicle", "bike","suv", "sedan", "drive", "engine", "mileage", "dealership", "auto"],
   news_media: ["news", "headline", "breaking", "journal", "editorial", "media", "publisher"],
   sports: ["sports", "team", "match", "league", "athlete", "fitness", "score", "stadium"],
@@ -652,7 +654,6 @@ const PRODUCT_CATEGORY_HINTS: Record<string, string[]> = {
   entertainment: ["streaming", "ott", "entertainment", "show", "movie", "series", "music", "watch"],
   ecommerce: ["shop", "store", "cart", "checkout", "sale", "discount", "buy", "purchase"],
   fashion: ["fashion", "clothing", "apparel", "outfit", "style", "collection", "wardrobe", "dress", "jacket", "shoes", "accessories", "designer", "wear", "trend", "lookbook", "runway", "season", "model", "couture", "editorial"],
-  saas: ["saas", "platform", "workflow", "automate", "integrate", "dashboard", "trial", "subscription", "pricing", "plan", "api", "deploy", "onboard", "scale", "analytics", "seats", "software", "cloud", "product-led", "enterprise"],
 };
 
 const GOOGLE_TIER1_SIZES = new Set(["300x250", "728x90", "160x600", "300x600", "320x50", "970x250", "1200x628", "1200x1200", "1080x1080"]);
@@ -678,7 +679,6 @@ const PRODUCT_CATEGORY_LABELS: Record<string, string> = {
   entertainment: "Entertainment / OTT",
   ecommerce: "Retail / E-commerce",
   fashion: "Fashion / Apparel",
-  saas: "SaaS / Software Platform",
   unknown: "Unclear / Mixed Category",
 };
 
@@ -874,6 +874,7 @@ function normalizeAudienceStage(audienceStage: string): AudienceStage {
 
 function normalizeVertical(vertical: string): string {
   const cleaned = (vertical || "").toLowerCase().trim();
+  if (cleaned === "saas") return "technology";
   return KNOWN_VERTICALS.has(cleaned) ? cleaned : "technology";
 }
 
@@ -987,10 +988,23 @@ function normalizeAIAnalysis(raw: Record<string, unknown>): AIAnalysisOutput | n
   const normalizeScore = (v: unknown) =>
     typeof v === "number" ? Math.max(0, Math.min(100, Math.round(v))) : 50;
 
+  const explicitVerticalMatch = typeof raw.verticalMatch === "boolean"
+    ? raw.verticalMatch
+    : typeof raw.vertical_match === "boolean"
+      ? raw.vertical_match
+      : undefined;
+  const explicitGoalMatch = typeof raw.goalMatch === "boolean"
+    ? raw.goalMatch
+    : typeof raw.goal_match === "boolean"
+      ? raw.goal_match
+      : undefined;
+
   return {
     overall_score: clamped,
-    vertical_match: typeof raw.verticalMatch === "boolean" ? raw.verticalMatch : true,
-    goal_match: typeof raw.goalMatch === "boolean" ? raw.goalMatch : true,
+    vertical_match: explicitVerticalMatch ?? false,
+    goal_match: explicitGoalMatch ?? false,
+    explicit_vertical_match: explicitVerticalMatch,
+    explicit_goal_match: explicitGoalMatch,
     platform_fit: typeof raw.platformFit === "boolean" ? raw.platformFit : true,
     status: (["Approved", "Needs Improvement", "Rejected"] as const).includes(raw.status as "Approved" | "Needs Improvement" | "Rejected")
       ? raw.status as "Approved" | "Needs Improvement" | "Rejected"
@@ -1110,23 +1124,23 @@ function fallbackExtractionSignals(reason: string): ExtractionSignals {
 }
 
 async function normalizeImageForVision(buffer: Buffer): Promise<{ mimeType: "image/png"; base64: string; width: number; height: number }> {
-  const pipeline = sharp(buffer, { failOn: "none" }).rotate();
-  const metadata = await pipeline.metadata();
+  const oriented = sharp(buffer, { failOn: "none" }).rotate();
+  const metadata = await oriented.metadata();
 
-  const width = metadata.width ?? 0;
-  const shouldUpscale = width > 0 && width < 900;
+  const originalWidth = metadata.width ?? 0;
+  const originalHeight = metadata.height ?? 0;
+  const shouldUpscale = originalWidth > 0 && originalWidth < 900;
   const transformed = shouldUpscale
-    ? pipeline.resize({ width: 900, withoutEnlargement: false })
-    : pipeline;
+    ? oriented.clone().resize({ width: 900, withoutEnlargement: false })
+    : oriented.clone();
 
   const png = await transformed.png({ compressionLevel: 9 }).toBuffer();
-  const normalizedMeta = await sharp(png).metadata();
 
   return {
     mimeType: "image/png",
     base64: png.toString("base64"),
-    width: normalizedMeta.width ?? width,
-    height: normalizedMeta.height ?? (metadata.height ?? 0),
+    width: originalWidth,
+    height: originalHeight,
   };
 }
 
@@ -1426,8 +1440,8 @@ function detectProductCategoryFromSignals(selectedVertical: string, extraction: 
   ].join(" ").toLowerCase();
   const corpus = `${textCorpus} ${visualCorpus}`;
 
-  let bestVertical = selectedVertical;
-  let bestScore = -1;
+  let bestVertical = "unknown";
+  let bestScore = 0;
 
   for (const [candidate, hints] of Object.entries(PRODUCT_CATEGORY_HINTS)) {
     const score = hints.reduce((acc, keyword) => {
@@ -1441,20 +1455,56 @@ function detectProductCategoryFromSignals(selectedVertical: string, extraction: 
     }
   }
 
+  const detectedId = bestScore <= 0 ? "unknown" : bestVertical;
+
   const selectedHints = PRODUCT_CATEGORY_HINTS[selectedVertical] ?? [];
-  const matchedEvidence = selectedHints.filter((keyword) => corpus.includes(keyword)).slice(0, 4);
+  const matchedSelectedEvidence = selectedHints.filter((keyword) => corpus.includes(keyword));
   const fitScore = selectedHints.length === 0
     ? 50
-    : Math.round((matchedEvidence.length / selectedHints.length) * 100);
+    : Math.min(100, Math.round((matchedSelectedEvidence.length / Math.min(4, selectedHints.length)) * 100));
 
-  const detectedId = bestScore <= 0 ? "unknown" : bestVertical;
+  const detectedHints = detectedId !== "unknown" ? (PRODUCT_CATEGORY_HINTS[detectedId] ?? []) : [];
+  const detectedEvidence = detectedId !== "unknown"
+    ? detectedHints.filter((keyword) => corpus.includes(keyword)).slice(0, 4)
+    : matchedSelectedEvidence.slice(0, 4);
 
   return {
     id: detectedId,
     label: deriveProductCategoryLabel(detectedId, corpus),
     fitScore,
-    evidence: matchedEvidence,
+    evidence: detectedEvidence.length ? detectedEvidence : matchedSelectedEvidence.slice(0, 4),
   };
+}
+
+function resolveVerticalIsAligned(
+  selectedVertical: string,
+  productCategory: ProductCategoryDetection,
+  aiAnalysis: AIAnalysisOutput | null,
+): boolean | null {
+  const detected = productCategory.id;
+
+  if (detected !== "unknown" && detected !== selectedVertical) {
+    return false;
+  }
+
+  if (aiAnalysis?.explicit_vertical_match === true) {
+    return productCategory.fitScore >= 40 || detected === selectedVertical;
+  }
+  if (aiAnalysis?.explicit_vertical_match === false) {
+    return false;
+  }
+
+  if (detected === selectedVertical) {
+    return productCategory.fitScore >= 45;
+  }
+
+  if (detected === "unknown") {
+    if (productCategory.fitScore >= 70) return true;
+    if (productCategory.fitScore < 40) return false;
+    return null;
+  }
+
+  return false;
 }
 
 function detectAdvertisingBehaviorFromSignals(
@@ -1514,20 +1564,20 @@ function detectAdvertisingBehaviorFromSignals(
     return { label: "Aspirational fashion brand and lifestyle storytelling", evidence: behaviorEvidence };
   }
 
-  if (productCategoryId === "saas") {
+  if (productCategoryId === "technology") {
     const hasTrialCta = /free trial|try free|start free|get started free|sign up free|no credit card/.test(corpus);
     const hasEnterpriseSig = /enterprise|contact sales|book a demo|request demo|schedule a call|custom plan/.test(corpus);
     const hasPricingIntent = /pricing|plans?|seats|per user|per month|per year|upgrade|tier/.test(corpus);
     if (hasTrialCta) {
-      return { label: "SaaS product-led trial acquisition and conversion", evidence: behaviorEvidence };
+      return { label: "Software product-led trial acquisition and conversion", evidence: behaviorEvidence };
     }
     if (hasEnterpriseSig || hasLeadGenSignal) {
-      return { label: "Enterprise SaaS lead generation and sales qualification", evidence: behaviorEvidence };
+      return { label: "Enterprise software lead generation and sales qualification", evidence: behaviorEvidence };
     }
     if (hasPricingIntent || (ctaPressure === "aggressive" && hasRetailAction)) {
-      return { label: "SaaS direct-response subscription conversion", evidence: behaviorEvidence };
+      return { label: "Software direct-response subscription conversion", evidence: behaviorEvidence };
     }
-    return { label: "SaaS product awareness and value demonstration", evidence: behaviorEvidence };
+    return { label: "Technology product awareness and value demonstration", evidence: behaviorEvidence };
   }
 
   if (productCategoryId === "education" && (hasAuthoritySignal || urgencyLevel === "high")) {
@@ -4479,8 +4529,12 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       urgencyLevel,
       verticalIntelligence.advertisingBehavior.label,
     );
-    const goalAligned = aiAnalysis ? aiAnalysis.goal_match : (detectedGoal === goalProfile.stage);
-    const verticalAligned = aiAnalysis ? aiAnalysis.vertical_match : (verticalIntelligence.productCategory.id === vertical);
+    const goalAligned = aiAnalysis?.explicit_goal_match === true
+      ? aiAnalysis.goal_match
+      : aiAnalysis?.explicit_goal_match === false
+        ? false
+        : (detectedGoal === goalProfile.stage);
+    const verticalAligned = resolveVerticalIsAligned(vertical, verticalIntelligence.productCategory, aiAnalysis) === true;
     const attentionAnalysis = buildAttentionAnalysis(extraction, goal, ctaPressure);
     const contextualReasoning = buildContextualReasoning(
       extraction,
@@ -4540,10 +4594,13 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           ),
         };
       } else {
+        const signalVerticalAligned = resolveVerticalIsAligned(vertical, verticalIntelligence.productCategory, null);
         aiAnalysis = {
           overall_score: 50,
-          vertical_match: true,
-          goal_match: true,
+          vertical_match: signalVerticalAligned === true,
+          goal_match: detectedGoal === goalProfile.stage,
+          explicit_vertical_match: undefined,
+          explicit_goal_match: undefined,
           platform_fit: true,
           status: "Needs Improvement",
           scores: {
@@ -4557,7 +4614,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
             type: "warning" as const,
             message,
           })),
-          vertical_feedback: "",
+          vertical_feedback: verticalIntelligence.strategicInterpretation,
           goal_feedback: deterministicMetaEval.purpose,
           expert_insight: deterministicMetaEval.best_analyzer_questions[0]?.response ?? "",
           meta_ads_dynamic_eval: deterministicMetaEval,
@@ -4599,10 +4656,13 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           ),
         };
       } else {
+        const signalVerticalAligned = resolveVerticalIsAligned(vertical, verticalIntelligence.productCategory, null);
         aiAnalysis = {
           overall_score: 50,
-          vertical_match: true,
-          goal_match: true,
+          vertical_match: signalVerticalAligned === true,
+          goal_match: detectedGoal === goalProfile.stage,
+          explicit_vertical_match: undefined,
+          explicit_goal_match: undefined,
           platform_fit: true,
           status: "Needs Improvement",
           scores: {
@@ -4616,7 +4676,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
             type: "warning" as const,
             message,
           })),
-          vertical_feedback: "",
+          vertical_feedback: verticalIntelligence.strategicInterpretation,
           goal_feedback: buildProgrammaticGoalFitNote(
             goal,
             extraction,
@@ -4742,18 +4802,18 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       objective_priorities: goalProfile.aiPriorities,
       objective_behavior: goalProfile.creativeBehavior,
     };
+    const verticalIsAligned = resolveVerticalIsAligned(
+      vertical,
+      verticalIntelligence.productCategory,
+      aiAnalysis,
+    );
     const verticalAlignment = {
       selected_vertical: vertical,
       detected_vertical: verticalIntelligence.productCategory.id,
-      is_aligned: aiAnalysis
-        ? aiAnalysis.vertical_match
-        : (verticalIntelligence.productCategory.id === "unknown" ? null : verticalIntelligence.productCategory.id === vertical),
-      reason: aiAnalysis?.vertical_feedback
-        || (verticalIntelligence.productCategory.id === "unknown"
-          ? "Product category confidence is limited; no contradictory category detected."
-          : verticalIntelligence.productCategory.id === vertical
-            ? "Product category aligns with selected vertical context."
-            : `Product category reads as ${verticalIntelligence.productCategory.label} instead of ${vertical.replace(/_/g, " ")}.`),
+      is_aligned: verticalIsAligned,
+      reason: (aiAnalysis?.vertical_feedback && aiAnalysis.vertical_feedback.trim().length > 0)
+        ? aiAnalysis.vertical_feedback
+        : verticalIntelligence.strategicInterpretation,
       ai_vertical_feedback: aiAnalysis?.vertical_feedback ?? null,
       evidence: [
         ...verticalIntelligence.productCategory.evidence,
@@ -4808,13 +4868,23 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       extraction_signals: {
         headline: extraction.headline,
         cta: extraction.cta,
+        primary_message: extraction.primary_message,
         brand_presence: extraction.brand_presence,
         layout_structure: extraction.layout_structure,
         hierarchy_observations: extraction.hierarchy_observations,
         dominant_colors: extraction.dominant_colors,
         text_density: extraction.text_density,
         readability: extraction.readability,
+        emotional_cues: extraction.emotional_cues,
+        trust_markers: extraction.trust_markers,
+        urgency_signals: extraction.urgency_signals,
+        visual_elements: extraction.visual_elements,
         dominant_visual_cue: extraction.visual_elements[0] || "",
+        topic_summary: extraction.primary_message || extraction.hierarchy_observations || "",
+        persuasion_style: verticalIntelligence.advertisingBehavior.label,
+        creative_type: creativeTypeDetection.is_hybrid
+          ? `${creativeTypeDetection.primary_type} + ${creativeTypeDetection.secondary_type}`
+          : creativeTypeDetection.primary_type,
         platform_context: platformProfile.label,
         objective_context: goal,
         objective_stage: goalProfile.stage,
@@ -4889,7 +4959,7 @@ Platform Mismatch: If the creative format, style, or structure does not suit the
 Use these signals to confirm or dispute the declared vertical. Only confirm what is visually and textually present.
 
 - Healthcare: Medical imagery (stethoscope, hospital, pills, doctors), wellness/health symbols, clinical settings, patient-focused messaging, health app UI, pharmaceutical branding
-- Technology: Devices (laptops, phones, tablets), software UIs, SaaS dashboards, tech company branding, code/data visuals, innovation/AI messaging
+- Technology: Devices (laptops, phones, tablets), software UIs, product dashboards, tech company branding, code/data visuals, innovation/AI messaging, free trial or demo CTAs
 - Automotive: Cars, bikes, trucks, vehicle interiors, roads, speed/performance visuals, dealership branding, EV charging, automotive logos
 - News/Media: Headlines, newspaper layouts, broadcast graphics, news anchor imagery, breaking news visuals, editorial photography
 - Sports: Athletes, stadiums, sports equipment, team jerseys, live action sports photography, score graphics, sports brand logos
@@ -4905,7 +4975,6 @@ Use these signals to confirm or dispute the declared vertical. Only confirm what
 - Entertainment/OTT: Movie/show posters, streaming platform UI, actors/content stills, binge-watching scenarios, OTT app screenshots
 - E-commerce/Retail: Product photography, shopping cart UI, pricing labels, discount badges, online store layouts, packaging shots
 - Fashion: Models wearing clothing, runway/editorial photography, clothing/accessories close-ups, lookbook layouts, designer logos, "new collection" or "new arrival" messaging, seasonal campaign visuals, fashion brand identity (clean high-contrast photography, aspirational body language, style-forward typography)
-- SaaS: Dashboard or product UI screenshots, feature grid layouts, workflow diagrams, app mockups on laptop/device, "free trial" or "book a demo" CTAs, pricing plan tables, customer logo walls, G2/Capterra/review badges, metrics and ROI visuals, integration partner logos, productivity/automation messaging
 
 ## HUMAN-LIKE ANALYSIS GUIDELINES
 

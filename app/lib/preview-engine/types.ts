@@ -12,7 +12,6 @@ export type EnvironmentFamily =
   | "gaming"
   | "finance"
   | "travel"
-  | "saas"
   | "booking";
 
 export type DeviceType = "desktop" | "tablet" | "mobile";

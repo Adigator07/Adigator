@@ -3,6 +3,8 @@
  * Goals: fewer canvas encodes, reused canvas, early exit, UI yields between jobs.
  */
 
+import { readImageDimensionsFromBlob } from "./imageDimensions";
+
 const DEFAULT_OUTPUT_TYPE = "image/jpeg";
 
 let sharedCanvas = null;
@@ -70,6 +72,7 @@ export function loadImageFromDataURL(dataUrl) {
 /** Prefer ImageBitmap for decode performance when source is a File/Blob. */
 export async function loadImageSource(source) {
   if (source instanceof Blob) {
+    const dimensions = await readImageDimensionsFromBlob(source);
     let bitmap;
     try {
       bitmap = await createImageBitmap(source, { imageOrientation: "from-image" });
@@ -78,8 +81,10 @@ export async function loadImageSource(source) {
     }
     return {
       drawable: bitmap,
-      width: bitmap.width,
-      height: bitmap.height,
+      width: dimensions.width,
+      height: dimensions.height,
+      size: dimensions.size,
+      dimensions,
       release: () => {
         if (typeof bitmap.close === "function") bitmap.close();
       },
@@ -91,6 +96,13 @@ export async function loadImageSource(source) {
     drawable: img,
     width: img.width,
     height: img.height,
+    size: `${img.width}x${img.height}`,
+    dimensions: {
+      width: img.width,
+      height: img.height,
+      size: `${img.width}x${img.height}`,
+      source: "data_url",
+    },
     release: () => {},
   };
 }

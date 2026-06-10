@@ -269,12 +269,11 @@ function buildFallbackContent(
     gaming: "GameVault",
     finance: "MarketWatch Pro",
     travel: "Wanderlust Guide",
-    saas: "WorkOS Platform",
     booking: "ReserveNow",
   };
 
   return normalizeGeneratedEnvironment({
-    layoutType: env === "commerce" ? "landing-commerce" : env === "social" ? "landing-social" : env === "saas" ? "landing-saas" : "landing-page",
+    layoutType: env === "commerce" ? "landing-commerce" : env === "social" ? "landing-social" : "landing-page",
     pageTitle: `${vertical} Growth Platform — ${publisherNames[env]}`,
     publisherName: publisherNames[env],
     landingPage: buildFallbackLandingPage(vertical, goal, hints),

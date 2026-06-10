@@ -206,8 +206,8 @@ export const PROGRAMMATIC_VERTICAL_SIGNALS: Record<string, { label: string; sign
     tone: "High-end, editorial, premium publisher friendly",
     signals: ["Minimalism", "Premium spacing", "Sophisticated typography", "Elegant imagery"],
   },
-  saas: {
-    label: "SaaS",
+  technology: {
+    label: "Technology",
     tone: "Informative, efficient, professional",
     signals: ["Product explanation clarity", "UI visibility", "Enterprise trust", "Problem-solving message"],
   },

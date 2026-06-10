@@ -1,6 +1,34 @@
-import { normalizeCreativeDimensions, SIZE_TOLERANCE_PX } from "./imageDimensions";
+import { SIZE_TOLERANCE_PX, formatCreativeSize, readImageDimensionsFromBlob } from "./imageDimensions";
+import {
+  SIZE_INTELLIGENCE,
+  SUPPORTED_DISPLAY_SIZE_GROUPS,
+  PLATFORM_SUPPORTED_SIZE_GROUPS,
+  PROGRAMMATIC_NATIVE_RESPONSIVE_SIZES,
+  GOOGLE_TIER1_SIZES,
+  GOOGLE_TIER2_SIZES,
+  META_TIER1_SIZES,
+  META_TIER2_SIZES,
+  PROGRAMMATIC_LOW_AVAILABILITY_SIZES,
+  PLATFORM_SIZE_GROUP_LABELS,
+  getFlatPlatformSizes,
+  getAllKnownCreativeSizes,
+} from "./creativeSizeRegistry";
 
-export { normalizeCreativeDimensions, readImageDimensionsFromBlob } from "./imageDimensions";
+export {
+  formatCreativeSize,
+  normalizeCreativeDimensions,
+  readImageDimensionsFromBlob,
+  readImageDimensionsFromBuffer,
+} from "./imageDimensions";
+
+export {
+  SUPPORTED_DISPLAY_SIZE_GROUPS,
+  PLATFORM_SUPPORTED_SIZE_GROUPS,
+  PROGRAMMATIC_NATIVE_RESPONSIVE_SIZES,
+  PLATFORM_SIZE_GROUP_LABELS,
+  getFlatPlatformSizes,
+  getAllKnownCreativeSizes,
+} from "./creativeSizeRegistry";
 
 export const DSP_PARTNERS = [
   "DV360",
@@ -12,53 +40,6 @@ export const DSP_PARTNERS = [
   "Basis",
 ];
 
-export const SUPPORTED_DISPLAY_SIZE_GROUPS = {
-  desktop: [
-    "300x250",
-    "336x280",
-    "728x90",
-    "970x90",
-    "970x250",
-    "160x600",
-    "300x600",
-    "468x60",
-    "250x250",
-    "200x200",
-  ],
-  mobile: ["320x50", "320x100", "300x250", "320x480", "480x320"],
-  high_impact: ["970x250", "300x600", "970x90"],
-  native: ["1200x628", "1080x1080", "1080x1350", "1200x1200", "960x1200", "1200x1500"],
-  responsive_native: ["1200x628", "1200x1200", "1080x1080", "960x1200", "1200x1500", "1080x1350"],
-  stories: ["1080x1920"],
-};
-
-/** Programmatic native / responsive display assets (Step 2 validation + analyzer). */
-export const PROGRAMMATIC_NATIVE_RESPONSIVE_SIZES = [
-  "1200x628",
-  "1200x1200",
-  "1080x1080",
-  "960x1200",
-];
-
-export const PLATFORM_SUPPORTED_SIZE_GROUPS = {
-  google_ads: {
-    desktop_display: ["300x250", "336x280", "728x90", "970x90", "970x250", "160x600", "300x600", "468x60", "250x250", "200x200"],
-    mobile_display: ["320x50", "320x100", "300x250", "320x480", "480x320"],
-    responsive_native_assets: ["1200x628", "1200x1200", "1080x1080", "960x1200", "1200x1500"],
-  },
-  meta_ads: {
-    feed_placements: ["1080x1080", "1080x1350", "1200x628"],
-    story_reels: ["1080x1920"],
-    carousel: ["1080x1080"],
-    flexible_native_assets: ["1200x1200", "1200x628", "960x1200", "1200x1500"],
-  },
-  programmatic: {
-    standard_display: SUPPORTED_DISPLAY_SIZE_GROUPS.desktop,
-    mobile_display: SUPPORTED_DISPLAY_SIZE_GROUPS.mobile,
-    native_responsive_assets: PROGRAMMATIC_NATIVE_RESPONSIVE_SIZES,
-  },
-};
-
 const GOOGLE_ALLOWED_MIME_TYPES = new Set([
   "image/jpeg",
   "image/jpg",
@@ -67,42 +48,12 @@ const GOOGLE_ALLOWED_MIME_TYPES = new Set([
   "application/zip",
 ]);
 
-const GOOGLE_TIER1_SIZES = new Set([
-  "300x250",
-  "728x90",
-  "160x600",
-  "300x600",
-  "320x50",
-  "970x250",
-  "1200x628",
-  "1200x1200",
-  "1080x1080",
-]);
-
-const GOOGLE_TIER2_SIZES = new Set([
-  "336x280",
-  "970x90",
-  "320x100",
-  "468x60",
-  "250x250",
-  "200x200",
-  "320x480",
-  "480x320",
-  "960x1200",
-  "1200x1500",
-]);
-
 const META_ALLOWED_MIME_TYPES = new Set([
   "image/jpeg",
   "image/jpg",
   "image/png",
   "image/gif",
-  "video/mp4",
-  "video/quicktime",
 ]);
-
-const META_TIER1_SIZES = new Set(["1080x1080", "1080x1350", "1080x1920"]);
-const META_TIER2_SIZES = new Set(["1200x628", "1200x1200"]);
 
 function parseSize(size) {
   const [width, height] = String(size || "").split("x").map((n) => Number(n));
@@ -177,242 +128,8 @@ function evaluateGoogleRdaFit(size) {
   };
 }
 
-const HIGH_IMPACT_SIZES = new Set(["970x250", "300x600"]);
-const LEGACY_SIZES = new Set(["468x60", "200x200"]);
-
-const SIZE_INTELLIGENCE = {
-  "300x250": {
-    label: "Medium Rectangle",
-    group: "desktop",
-    placementType: "desktop",
-    deviceClassification: "Desktop + Mobile",
-    inventoryCategory: "Universal Inventory",
-    inventoryScore: 96,
-    auctionReadinessScore: 95,
-    premiumEligible: true,
-    iabCompatibility: "IAB Core Display",
-  },
-  "336x280": {
-    label: "Large Rectangle",
-    group: "desktop",
-    placementType: "desktop",
-    deviceClassification: "Desktop",
-    inventoryCategory: "High Inventory",
-    inventoryScore: 90,
-    auctionReadinessScore: 89,
-    premiumEligible: true,
-    iabCompatibility: "IAB Core Display",
-  },
-  "728x90": {
-    label: "Leaderboard",
-    group: "desktop",
-    placementType: "desktop",
-    deviceClassification: "Desktop",
-    inventoryCategory: "Strong Inventory",
-    inventoryScore: 88,
-    auctionReadinessScore: 90,
-    premiumEligible: true,
-    iabCompatibility: "IAB Core Display",
-  },
-  "970x90": {
-    label: "Large Leaderboard",
-    group: "desktop",
-    placementType: "desktop",
-    deviceClassification: "Desktop",
-    inventoryCategory: "Premium Inventory",
-    inventoryScore: 84,
-    auctionReadinessScore: 86,
-    premiumEligible: true,
-    iabCompatibility: "IAB High-Impact Display",
-  },
-  "970x250": {
-    label: "Billboard",
-    group: "desktop",
-    placementType: "high-impact",
-    deviceClassification: "Desktop",
-    inventoryCategory: "Premium Inventory",
-    inventoryScore: 82,
-    auctionReadinessScore: 88,
-    premiumEligible: true,
-    iabCompatibility: "IAB High-Impact Display",
-  },
-  "160x600": {
-    label: "Wide Skyscraper",
-    group: "desktop",
-    placementType: "desktop",
-    deviceClassification: "Desktop",
-    inventoryCategory: "Strong Inventory",
-    inventoryScore: 84,
-    auctionReadinessScore: 85,
-    premiumEligible: false,
-    iabCompatibility: "IAB Core Display",
-  },
-  "300x600": {
-    label: "Half Page",
-    group: "desktop",
-    placementType: "high-impact",
-    deviceClassification: "Desktop",
-    inventoryCategory: "Premium Inventory",
-    inventoryScore: 81,
-    auctionReadinessScore: 87,
-    premiumEligible: true,
-    iabCompatibility: "IAB High-Impact Display",
-  },
-  "468x60": {
-    label: "Banner",
-    group: "desktop",
-    placementType: "desktop",
-    deviceClassification: "Desktop",
-    inventoryCategory: "Legacy Inventory",
-    inventoryScore: 61,
-    auctionReadinessScore: 62,
-    premiumEligible: false,
-    iabCompatibility: "IAB Legacy Display",
-  },
-  "250x250": {
-    label: "Square",
-    group: "desktop",
-    placementType: "desktop",
-    deviceClassification: "Desktop + Mobile",
-    inventoryCategory: "Limited Inventory",
-    inventoryScore: 66,
-    auctionReadinessScore: 69,
-    premiumEligible: false,
-    iabCompatibility: "IAB Display",
-  },
-  "200x200": {
-    label: "Small Square",
-    group: "desktop",
-    placementType: "desktop",
-    deviceClassification: "Desktop",
-    inventoryCategory: "Legacy Inventory",
-    inventoryScore: 56,
-    auctionReadinessScore: 58,
-    premiumEligible: false,
-    iabCompatibility: "IAB Legacy Display",
-  },
-  "320x50": {
-    label: "Mobile Banner",
-    group: "mobile",
-    placementType: "mobile",
-    deviceClassification: "Mobile",
-    inventoryCategory: "Mobile-First Inventory",
-    inventoryScore: 95,
-    auctionReadinessScore: 93,
-    premiumEligible: false,
-    iabCompatibility: "IAB Mobile Display",
-  },
-  "320x100": {
-    label: "Large Mobile Banner",
-    group: "mobile",
-    placementType: "mobile",
-    deviceClassification: "Mobile",
-    inventoryCategory: "High Inventory",
-    inventoryScore: 89,
-    auctionReadinessScore: 88,
-    premiumEligible: false,
-    iabCompatibility: "IAB Mobile Display",
-  },
-  "320x480": {
-    label: "Mobile Interstitial",
-    group: "mobile",
-    placementType: "mobile",
-    deviceClassification: "Mobile",
-    inventoryCategory: "Limited Inventory",
-    inventoryScore: 64,
-    auctionReadinessScore: 70,
-    premiumEligible: true,
-    iabCompatibility: "IAB Mobile Display",
-  },
-  "480x320": {
-    label: "Mobile Interstitial Landscape",
-    group: "mobile",
-    placementType: "mobile",
-    deviceClassification: "Mobile",
-    inventoryCategory: "Limited Inventory",
-    inventoryScore: 61,
-    auctionReadinessScore: 66,
-    premiumEligible: false,
-    iabCompatibility: "IAB Mobile Display",
-  },
-  "1200x628": {
-    label: "Native Landscape",
-    group: "native",
-    placementType: "native",
-    deviceClassification: "Desktop + Mobile",
-    inventoryCategory: "High Inventory",
-    inventoryScore: 88,
-    auctionReadinessScore: 87,
-    premiumEligible: true,
-    iabCompatibility: "Responsive / Native Assets",
-  },
-  "1080x1080": {
-    label: "Native Square",
-    group: "native",
-    placementType: "native",
-    deviceClassification: "Desktop + Mobile",
-    inventoryCategory: "Strong Inventory",
-    inventoryScore: 83,
-    auctionReadinessScore: 85,
-    premiumEligible: true,
-    iabCompatibility: "Responsive / Native Assets",
-  },
-  "1080x1350": {
-    label: "Native Portrait",
-    group: "native",
-    placementType: "native",
-    deviceClassification: "Mobile",
-    inventoryCategory: "Strong Inventory",
-    inventoryScore: 81,
-    auctionReadinessScore: 86,
-    premiumEligible: true,
-    iabCompatibility: "Responsive / Native Assets",
-  },
-  "1200x1200": {
-    label: "Native Square Large",
-    group: "native",
-    placementType: "native",
-    deviceClassification: "Desktop + Mobile",
-    inventoryCategory: "Strong Inventory",
-    inventoryScore: 80,
-    auctionReadinessScore: 82,
-    premiumEligible: true,
-    iabCompatibility: "Responsive / Native Assets",
-  },
-  "960x1200": {
-    label: "Responsive Portrait",
-    group: "native",
-    placementType: "native",
-    deviceClassification: "Mobile",
-    inventoryCategory: "Responsive Inventory",
-    inventoryScore: 77,
-    auctionReadinessScore: 79,
-    premiumEligible: true,
-    iabCompatibility: "Responsive / Native Assets",
-  },
-  "1200x1500": {
-    label: "Responsive Portrait Large",
-    group: "native",
-    placementType: "native",
-    deviceClassification: "Mobile",
-    inventoryCategory: "Responsive Inventory",
-    inventoryScore: 78,
-    auctionReadinessScore: 80,
-    premiumEligible: true,
-    iabCompatibility: "Responsive / Native Assets",
-  },
-  "1080x1920": {
-    label: "Story / Full-Screen Vertical",
-    group: "stories",
-    placementType: "mobile",
-    deviceClassification: "Mobile",
-    inventoryCategory: "Social Mobile Inventory",
-    inventoryScore: 86,
-    auctionReadinessScore: 88,
-    premiumEligible: true,
-    iabCompatibility: "Social Story / Full-Screen",
-  },
-};
+const HIGH_IMPACT_SIZES = new Set(SUPPORTED_DISPLAY_SIZE_GROUPS.high_impact);
+const LEGACY_SIZES = new Set(SUPPORTED_DISPLAY_SIZE_GROUPS.legacy);
 
 function clamp(value, min, max) {
   return Math.min(Math.max(value, min), max);
@@ -522,10 +239,7 @@ export function matchPlatformSupportedSize(rawWidth, rawHeight, platform) {
     const dims = parseSize(candidate);
     if (!dims) continue;
 
-    const orientations = [
-      { w: dims.width, h: dims.height, swapped: false },
-      { w: dims.height, h: dims.width, swapped: true },
-    ];
+    const orientations = [{ w: dims.width, h: dims.height, swapped: false }];
 
     for (const orientation of orientations) {
       if (!withinTolerance(rawW, orientation.w) || !withinTolerance(rawH, orientation.h)) continue;
@@ -578,16 +292,19 @@ function isNativeOrResponsiveSize(size, intelligence) {
     ...PROGRAMMATIC_NATIVE_RESPONSIVE_SIZES,
     ...(SUPPORTED_DISPLAY_SIZE_GROUPS.native || []),
     ...(SUPPORTED_DISPLAY_SIZE_GROUPS.responsive_native || []),
-    "1080x1350", "1080x1920",
+    "1080x1350", "1080x1920", "1920x1080",
   ]);
   return nativeSizes.has(size);
 }
 
 function isStandardDisplayBanner(size, intelligence) {
-  if (intelligence?.sizeGroup === "desktop" || intelligence?.sizeGroup === "mobile") return true;
+  if (intelligence?.sizeGroup === "desktop" || intelligence?.sizeGroup === "mobile" || intelligence?.sizeGroup === "tablet") return true;
+  if (intelligence?.placementType === "desktop" || intelligence?.placementType === "mobile") return true;
   const bannerSizes = new Set([
     ...(SUPPORTED_DISPLAY_SIZE_GROUPS.desktop || []),
     ...(SUPPORTED_DISPLAY_SIZE_GROUPS.mobile || []),
+    ...(SUPPORTED_DISPLAY_SIZE_GROUPS.tablet || []),
+    ...(SUPPORTED_DISPLAY_SIZE_GROUPS.companion || []),
   ]);
   return bannerSizes.has(size);
 }
@@ -607,15 +324,6 @@ function buildFileWeightIssues(file, platform, size, intelligence) {
         severity: "high",
         message: "Image exceeds Meta image size limit (30MB).",
         recommendation: "Compress image below 30MB and optimize for mobile loading speed.",
-        scorePenalty: 26,
-      }];
-    }
-    if (fileMime.startsWith("video/") && fileSize > 4 * 1024 * 1024 * 1024) {
-      return [{
-        type: "meta_weight",
-        severity: "high",
-        message: "Video exceeds Meta upload size limit (4GB).",
-        recommendation: "Compress video below 4GB; prioritize lightweight delivery for feed/reels performance.",
         scorePenalty: 26,
       }];
     }
@@ -775,8 +483,8 @@ export async function validateCreativeAsset({ file, image, platform }) {
       issues.push({
         type: "format",
         severity: "high",
-        message: `${fileMime} is not in the Meta support set for V1 (JPG, PNG, GIF, MP4, MOV).`,
-        recommendation: "Use JPG/PNG for static ads or MP4/MOV for video-first Meta placements.",
+        message: `${fileMime} is not supported — display/image creatives only (JPG, PNG, GIF).`,
+        recommendation: "Upload a static image creative in JPG, PNG, or GIF format.",
         scorePenalty: 35,
       });
     }
@@ -883,11 +591,11 @@ export async function validateCreativeAsset({ file, image, platform }) {
       : null,
     metaStandards: normalizedPlatform === "meta_ads"
       ? {
-        ecosystemFocus: ["feed_ads", "story_ads", "reels_ads", "carousel_ads"],
+        ecosystemFocus: ["feed_ads", "story_image_ads", "reels_image_ads", "carousel_ads"],
         fileFormat: {
           mimeType: fileMime || "unknown",
           supported: !fileMime || META_ALLOWED_MIME_TYPES.has(fileMime),
-          acceptedFormats: ["image/jpeg", "image/png", "image/gif", "video/mp4", "video/quicktime"],
+          acceptedFormats: ["image/jpeg", "image/png", "image/gif"],
         },
         sizeTier: META_TIER1_SIZES.has(size) ? "tier1" : META_TIER2_SIZES.has(size) ? "tier2" : "non_core",
         placementProfile: metaPlacement,
@@ -896,13 +604,6 @@ export async function validateCreativeAsset({ file, image, platform }) {
       : null,
   };
 }
-
-const PROGRAMMATIC_LOW_AVAILABILITY_SIZES = new Set([
-  "234x60",
-  "120x240",
-  "180x150",
-  "300x1050",
-]);
 
 export function finalizeValidationForPlatform(validation, platform, size) {
   if (platform !== "programmatic" || !PROGRAMMATIC_LOW_AVAILABILITY_SIZES.has(size)) {
@@ -940,11 +641,49 @@ function applyValidationFields(creative, validation) {
   };
 }
 
-export async function revalidateCreativeForPlatform(creative, platform) {
-  if (!creative?.size || !platform) return creative;
-  const dims = parseSize(creative.size);
+function resolveCreativeImageDimensions(creative, imageOverride) {
+  if (imageOverride?.width && imageOverride?.height) {
+    return {
+      width: Math.round(imageOverride.width),
+      height: Math.round(imageOverride.height),
+    };
+  }
+
+  const sourceW = Number(creative?.sourceWidth);
+  const sourceH = Number(creative?.sourceHeight);
+  if (sourceW > 0 && sourceH > 0) {
+    return { width: sourceW, height: sourceH };
+  }
+
+  const detectedW = Number(creative?.validation?.dimensions?.detectedWidth);
+  const detectedH = Number(creative?.validation?.dimensions?.detectedHeight);
+  if (detectedW > 0 && detectedH > 0) {
+    return { width: detectedW, height: detectedH };
+  }
+
+  const dims = parseSize(creative?.size);
+  if (!dims) return null;
+  return dims;
+}
+
+export function attachSourceDimensions(creative, width, height) {
+  const size = formatCreativeSize(width, height);
+  return {
+    ...creative,
+    size,
+    sourceCreativeSize: size,
+    sourceWidth: Math.round(width),
+    sourceHeight: Math.round(height),
+  };
+}
+
+export async function revalidateCreativeForPlatform(creative, platform, options = {}) {
+  if (!platform) return creative;
+
+  const dims = resolveCreativeImageDimensions(creative, options.image);
   if (!dims) return creative;
 
+  const size = formatCreativeSize(dims.width, dims.height);
   const baseValidation = await validateCreativeAsset({
     file: creative.mimeType
       ? { type: creative.mimeType, size: Number(creative.fileSizeBytes || 0) }
@@ -952,17 +691,23 @@ export async function revalidateCreativeForPlatform(creative, platform) {
     image: { width: dims.width, height: dims.height },
     platform,
   });
-  const validation = finalizeValidationForPlatform(
-    baseValidation,
-    platform,
-    baseValidation.canonicalSize || creative.size,
+  const validation = finalizeValidationForPlatform(baseValidation, platform, size);
+  return applyValidationFields(
+    attachSourceDimensions(creative, dims.width, dims.height),
+    validation,
   );
-  return applyValidationFields({ ...creative, size: baseValidation.size || creative.size }, validation);
 }
 
-export async function revalidateCreativesForPlatform(creatives, platform) {
+export async function revalidateCreativesForPlatform(creatives, platform, options = {}) {
   if (!Array.isArray(creatives) || !creatives.length || !platform) return creatives || [];
-  return Promise.all(creatives.map((creative) => revalidateCreativeForPlatform(creative, platform)));
+  const resolveImage = options.resolveImage;
+  if (typeof resolveImage === "function") {
+    return Promise.all(creatives.map(async (creative) => {
+      const image = await resolveImage(creative);
+      return revalidateCreativeForPlatform(creative, platform, { image });
+    }));
+  }
+  return Promise.all(creatives.map((creative) => revalidateCreativeForPlatform(creative, platform, options)));
 }
 
 export function buildValidationSummary(validations = []) {
@@ -992,8 +737,9 @@ export function buildValidationSummary(validations = []) {
 function classifyMetaPlacement(size) {
   if (size === "1080x1920") return "stories_reels";
   if (size === "1080x1350") return "feed_mobile_4_5";
-  if (size === "1080x1080") return "feed_carousel_square";
-  if (size === "1200x628") return "feed_landscape";
+  if (size === "1080x1080" || size === "600x600") return "feed_carousel_square";
+  if (size === "1200x628" || size === "600x314") return "feed_landscape";
+  if (size === "1920x1080") return "audience_network_landscape";
   if (size === "1200x1200" || size === "960x1200" || size === "1200x1500") return "native_assets";
   return "non_core";
 }

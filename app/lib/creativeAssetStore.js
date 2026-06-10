@@ -6,6 +6,9 @@
  */
 
 import { compressDrawable, yieldToMain } from "./imageCompression";
+import { attachSourceDimensions } from "./creativeValidation";
+import { readImageDimensionsFromBlob } from "./imageDimensions";
+import { resolvePersistedDimensions } from "./creativeFitAnalysis";
 
 const DB_NAME = "adigator-creative-assets";
 const DB_VERSION = 1;
@@ -151,14 +154,12 @@ async function fetchBlobFromUrlSafely(url) {
   return null;
 }
 
-export async function getCreativeFullBlob(creative) {
+/** Full-resolution blob only — never the scaled preview (used for dimension reads). */
+export async function getCreativeSourceBlob(creative) {
   if (!creative) return null;
 
   const fromDb = await getCreativeBlob(creative.id);
   if (fromDb) return fromDb;
-
-  const previewFromDb = await getCreativeBlob(previewKey(creative.id));
-  if (previewFromDb) return previewFromDb;
 
   if (creative.fullUrl) {
     const blob = await fetchBlobFromUrlSafely(creative.fullUrl);
@@ -167,6 +168,18 @@ export async function getCreativeFullBlob(creative) {
       return blob;
     }
   }
+
+  return null;
+}
+
+export async function getCreativeFullBlob(creative) {
+  if (!creative) return null;
+
+  const sourceBlob = await getCreativeSourceBlob(creative);
+  if (sourceBlob) return sourceBlob;
+
+  const previewFromDb = await getCreativeBlob(previewKey(creative.id));
+  if (previewFromDb) return previewFromDb;
 
   if (creative.url) {
     const blob = await fetchBlobFromUrlSafely(creative.url);
@@ -187,13 +200,27 @@ export async function hydrateCreativeRecord(meta) {
   const fullBlob = await getCreativeBlob(meta.id);
   const displayBlob = previewBlob || fullBlob;
 
+  const applyDimensionsFromFullBlob = async (record, fullBlob) => {
+    const persisted = resolvePersistedDimensions(record);
+    if (persisted) {
+      return attachSourceDimensions(record, persisted.width, persisted.height);
+    }
+    if (!fullBlob) return record;
+    try {
+      const dims = await readImageDimensionsFromBlob(fullBlob);
+      return attachSourceDimensions(record, dims.width, dims.height);
+    } catch {
+      return record;
+    }
+  };
+
   if (displayBlob) {
-    return {
+    return applyDimensionsFromFullBlob({
       ...meta,
       url: URL.createObjectURL(displayBlob),
       fullUrl: fullBlob ? URL.createObjectURL(fullBlob) : undefined,
       hasStoredAssets: true,
-    };
+    }, fullBlob);
   }
 
   if (meta.url && String(meta.url).startsWith("data:")) {
@@ -204,12 +231,12 @@ export async function hydrateCreativeRecord(meta) {
         const nextPreviewBlob = await createPreviewBlob(blob);
         await putCreativeBlob(previewKey(meta.id), nextPreviewBlob);
         const { url: _legacyUrl, fullUrl: _legacyFullUrl, ...rest } = meta;
-        return {
+        return applyDimensionsFromFullBlob({
           ...rest,
           url: URL.createObjectURL(nextPreviewBlob),
           fullUrl: URL.createObjectURL(blob),
           hasStoredAssets: true,
-        };
+        }, blob);
       }
     } catch {
       // Fall through — strip unusable legacy payload below.
@@ -222,12 +249,12 @@ export async function hydrateCreativeRecord(meta) {
       await putCreativeBlob(meta.id, recovered);
       const nextPreviewBlob = await createPreviewBlob(recovered);
       await putCreativeBlob(previewKey(meta.id), nextPreviewBlob);
-      return {
+      return applyDimensionsFromFullBlob({
         ...meta,
         url: URL.createObjectURL(nextPreviewBlob),
         fullUrl: URL.createObjectURL(recovered),
         hasStoredAssets: true,
-      };
+      }, recovered);
     }
 
     const { url: _staleUrl, fullUrl: _staleFullUrl, ...rest } = meta;
@@ -245,12 +272,12 @@ export async function hydrateCreativeRecord(meta) {
       await putCreativeBlob(meta.id, recovered);
       const nextPreviewBlob = await createPreviewBlob(recovered);
       await putCreativeBlob(previewKey(meta.id), nextPreviewBlob);
-      return {
+      return applyDimensionsFromFullBlob({
         ...meta,
         url: URL.createObjectURL(nextPreviewBlob),
         fullUrl: URL.createObjectURL(recovered),
         hasStoredAssets: true,
-      };
+      }, recovered);
     }
   }
 

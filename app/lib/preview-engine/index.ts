@@ -33,7 +33,7 @@ export function selectEnvironmentFamily(
   if (v.includes("gaming") || v.includes("game")) return "gaming";
   if (v.includes("finance") || v.includes("banking") || v.includes("fintech")) return "finance";
   if (v.includes("travel") || v.includes("hotel") || v.includes("booking")) return "travel";
-  if (v.includes("saas") || v.includes("software") || v.includes("enterprise")) return "saas";
+  if (v.includes("technology") || v.includes("software") || v.includes("enterprise") || v.includes("saas")) return "news";
   if (
     v.includes("ecommerce") ||
     v.includes("retail") ||
@@ -44,7 +44,7 @@ export function selectEnvironmentFamily(
     return "commerce";
   if (v.includes("social")) return "social";
   if (v.includes("health") || v.includes("medical")) return "news"; // health ads fit editorial
-  if (v.includes("education") || v.includes("edtech")) return "saas";
+  if (v.includes("education") || v.includes("edtech")) return "news";
   if (v.includes("automotive") || v.includes("car")) return "luxury";
   if (goalStage === "conversion") return "commerce";
   return "news";
@@ -67,7 +67,6 @@ export function selectSlotType(
 
   // Environment-specific overrides
   if (environment === "gaming") return "interstitial";
-  if (environment === "saas") return "dashboard-module";
   if (environment === "social") return "feed-card";
   if (environment === "commerce" && Math.abs(ratio - 1) < 0.25) return "product-tile";
   if (environment === "news" && Math.abs(ratio - 1) < 0.25) return "inline";

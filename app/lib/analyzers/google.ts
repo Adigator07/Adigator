@@ -172,7 +172,7 @@ export const GOOGLE_RULES = {
 
 export const GOOGLE_VERTICAL_BENCHMARKS = {
   ecommerce: { avg_ctr: "0.35%", top_signal: "Product image + price + urgency CTA" },
-  saas: { avg_ctr: "0.28%", top_signal: "Feature benefit headline + free trial CTA" },
+  technology: { avg_ctr: "0.28%", top_signal: "Feature benefit headline + free trial CTA" },
   real_estate: { avg_ctr: "0.22%", top_signal: "Property photo + location + contact CTA" },
   finance: { avg_ctr: "0.19%", top_signal: "Trust signal + specific offer + compliance-safe CTA" },
   fashion: { avg_ctr: "0.31%", top_signal: "Lifestyle image + product highlight + discount CTA" },

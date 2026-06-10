@@ -10,79 +10,76 @@ const META = PLATFORM_SUPPORTED_SIZE_GROUPS.meta_ads;
 const PROG = PLATFORM_SUPPORTED_SIZE_GROUPS.programmatic;
 
 const GDN_SIZES = [
-  ...GOOGLE.desktop_display,
-  "320x50",
-  "320x100",
-  "300x250",
+  ...new Set([
+    ...GOOGLE.desktop_display,
+    ...GOOGLE.mobile_display,
+    ...GOOGLE.companion_banners,
+  ]),
 ];
 
-const MOBILE_DISPLAY_SIZES = [...GOOGLE.mobile_display, "1080x1920"];
+const MOBILE_DISPLAY_SIZES = [...new Set([...GOOGLE.mobile_display, "1080x1920"])];
 
 const RESPONSIVE_DISPLAY_SIZES = [
-  ...GOOGLE.responsive_native_assets,
-  "600x314",
-  "1200x628",
-  "1080x1080",
-  "960x1200",
-  "1200x1500",
+  ...new Set([
+    ...GOOGLE.responsive_native_assets,
+    "600x314",
+  ]),
 ];
 
 const DEMAND_GEN_SIZES = [
-  ...GOOGLE.responsive_native_assets,
-  "1280x720",
-  "1920x1080",
-  "1080x1920",
-  "1080x1350",
+  ...new Set([
+    ...GOOGLE.responsive_native_assets,
+    "1080x1350",
+  ]),
 ];
 
-const GMAIL_SIZES = ["300x250", "728x90", "336x280", "1200x628", "1080x1080", "970x250"];
+const GMAIL_SIZES = [
+  ...new Set([
+    ...GOOGLE.desktop_display.filter((s) => ["300x250", "728x90", "336x280", "970x250"].includes(s)),
+    ...GOOGLE.responsive_native_assets.filter((s) => ["1200x628", "1080x1080"].includes(s)),
+  ]),
+];
 
 const APP_INVENTORY_SIZES = [
-  "320x50",
-  "320x100",
-  "300x250",
-  "320x480",
-  "480x320",
-  "768x1024",
-  "1080x1920",
+  ...new Set([
+    ...GOOGLE.mobile_display,
+    ...PROG.tablet_display,
+    "1080x1920",
+  ]),
 ];
 
 const YOUTUBE_COMPANION_SIZES = [
-  "300x250",
-  "728x90",
-  "970x90",
-  "468x60",
-  "336x280",
-  "1280x720",
-  "1920x1080",
+  ...new Set([
+    "300x250", "728x90", "970x90", "468x60", "336x280",
+    "1200x628", "1080x1080", "1920x1080",
+    ...GOOGLE.companion_banners,
+  ]),
 ];
 
-const META_FEED_SIZES = [...META.feed_placements, ...META.flexible_native_assets];
-const META_STORY_REEL_SIZES = [...META.story_reels, "1080x1350"];
-const META_MESSENGER_SIZES = ["1080x1080", "1200x628", "300x250"];
-const META_AUDIENCE_SIZES = [
-  ...META.feed_placements,
-  ...META.story_reels,
-  "300x250",
-  "320x50",
-  "728x90",
-];
+const META_FEED_SIZES = [...new Set([...META.feed_placements, ...META.flexible_native_assets])];
+const META_STORY_REEL_SIZES = [...new Set([...META.story_reels, "1080x1350"])];
+const META_MESSENGER_SIZES = [...META.messenger, "1080x1080"];
+const META_AUDIENCE_SIZES = [...new Set([...META.audience_network])];
+const META_RIGHT_COLUMN_SIZES = [...META.right_column];
+const META_MARKETPLACE_SIZES = [...META.marketplace];
+const META_SEARCH_SIZES = [...META.search_results];
 
-const PROG_NATIVE_SIZES = [
-  ...(PROG.native_responsive_assets || []),
-];
+const PROG_NATIVE_SIZES = [...new Set([...(PROG.native_responsive_assets || [])])];
 
 const PROG_BANNER_SIZES = [
-  ...(PROG.standard_display || []),
-  ...(PROG.mobile_display || []),
+  ...new Set([
+    ...(PROG.standard_display || []),
+    ...(PROG.mobile_display || []),
+    ...(PROG.tablet_display || []),
+  ]),
 ];
 
 const PROG_MOBILE_APP_SIZES = [
-  ...(PROG.mobile_display || []),
-  "320x480",
-  "480x320",
-  "768x1024",
-  "1080x1920",
+  ...new Set([
+    ...(PROG.mobile_display || []),
+    ...(PROG.tablet_display || []),
+    "1080x1920",
+  ]),
 ];
 
 const PROG_OPEN_WEB_SIZES = [...new Set([...PROG_BANNER_SIZES, ...PROG_NATIVE_SIZES])];
@@ -97,7 +94,6 @@ export const PROGRAMMATIC_DISPLAY_WEBSITE_ENVIRONMENTS = [
   "gaming",
   "finance",
   "travel",
-  "saas",
   "booking",
 ];
 
@@ -110,7 +106,6 @@ export const PROGRAMMATIC_ENVIRONMENT_LABELS = {
   gaming: "Gaming",
   finance: "Finance",
   travel: "Travel",
-  saas: "Enterprise / SaaS",
   booking: "Booking / Reservations",
 };
 
@@ -173,7 +168,7 @@ export const PREVIEW_PLACEMENT_REGISTRY = {
       environments: ["youtube"],
       compatibleSizes: YOUTUBE_COMPANION_SIZES,
       devices: ["desktop", "mobile"],
-      description: "YouTube in-stream video with companion display banner in the player layout.",
+      description: "YouTube companion display banner paired with in-stream inventory.",
     },
   },
   meta_ads: {
@@ -215,7 +210,7 @@ export const PREVIEW_PLACEMENT_REGISTRY = {
       environments: ["instagram_reels"],
       compatibleSizes: META_STORY_REEL_SIZES,
       devices: ["mobile"],
-      description: "Facebook Reels vertical video-style placements.",
+      description: "Facebook Reels static image placements.",
     },
     instagram_reels: {
       id: "instagram_reels",
@@ -240,6 +235,30 @@ export const PREVIEW_PLACEMENT_REGISTRY = {
       compatibleSizes: META_AUDIENCE_SIZES,
       devices: ["mobile", "desktop"],
       description: "Meta Audience Network across apps and sites.",
+    },
+    right_column: {
+      id: "right_column",
+      label: "Right Column",
+      environments: ["facebook_feed_desktop"],
+      compatibleSizes: META_RIGHT_COLUMN_SIZES,
+      devices: ["desktop"],
+      description: "Desktop-only Facebook right column square placements.",
+    },
+    marketplace: {
+      id: "marketplace",
+      label: "Marketplace",
+      environments: ["facebook_marketplace"],
+      compatibleSizes: META_MARKETPLACE_SIZES,
+      devices: ["mobile", "desktop"],
+      description: "Facebook Marketplace feed placements.",
+    },
+    search_results: {
+      id: "search_results",
+      label: "Search Results",
+      environments: ["facebook_feed"],
+      compatibleSizes: META_SEARCH_SIZES,
+      devices: ["mobile", "desktop"],
+      description: "Meta search result ad placements using square creative.",
     },
   },
   programmatic: {

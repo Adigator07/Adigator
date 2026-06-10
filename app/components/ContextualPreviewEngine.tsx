@@ -11,7 +11,6 @@ import FinanceEnvironment from "./environments/FinanceEnvironment";
 import TravelEnvironment from "./environments/TravelEnvironment";
 import SportsEnvironment from "./environments/SportsEnvironment";
 import GamingEnvironment from "./environments/GamingEnvironment";
-import SaasEnvironment from "./environments/SaasEnvironment";
 import LuxuryEnvironment from "./environments/LuxuryEnvironment";
 import BookingEnvironment from "./environments/BookingEnvironment";
 import { validatePreviewDeviceCompatibility } from "@/app/lib/previewDeviceCompatibility";
@@ -56,7 +55,6 @@ const ENV_LABELS: Record<EnvironmentFamily, { label: string; icon: string; color
   gaming: { label: "Gaming Context", icon: "GA", color: "from-emerald-600/20 to-emerald-800/10 border-emerald-500/30" },
   finance: { label: "Finance Context", icon: "FI", color: "from-slate-600/20 to-slate-800/10 border-slate-500/30" },
   travel: { label: "Travel Context", icon: "TR", color: "from-cyan-600/20 to-cyan-800/10 border-cyan-500/30" },
-  saas: { label: "Enterprise Context", icon: "EN", color: "from-violet-600/20 to-violet-800/10 border-violet-500/30" },
   booking: { label: "Booking Context", icon: "BK", color: "from-rose-600/20 to-rose-800/10 border-rose-500/30" },
 };
 
@@ -107,7 +105,6 @@ const TEMPLATE_LABELS: Record<string, string> = {
   gaming: "Gaming Template",
   finance: "Finance Template",
   travel: "Travel Template",
-  saas: "Enterprise Template",
   booking: "Booking Template",
 };
 
@@ -139,7 +136,6 @@ function EnvironmentRenderer({
     case "travel": return <TravelEnvironment {...props} />;
     case "sports": return <SportsEnvironment {...props} />;
     case "gaming": return <GamingEnvironment {...props} />;
-    case "saas": return <SaasEnvironment {...props} />;
     case "luxury": return <LuxuryEnvironment {...props} />;
     case "booking": return <BookingEnvironment {...props} />;
     default: return <NewsEnvironment {...props} />;

@@ -92,7 +92,13 @@ export function dedupeTemplatesByEnvironment(creatives) {
 export function applySourceCreativeToTemplates(templates, sourceCreative) {
   if (!sourceCreative || !Array.isArray(templates)) return templates;
   const imageUrl = sourceCreative.url || sourceCreative.fullUrl || sourceCreative.imageUrl || "";
-  const sourceCreativeSize = sourceCreative.size || sourceCreative.validation?.size || "";
+  const sourceCreativeSize = sourceCreative.sourceCreativeSize
+    || (sourceCreative.sourceWidth && sourceCreative.sourceHeight
+      ? `${sourceCreative.sourceWidth}x${sourceCreative.sourceHeight}`
+      : "")
+    || sourceCreative.size
+    || sourceCreative.validation?.size
+    || "";
   return templates.map((template) => ({
     ...template,
     imageUrl: imageUrl || template.imageUrl,
