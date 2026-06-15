@@ -331,6 +331,10 @@ export const META_VERTICAL_SIGNALS: Record<string, { label: string; signals: str
     label: "Entertainment / OTT",
     signals: ["Cinematic storytelling", "Drama intensity", "Emotional suspense", "Celebrity attraction", "Trailer-style pacing"],
   },
+  fitness: {
+    label: "Fitness",
+    signals: ["Workout motivation", "Transformation energy", "Health aspiration", "Gym credibility", "Results-focused CTA"],
+  },
 };
 
 const META_GOAL_ALIASES: Record<string, MetaCampaignGoal> = {

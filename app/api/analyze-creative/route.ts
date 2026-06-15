@@ -641,7 +641,8 @@ const PRODUCT_CATEGORY_HINTS: Record<string, string[]> = {
   technology: ["software", "saas", "platform", "cloud", "ai", "app", "tech", "automation", "digital", "workflow", "trial", "subscription", "dashboard", "integrate", "api", "enterprise", "product-led"],
   automotive: ["car", "vehicle", "bike","suv", "sedan", "drive", "engine", "mileage", "dealership", "auto"],
   news_media: ["news", "headline", "breaking", "journal", "editorial", "media", "publisher"],
-  sports: ["sports", "team", "match", "league", "athlete", "fitness", "score", "stadium"],
+  sports: ["sports", "team", "match", "league", "athlete", "score", "stadium"],
+  fitness: ["fitness", "gym", "workout", "training", "exercise", "yoga", "pilates", "crossfit", "personal trainer", "membership", "strength", "cardio", "wellness", "nutrition", "protein", "weight loss", "health club"],
   finance: ["finance", "investment", "portfolio", "market", "enterprise", "profit", "revenue"],
   luxury: ["luxury", "premium", "exclusive", "craftsmanship", "heritage", "elite", "high-end"],
   travel: ["travel", "destination", "trip", "vacation", "holiday", "flight", "journey", "tour"],
@@ -666,7 +667,8 @@ const PRODUCT_CATEGORY_LABELS: Record<string, string> = {
   technology: "Technology / Software",
   automotive: "Automotive / Vehicles",
   news_media: "News / Media",
-  sports: "Sports / Fitness",
+  sports: "Sports",
+  fitness: "Fitness / Health & Wellness",
   finance: "Business / Finance",
   luxury: "Luxury / Premium Goods",
   travel: "Travel / Hospitality",
@@ -1477,7 +1479,8 @@ function detectProductCategoryFromSignals(selectedVertical: string, extraction: 
 }
 
 const RELATED_VERTICALS: Record<string, string[]> = {
-  fashion: ["ecommerce", "luxury"],
+  fashion: ["ecommerce", "luxury", "fitness"],
+  fitness: ["sports", "healthcare", "ecommerce"],
   ecommerce: ["fashion", "luxury"],
   luxury: ["fashion", "ecommerce", "automotive"],
   food: ["hotels", "travel"],
@@ -1489,6 +1492,7 @@ const RELATED_VERTICALS: Record<string, string[]> = {
   technology: ["education", "finance"],
   entertainment: ["gaming"],
   gaming: ["entertainment", "technology"],
+  sports: ["fitness"],
 };
 
 function areRelatedVerticals(left: string, right: string): boolean {

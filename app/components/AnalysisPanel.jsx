@@ -18,6 +18,7 @@ const VERTICAL_LABELS = {
   automotive: "Automotive",
   news_media: "News / Media",
   sports: "Sports",
+  fitness: "Fitness",
   finance: "Business / Finance",
   luxury: "Luxury",
   travel: "Travel",

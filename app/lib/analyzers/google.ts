@@ -177,6 +177,7 @@ export const GOOGLE_VERTICAL_BENCHMARKS = {
   finance: { avg_ctr: "0.19%", top_signal: "Trust signal + specific offer + compliance-safe CTA" },
   fashion: { avg_ctr: "0.31%", top_signal: "Lifestyle image + product highlight + discount CTA" },
   travel: { avg_ctr: "0.41%", top_signal: "Destination imagery + price point + urgency" },
+  fitness: { avg_ctr: "0.33%", top_signal: "Transformation imagery + trial offer + join CTA" },
   restaurant: { avg_ctr: "0.38%", top_signal: "Food photography + offer + location signal" },
 };
 

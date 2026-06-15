@@ -236,6 +236,11 @@ export const PROGRAMMATIC_VERTICAL_SIGNALS: Record<string, { label: string; sign
     tone: "Cinematic, trailer-paced",
     signals: ["Cinematic visuals", "Trailer pacing", "Genre emotion", "Watch-now urgency"],
   },
+  fitness: {
+    label: "Fitness",
+    tone: "Motivational, energetic, results-driven",
+    signals: ["Workout motivation", "Transformation appeal", "Health credibility", "Gym/studio energy"],
+  },
 };
 
 const GOAL_ALIASES: Record<string, ProgrammaticCampaignGoal> = {

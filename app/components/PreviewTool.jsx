@@ -264,6 +264,7 @@ const VERTICALS = [
   { id: "automotive", title: "Automotive" },
   { id: "news_media", title: "News / Media" },
   { id: "sports", title: "Sports" },
+  { id: "fitness", title: "Fitness" },
   { id: "finance", title: "Business / Finance" },
   { id: "luxury", title: "Luxury" },
   { id: "travel", title: "Travel" },
@@ -286,7 +287,7 @@ const itemVariants = { hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 
 
 const VALID_VERTICALS = new Set([
   "automotive", "banking", "ecommerce", "education", "entertainment",
-  "fashion", "finance", "food", "gaming", "healthcare", "hotels", "luxury",
+  "fashion", "finance", "fitness", "food", "gaming", "healthcare", "hotels", "luxury",
   "news_media", "real_estate", "sports", "technology", "travel",
 ]);
 
