@@ -160,7 +160,8 @@ export function PreviewDeviceIncompatibleState({
   );
 }
 
-export function StudioTabBar({ tabs, activeTab, onChange }) {
+export function StudioTabBar({ tabs, activeTab, onChange, variant = "dark" }) {
+  const isLight = variant === "light";
   return (
     <div className="flex flex-wrap gap-2">
       {tabs.map((tab) => (
@@ -170,8 +171,12 @@ export function StudioTabBar({ tabs, activeTab, onChange }) {
           onClick={() => onChange(tab.id)}
           className={`rounded-full px-4 py-2 text-xs font-semibold transition ${
             activeTab === tab.id
-              ? "bg-cyan-500 text-slate-950 shadow-lg shadow-cyan-500/20"
-              : "bg-white/5 text-gray-300 border border-white/10 hover:bg-white/10"
+              ? isLight
+                ? "bg-sky-500 text-white shadow-sm"
+                : "bg-cyan-500 text-slate-950 shadow-lg shadow-cyan-500/20"
+              : isLight
+                ? "bg-white text-slate-700 border border-slate-300 hover:bg-slate-50"
+                : "bg-white/5 text-gray-300 border border-white/10 hover:bg-white/10"
           }`}
         >
           {tab.label}

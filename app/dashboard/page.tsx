@@ -84,7 +84,7 @@ export default function Dashboard() {
           </h1>
           <p className="text-white/40 mt-1 text-sm">Create stunning creatives in seconds</p>
         </div>
-        <Link href="/preview-tool">
+        <Link href="/preview-tool?step=1">
           <motion.button
             whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.96 }}
             className="flex items-center gap-2 px-5 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white font-semibold rounded-xl shadow-lg shadow-purple-500/25 hover:shadow-purple-500/40 transition-shadow"
@@ -99,7 +99,7 @@ export default function Dashboard() {
         <h2 className="text-sm font-bold text-white/40 uppercase tracking-widest mb-3">Quick Actions</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {[
-            { href: "/preview-tool", icon: Plus, label: "Open Preview Tool", sub: "Launch the full analyzer workflow", color: "from-purple-600 to-blue-600" },
+            { href: "/preview-tool?step=1", icon: Plus, label: "Open Preview Tool", sub: "Launch the full analyzer workflow", color: "from-purple-600 to-blue-600" },
             { href: "/preview-tool?step=3", icon: Clock, label: "Resume Analysis", sub: "Continue where you left off", color: "from-blue-600 to-cyan-600" },
           ].map((a) => {
             const Icon = a.icon;
@@ -156,7 +156,7 @@ export default function Dashboard() {
       {/* ── Core Product ─────────────────────────────────────── */}
       <motion.div variants={fade}>
         <h2 className="text-sm font-bold text-white/40 uppercase tracking-widest mb-3">Core Product</h2>
-        <Link href="/preview-tool" className="group relative rounded-2xl border-2 border-purple-500/50 bg-gradient-to-br from-purple-600/25 via-blue-600/15 to-purple-600/10 p-8 hover:border-purple-400 hover:shadow-2xl hover:shadow-purple-500/30 transition-all duration-300 block overflow-hidden">
+        <Link href="/preview-tool?step=1" className="group relative rounded-2xl border-2 border-purple-500/50 bg-gradient-to-br from-purple-600/25 via-blue-600/15 to-purple-600/10 p-8 hover:border-purple-400 hover:shadow-2xl hover:shadow-purple-500/30 transition-all duration-300 block overflow-hidden">
           <div className="absolute inset-0 bg-gradient-to-r from-purple-600/0 via-purple-600/5 to-blue-600/0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
           <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center gap-6">
             <div className="shrink-0 w-16 h-16 rounded-2xl bg-gradient-to-br from-purple-600 to-blue-600 flex items-center justify-center text-3xl shadow-lg shadow-purple-500/30">

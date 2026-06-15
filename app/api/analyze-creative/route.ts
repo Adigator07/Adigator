@@ -348,8 +348,8 @@ interface ExtractionMeta {
 
 interface AIAnalysisOutput {
   overall_score: number;
-  vertical_match: boolean;
-  goal_match: boolean;
+  vertical_match?: boolean;
+  goal_match?: boolean;
   platform_fit: boolean;
   explicit_vertical_match?: boolean;
   explicit_goal_match?: boolean;
@@ -1001,8 +1001,8 @@ function normalizeAIAnalysis(raw: Record<string, unknown>): AIAnalysisOutput | n
 
   return {
     overall_score: clamped,
-    vertical_match: explicitVerticalMatch ?? false,
-    goal_match: explicitGoalMatch ?? false,
+    vertical_match: explicitVerticalMatch,
+    goal_match: explicitGoalMatch,
     explicit_vertical_match: explicitVerticalMatch,
     explicit_goal_match: explicitGoalMatch,
     platform_fit: typeof raw.platformFit === "boolean" ? raw.platformFit : true,
@@ -1476,35 +1476,101 @@ function detectProductCategoryFromSignals(selectedVertical: string, extraction: 
   };
 }
 
+const RELATED_VERTICALS: Record<string, string[]> = {
+  fashion: ["ecommerce", "luxury"],
+  ecommerce: ["fashion", "luxury"],
+  luxury: ["fashion", "ecommerce", "automotive"],
+  food: ["hotels", "travel"],
+  hotels: ["travel", "food"],
+  travel: ["hotels"],
+  finance: ["banking"],
+  banking: ["finance", "technology"],
+  education: ["technology"],
+  technology: ["education", "finance"],
+  entertainment: ["gaming"],
+  gaming: ["entertainment", "technology"],
+};
+
+function areRelatedVerticals(left: string, right: string): boolean {
+  if (!left || !right || left === right) return left === right;
+  return RELATED_VERTICALS[left]?.includes(right) || RELATED_VERTICALS[right]?.includes(left) || false;
+}
+
+function resolveGoalIsAligned(
+  selectedGoal: CampaignGoal,
+  goalProfile: (typeof GOAL_INTELLIGENCE_PROFILE)[CampaignGoal],
+  detectedStage: CampaignGoal,
+  aiAnalysis: AIAnalysisOutput | null,
+): boolean {
+  const stageMatch = detectedStage === goalProfile.stage;
+
+  // Signal-based stage match always wins — prevents AI false negatives when heuristics agree.
+  if (stageMatch) return true;
+
+  if (aiAnalysis?.goal_match === true) return true;
+  if (aiAnalysis?.explicit_goal_match === true && aiAnalysis?.goal_match !== false) return true;
+
+  if (aiAnalysis?.explicit_goal_match === false && aiAnalysis?.goal_match === false) {
+    return false;
+  }
+
+  return false;
+}
+
+function resolveDetectedGoalForDisplay(
+  detectedStage: CampaignGoal,
+  selectedGoal: CampaignGoal,
+): CampaignGoal {
+  const stage = detectedStage as GoalStage;
+  const validStages: GoalStage[] = ["awareness", "consideration", "conversion"];
+  const normalizedStage = validStages.includes(stage) ? stage : GOAL_INTELLIGENCE_PROFILE[selectedGoal].stage;
+
+  if (normalizedStage === GOAL_INTELLIGENCE_PROFILE[selectedGoal].stage) {
+    return selectedGoal;
+  }
+
+  const stageRepresentatives: Record<GoalStage, CampaignGoal> = {
+    awareness: "awareness",
+    consideration: "consideration",
+    conversion: "conversion",
+  };
+  return stageRepresentatives[normalizedStage] || selectedGoal;
+}
+
 function resolveVerticalIsAligned(
   selectedVertical: string,
   productCategory: ProductCategoryDetection,
   aiAnalysis: AIAnalysisOutput | null,
 ): boolean | null {
   const detected = productCategory.id;
+  const fitScore = productCategory.fitScore;
+
+  // Strong keyword evidence for the user's selected vertical outweighs a mismatched category guess.
+  if (fitScore >= 60) return true;
+  if (detected === selectedVertical) return true;
+
+  if (aiAnalysis?.vertical_match === true) return true;
+  if (aiAnalysis?.explicit_vertical_match === true && aiAnalysis?.vertical_match !== false) {
+    return fitScore >= 35 || detected === selectedVertical || detected === "unknown";
+  }
 
   if (detected !== "unknown" && detected !== selectedVertical) {
-    return false;
-  }
-
-  if (aiAnalysis?.explicit_vertical_match === true) {
-    return productCategory.fitScore >= 40 || detected === selectedVertical;
-  }
-  if (aiAnalysis?.explicit_vertical_match === false) {
-    return false;
-  }
-
-  if (detected === selectedVertical) {
-    return productCategory.fitScore >= 45;
-  }
-
-  if (detected === "unknown") {
-    if (productCategory.fitScore >= 70) return true;
-    if (productCategory.fitScore < 40) return false;
+    if (areRelatedVerticals(detected, selectedVertical) && fitScore >= 40) return true;
+    if (fitScore >= 50) return true;
+    if (aiAnalysis?.explicit_vertical_match === false && aiAnalysis?.vertical_match === false && fitScore < 40) {
+      return false;
+    }
+    if (fitScore < 35) return false;
     return null;
   }
 
-  return false;
+  if (detected === "unknown") {
+    if (fitScore >= 55) return true;
+    if (fitScore >= 35) return null;
+    return false;
+  }
+
+  return null;
 }
 
 function detectAdvertisingBehaviorFromSignals(
@@ -4529,12 +4595,13 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       urgencyLevel,
       verticalIntelligence.advertisingBehavior.label,
     );
-    const goalAligned = aiAnalysis?.explicit_goal_match === true
-      ? aiAnalysis.goal_match
-      : aiAnalysis?.explicit_goal_match === false
-        ? false
-        : (detectedGoal === goalProfile.stage);
-    const verticalAligned = resolveVerticalIsAligned(vertical, verticalIntelligence.productCategory, aiAnalysis) === true;
+    const goalAligned = resolveGoalIsAligned(goal, goalProfile, detectedGoal, aiAnalysis);
+    const verticalIsAlignedResolved = resolveVerticalIsAligned(
+      vertical,
+      verticalIntelligence.productCategory,
+      aiAnalysis,
+    );
+    const verticalAligned = verticalIsAlignedResolved === true;
     const attentionAnalysis = buildAttentionAnalysis(extraction, goal, ctaPressure);
     const contextualReasoning = buildContextualReasoning(
       extraction,
@@ -4794,6 +4861,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       selected_stage: goalProfile.stage,
       selected_audience_stage: audienceStage,
       detected_goal_stage: detectedGoal,
+      detected_goal: resolveDetectedGoalForDisplay(detectedGoal, goal),
       is_aligned: goalAligned,
       reason: goalAligned
         ? (aiAnalysis?.goal_feedback || "Creative pressure and urgency cues align with selected campaign objective stage.")
@@ -4802,15 +4870,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       objective_priorities: goalProfile.aiPriorities,
       objective_behavior: goalProfile.creativeBehavior,
     };
-    const verticalIsAligned = resolveVerticalIsAligned(
-      vertical,
-      verticalIntelligence.productCategory,
-      aiAnalysis,
-    );
     const verticalAlignment = {
       selected_vertical: vertical,
       detected_vertical: verticalIntelligence.productCategory.id,
-      is_aligned: verticalIsAligned,
+      is_aligned: verticalIsAlignedResolved,
       reason: (aiAnalysis?.vertical_feedback && aiAnalysis.vertical_feedback.trim().length > 0)
         ? aiAnalysis.vertical_feedback
         : verticalIntelligence.strategicInterpretation,

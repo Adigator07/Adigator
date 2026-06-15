@@ -2,7 +2,7 @@
 
 import { Brain, Eye, Target, Wrench } from "lucide-react";
 import { qaItemIcon } from "@/app/lib/analyzerInsights";
-import { resolveVerticalAlignmentStatus } from "@/app/lib/strategicPresentation";
+import { resolveGoalAlignmentStatus, resolveVerticalAlignmentStatus } from "@/app/lib/strategicPresentation";
 import AnalyzerCreativeThumbnail from "./AnalyzerCreativeThumbnail";
 
 function AlignmentBadge({ status }) {
@@ -186,11 +186,11 @@ export default function AnalyzerCreativeSection({
 
   const { goalAlignment, verticalAlignment, extractionSignals } = insight;
   const verticalStatus = resolveVerticalAlignmentStatus(verticalAlignment);
-  const goalStatus = goalAlignment?.is_aligned === true
-    ? { emoji: "🟢", label: "Aligned", tone: "emerald" }
-    : goalAlignment?.is_aligned === false
-      ? { emoji: "🔴", label: "Misaligned", tone: "red" }
-      : { emoji: "🟡", label: "Needs Review", tone: "amber" };
+  const goalStatus = resolveGoalAlignmentStatus(goalAlignment);
+  const detectedGoalLabel = goalAlignment?.detected_goal || goalAlignment?.detected_goal_stage;
+  const showDetectedGoal = detectedGoalLabel
+    && detectedGoalLabel !== goalAlignment?.selected_goal
+    && goalAlignment?.detected_goal_stage !== goalAlignment?.selected_stage;
   const isMeta = platform === "meta_ads";
   const isGoogle = platform === "google_ads";
   const isProgrammatic = platform === "programmatic";
@@ -242,8 +242,8 @@ export default function AnalyzerCreativeSection({
           <div className="space-y-2 text-sm text-slate-800 leading-relaxed">
             <p>
               Selected goal: <span className="font-semibold text-slate-900">{labelGoal(goalAlignment?.selected_goal || campaignGoal)}</span>
-              {goalAlignment?.detected_goal && goalAlignment.detected_goal !== goalAlignment.selected_goal ? (
-                <> · Detected: <span className="font-semibold text-amber-700">{labelGoal(goalAlignment.detected_goal)}</span></>
+              {showDetectedGoal ? (
+                <> · Detected: <span className="font-semibold text-amber-700">{labelGoal(detectedGoalLabel)}</span></>
               ) : null}
             </p>
             <p>{goalAlignment?.enrichedReason}</p>

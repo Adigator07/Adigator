@@ -29,6 +29,7 @@ import {
 import { readImageDimensionsFromBlob } from "../lib/imageDimensions";
 import { resolvePersistedDimensions } from "../lib/creativeFitAnalysis";
 import {
+  compressDrawable,
   compressImageToTarget,
   getFileExtensionForMime,
   loadImageSource,
@@ -58,6 +59,11 @@ import {
   deleteCreativeRecord,
 } from "../lib/supabaseDataService";
 import { isAuthenticatedUser } from "../lib/demoAccess";
+import { hashFileContent } from "../lib/image/duplicateDetector";
+import { FIX_ACTION_IDS } from "../lib/creativeFixActions";
+import { useCampaignValidation } from "../hooks/useCampaignValidation";
+import ValidationReport from "./ValidationReport";
+import ValidationIssueRow from "./ValidationIssueRow";
 
 // Platform size matrix — sourced from creativeSizeRegistry via creativeValidation
 const PLATFORM_SIZES = PLATFORM_SUPPORTED_SIZE_GROUPS;
@@ -423,12 +429,7 @@ export default function PreviewTool() {
   const pathname = usePathname();
 
   const urlStepParam = searchParams.get("step");
-  const storedStepFallback = useMemo(() => {
-    if (typeof window === "undefined") return 1;
-    const storedWorkflow = readStoredWorkflow();
-    return clampStep(storedWorkflow?.step || 1);
-  }, []);
-  const step = clampStep(urlStepParam || String(storedStepFallback));
+  const step = clampStep(urlStepParam || "1");
   const [toasts, setToasts] = useState([]);
   const addToast = useCallback((message, type = "info") => {
     const id = Date.now();
@@ -436,35 +437,18 @@ export default function PreviewTool() {
     setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), 3500);
   }, []);
 
-  const [platform, setPlatform] = useState(() => {
-    if (typeof window === "undefined") return null;
-    const stored = localStorage.getItem("adigator_platform");
-    return stored === "google_ads" || stored === "meta_ads" || stored === "programmatic" ? stored : null;
-  });
-  const [campaignGoal, setCampaignGoal] = useState(() => {
-    if (typeof window === "undefined") return null;
-    const storedPlatform = localStorage.getItem("adigator_platform");
-    const storedGoal = localStorage.getItem("adigator_goal");
-    if (!storedGoal) return null;
-    const allowedGoalIds = PLATFORM_GOAL_IDS[storedPlatform] || PLATFORM_GOAL_IDS.programmatic;
-    return allowedGoalIds.includes(storedGoal) ? storedGoal : null;
-  });
-  const [campaignVertical, setCampaignVertical] = useState(() => {
-    if (typeof window === "undefined") return null;
-    const stored = localStorage.getItem("adigator_vertical");
-    if (stored === "saas") return "technology";
-    return stored;
-  });
-  const [campaignAudienceStage, setCampaignAudienceStage] = useState(() => {
-    if (typeof window === "undefined") return "cold";
-    const stored = localStorage.getItem("adigator_audience_stage");
-    return stored || "cold";
-  });
+  const [platform, setPlatform] = useState(null);
+  const [campaignGoal, setCampaignGoal] = useState(null);
+  const [campaignVertical, setCampaignVertical] = useState(null);
+  const [campaignAudienceStage, setCampaignAudienceStage] = useState(null);
+  const [campaignName, setCampaignName] = useState("");
+  const [landingUrl, setLandingUrl] = useState("");
   const [analysisSessionId, setAnalysisSessionId] = useState(() => {
     if (typeof window === "undefined") return null;
     return localStorage.getItem(ANALYSIS_SESSION_STORAGE_KEY);
   });
   const mountRef = useRef(false);
+  const configHydratedRef = useRef(false);
 
   const [creatives, setCreatives] = useState([]);
   const [isHydratingCreatives, setIsHydratingCreatives] = useState(true);
@@ -475,6 +459,7 @@ export default function PreviewTool() {
   const [editModalCreative, setEditModalCreative] = useState(null);
   const [originalBackups, setOriginalBackups] = useState({});
   const [compressingCreativeIds, setCompressingCreativeIds] = useState([]);
+  const [fixingCreativeIds, setFixingCreativeIds] = useState([]);
   const [targetSizeByCreative, setTargetSizeByCreative] = useState({});
   const [bulkTargetSizeKB, setBulkTargetSizeKB] = useState("150");
   const [isBulkCompressing, setIsBulkCompressing] = useState(false);
@@ -489,6 +474,13 @@ export default function PreviewTool() {
   });
   const [analysisLoading, setAnalysisLoading] = useState(false);
   const [viewerName, setViewerName] = useState("");
+  const {
+    report: readinessReport,
+    loading: readinessLoading,
+    error: readinessError,
+    progressLabel: readinessProgress,
+    runValidation: runReadinessValidation,
+  } = useCampaignValidation();
 
   const [selectedTemplate] = useState("newspaper");
   const [viewMode, setViewMode] = useState(() => {
@@ -509,6 +501,55 @@ export default function PreviewTool() {
       mountRef.current = false;
     };
   }, []);
+
+  /** Restore campaign config from localStorage only when resuming past Step 1. */
+  useEffect(() => {
+    if (step <= 1 || configHydratedRef.current || typeof window === "undefined") return;
+    configHydratedRef.current = true;
+
+    const storedPlatform = localStorage.getItem("adigator_platform");
+    if (
+      !platform &&
+      (storedPlatform === "google_ads" || storedPlatform === "meta_ads" || storedPlatform === "programmatic")
+    ) {
+      setPlatform(storedPlatform);
+    }
+
+    const storedGoal = localStorage.getItem("adigator_goal");
+    const goalPlatform = storedPlatform || platform;
+    const allowedGoalIds = PLATFORM_GOAL_IDS[goalPlatform] || PLATFORM_GOAL_IDS.programmatic;
+    if (!campaignGoal && storedGoal && allowedGoalIds.includes(storedGoal)) {
+      setCampaignGoal(storedGoal);
+    }
+
+    const storedVertical = localStorage.getItem("adigator_vertical");
+    if (!campaignVertical && storedVertical) {
+      setCampaignVertical(storedVertical === "saas" ? "technology" : storedVertical);
+    }
+
+    const storedAudience = localStorage.getItem("adigator_audience_stage");
+    if (!campaignAudienceStage && storedAudience) {
+      setCampaignAudienceStage(storedAudience);
+    }
+
+    const storedCampaignName = localStorage.getItem("adigator_campaign_name");
+    if (!campaignName && storedCampaignName) {
+      setCampaignName(storedCampaignName);
+    }
+
+    const storedLandingUrl = localStorage.getItem("adigator_landing_url");
+    if (!landingUrl && storedLandingUrl) {
+      setLandingUrl(storedLandingUrl);
+    }
+  }, [
+    step,
+    platform,
+    campaignGoal,
+    campaignVertical,
+    campaignAudienceStage,
+    campaignName,
+    landingUrl,
+  ]);
 
   useEffect(() => {
     creativesRef.current = creatives;
@@ -579,8 +620,8 @@ export default function PreviewTool() {
   useEffect(() => {
     if (!mountRef.current) return;
     if (urlStepParam) return;
-    router.replace(`${pathname}?step=${step}`, { scroll: false });
-  }, [urlStepParam, step, pathname, router]);
+    router.replace(`${pathname}?step=1`, { scroll: false });
+  }, [urlStepParam, pathname, router]);
 
   useEffect(() => {
     if (platform) localStorage.setItem("adigator_platform", platform);
@@ -594,7 +635,13 @@ export default function PreviewTool() {
 
     if (campaignAudienceStage) localStorage.setItem("adigator_audience_stage", campaignAudienceStage);
     else localStorage.removeItem("adigator_audience_stage");
-  }, [platform, campaignGoal, campaignVertical, campaignAudienceStage]);
+
+    if (campaignName) localStorage.setItem("adigator_campaign_name", campaignName);
+    else localStorage.removeItem("adigator_campaign_name");
+
+    if (landingUrl) localStorage.setItem("adigator_landing_url", landingUrl);
+    else localStorage.removeItem("adigator_landing_url");
+  }, [platform, campaignGoal, campaignVertical, campaignAudienceStage, campaignName, landingUrl]);
 
   useEffect(() => {
     if (workflowPersistTimerRef.current) {
@@ -658,7 +705,7 @@ export default function PreviewTool() {
   const lastSessionPayloadRef = useRef(null);
   const sessionNetworkWarningShownRef = useRef(false);
 
-  const isConfigComplete = Boolean(platform && campaignGoal && campaignVertical && campaignAudienceStage);
+  const isConfigComplete = Boolean(platform && campaignGoal && campaignVertical);
 
   const scrollToSection = useCallback((ref) => {
     if (!ref?.current) return;
@@ -1016,7 +1063,9 @@ export default function PreviewTool() {
     setPlatform(null);
     setCampaignGoal(null);
     setCampaignVertical(null);
-    setCampaignAudienceStage("cold");
+    setCampaignAudienceStage(null);
+    setCampaignName("");
+    setLandingUrl("");
     setAnalysisResult(null);
     setAnalysisLoading(false);
     setAnalysisSessionId(null);
@@ -1040,7 +1089,11 @@ export default function PreviewTool() {
     localStorage.removeItem("adigator_goal");
     localStorage.removeItem("adigator_vertical");
     localStorage.removeItem("adigator_audience_stage");
+    localStorage.removeItem("adigator_campaign_name");
+    localStorage.removeItem("adigator_landing_url");
     localStorage.removeItem(ANALYSIS_SESSION_STORAGE_KEY);
+
+    configHydratedRef.current = false;
 
     try {
       writeStoredWorkflow({
@@ -1218,6 +1271,7 @@ export default function PreviewTool() {
 
         const creativeId = `${Date.now()}-${fileIndex}-${file.name}-${size}`;
         const { displayUrl, fullUrl } = await storeUploadedCreativeFile(creativeId, file);
+        const contentHash = await hashFileContent(file);
 
         return attachSourceDimensions({
           id: creativeId,
@@ -1226,6 +1280,7 @@ export default function PreviewTool() {
           fullUrl,
           hasStoredAssets: true,
           size,
+          contentHash,
           valid: normalizedValidation.valid && normalizedValidation.status !== "CRITICAL",
           originalFile: file.name,
           mimeType: file.type || "image/jpeg",
@@ -1287,6 +1342,8 @@ export default function PreviewTool() {
       enforceSizeCompliance = false,
       targetSizeKB,
       silent = false,
+      reencodeOnly = false,
+      forceOutputType = null,
     } = options;
 
     const notify = (message, type = "info") => {
@@ -1305,7 +1362,7 @@ export default function PreviewTool() {
     }
 
     const currentMimeType = String(creative.mimeType || "").toLowerCase();
-    if (currentMimeType === "image/gif") {
+    if (!reencodeOnly && currentMimeType === "image/gif") {
       notify("GIF compression is not supported in this manual flow yet.", "error");
       return { status: "skipped", reason: "gif_unsupported" };
     }
@@ -1340,10 +1397,11 @@ export default function PreviewTool() {
       }
 
       const complianceBytes = 150 * 1024;
-      const sizeThresholdBytes = targetBytes || (enforceSizeCompliance ? complianceBytes : null);
-      const outputType = (enforceSizeCompliance || targetBytes)
-        ? "image/jpeg"
-        : (currentMimeType === "image/png" ? "image/png" : "image/jpeg");
+      const sizeThresholdBytes = reencodeOnly ? null : (targetBytes || (enforceSizeCompliance ? complianceBytes : null));
+      const outputType = forceOutputType
+        || ((enforceSizeCompliance || targetBytes)
+          ? "image/jpeg"
+          : (currentMimeType === "image/png" ? "image/png" : "image/jpeg"));
 
       const sourceBlob = await getCreativeFullBlob(creative);
       if (!sourceBlob) {
@@ -1355,12 +1413,23 @@ export default function PreviewTool() {
 
       let bestCandidate;
       try {
-        bestCandidate = await compressImageToTarget(imageSource.drawable, {
-          outputType,
-          targetBytes: sizeThresholdBytes,
-          sourceWidth: imageSource.width,
-          sourceHeight: imageSource.height,
-        });
+        if (reencodeOnly) {
+          bestCandidate = await compressDrawable(imageSource.drawable, {
+            outputType,
+            quality: outputType === "image/png" ? 1 : 0.92,
+            scale: 1,
+            sourceWidth: imageSource.width,
+            sourceHeight: imageSource.height,
+            includeDataUrl: false,
+          });
+        } else {
+          bestCandidate = await compressImageToTarget(imageSource.drawable, {
+            outputType,
+            targetBytes: sizeThresholdBytes,
+            sourceWidth: imageSource.width,
+            sourceHeight: imageSource.height,
+          });
+        }
       } finally {
         imageSource.release();
       }
@@ -1405,6 +1474,8 @@ export default function PreviewTool() {
         finalValidation = hideFileSizeIssues(finalValidation);
       }
 
+      const contentHash = await hashFileContent(finalBlob);
+
       const updatedCreative = attachSourceDimensions({
         ...creative,
         url: displayUrl,
@@ -1413,6 +1484,7 @@ export default function PreviewTool() {
         mimeType: outputType,
         fileSizeBytes: finalCompressedBytes,
         fileSizeKB: Math.round(finalCompressedBytes / 1024),
+        contentHash,
         validation: finalValidation,
         valid: finalValidation.valid && finalValidation.status !== "CRITICAL",
         placementType: finalValidation.intelligence?.placementType,
@@ -1434,6 +1506,20 @@ export default function PreviewTool() {
         : null;
 
       const stillNonCompliant = hasFileSizeIssue(finalValidation);
+
+      if (reencodeOnly) {
+        const formatLabel = outputType === "image/png" ? "PNG" : "JPG";
+        if (finalValidation.valid && finalValidation.status !== "CRITICAL") {
+          notify(`Converted ${creative.name} to ${formatLabel}.`, "success");
+          return { status: "success", reencoded: true, finalKB: Math.round(finalCompressedBytes / 1024) };
+        }
+        notify(
+          `${creative.name} was converted to ${formatLabel} but still has validation warnings.`,
+          "info",
+        );
+        return { status: "success", reencoded: true, finalKB: Math.round(finalCompressedBytes / 1024) };
+      }
+
       if (targetBytes && reachedTarget) {
         notify(
           `Compressed ${creative.name} to ${Math.round(finalCompressedBytes / 1024)}KB (target ${parsedTargetKB}KB).`,
@@ -1493,6 +1579,51 @@ export default function PreviewTool() {
       setCompressingCreativeIds((prev) => prev.filter((id) => id !== creativeId));
     }
   }, [platform, addToast, persistCreative]);
+
+  const applyCreativeFix = useCallback(async (creativeId, fixAction) => {
+    if (!fixAction?.id) return;
+    if (fixingCreativeIds.includes(creativeId) || compressingCreativeIds.includes(creativeId)) return;
+
+    setFixingCreativeIds((prev) => [...prev, creativeId]);
+    try {
+      let result;
+      if (fixAction.id === FIX_ACTION_IDS.CONVERT_TO_JPEG) {
+        result = await compressCreative(creativeId, {
+          reencodeOnly: true,
+          forceOutputType: "image/jpeg",
+          silent: true,
+        });
+      } else if (fixAction.id === FIX_ACTION_IDS.CONVERT_TO_PNG) {
+        result = await compressCreative(creativeId, {
+          reencodeOnly: true,
+          forceOutputType: "image/png",
+          silent: true,
+        });
+      } else if (
+        fixAction.id === FIX_ACTION_IDS.COMPRESS_150KB
+        || fixAction.id === FIX_ACTION_IDS.COMPRESS_TARGET
+      ) {
+        result = await compressCreative(creativeId, {
+          targetSizeKB: fixAction.params?.targetKB,
+          enforceSizeCompliance: fixAction.params?.enforceSizeCompliance
+            ?? fixAction.params?.targetKB === 150,
+          silent: true,
+        });
+      }
+
+      if (result?.status === "success") {
+        addToast(`Applied fix: ${fixAction.label}`, "success");
+      } else if (result?.status === "failed") {
+        addToast(`Could not apply fix: ${fixAction.label}`, "error");
+      } else if (result?.status === "skipped") {
+        addToast("Fix skipped — creative may already meet the requirement.", "info");
+      }
+    } catch (error) {
+      addToast(error?.message || "Failed to apply fix.", "error");
+    } finally {
+      setFixingCreativeIds((prev) => prev.filter((id) => id !== creativeId));
+    }
+  }, [compressCreative, fixingCreativeIds, compressingCreativeIds, addToast]);
 
   const handleBulkTargetSizeChange = useCallback((value) => {
     const sanitized = String(value || "").replace(/[^\d]/g, "");
@@ -1649,7 +1780,7 @@ export default function PreviewTool() {
 
   const runAnalysis = useCallback(async () => {
     if (validCreatives.length === 0) { addToast("No valid creatives to analyze.", "error"); return; }
-    if (!campaignGoal || !platform || !campaignVertical || !campaignAudienceStage) { addToast("Missing configuration.", "error"); return; }
+    if (!campaignGoal || !platform || !campaignVertical) { addToast("Missing configuration.", "error"); return; }
 
     setAnalysisLoading(true); setAnalysisResult(null);
     try {
@@ -1937,6 +2068,53 @@ export default function PreviewTool() {
     }
   }, [addToast]);
 
+  const handleRunReadinessCheck = useCallback(async () => {
+    if (!platform || !campaignGoal) {
+      addToast("Complete campaign setup before running readiness check.", "error");
+      return;
+    }
+    if (creatives.length === 0) {
+      addToast("Upload at least one creative first.", "error");
+      return;
+    }
+    if (platform !== "meta_ads" && !landingUrl.trim()) {
+      addToast("Landing page URL is required for Programmatic and Google Ads validation.", "error");
+      return;
+    }
+
+    const result = await runReadinessValidation({
+      platform,
+      url: landingUrl.trim() || undefined,
+      objective: campaignGoal,
+      campaignName: campaignName.trim() || "Campaign",
+      vertical: campaignVertical || undefined,
+      creatives: creatives.map((c) => ({
+        id: c.id,
+        name: c.name,
+        size: c.size,
+        fileSize: c.fileSizeBytes,
+        mimeType: c.mimeType,
+        contentHash: c.contentHash,
+        validation: c.validation,
+      })),
+    });
+
+    if (result) {
+      addToast(`Readiness score: ${result.overall_score}/100 — ${result.readiness_level.replace("_", " ")}`, result.readiness_level === "ready" ? "success" : "info");
+    } else {
+      addToast("Readiness check failed.", "error");
+    }
+  }, [
+    platform,
+    campaignGoal,
+    creatives,
+    landingUrl,
+    campaignName,
+    campaignVertical,
+    runReadinessValidation,
+    addToast,
+  ]);
+
 
   return (
     <div className="preview-tool-white min-h-screen bg-gradient-to-b from-white to-slate-50 text-[#1C1C1E]">
@@ -2027,6 +2205,25 @@ export default function PreviewTool() {
                       <p className="text-sm text-slate-700 leading-relaxed mb-6">{g.desc}</p>
                     </SelectionCard>
                   ))}
+                </div>
+              </motion.section>
+
+              <motion.section variants={itemVariants} className="space-y-5">
+                <div>
+                  <h3 className="text-2xl font-bold text-slate-900">Campaign Details</h3>
+                  <p className="mt-1 text-slate-600">Used for readiness scoring, mismatch detection, and report export.</p>
+                </div>
+                <div className="max-w-xl">
+                  <label className="block text-xs font-semibold uppercase tracking-wide text-slate-500 mb-2">
+                    Campaign Name
+                  </label>
+                  <input
+                    type="text"
+                    value={campaignName}
+                    onChange={(e) => setCampaignName(e.target.value)}
+                    placeholder="e.g. Q2 Running Shoes Awareness"
+                    className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
+                  />
                 </div>
               </motion.section>
 
@@ -2299,13 +2496,17 @@ export default function PreviewTool() {
                             </p>
                             <div className="mt-2 space-y-1.5">
                               {creative.validation.issues.slice(0, 3).map((issue, idx) => (
-                                <div key={`${creative.id}-issue-${idx}`} className="rounded-md border border-white/10 bg-black/15 p-1.5">
-                                  <p className="text-[10px] text-amber-100 font-semibold uppercase tracking-wide">
-                                    {issue.severity} • {issue.type}
-                                  </p>
-                                  <p className="text-[10px] text-amber-100/90 mt-0.5 leading-snug">{issue.message}</p>
-                                  <p className="text-[10px] text-amber-200/80 mt-0.5 leading-snug">Fix: {issue.recommendation}</p>
-                                </div>
+                                <ValidationIssueRow
+                                  key={`${creative.id}-issue-${idx}`}
+                                  issue={issue}
+                                  creativeId={creative.id}
+                                  onApplyFix={applyCreativeFix}
+                                  isFixing={
+                                    fixingCreativeIds.includes(creative.id)
+                                    || compressingCreativeIds.includes(creative.id)
+                                  }
+                                  variant="warning"
+                                />
                               ))}
                               {creative.validation.issues.length > 3 && (
                                 <p className="text-[10px] text-amber-200/80">+{creative.validation.issues.length - 3} more issue(s)</p>
@@ -2363,13 +2564,17 @@ export default function PreviewTool() {
                           {creative.validation?.issues?.length > 0 && (
                             <div className="rounded-lg border border-red-500/25 bg-red-500/10 p-2">
                               {creative.validation.issues.slice(0, 3).map((issue, idx) => (
-                                <div key={`${creative.id}-critical-issue-${idx}`} className="mb-1.5 last:mb-0 rounded-md border border-white/10 bg-black/15 p-1.5">
-                                  <p className="text-[10px] text-red-200 font-semibold uppercase tracking-wide">
-                                    {issue.severity} • {issue.type}
-                                  </p>
-                                  <p className="text-[10px] text-red-100 mt-0.5 leading-snug">{issue.message}</p>
-                                  <p className="text-[10px] text-red-200/80 mt-0.5 leading-snug">Fix: {issue.recommendation}</p>
-                                </div>
+                                <ValidationIssueRow
+                                  key={`${creative.id}-critical-issue-${idx}`}
+                                  issue={issue}
+                                  creativeId={creative.id}
+                                  onApplyFix={applyCreativeFix}
+                                  isFixing={
+                                    fixingCreativeIds.includes(creative.id)
+                                    || compressingCreativeIds.includes(creative.id)
+                                  }
+                                  variant="critical"
+                                />
                               ))}
                             </div>
                           )}
@@ -2388,6 +2593,57 @@ export default function PreviewTool() {
                   </p>
                 </div>
               )}
+
+              <div className="rounded-2xl border border-slate-300 bg-white p-6 shadow-sm space-y-4">
+                <div>
+                  <h3 className="text-lg font-bold text-slate-900">Campaign Readiness Report</h3>
+                  <p className="text-sm text-slate-600 mt-1">
+                    Rule-based checks for creative specs, URL health, UTM tags, duplicates, and objective alignment.
+                    {platform === "meta_ads" ? " Landing URL is optional for Meta." : " Landing URL is required."}
+                  </p>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-semibold uppercase tracking-wide text-slate-500 mb-2">
+                      Landing Page URL {platform !== "meta_ads" ? "(required)" : "(optional)"}
+                    </label>
+                    <input
+                      type="url"
+                      value={landingUrl}
+                      onChange={(e) => setLandingUrl(e.target.value)}
+                      placeholder="https://www.example.com/landing"
+                      className="w-full rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm text-slate-900 outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
+                    />
+                  </div>
+                  <div className="flex items-end">
+                    <button
+                      type="button"
+                      onClick={handleRunReadinessCheck}
+                      disabled={readinessLoading || creatives.length === 0}
+                      className="w-full rounded-xl bg-emerald-600 border border-emerald-700 px-4 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {readinessLoading ? "Validating…" : "Run Campaign Readiness Check"}
+                    </button>
+                  </div>
+                </div>
+                {readinessLoading ? (
+                  <div className="rounded-xl border border-sky-200 bg-sky-50 px-4 py-3">
+                    <p className="text-sm font-semibold text-sky-800">{readinessProgress}</p>
+                    <div className="mt-2 h-1.5 w-full rounded-full bg-sky-200 overflow-hidden">
+                      <div className="h-full w-2/3 rounded-full bg-sky-500 animate-pulse" />
+                    </div>
+                  </div>
+                ) : null}
+                {readinessError && !readinessReport ? (
+                  <p className="text-sm text-red-600">{readinessError}</p>
+                ) : null}
+                {readinessReport ? (
+                  <ValidationReport
+                    report={readinessReport}
+                    onCopy={() => addToast("Readiness report copied to clipboard.", "success")}
+                  />
+                ) : null}
+              </div>
 
               <div className="flex gap-4 pt-4">
                 <NavBtn variant="back" onClick={goBack}>← Back</NavBtn>

@@ -1,4 +1,5 @@
 import { SIZE_TOLERANCE_PX, formatCreativeSize, readImageDimensionsFromBlob } from "./imageDimensions";
+import { enrichIssuesWithFixActions } from "./creativeFixActions";
 import {
   SIZE_INTELLIGENCE,
   SUPPORTED_DISPLAY_SIZE_GROUPS,
@@ -521,12 +522,13 @@ export async function validateCreativeAsset({ file, image, platform }) {
   }
 
   const score = clamp(100 - issues.reduce((sum, issue) => sum + (issue.scorePenalty || 0), 0), 0, 100);
+  const enrichedIssues = enrichIssuesWithFixActions(issues, normalizedPlatform);
 
   return {
-    valid: issues.every((issue) => issue.severity !== "high"),
+    valid: enrichedIssues.every((issue) => issue.severity !== "high"),
     score,
-    issues,
-    status: normalizeStatus(issues),
+    issues: enrichedIssues,
+    status: normalizeStatus(enrichedIssues),
     size,
     canonicalSize,
     sizeMatch,

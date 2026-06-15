@@ -2,28 +2,34 @@
 
 import { useMemo, useState } from "react";
 import {
-  GOOGLE_CROP_CATEGORIES,
+  GOOGLE_CROP_SPECS,
   simulateAllGoogleCrops,
 } from "@/app/lib/googleCreativePlacementAnalysis";
-import { ScaledAdFrame, StudioTabBar } from "../PreviewShared";
-import { StudioRecommendationsPanel, StudioWarningList } from "../shared/StudioRecommendationsPanel";
+import { StudioTabBar } from "../PreviewShared";
+import {
+  AnalysisPanelShell,
+  CropStatusBadge,
+  getCropVerdict,
+  VerdictBanner,
+} from "../shared/studioAnalysisUi";
 
-function SuitabilityBadge({ score }) {
-  const tone = score >= 80
-    ? "text-emerald-300 border-emerald-400/30 bg-emerald-500/10"
-    : score >= 60
-      ? "text-amber-200 border-amber-400/30 bg-amber-500/10"
-      : "text-red-200 border-red-400/30 bg-red-500/10";
+const KEY_CROP_IDS = [
+  "landscape_1200x628",
+  "square_1200x1200",
+  "portrait_1200x1500",
+  "youtube_thumbnail",
+  "gmail_promo",
+  "demand_gen_mobile",
+];
 
-  return (
-    <span className={`rounded-full border px-2 py-0.5 text-[10px] font-bold tabular-nums ${tone}`}>
-      {score}/100
-    </span>
-  );
-}
+const FILTER_TABS = [
+  { id: "key", label: "Key formats" },
+  { id: "all", label: "All formats" },
+];
 
 function CropPreviewCard({ simulation, imageUrl, imageW, imageH }) {
-  const previewW = 200;
+  const verdict = getCropVerdict(simulation);
+  const previewW = 168;
   const targetH = Math.round(previewW / simulation.aspectRatio);
   const scale = imageW && imageH ? previewW / simulation.cropRect.width : 1;
   const imgW = imageW * scale;
@@ -32,109 +38,77 @@ function CropPreviewCard({ simulation, imageUrl, imageW, imageH }) {
   const offsetY = -simulation.cropRect.y * scale;
 
   return (
-    <article className="rounded-xl border border-white/10 bg-black/20 overflow-hidden">
-      <div className="flex items-center justify-between gap-2 border-b border-white/10 px-3 py-2">
-        <div className="min-w-0">
-          <p className="text-xs font-semibold text-white truncate">{simulation.label}</p>
-          <p className="text-[10px] text-gray-500 font-mono">{simulation.sizeLabel}</p>
+    <article className="flex-shrink-0 w-[180px] rounded-xl border border-slate-200 bg-white overflow-hidden shadow-sm">
+      <div className="px-3 pt-3 pb-2">
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0">
+            <p className="text-xs font-semibold text-slate-900 truncate">{simulation.label}</p>
+            <p className="text-[10px] text-slate-500">{simulation.sizeLabel}</p>
+          </div>
+          <CropStatusBadge tone={verdict.tone} label={verdict.short} />
         </div>
-        <SuitabilityBadge score={simulation.suitabilityScore} />
       </div>
 
-      <div className="p-3">
-        <ScaledAdFrame width={previewW} height={targetH}>
-          <div
-            className="relative overflow-hidden bg-zinc-900"
-            style={{ width: previewW, height: targetH }}
-          >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={imageUrl}
-              alt={`${simulation.label} crop preview`}
-              className="absolute max-w-none object-cover"
-              style={{ width: imgW, height: imgH, left: offsetX, top: offsetY }}
-              draggable={false}
-            />
-
-            {simulation.elementResults
-              .filter((el) => el.status !== "fully_visible")
-              .map((element) => (
-                <div
-                  key={`${simulation.cropId}-${element.id}`}
-                  className="absolute border border-red-400/70 bg-red-500/20 pointer-events-none"
-                  style={{
-                    left: (element.x - simulation.cropRect.x) * scale,
-                    top: (element.y - simulation.cropRect.y) * scale,
-                    width: element.width * scale,
-                    height: element.height * scale,
-                  }}
-                />
-              ))}
-          </div>
-        </ScaledAdFrame>
-
-        <div className="mt-3 grid grid-cols-2 gap-2 text-[10px]">
-          <div className="rounded-md bg-white/5 px-2 py-1.5">
-            <span className="text-gray-500">Visibility</span>
-            <p className="font-semibold text-white tabular-nums">{simulation.visibilityPercent}%</p>
-          </div>
-          <div className="rounded-md bg-white/5 px-2 py-1.5">
-            <span className="text-gray-500">Cropped</span>
-            <p className="font-semibold text-white tabular-nums">{simulation.croppedAreaPercent}%</p>
-          </div>
+      <div className="px-3 pb-3">
+        <div
+          className="relative overflow-hidden rounded-lg bg-slate-100 border border-slate-200"
+          style={{ width: previewW, height: targetH }}
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={imageUrl}
+            alt={`${simulation.label} crop`}
+            className="absolute max-w-none"
+            style={{ width: imgW, height: imgH, left: offsetX, top: offsetY }}
+            draggable={false}
+          />
         </div>
-
-        {simulation.warnings.length ? (
-          <StudioWarningList warnings={simulation.warnings.slice(0, 2)} className="mt-2" />
-        ) : (
-          <p className="mt-2 text-sm text-emerald-200/90">All elements fully visible.</p>
-        )}
+        <p className="mt-2 text-[11px] text-slate-600 leading-snug line-clamp-2">{verdict.message}</p>
       </div>
     </article>
   );
 }
 
 export default function GoogleCropSimulation({ imageUrl, imageSize, elements }) {
-  const [activeCategory, setActiveCategory] = useState("all");
+  const [filter, setFilter] = useState("key");
 
   const allSimulations = useMemo(
     () => simulateAllGoogleCrops(elements, imageSize.width, imageSize.height),
     [elements, imageSize.width, imageSize.height],
   );
 
-  const filteredSimulations = useMemo(() => {
-    if (activeCategory === "all") return allSimulations;
-    return allSimulations.filter((sim) => sim.category === activeCategory);
-  }, [allSimulations, activeCategory]);
+  const visibleSimulations = useMemo(() => {
+    if (filter === "all") return allSimulations;
+    const keySet = new Set(KEY_CROP_IDS);
+    return allSimulations.filter((sim) => keySet.has(sim.cropId));
+  }, [allSimulations, filter]);
 
-  const avgSuitability = allSimulations.length
-    ? Math.round(allSimulations.reduce((sum, sim) => sum + sim.suitabilityScore, 0) / allSimulations.length)
-    : 0;
+  const poorCount = allSimulations.filter((sim) => getCropVerdict(sim).tone === "bad").length;
+  const reviewCount = allSimulations.filter((sim) => getCropVerdict(sim).tone === "warn").length;
 
-  const categoryTabs = [
-    { id: "all", label: "All formats" },
-    ...GOOGLE_CROP_CATEGORIES,
-  ];
+  const summaryTone = poorCount > 0 ? "bad" : reviewCount > 0 ? "warn" : "good";
+  const summaryTitle = poorCount > 0
+    ? `${poorCount} format${poorCount > 1 ? "s" : ""} may crop badly`
+    : reviewCount > 0
+      ? "Mostly good — review a few formats"
+      : "Crops look good across formats";
+  const summaryMessage = poorCount > 0
+    ? "Center your logo, product, and CTA so they survive landscape, square, and portrait crops."
+    : reviewCount > 0
+      ? "Check flagged previews and add padding around edge elements if needed."
+      : "Your layout should hold up when Google resizes this creative.";
 
   return (
-    <div className="space-y-4 rounded-2xl border border-white/10 bg-white/[0.03] p-5">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h3 className="text-sm font-semibold text-white">Google Ads Crop Simulation</h3>
-          <p className="mt-1 text-xs text-gray-400 max-w-2xl">
-            Simulates center-crops across landscape, square, portrait, YouTube, Gmail, and Demand Gen formats.
-          </p>
-        </div>
-        <div className="rounded-xl border border-blue-400/25 bg-blue-500/10 px-4 py-2 text-center">
-          <p className="text-[10px] uppercase tracking-wide text-blue-200/80">Avg suitability</p>
-          <p className="text-xl font-bold text-blue-100 tabular-nums">{avgSuitability}</p>
-        </div>
-      </div>
+    <AnalysisPanelShell
+      title="Crop Preview"
+      description="Quick look at how your creative may be center-cropped across common Google ad sizes."
+    >
+      <VerdictBanner tone={summaryTone} title={summaryTitle} message={summaryMessage} />
 
-      <StudioTabBar tabs={categoryTabs} activeTab={activeCategory} onChange={setActiveCategory} />
+      <StudioTabBar tabs={FILTER_TABS} activeTab={filter} onChange={setFilter} variant="light" />
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
-        {filteredSimulations.map((simulation) => (
+      <div className="flex gap-3 overflow-x-auto pb-2 -mx-1 px-1">
+        {visibleSimulations.map((simulation) => (
           <CropPreviewCard
             key={simulation.cropId}
             simulation={simulation}
@@ -145,35 +119,12 @@ export default function GoogleCropSimulation({ imageUrl, imageSize, elements }) 
         ))}
       </div>
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        {filteredSimulations.map((simulation) => (
-          <div key={`detail-${simulation.cropId}`} className="rounded-xl border border-white/10 bg-black/20 p-4">
-            <div className="flex items-center justify-between gap-2 mb-2">
-              <p className="text-xs font-semibold text-white">{simulation.label}</p>
-              <span className="text-[10px] text-gray-500 font-mono">{simulation.sizeLabel}</span>
-            </div>
-
-            <div className="flex flex-wrap gap-2 text-[10px] mb-3">
-              <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-emerald-200">
-                {simulation.visibleCount} fully visible
-              </span>
-              <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-amber-200">
-                {simulation.partialCount} partial
-              </span>
-              <span className="rounded-full bg-red-500/15 px-2 py-0.5 text-red-200">
-                {simulation.hiddenCount} hidden
-              </span>
-            </div>
-
-            <StudioRecommendationsPanel
-              title="Optimization tips"
-              items={simulation.suggestions}
-              emptyMessage="This crop preserves all detected elements."
-              className="border-0 bg-transparent p-0"
-            />
-          </div>
-        ))}
-      </div>
-    </div>
+      {filter === "key" ? (
+        <p className="text-xs text-slate-500">
+          Showing 6 common formats. Switch to <strong>All formats</strong> for the full {allSimulations.length}-format check
+          ({Object.keys(GOOGLE_CROP_SPECS).length} total).
+        </p>
+      ) : null}
+    </AnalysisPanelShell>
   );
 }
