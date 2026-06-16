@@ -208,7 +208,7 @@ function readJpegDimensions(bytes) {
       || (marker >= 0xCD && marker <= 0xCF)
     );
 
-    if (isSof && segmentStart + 7 < segmentEnd) {
+    if (isSof && segmentStart + 7 < segmentEnd && !width) {
       height = readUint16BE(bytes, segmentStart + 3);
       width = readUint16BE(bytes, segmentStart + 5);
     }
@@ -218,9 +218,11 @@ function readJpegDimensions(bytes) {
 
   if (!width || !height) return null;
 
+  const oriented = applyExifOrientation(width, height, orientation);
+
   return {
-    width,
-    height,
+    width: oriented.width,
+    height: oriented.height,
     format: "jpeg",
     storedWidth: width,
     storedHeight: height,
@@ -257,9 +259,13 @@ function buildDimensionResult(width, height, extra = {}) {
 async function readImageDimensionsViaBitmap(blob) {
   let bitmap;
   try {
-    bitmap = await createImageBitmap(blob);
+    bitmap = await createImageBitmap(blob, { imageOrientation: "from-image" });
   } catch {
-    return null;
+    try {
+      bitmap = await createImageBitmap(blob);
+    } catch {
+      return null;
+    }
   }
 
   try {
@@ -269,39 +275,96 @@ async function readImageDimensionsViaBitmap(blob) {
   }
 }
 
+/** Parse WxH from common ad file naming patterns (300x250, 300-250, 728_x_90). */
+export function extractExpectedSizeFromFilename(fileName) {
+  const base = String(fileName || "").replace(/\.[^/.]+$/, "");
+  const patterns = [
+    /\b(\d{2,4})\s*[x×]\s*(\d{2,4})\b/i,
+    /\b(\d{2,4})\s*-\s*(\d{2,4})\b/,
+    /\b(\d{2,4})\s*_\s*(\d{2,4})\b/,
+  ];
+
+  for (const pattern of patterns) {
+    const match = base.match(pattern);
+    if (!match) continue;
+    const width = Number(match[1]);
+    const height = Number(match[2]);
+    if (width >= 50 && height >= 50 && width <= 4096 && height <= 4096) {
+      return { width, height };
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Prefer filename dimensions when metadata read is clearly wrong but the name encodes
+ * a standard IAB size (common when JPEG headers contain multiple SOF segments).
+ */
+export function reconcileDimensionsWithFilename(fileName, dimensions) {
+  if (!dimensions?.width || !dimensions?.height) return dimensions;
+
+  const expected = extractExpectedSizeFromFilename(fileName);
+  if (!expected) return dimensions;
+
+  const { width: dw, height: dh } = dimensions;
+  const { width: ew, height: eh } = expected;
+
+  if (dw === ew && dh === eh) return dimensions;
+  if (dw === eh && dh === ew) {
+    return buildDimensionResult(ew, eh, {
+      source: "filename_swapped",
+      format: dimensions.format,
+    });
+  }
+
+  const widthMatchesExpected = dh === ew && dw !== eh;
+  const heightMatchesExpected = dw === eh && dh !== ew;
+  const oneAxisMatches = (dh === ew || dw === eh) && (dw !== ew || dh !== eh);
+
+  if (widthMatchesExpected || heightMatchesExpected || oneAxisMatches) {
+    return buildDimensionResult(ew, eh, {
+      source: "filename_reconcile",
+      format: dimensions.format,
+    });
+  }
+
+  return dimensions;
+}
+
 /**
  * Read display-oriented dimensions from a File/Blob using file metadata first.
  */
-export async function readImageDimensionsFromBlob(blob) {
-  if (!(blob instanceof Blob)) {
-    throw new Error("Expected a Blob or File for dimension reading.");
-  }
+export async function readImageDimensionsFromBlob(blob, options = {}) {
+  const fileName = options.fileName || (blob instanceof File ? blob.name : "");
 
   try {
     const headerBytes = Math.min(blob.size, 512 * 1024);
     const buffer = await blob.slice(0, headerBytes).arrayBuffer();
     const fromHeader = readImageDimensionsFromBuffer(buffer);
     if (fromHeader?.width && fromHeader?.height) {
-      return buildDimensionResult(fromHeader.width, fromHeader.height, {
+      const reconciled = reconcileDimensionsWithFilename(fileName, buildDimensionResult(fromHeader.width, fromHeader.height, {
         source: "file_metadata",
         format: fromHeader.format,
         exifOrientation: fromHeader.exifOrientation,
         storedWidth: fromHeader.storedWidth,
         storedHeight: fromHeader.storedHeight,
-      });
+      }));
+      return reconciled;
     }
 
     if (blob.size > headerBytes) {
       const fullBuffer = await blob.arrayBuffer();
       const fromFullFile = readImageDimensionsFromBuffer(fullBuffer);
       if (fromFullFile?.width && fromFullFile?.height) {
-        return buildDimensionResult(fromFullFile.width, fromFullFile.height, {
+        const reconciled = reconcileDimensionsWithFilename(fileName, buildDimensionResult(fromFullFile.width, fromFullFile.height, {
           source: "file_metadata",
           format: fromFullFile.format,
           exifOrientation: fromFullFile.exifOrientation,
           storedWidth: fromFullFile.storedWidth,
           storedHeight: fromFullFile.storedHeight,
-        });
+        }));
+        return reconciled;
       }
     }
   } catch {
@@ -309,7 +372,9 @@ export async function readImageDimensionsFromBlob(blob) {
   }
 
   const fromBitmap = await readImageDimensionsViaBitmap(blob);
-  if (fromBitmap) return fromBitmap;
+  if (fromBitmap) {
+    return reconcileDimensionsWithFilename(fileName, fromBitmap);
+  }
 
   throw new Error("Could not read image dimensions from file.");
 }

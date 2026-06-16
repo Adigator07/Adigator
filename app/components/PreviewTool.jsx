@@ -598,7 +598,10 @@ export default function PreviewTool() {
     (async () => {
       const current = creativesRef.current;
       if (!current.length) return;
-      const needsRevalidation = current.some((creative) => creative.validation?.platform !== platform);
+      const needsRevalidation = current.some((creative) =>
+        creative.validation?.platform !== platform
+        || creative.validation?.size !== creative.size,
+      );
       if (!needsRevalidation) return;
 
       const updated = await revalidateCreativesForPlatform(current, platform);
@@ -1261,7 +1264,7 @@ export default function PreviewTool() {
     setIsLoading(true);
     try {
       const preparedCreatives = await mapWithConcurrency(fileList, 2, async (file, fileIndex) => {
-        const dimensions = await readImageDimensionsFromBlob(file);
+        const dimensions = await readImageDimensionsFromBlob(file, { fileName: file.name });
         const validation = await validateCreativeAsset({
           file,
           image: { width: dimensions.width, height: dimensions.height },

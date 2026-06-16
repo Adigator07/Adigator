@@ -201,17 +201,21 @@ export async function hydrateCreativeRecord(meta) {
   const displayBlob = previewBlob || fullBlob;
 
   const applyDimensionsFromFullBlob = async (record, fullBlob) => {
+    const fileName = record.originalFile || record.name || "";
+    if (fullBlob) {
+      try {
+        const dims = await readImageDimensionsFromBlob(fullBlob, { fileName });
+        return attachSourceDimensions(record, dims.width, dims.height);
+      } catch {
+        // Fall through to persisted metadata.
+      }
+    }
+
     const persisted = resolvePersistedDimensions(record);
     if (persisted) {
       return attachSourceDimensions(record, persisted.width, persisted.height);
     }
-    if (!fullBlob) return record;
-    try {
-      const dims = await readImageDimensionsFromBlob(fullBlob);
-      return attachSourceDimensions(record, dims.width, dims.height);
-    } catch {
-      return record;
-    }
+    return record;
   };
 
   if (displayBlob) {
