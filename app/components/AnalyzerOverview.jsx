@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Activity, AlertTriangle, BarChart3, CheckCircle, Layers, Shield, Target, Wrench } from "lucide-react";
+import { Activity, AlertTriangle, BarChart3, CheckCircle, ExternalLink, Layers, Link2, Shield, Target, Wrench } from "lucide-react";
 import { qaItemIcon } from "@/app/lib/analyzerInsights";
 
 const PLATFORM_LABELS = {
@@ -37,6 +37,7 @@ export default function AnalyzerOverview({
   goalText,
   verticalText,
   platform,
+  urlValidation = null,
 }) {
   if (!overview) return null;
 
@@ -75,6 +76,9 @@ export default function AnalyzerOverview({
           <StatCard label="Misaligned" value={overview.misalignedCount} accent="red" />
         </div>
       </section>
+
+      {/* URL Validation — Step 2 result shown only in Overview */}
+      <UrlValidationSection urlValidation={urlValidation} />
 
       {/* 2. Campaign Health Summary */}
       {health ? (
@@ -435,5 +439,88 @@ function StatCard({ label, value, accent = "slate" }) {
       <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-600">{label}</p>
       <p className="mt-1 text-3xl font-black leading-none text-slate-900">{value}</p>
     </div>
+  );
+}
+
+function UrlValidationSection({ urlValidation }) {
+  if (!urlValidation) {
+    return (
+      <section className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-5">
+        <div className="flex items-start gap-3">
+          <Link2 size={18} className="text-slate-500 shrink-0 mt-0.5" />
+          <div>
+            <p className="text-sm font-semibold text-slate-900">URL Validation</p>
+            <p className="mt-1 text-sm text-slate-600 leading-relaxed">
+              No URL validation yet. Return to Step 2, enter a landing page URL, and run Validate URL or Campaign Readiness Check.
+            </p>
+          </div>
+        </div>
+      </section>
+    );
+  }
+
+  if (urlValidation.status === "skipped") {
+    return (
+      <section className="rounded-2xl border border-slate-200 bg-white p-5">
+        <SectionHeader icon={Link2} label="URL Validation" accent="text-slate-600" />
+        <p className="mt-2 text-sm text-slate-600">{urlValidation.summary}</p>
+      </section>
+    );
+  }
+
+  const isAligned = urlValidation.status === "aligned";
+  const tone = isAligned ? RISK_TONES.emerald : RISK_TONES.red;
+
+  return (
+    <section className={`rounded-2xl border p-5 ${tone.border} ${tone.bg}`}>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <SectionHeader icon={Link2} label="URL Validation" accent={isAligned ? "text-emerald-700" : "text-red-700"} />
+        <span className={`rounded-full border px-3 py-1 text-xs font-bold uppercase tracking-wide ${tone.badge}`}>
+          {isAligned ? "Aligned" : "Misaligned"}
+        </span>
+      </div>
+
+      <p className={`mt-3 text-sm font-medium leading-relaxed ${tone.text}`}>{urlValidation.summary}</p>
+
+      {urlValidation.submitted_url ? (
+        <div className="mt-3 rounded-lg border border-white/60 bg-white/70 px-3 py-2.5 text-xs text-slate-700 space-y-1">
+          <p className="flex items-center gap-1.5 break-all">
+            <ExternalLink size={12} className="shrink-0" />
+            <span className="font-semibold text-slate-800">Submitted:</span> {urlValidation.submitted_url}
+          </p>
+          {urlValidation.final_url && urlValidation.final_url !== urlValidation.submitted_url ? (
+            <p className="flex items-center gap-1.5 break-all">
+              <ExternalLink size={12} className="shrink-0" />
+              <span className="font-semibold text-slate-800">Final URL:</span> {urlValidation.final_url}
+            </p>
+          ) : null}
+        </div>
+      ) : null}
+
+      {urlValidation.reasons?.length ? (
+        <div className="mt-4">
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-600 mb-2">Findings</p>
+          <ul className="space-y-1.5">
+            {urlValidation.reasons.map((reason) => (
+              <li key={reason} className="text-sm text-slate-800 leading-relaxed flex items-start gap-2">
+                <span className="shrink-0">{isAligned ? "✓" : "⚠"}</span>
+                {reason}
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+
+      {!isAligned && urlValidation.suggestions?.length ? (
+        <div className="mt-4 rounded-lg border border-white/70 bg-white/80 px-3 py-3">
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-600 mb-2">Suggestions</p>
+          <ul className="space-y-1.5">
+            {urlValidation.suggestions.map((suggestion) => (
+              <li key={suggestion} className="text-sm text-slate-900 leading-relaxed">• {suggestion}</li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+    </section>
   );
 }

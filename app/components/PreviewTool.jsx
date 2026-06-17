@@ -64,6 +64,12 @@ import { FIX_ACTION_IDS } from "../lib/creativeFixActions";
 import { useCampaignValidation } from "../hooks/useCampaignValidation";
 import ValidationReport from "./ValidationReport";
 import ValidationIssueRow from "./ValidationIssueRow";
+import {
+  clearStoredUrlValidation,
+  readStoredUrlValidation,
+  runUrlValidationRequest,
+  writeStoredUrlValidation,
+} from "../lib/urlValidationClient";
 
 // Platform size matrix — sourced from creativeSizeRegistry via creativeValidation
 const PLATFORM_SIZES = PLATFORM_SUPPORTED_SIZE_GROUPS;
@@ -444,6 +450,11 @@ export default function PreviewTool() {
   const [campaignAudienceStage, setCampaignAudienceStage] = useState(null);
   const [campaignName, setCampaignName] = useState("");
   const [landingUrl, setLandingUrl] = useState("");
+  const [urlValidation, setUrlValidation] = useState(() => {
+    if (typeof window === "undefined") return null;
+    return readStoredUrlValidation();
+  });
+  const [urlValidationRunning, setUrlValidationRunning] = useState(false);
   const [analysisSessionId, setAnalysisSessionId] = useState(() => {
     if (typeof window === "undefined") return null;
     return localStorage.getItem(ANALYSIS_SESSION_STORAGE_KEY);
@@ -542,6 +553,13 @@ export default function PreviewTool() {
     if (!landingUrl && storedLandingUrl) {
       setLandingUrl(storedLandingUrl);
     }
+
+    if (!urlValidation) {
+      const storedUrlValidation = readStoredUrlValidation();
+      if (storedUrlValidation) {
+        setUrlValidation(storedUrlValidation);
+      }
+    }
   }, [
     step,
     platform,
@@ -550,11 +568,63 @@ export default function PreviewTool() {
     campaignAudienceStage,
     campaignName,
     landingUrl,
+    urlValidation,
   ]);
 
   useEffect(() => {
     creativesRef.current = creatives;
   }, [creatives]);
+
+  const runUrlValidation = useCallback(async () => {
+    const trimmedUrl = landingUrl.trim();
+    if (!trimmedUrl) {
+      const skipped = {
+        status: "skipped",
+        submitted_url: "",
+        final_url: null,
+        summary: "No landing page URL was provided.",
+        reasons: [],
+        suggestions: ["Add a landing page URL in Step 2 to validate destination alignment."],
+        confidence: 0,
+        source: "unavailable",
+        checked_at: new Date().toISOString(),
+      };
+      setUrlValidation(skipped);
+      writeStoredUrlValidation(skipped);
+      return skipped;
+    }
+
+    setUrlValidationRunning(true);
+    try {
+      const validForUrlCheck = creatives.filter((c) => c?.valid && (c.url || c.image || c.title));
+      const result = await runUrlValidationRequest({
+        url: trimmedUrl,
+        platform,
+        objective: campaignGoal,
+        vertical: campaignVertical,
+        campaignName: campaignName.trim() || "Campaign",
+        creatives: validForUrlCheck.length ? validForUrlCheck : creatives,
+        getCreativeBlob: getCreativeFullBlob,
+      });
+      setUrlValidation(result);
+      writeStoredUrlValidation(result);
+      return result;
+    } catch (error) {
+      console.error("URL validation failed", error);
+      addToast(error?.message || "URL validation failed.", "error");
+      return null;
+    } finally {
+      setUrlValidationRunning(false);
+    }
+  }, [
+    landingUrl,
+    platform,
+    campaignGoal,
+    campaignVertical,
+    campaignName,
+    creatives,
+    addToast,
+  ]);
 
   useEffect(() => {
     let active = true;
@@ -1010,9 +1080,19 @@ export default function PreviewTool() {
     [validationResults],
   );
 
-  const goNext = useCallback(() => {
+  const goNext = useCallback(async () => {
     if (step === 1 && !isConfigComplete) return;
     if (step === 2 && !canAdvanceToAnalysis) return;
+
+    if (step === 2 && landingUrl.trim()) {
+      const needsRefresh = !urlValidation
+        || urlValidation.submitted_url !== landingUrl.trim()
+        || urlValidation.status === "pending";
+      if (needsRefresh && !urlValidationRunning) {
+        await runUrlValidation();
+      }
+    }
+
     const nextStep = Math.min(step + 1, TOTAL_STEPS);
     void trackUserActivity("navigation", {
       action_label: `Navigate to step ${nextStep}`,
@@ -1028,7 +1108,21 @@ export default function PreviewTool() {
       },
     }, { dedupeKey: `nav-forward-${step}-${nextStep}` });
     router.push(`${pathname}?step=${nextStep}`, { scroll: true });
-  }, [step, isConfigComplete, canAdvanceToAnalysis, pathname, router, platform, campaignGoal, campaignVertical, campaignAudienceStage]);
+  }, [
+    step,
+    isConfigComplete,
+    canAdvanceToAnalysis,
+    pathname,
+    router,
+    platform,
+    campaignGoal,
+    campaignVertical,
+    campaignAudienceStage,
+    landingUrl,
+    urlValidation,
+    urlValidationRunning,
+    runUrlValidation,
+  ]);
 
   const goBack = useCallback(() => {
     if (step === 1) {
@@ -1070,6 +1164,9 @@ export default function PreviewTool() {
     setCampaignAudienceStage(null);
     setCampaignName("");
     setLandingUrl("");
+    setUrlValidation(null);
+    setUrlValidationRunning(false);
+    clearStoredUrlValidation();
     setAnalysisResult(null);
     setAnalysisLoading(false);
     setAnalysisSessionId(null);
@@ -1095,6 +1192,7 @@ export default function PreviewTool() {
     localStorage.removeItem("adigator_audience_stage");
     localStorage.removeItem("adigator_campaign_name");
     localStorage.removeItem("adigator_landing_url");
+    clearStoredUrlValidation();
     localStorage.removeItem(ANALYSIS_SESSION_STORAGE_KEY);
 
     configHydratedRef.current = false;
@@ -2086,22 +2184,25 @@ export default function PreviewTool() {
       return;
     }
 
-    const result = await runReadinessValidation({
-      platform,
-      url: landingUrl.trim() || undefined,
-      objective: campaignGoal,
-      campaignName: campaignName.trim() || "Campaign",
-      vertical: campaignVertical || undefined,
-      creatives: creatives.map((c) => ({
-        id: c.id,
-        name: c.name,
-        size: c.size,
-        fileSize: c.fileSizeBytes,
-        mimeType: c.mimeType,
-        contentHash: c.contentHash,
-        validation: c.validation,
-      })),
-    });
+    const [result] = await Promise.all([
+      runReadinessValidation({
+        platform,
+        url: landingUrl.trim() || undefined,
+        objective: campaignGoal,
+        campaignName: campaignName.trim() || "Campaign",
+        vertical: campaignVertical || undefined,
+        creatives: creatives.map((c) => ({
+          id: c.id,
+          name: c.name,
+          size: c.size,
+          fileSize: c.fileSizeBytes,
+          mimeType: c.mimeType,
+          contentHash: c.contentHash,
+          validation: c.validation,
+        })),
+      }),
+      landingUrl.trim() ? runUrlValidation() : Promise.resolve(null),
+    ]);
 
     if (result) {
       addToast(`Readiness score: ${result.overall_score}/100 — ${result.readiness_level.replace("_", " ")}`, result.readiness_level === "ready" ? "success" : "info");
@@ -2116,6 +2217,7 @@ export default function PreviewTool() {
     campaignName,
     campaignVertical,
     runReadinessValidation,
+    runUrlValidation,
     addToast,
   ]);
 
@@ -2600,10 +2702,11 @@ export default function PreviewTool() {
 
               <div className="rounded-2xl border border-slate-300 bg-white p-6 shadow-sm space-y-4">
                 <div>
-                  <h3 className="text-lg font-bold text-slate-900">Campaign Readiness Report</h3>
+                  <h3 className="text-lg font-bold text-slate-900">URL Validation</h3>
                   <p className="text-sm text-slate-600 mt-1">
-                    Rule-based checks for creative specs, URL health, UTM tags, duplicates, and objective alignment.
-                    {platform === "meta_ads" ? " Landing URL is optional for Meta." : " Landing URL is required."}
+                    Enter the destination URL for this campaign. We compare it against your uploaded creatives using AI and show
+                    whether it is <span className="font-semibold">Aligned</span> or <span className="font-semibold">Misaligned</span> in the Step 3 Overview tab only.
+                    {platform === "meta_ads" ? " URL is optional for Meta." : " URL is required for Programmatic and Google Ads."}
                   </p>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -2622,13 +2725,39 @@ export default function PreviewTool() {
                   <div className="flex items-end">
                     <button
                       type="button"
-                      onClick={handleRunReadinessCheck}
-                      disabled={readinessLoading || creatives.length === 0}
-                      className="w-full rounded-xl bg-emerald-600 border border-emerald-700 px-4 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                      onClick={runUrlValidation}
+                      disabled={urlValidationRunning || !landingUrl.trim() || creatives.length === 0}
+                      className="w-full rounded-xl bg-sky-600 border border-sky-700 px-4 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-sky-700 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      {readinessLoading ? "Validating…" : "Run Campaign Readiness Check"}
+                      {urlValidationRunning ? "Validating URL…" : "Validate URL"}
                     </button>
                   </div>
+                </div>
+                {urlValidationRunning ? (
+                  <p className="text-xs text-sky-700 font-medium">Checking URL against your creatives with OpenAI…</p>
+                ) : urlValidation?.submitted_url && urlValidation.submitted_url === landingUrl.trim() ? (
+                  <p className="text-xs text-slate-500">
+                    URL check complete — open Step 3 Overview to see alignment status and suggestions.
+                  </p>
+                ) : null}
+              </div>
+
+              <div className="rounded-2xl border border-slate-300 bg-white p-6 shadow-sm space-y-4">
+                <div>
+                  <h3 className="text-lg font-bold text-slate-900">Campaign Readiness Report</h3>
+                  <p className="text-sm text-slate-600 mt-1">
+                    Rule-based checks for creative specs, URL health, UTM tags, duplicates, and objective alignment.
+                  </p>
+                </div>
+                <div className="flex items-end">
+                  <button
+                    type="button"
+                    onClick={handleRunReadinessCheck}
+                    disabled={readinessLoading || urlValidationRunning || creatives.length === 0}
+                    className="w-full md:w-auto rounded-xl bg-emerald-600 border border-emerald-700 px-6 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {readinessLoading || urlValidationRunning ? "Validating…" : "Run Campaign Readiness Check"}
+                  </button>
                 </div>
                 {readinessLoading ? (
                   <div className="rounded-xl border border-sky-200 bg-sky-50 px-4 py-3">
@@ -2710,6 +2839,7 @@ export default function PreviewTool() {
                     platform={platform}
                     viewerName={viewerName}
                     creatives={validCreatives}
+                    urlValidation={urlValidation}
                     onDownloadReport={handleDownloadReport}
                   />
                 </>

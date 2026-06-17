@@ -4,6 +4,7 @@
  */
 
 import { PLATFORM_SUPPORTED_SIZE_GROUPS } from "./creativeValidation";
+import { TABLET_IAB_SIZES } from "./creativeSizeRegistry";
 
 const GOOGLE = PLATFORM_SUPPORTED_SIZE_GROUPS.google_ads;
 const META = PLATFORM_SUPPORTED_SIZE_GROUPS.meta_ads;
@@ -43,7 +44,7 @@ const GMAIL_SIZES = [
 const APP_INVENTORY_SIZES = [
   ...new Set([
     ...GOOGLE.mobile_display,
-    ...PROG.tablet_display,
+    ...TABLET_IAB_SIZES,
     "1080x1920",
   ]),
 ];
@@ -70,14 +71,13 @@ const PROG_BANNER_SIZES = [
   ...new Set([
     ...(PROG.standard_display || []),
     ...(PROG.mobile_display || []),
-    ...(PROG.tablet_display || []),
+    ...(PROG.high_impact || []),
   ]),
 ];
 
 const PROG_MOBILE_APP_SIZES = [
   ...new Set([
     ...(PROG.mobile_display || []),
-    ...(PROG.tablet_display || []),
     "1080x1920",
   ]),
 ];

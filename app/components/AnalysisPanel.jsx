@@ -62,6 +62,7 @@ export default function AnalysisPanel({
   platform,
   viewerName,
   creatives = [],
+  urlValidation = null,
   onDownloadReport,
 }) {
   const strategicEntries = useMemo(() => {
@@ -142,6 +143,7 @@ export default function AnalysisPanel({
           goalText={goalText}
           verticalText={verticalText}
           platform={activePlatform}
+          urlValidation={urlValidation}
         />
       ) : (
         <AnalyzerCreativeSection

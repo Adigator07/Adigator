@@ -1,67 +1,80 @@
 /**
  * Platform-specific placement & device compatibility for the Analyzer Overview tab.
  * Status values: good (🟢), warning (🟡), bad (🔴)
+ *
+ * Scoring is driven by PREVIEW_PLACEMENT_REGISTRY compatibleSizes — the same matrix
+ * used in Preview Studio — so matrix colors match actual inventory support.
  */
 
-import { PLATFORM_SUPPORTED_SIZE_GROUPS } from "./creativeValidation";
-import { GOOGLE_TIER1_SIZES, GOOGLE_TIER2_SIZES } from "./creativeSizeRegistry";
+import {
+  getCompatibleSizesForPlacement,
+  isSizeCompatibleWithPlacement,
+  normalizePreviewSize,
+} from "./previewPlacementRegistry";
 
-const GDN_TIER1 = GOOGLE_TIER1_SIZES;
-const GDN_TIER2 = GOOGLE_TIER2_SIZES;
+/** Overview column id → registry placement id(s) */
+const OVERVIEW_PLACEMENT_REGISTRY_IDS = {
+  google_ads: {
+    gdn: ["gdn"],
+    responsive_display: ["responsive_display"],
+    demand_gen: ["demand_gen"],
+    gmail: ["gmail"],
+    app_inventory: ["app_inventory"],
+    youtube_companion: ["youtube_companion"],
+  },
+  meta_ads: {
+    facebook_feed: ["facebook_feed"],
+    instagram_feed: ["instagram_feed"],
+    stories: ["facebook_stories", "instagram_stories"],
+    reels: ["facebook_reels", "instagram_reels"],
+    messenger: ["messenger"],
+    audience_network: ["audience_network"],
+  },
+  programmatic: {
+    native_ads: ["native_ads"],
+    display_banners: ["display_banners"],
+    mobile_app: ["mobile_app_inventory"],
+    open_web: ["open_web"],
+  },
+};
 
-const DEMAND_GEN_NATIVE = new Set([
-  "1200x628", "1080x1080", "1200x1200", "960x1200", "1200x1500", "1080x1920", "1080x1350",
+const SMALL_MOBILE_BANNERS = new Set(["320x50", "300x50", "320x100", "300x100"]);
+const MOBILE_ONLY_SIZES = new Set([
+  "320x50", "300x50", "320x100", "300x100", "320x480", "480x320",
 ]);
 
-const GMAIL_SIZES = new Set(["300x250", "728x90", "336x280", "1200x628", "1080x1080", "970x250"]);
-
-const APP_INVENTORY_SIZES = new Set([
-  "320x50", "320x100", "300x250", "320x480", "480x320", "768x1024", "1080x1920",
-]);
-
-const YOUTUBE_COMPANION_SIZES = new Set([
-  "300x250", "728x90", "970x90", "468x60", "336x280", "1280x720", "1920x1080",
-]);
-
-function parseSize(size) {
-  const [width, height] = String(size || "").split("x").map((n) => Number(n));
-  if (!width || !height) return null;
-  return { width, height, ratio: width / height };
+function applyTextDensityAdjustments(status, size, textHigh) {
+  if (!textHigh || status !== "good") return status;
+  const normalized = normalizePreviewSize(size);
+  if (SMALL_MOBILE_BANNERS.has(normalized)) return "warning";
+  if (normalized === "728x90" || normalized === "970x90") return "warning";
+  return status;
 }
 
-function sizeInPlatformGroups(size, platform) {
-  const groups = PLATFORM_SUPPORTED_SIZE_GROUPS[platform];
-  if (!groups) return false;
-  return Object.values(groups).some((list) => Array.isArray(list) && list.includes(size));
-}
+/**
+ * Score a creative size against one or more registry placements.
+ * - good: exact size match in that placement's compatibleSizes list
+ * - warning: not exact, but same aspect ratio as a supported size (crop possible)
+ * - bad: not supported for that inventory
+ */
+function scoreRegistryPlacements(size, platform, registryIds, textHigh) {
+  const normalized = normalizePreviewSize(size);
+  if (!normalized) return "bad";
 
-function isMobileSize(size) {
-  const mobile = new Set([
-    ...(PLATFORM_SUPPORTED_SIZE_GROUPS.google_ads?.mobile_display || []),
-    ...(PLATFORM_SUPPORTED_SIZE_GROUPS.programmatic?.mobile_display || []),
-    "320x50", "320x100", "320x480", "480x320", "1080x1350", "1080x1920",
-  ]);
-  return mobile.has(size);
-}
+  let best = "bad";
 
-function isDesktopSize(size) {
-  const desktop = new Set([
-    ...(PLATFORM_SUPPORTED_SIZE_GROUPS.google_ads?.desktop_display || []),
-    ...(PLATFORM_SUPPORTED_SIZE_GROUPS.programmatic?.standard_display || []),
-    "728x90", "970x90", "970x250", "160x600", "300x600", "336x280",
-  ]);
-  return desktop.has(size);
-}
+  for (const registryId of registryIds) {
+    const compatible = getCompatibleSizesForPlacement(platform, registryId);
+    if (compatible.includes(normalized)) {
+      return applyTextDensityAdjustments("good", normalized, textHigh);
+    }
 
-function rdaFitClass(size) {
-  const dims = parseSize(size);
-  if (!dims) return "unsupported";
-  const ratio = dims.ratio;
-  if (ratio >= 1.85 && ratio <= 1.98 && dims.width >= 600 && dims.height >= 314) return "landscape";
-  if (ratio >= 0.95 && ratio <= 1.05 && dims.width >= 300 && dims.height >= 300) return "square";
-  if (ratio >= 0.72 && ratio <= 0.85) return "vertical";
-  if (GDN_TIER1.has(size) || GDN_TIER2.has(size)) return "banner";
-  return "other";
+    if (isSizeCompatibleWithPlacement(normalized, platform, registryId)) {
+      best = "warning";
+    }
+  }
+
+  return best;
 }
 
 export function getPlacementColumns(platform) {
@@ -103,181 +116,61 @@ export function getDeviceColumns(platform) {
   return [];
 }
 
-function scoreGoogleGdn(size, textHigh) {
-  if (GDN_TIER1.has(size)) return textHigh && (size === "320x50" || size === "320x100") ? "warning" : "good";
-  if (GDN_TIER2.has(size)) return "warning";
-  if (sizeInPlatformGroups(size, "google_ads")) return "warning";
-  return "bad";
-}
-
-function scoreGoogleResponsiveDisplay(size, textHigh) {
-  const fit = rdaFitClass(size);
-  if (fit === "landscape" || fit === "square") return textHigh ? "warning" : "good";
-  if (fit === "vertical") return "warning";
-  if (fit === "banner") return "warning";
-  if (DEMAND_GEN_NATIVE.has(size)) return "warning";
-  return "bad";
-}
-
-function scoreGoogleDemandGen(size, textHigh) {
-  if (DEMAND_GEN_NATIVE.has(size)) return textHigh ? "warning" : "good";
-  const dims = parseSize(size);
-  if (dims && dims.ratio >= 1.85 && dims.ratio <= 1.98) return "good";
-  if (dims && dims.ratio >= 0.95 && dims.ratio <= 1.05) return "warning";
-  if (GDN_TIER1.has(size)) return "warning";
-  return "bad";
-}
-
-function scoreGoogleGmail(size, textHigh) {
-  if (GMAIL_SIZES.has(size)) return textHigh ? "warning" : "good";
-  if (size === "728x90" || size === "970x250") return "good";
-  if (sizeInPlatformGroups(size, "google_ads")) return "warning";
-  return "bad";
-}
-
-function scoreGoogleAppInventory(size, textHigh) {
-  if (APP_INVENTORY_SIZES.has(size)) return textHigh && size.startsWith("320x") ? "warning" : "good";
-  if (size === "300x250" || size === "480x320") return "warning";
-  if (isMobileSize(size)) return "warning";
-  return "bad";
-}
-
-function scoreGoogleYoutubeCompanion(size, textHigh) {
-  if (YOUTUBE_COMPANION_SIZES.has(size)) {
-    const dims = parseSize(size);
-    if (dims && dims.ratio >= 1.6 && dims.ratio <= 1.85) return "good";
-    if (size === "300x250" || size === "728x90" || size === "970x90") return textHigh ? "warning" : "good";
-    return "warning";
-  }
-  if (size === "1080x1080" || size === "1200x628") return "warning";
-  return "bad";
-}
-
-function scoreGoogleDeviceMobile(size) {
-  if (isMobileSize(size)) return "good";
-  if (size === "300x250") return "good";
-  if (GDN_TIER1.has(size) && size.startsWith("320x")) return "good";
-  if (DEMAND_GEN_NATIVE.has(size)) return "warning";
-  if (isDesktopSize(size)) return "warning";
-  return "bad";
-}
-
-function scoreGoogleDeviceDesktop(size) {
-  if (isDesktopSize(size)) return "good";
-  if (size === "300x250" || size === "336x280") return "good";
-  if (GDN_TIER1.has(size) && !size.startsWith("320x")) return "good";
-  if (isMobileSize(size) && !size.includes("300x250")) return "warning";
-  if (DEMAND_GEN_NATIVE.has(size)) return "warning";
-  return "bad";
-}
-
-function scoreMetaFacebookFeed(size, textHigh) {
-  const feed = PLATFORM_SUPPORTED_SIZE_GROUPS.meta_ads?.feed_placements || [];
-  if (feed.includes(size)) return textHigh ? "warning" : "good";
-  const dims = parseSize(size);
-  if (dims && dims.ratio >= 0.9 && dims.ratio <= 1.2) return "warning";
-  return "bad";
-}
-
-function scoreMetaInstagramFeed(size, textHigh) {
-  if (size === "1080x1350" || size === "1080x1080") return textHigh ? "warning" : "good";
-  if (size === "1200x628") return "warning";
-  return scoreMetaFacebookFeed(size, textHigh);
-}
-
-function scoreMetaStories(size, textHigh) {
-  if (size === "1080x1920") return textHigh ? "warning" : "good";
-  const dims = parseSize(size);
-  if (dims && dims.ratio >= 0.55 && dims.ratio <= 0.58) return "warning";
-  if (size === "1080x1080" || size === "1080x1350") return "warning";
-  return "bad";
-}
-
-function scoreMetaReels(size, textHigh) {
-  if (size === "1080x1920") return textHigh ? "warning" : "good";
-  if (size === "1080x1350") return "warning";
-  return scoreMetaStories(size, textHigh);
-}
-
-function scoreMetaMessenger(size, textHigh) {
-  if (["1080x1080", "1200x628", "1080x1350"].includes(size)) return textHigh ? "warning" : "good";
-  if (size === "300x250" || size === "320x50") return "warning";
-  return "bad";
-}
-
-function scoreMetaAudienceNetwork(size, textHigh) {
-  if (["320x50", "300x250", "1080x1080", "728x90"].includes(size)) return textHigh ? "warning" : "good";
-  if (isMobileSize(size)) return "warning";
-  if (sizeInPlatformGroups(size, "meta_ads")) return "warning";
-  return "bad";
-}
-
-function scoreProgNative(size, textHigh) {
-  const native = new Set(PLATFORM_SUPPORTED_SIZE_GROUPS.programmatic?.native_responsive_assets || []);
-  if (native.has(size)) return textHigh ? "warning" : "good";
-  return "bad";
-}
-
-function scoreProgDisplayBanners(size, textHigh) {
-  const standard = PLATFORM_SUPPORTED_SIZE_GROUPS.programmatic?.standard_display || [];
-  if (standard.includes(size)) return textHigh && (size === "728x90" || size.startsWith("320x")) ? "warning" : "good";
-  if (sizeInPlatformGroups(size, "programmatic")) return "warning";
-  return "bad";
-}
-
-function scoreProgMobileApp(size, textHigh) {
-  const mobile = PLATFORM_SUPPORTED_SIZE_GROUPS.programmatic?.mobile_display || [];
-  if (mobile.includes(size)) return textHigh ? "warning" : "good";
-  if (isMobileSize(size)) return "warning";
-  return "bad";
-}
-
-function scoreProgOpenWeb(size, textHigh) {
-  if (GDN_TIER1.has(size) || scoreProgDisplayBanners(size, textHigh) === "good") return "good";
-  if (scoreProgNative(size, textHigh) === "good") return "warning";
-  if (sizeInPlatformGroups(size, "programmatic")) return "warning";
-  return "bad";
-}
-
 function googlePlacementScores(size, signals) {
   const textHigh = signals?.text_density === "high";
-  return {
-    gdn: scoreGoogleGdn(size, textHigh),
-    responsive_display: scoreGoogleResponsiveDisplay(size, textHigh),
-    demand_gen: scoreGoogleDemandGen(size, textHigh),
-    gmail: scoreGoogleGmail(size, textHigh),
-    app_inventory: scoreGoogleAppInventory(size, textHigh),
-    youtube_companion: scoreGoogleYoutubeCompanion(size, textHigh),
-  };
+  const map = OVERVIEW_PLACEMENT_REGISTRY_IDS.google_ads;
+  const scores = {};
+
+  for (const [columnId, registryIds] of Object.entries(map)) {
+    scores[columnId] = scoreRegistryPlacements(size, "google_ads", registryIds, textHigh);
+  }
+
+  return scores;
 }
 
-function googleDeviceScores(size) {
+function googleDeviceScores(size, signals) {
+  const textHigh = signals?.text_density === "high";
+  const normalized = normalizePreviewSize(size);
+
+  if (!normalized) {
+    return { mobile: "bad", desktop: "bad" };
+  }
+
+  if (MOBILE_ONLY_SIZES.has(normalized)) {
+    return {
+      mobile: scoreRegistryPlacements(size, "google_ads", ["mobile_display", "app_inventory"], textHigh),
+      desktop: "bad",
+    };
+  }
+
   return {
-    mobile: scoreGoogleDeviceMobile(size),
-    desktop: scoreGoogleDeviceDesktop(size),
+    mobile: scoreRegistryPlacements(size, "google_ads", ["mobile_display", "gdn"], textHigh),
+    desktop: scoreRegistryPlacements(size, "google_ads", ["gdn", "gmail"], textHigh),
   };
 }
 
 function metaPlacementScores(size, signals) {
   const textHigh = signals?.text_density === "high";
-  return {
-    facebook_feed: scoreMetaFacebookFeed(size, textHigh),
-    instagram_feed: scoreMetaInstagramFeed(size, textHigh),
-    stories: scoreMetaStories(size, textHigh),
-    reels: scoreMetaReels(size, textHigh),
-    messenger: scoreMetaMessenger(size, textHigh),
-    audience_network: scoreMetaAudienceNetwork(size, textHigh),
-  };
+  const map = OVERVIEW_PLACEMENT_REGISTRY_IDS.meta_ads;
+  const scores = {};
+
+  for (const [columnId, registryIds] of Object.entries(map)) {
+    scores[columnId] = scoreRegistryPlacements(size, "meta_ads", registryIds, textHigh);
+  }
+
+  return scores;
 }
 
 function programmaticPlacementScores(size, signals) {
   const textHigh = signals?.text_density === "high";
-  return {
-    native_ads: scoreProgNative(size, textHigh),
-    display_banners: scoreProgDisplayBanners(size, textHigh),
-    mobile_app: scoreProgMobileApp(size, textHigh),
-    open_web: scoreProgOpenWeb(size, textHigh),
-  };
+  const map = OVERVIEW_PLACEMENT_REGISTRY_IDS.programmatic;
+  const scores = {};
+
+  for (const [columnId, registryIds] of Object.entries(map)) {
+    scores[columnId] = scoreRegistryPlacements(size, "programmatic", registryIds, textHigh);
+  }
+
+  return scores;
 }
 
 export function computePlacementCompatibility(creative, platform, signals) {
@@ -288,55 +181,53 @@ export function computePlacementCompatibility(creative, platform, signals) {
   return programmaticPlacementScores(size, signals);
 }
 
-export function computeDeviceCompatibility(creative, platform) {
+export function computeDeviceCompatibility(creative, platform, signals = {}) {
   if (platform !== "google_ads") return null;
-  return googleDeviceScores(creative?.size || "");
+  return googleDeviceScores(creative?.size || "", signals);
 }
 
-/** Primary placement keys used for launch-status (not secondary inventory). */
+/** Primary placement keys used for launch-status (best-matching inventory). */
 export function getPrimaryPlacementKeys(platform, creative) {
-  const size = creative?.size || "";
+  const scores = computePlacementCompatibility(creative, platform, {});
+  const columns = getPlacementColumns(platform);
 
-  if (platform === "google_ads") {
-    if (DEMAND_GEN_NATIVE.has(size) && !GDN_TIER1.has(size)) {
-      return ["demand_gen", "responsive_display"];
-    }
-    if (APP_INVENTORY_SIZES.has(size) && size.startsWith("320x")) {
-      return ["app_inventory"];
-    }
-    if (GDN_TIER1.has(size) || GDN_TIER2.has(size)) {
-      return ["gdn"];
-    }
-    return ["gdn", "responsive_display"];
-  }
+  const good = columns.filter((col) => scores[col.id] === "good").map((col) => col.id);
+  if (good.length) return good.slice(0, 3);
 
-  if (platform === "meta_ads") {
-    if (size === "1080x1920") return ["stories", "reels"];
-    if (size === "1080x1350") return ["instagram_feed", "facebook_feed"];
-    return ["facebook_feed", "instagram_feed"];
-  }
+  const warning = columns.filter((col) => scores[col.id] === "warning").map((col) => col.id);
+  if (warning.length) return warning.slice(0, 2);
 
-  if (platform === "programmatic") {
-    const prog = PLATFORM_SUPPORTED_SIZE_GROUPS.programmatic || {};
-    const native = new Set(prog.native_responsive_assets || []);
-    if (native.has(size)) return ["native_ads"];
-    if ((prog.mobile_display || []).includes(size)) return ["mobile_app"];
-    if ((prog.standard_display || []).includes(size)) return ["display_banners"];
-    return ["open_web"];
-  }
-
-  return [];
+  return columns[0]?.id ? [columns[0].id] : [];
 }
 
 export function getPlacementLegend(platform) {
   if (platform === "google_ads") {
-    return "🟢 Recommended / native fit · 🟡 Compatible but limited · 🔴 Not recommended";
+    return "🟢 Supported size for inventory · 🟡 same aspect ratio only (crop required) · 🔴 unsupported size";
   }
   if (platform === "meta_ads") {
-    return "🟢 Feed/Stories/Reels ready · 🟡 usable with crop or copy edits · 🔴 wrong aspect ratio for that placement";
+    return "🟢 Supported size for placement · 🟡 crop may be required · 🔴 unsupported for that placement";
   }
   if (platform === "programmatic") {
-    return "🟢 Strong display inventory fit · 🟡 limited scale or format friction · 🔴 weak or unsupported for that display channel";
+    return "🟢 Supported size for channel · 🟡 aspect-ratio match only · 🔴 unsupported for that channel";
   }
-  return "🟢 Strong inventory fit · 🟡 limited scale or format friction · 🔴 weak or unsupported for that channel";
+  return "🟢 Supported · 🟡 limited / crop required · 🔴 unsupported";
+}
+
+/** Dev helper — verify matrix colors against registry for common sizes. */
+export function verifyPlacementMatrix(platform, size) {
+  const creative = { size };
+  const scores = computePlacementCompatibility(creative, platform, {});
+  const columns = getPlacementColumns(platform);
+  const map = OVERVIEW_PLACEMENT_REGISTRY_IDS[platform] || {};
+
+  return columns.map((col) => {
+    const registryIds = map[col.id] || [];
+    const compatibleUnion = [...new Set(registryIds.flatMap((id) => getCompatibleSizesForPlacement(platform, id)))];
+    const exact = compatibleUnion.includes(normalizePreviewSize(size));
+    return {
+      placement: col.id,
+      score: scores[col.id],
+      exactMatch: exact,
+    };
+  });
 }

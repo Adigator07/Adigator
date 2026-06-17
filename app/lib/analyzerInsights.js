@@ -76,6 +76,7 @@ function isDesktopSize(size) {
   const desktopLists = [
     ...(groups.google_ads?.desktop_display || []),
     ...(groups.programmatic?.standard_display || []),
+    ...(groups.programmatic?.high_impact || []),
     "728x90", "970x90", "970x250", "160x600", "300x600",
   ];
   return desktopLists.includes(size);
@@ -937,7 +938,7 @@ export function computeCreativeInsight(entry, platform, campaignGoal, campaignVe
     mainRisk,
     recommendedFix,
     placementScores,
-    deviceScores: computeDeviceCompatibility(creative, platform),
+    deviceScores: computeDeviceCompatibility(creative, platform, payload),
   };
 }
 

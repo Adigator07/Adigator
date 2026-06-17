@@ -61,6 +61,7 @@ export const SIZE_INTELLIGENCE = {
   "600x314": intel("RDA Landscape Minimum", "native", "native", "Desktop + Mobile", "Responsive Inventory", 74, 76, true, "Responsive / Native Assets"),
   "600x600": intel("Feed Minimum Square", "native", "native", "Desktop + Mobile", "Social Inventory", 72, 74, true, "Responsive / Native Assets"),
   "1200x628": intel("Native Landscape", "native", "native", "Desktop + Mobile", "High Inventory", 88, 87, true, "Responsive / Native Assets"),
+  "1200x675": intel("Native Landscape Alt", "native", "native", "Desktop + Mobile", "High Inventory", 86, 85, true, "Responsive / Native Assets"),
   "1080x1080": intel("Native Square", "native", "native", "Desktop + Mobile", "Strong Inventory", 83, 85, true, "Responsive / Native Assets"),
   "1080x1350": intel("Native Portrait", "native", "native", "Mobile", "Strong Inventory", 81, 86, true, "Responsive / Native Assets"),
   "1200x1200": intel("Native Square Large", "native", "native", "Desktop + Mobile", "Strong Inventory", 80, 82, true, "Responsive / Native Assets"),
@@ -96,7 +97,23 @@ export const COMPANION_SIZES = ["300x60"];
 
 export const STORY_SIZES = ["1080x1920"];
 
-export const PROGRAMMATIC_NATIVE_RESPONSIVE_SIZES = [...NATIVE_RESPONSIVE_SIZES];
+export const PROGRAMMATIC_STANDARD_DISPLAY_SIZES = [
+  "300x250", "336x280", "728x90", "160x600", "300x600",
+  "970x90", "970x250", "468x60", "250x250", "200x200",
+];
+
+export const PROGRAMMATIC_MOBILE_DISPLAY_SIZES = [
+  "320x50", "300x50", "320x100", "300x100", "320x480", "480x320",
+];
+
+export const PROGRAMMATIC_HIGH_IMPACT_SIZES = [
+  "970x250", "300x600", "300x1050", "970x90", "980x120", "930x180",
+];
+
+export const PROGRAMMATIC_NATIVE_RESPONSIVE_SIZES = [
+  "1200x628", "1200x675", "1200x1200", "1080x1080",
+  "960x1200", "1200x1500", "1080x1350",
+];
 
 export const SUPPORTED_DISPLAY_SIZE_GROUPS = {
   desktop: DESKTOP_IAB_SIZES,
@@ -129,9 +146,9 @@ export const PLATFORM_SUPPORTED_SIZE_GROUPS = {
     flexible_native_assets: ["1200x1200", "1200x628", "960x1200", "1200x1500"],
   },
   programmatic: {
-    standard_display: DESKTOP_IAB_SIZES,
-    mobile_display: MOBILE_IAB_SIZES,
-    tablet_display: TABLET_IAB_SIZES,
+    standard_display: PROGRAMMATIC_STANDARD_DISPLAY_SIZES,
+    mobile_display: PROGRAMMATIC_MOBILE_DISPLAY_SIZES,
+    high_impact: PROGRAMMATIC_HIGH_IMPACT_SIZES,
     native_responsive_assets: PROGRAMMATIC_NATIVE_RESPONSIVE_SIZES,
   },
 };
@@ -151,8 +168,8 @@ export const PLATFORM_SIZE_GROUP_LABELS = {
   search_results: "Search Results",
   flexible_native_assets: "Flexible Native Assets",
   standard_display: "Standard Display",
-  tablet_display: "Tablet Display",
-  native_responsive_assets: "Native & Responsive Assets",
+  high_impact: "High Impact",
+  native_responsive_assets: "Native / Responsive",
 };
 
 export const GOOGLE_TIER1_SIZES = new Set([
