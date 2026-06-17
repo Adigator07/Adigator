@@ -1,0 +1,33 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: adigator
+      POSTGRES_PASSWORD: adigator
+      POSTGRES_DB: adigator
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+
+  realtime:
+    build:
+      context: ./services/realtime-server
+    environment:
+      REDIS_URL: redis://redis:6379
+      REALTIME_PORT: 4010
+      CORS_ORIGIN: http://localhost:3000
+    ports:
+      - "4010:4010"
+    depends_on:
+      - redis
+
+volumes:
+  pgdata:

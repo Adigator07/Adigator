@@ -1,7 +1,6 @@
 -- =============================================================================
--- ACTIVITY LOGS — Admin-only read access
+-- ACTIVITY LOGS — Admin-only read access (supports admin_role + legacy role)
 -- Run in Supabase SQL Editor after core tables exist.
--- Users can still INSERT (background tracking); only admins can SELECT.
 -- =============================================================================
 
 drop policy if exists "activity_logs_select_own" on public.activity_logs;
@@ -12,11 +11,12 @@ on public.activity_logs for select
 using (
   exists (
     select 1 from public.profiles p
-    where p.id = auth.uid() and p.role::text = 'admin'
+    where p.id = auth.uid()
+    and (
+      p.role::text = 'admin'
+      or p.admin_role in ('super_admin', 'admin', 'moderator', 'support')
+    )
   )
 );
 
 notify pgrst, 'reload schema';
-
--- Grant admin role to a user:
--- UPDATE public.profiles SET role = 'admin' WHERE email = 'you@example.com';

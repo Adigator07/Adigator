@@ -1,0 +1,212 @@
+// Adigator Enterprise Admin Platform — PostgreSQL schema (Supabase-compatible)
+// Run: npx prisma generate && npx prisma db push (or apply supabase migration)
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserStatus {
+  active
+  suspended
+  banned
+  pending_verification
+}
+
+enum AdminRoleType {
+  super_admin
+  admin
+  moderator
+  support
+  user
+}
+
+enum NotificationType {
+  success
+  warning
+  error
+  security
+  info
+}
+
+enum NotificationStatus {
+  unread
+  read
+  archived
+}
+
+enum ErrorSeverity {
+  low
+  medium
+  high
+  critical
+}
+
+/// Maps to public.profiles (auth.users extension)
+model Profile {
+  id           String     @id @db.Uuid
+  email        String
+  fullName     String?    @map("full_name")
+  avatarUrl    String?    @map("avatar_url")
+  role         String     @default("end_client")
+  adminRole    AdminRoleType? @map("admin_role")
+  status       UserStatus @default(active)
+  companyName  String?    @map("company_name")
+  phone        String?
+  country      String?
+  timezone     String?    @default("America/New_York")
+  isOnline     Boolean    @default(false) @map("is_online")
+  lastSeenAt   DateTime?  @map("last_seen_at")
+  lastLoginAt  DateTime?  @map("last_login_at")
+  createdAt    DateTime   @default(now()) @map("created_at")
+  updatedAt    DateTime   @updatedAt @map("updated_at")
+
+  sessions           UserSession[]
+  activities         UserActivity[]
+  featurePermissions FeaturePermission[]
+  featureUsage       FeatureUsageAnalytics[]
+  auditLogsAsAdmin   AuditLog[] @relation("AuditAdmin")
+  auditLogsAsTarget  AuditLog[] @relation("AuditTarget")
+
+  @@index([role])
+  @@index([adminRole])
+  @@index([status])
+  @@index([email])
+  @@index([lastLoginAt(sort: Desc)])
+  @@map("profiles")
+}
+
+model UserSession {
+  id         String    @id @default(uuid()) @db.Uuid
+  userId     String    @map("user_id") @db.Uuid
+  device     String?
+  browser    String?
+  os         String?
+  ipAddress  String?   @map("ip_address")
+  location   String?
+  loginTime  DateTime  @default(now()) @map("login_time")
+  logoutTime DateTime? @map("logout_time")
+  duration   Int?      // seconds
+  currentPage String?  @map("current_page")
+  metadata   Json      @default("{}")
+
+  user Profile @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, loginTime(sort: Desc)])
+  @@index([loginTime(sort: Desc)])
+  @@map("admin_user_sessions")
+}
+
+model UserActivity {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  page      String?
+  action    String
+  feature   String?
+  device    String?
+  browser   String?
+  ipAddress String?  @map("ip_address")
+  timestamp DateTime @default(now())
+  metadata  Json     @default("{}")
+
+  user Profile @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, timestamp(sort: Desc)])
+  @@index([action])
+  @@index([feature])
+  @@map("admin_user_activity")
+}
+
+model FeaturePermission {
+  id          String   @id @default(uuid()) @db.Uuid
+  userId      String?  @map("user_id") @db.Uuid
+  roleName    String?  @map("role_name")
+  featureName String   @map("feature_name")
+  enabled     Boolean  @default(true)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  user Profile? @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, featureName])
+  @@index([roleName])
+  @@map("admin_feature_permissions")
+}
+
+model AuditLog {
+  id          String   @id @default(uuid()) @db.Uuid
+  adminId     String   @map("admin_id") @db.Uuid
+  action      String
+  targetUserId String? @map("target_user_id") @db.Uuid
+  description String
+  ipAddress   String?  @map("ip_address")
+  device      String?
+  browser     String?
+  metadata    Json     @default("{}")
+  timestamp   DateTime @default(now())
+
+  admin      Profile  @relation("AuditAdmin", fields: [adminId], references: [id], onDelete: Restrict)
+  targetUser Profile? @relation("AuditTarget", fields: [targetUserId], references: [id], onDelete: SetNull)
+
+  @@index([adminId, timestamp(sort: Desc)])
+  @@index([targetUserId])
+  @@index([action])
+  @@map("admin_audit_logs")
+}
+
+model AdminNotification {
+  id        String             @id @default(uuid()) @db.Uuid
+  title     String
+  message   String
+  type      NotificationType   @default(info)
+  status    NotificationStatus @default(unread)
+  userId    String?            @map("user_id") @db.Uuid
+  metadata  Json               @default("{}")
+  createdAt DateTime           @default(now()) @map("created_at")
+
+  @@index([status, createdAt(sort: Desc)])
+  @@map("admin_notifications")
+}
+
+model FeatureUsageAnalytics {
+  id         String   @id @default(uuid()) @db.Uuid
+  userId     String   @map("user_id") @db.Uuid
+  featureName String  @map("feature_name")
+  usageCount Int      @default(0) @map("usage_count")
+  lastUsed   DateTime @default(now()) @map("last_used")
+
+  user Profile @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, featureName])
+  @@index([featureName, usageCount(sort: Desc)])
+  @@map("admin_feature_usage")
+}
+
+model ErrorLog {
+  id           String        @id @default(uuid()) @db.Uuid
+  service      String
+  errorMessage String        @map("error_message")
+  stackTrace   String?       @map("stack_trace")
+  severity     ErrorSeverity @default(medium)
+  metadata     Json          @default("{}")
+  createdAt    DateTime      @default(now()) @map("created_at")
+
+  @@index([service, createdAt(sort: Desc)])
+  @@index([severity])
+  @@map("admin_error_logs")
+}
+
+model RoleDefinition {
+  id          String   @id @default(uuid()) @db.Uuid
+  name        String   @unique
+  displayName String   @map("display_name")
+  hierarchy   Int      @default(0)
+  permissions Json     @default("[]")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@map("admin_role_definitions")
+}

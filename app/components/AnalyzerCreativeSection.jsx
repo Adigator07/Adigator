@@ -289,7 +289,9 @@ export default function AnalyzerCreativeSection({
                 }`}>{labelVertical(verticalAlignment.detected_vertical)}</span></>
               ) : null}
             </p>
-            {verticalAlignment?.reason ? <p>{verticalAlignment.reason}</p> : null}
+            {verticalAlignment?.enrichedReason || verticalAlignment?.reason ? (
+              <p>{verticalAlignment.enrichedReason || verticalAlignment.reason}</p>
+            ) : null}
           </div>
         </div>
 

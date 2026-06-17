@@ -1,14 +1,18 @@
 "use client";
+
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { supabase } from "../lib/supabase";
 import Sidebar from "../components/sidebar";
 import Topbar from "../components/topbar";
+import { AdminAuthProvider } from "../lib/admin-platform/AdminAuthContext";
 
-export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [user, setUser] = useState<any>(null);
   const router = useRouter();
+  const pathname = usePathname();
+  const isAdminRoute = pathname?.startsWith("/dashboard/admin");
 
   useEffect(() => {
     const getUser = async () => {
@@ -22,7 +26,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       else setUser(session.user);
     });
     return () => subscription.unsubscribe();
-  }, []);
+  }, [router]);
+
+  if (isAdminRoute) {
+    return <>{children}</>;
+  }
 
   return (
     <div className="min-h-screen bg-[#050816] text-white flex">
@@ -32,5 +40,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <main className="flex-1 overflow-y-auto p-8">{children}</main>
       </div>
     </div>
+  );
+}
+
+export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <AdminAuthProvider>
+      <DashboardLayoutInner>{children}</DashboardLayoutInner>
+    </AdminAuthProvider>
   );
 }

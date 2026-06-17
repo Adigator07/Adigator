@@ -1,118 +1,71 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { Activity, Loader2, Shield } from "lucide-react";
-import { fetchAdminActivityLogs, isCurrentUserAdmin } from "../../lib/admin/activityAdminClient";
+import { Activity, Clock, TrendingUp, Users, Wifi } from "lucide-react";
+import { adminApi } from "@/app/lib/admin-platform/client";
+import { useAdminQuery } from "@/app/lib/admin-platform/hooks/useAdminQuery";
+import { StatCard } from "@/app/components/admin/StatCard";
+import { DashboardChartsLazy } from "@/app/components/admin/DashboardChartsLazy";
+import { RealtimePresence } from "@/app/components/admin/RealtimePresenceLazy";
 
-/**
- * Admin Dashboard shell — activity history and platform analytics will expand here.
- * Route: /dashboard/admin (admin role only)
- */
-export default function AdminDashboardPage() {
-  const router = useRouter();
-  const [ready, setReady] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [events, setEvents] = useState<any[]>([]);
-  const [error, setError] = useState("");
+export default function AdminOverviewPage() {
+  const { data: metrics, loading, error } = useAdminQuery(() => adminApi.getDashboard(), []);
 
-  useEffect(() => {
-    let active = true;
-
-    (async () => {
-      const isAdmin = await isCurrentUserAdmin();
-      if (!active) return;
-
-      if (!isAdmin) {
-        router.replace("/dashboard");
-        return;
-      }
-
-      setReady(true);
-
-      try {
-        const rows = await fetchAdminActivityLogs({ limit: 100 });
-        if (active) setEvents(rows);
-      } catch (err) {
-        if (active) setError(err instanceof Error ? err.message : "Failed to load activity");
-      } finally {
-        if (active) setLoading(false);
-      }
-    })();
-
-    return () => {
-      active = false;
-    };
-  }, [router]);
-
-  if (!ready) {
+  if (loading) {
     return (
-      <div className="flex min-h-[320px] items-center justify-center text-white/40">
-        <Loader2 size={24} className="animate-spin" />
+      <div className="space-y-6">
+        <div className="h-10 w-64 animate-pulse rounded-lg bg-white/5" />
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
+          {[...Array(5)].map((_, i) => (
+            <div key={i} className="h-28 animate-pulse rounded-2xl border border-white/10 bg-white/5" />
+          ))}
+        </div>
       </div>
     );
   }
 
+  if (error || !metrics) {
+    return (
+      <div className="rounded-2xl border border-red-500/30 bg-red-500/10 p-6 text-sm text-red-300">
+        {error || "Failed to load metrics. Apply the admin migration and set SUPABASE_SERVICE_ROLE_KEY."}
+      </div>
+    );
+  }
+
+  const avgMin = Math.round(metrics.sessions.avgDurationSeconds / 60);
+
   return (
-    <div className="space-y-8 pb-10">
-      <div className="flex items-start gap-4">
-        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-500/15 border border-amber-500/30">
-          <Shield size={22} className="text-amber-300" />
-        </div>
-        <div>
-          <p className="text-xs font-bold uppercase tracking-widest text-amber-300/80">Admin Dashboard</p>
-          <h1 className="text-3xl font-extrabold text-white">Platform Activity</h1>
-          <p className="mt-1 text-sm text-white/40">
-            Background activity tracking for all users. More admin tools will be added here.
-          </p>
-        </div>
+    <div className="space-y-6 pb-10">
+      <div>
+        <h1 className="text-3xl font-extrabold text-white">Admin Overview</h1>
+        <p className="mt-1 text-sm text-white/40">Enterprise visibility into users, activity, and platform health.</p>
       </div>
 
-      <section>
-        <div className="mb-3 flex items-center gap-2">
-          <Activity size={16} className="text-amber-300" />
-          <h2 className="text-sm font-bold uppercase tracking-widest text-white/40">Activity History</h2>
-        </div>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
+        <StatCard label="Total Users" value={metrics.totalUsers} icon={Users} accent="amber" />
+        <StatCard label="Online Now" value={metrics.onlineUsers} icon={Wifi} accent="emerald" />
+        <StatCard
+          label="Active Users"
+          value={metrics.activeUsers.today}
+          sub={`${metrics.activeUsers.week} weekly · ${metrics.activeUsers.month} monthly`}
+          icon={Activity}
+          accent="sky"
+        />
+        <StatCard label="DAU / MAU" value={`${metrics.dau}/${metrics.mau}`} sub={`Retention ${metrics.retentionRate}%`} icon={TrendingUp} accent="violet" />
+        <StatCard
+          label="Avg Session"
+          value={`${avgMin}m`}
+          sub={metrics.sessions.peakHour != null ? `Peak hour: ${metrics.sessions.peakHour}:00` : "No session data"}
+          icon={Clock}
+          accent="amber"
+        />
+      </div>
 
-        {loading ? (
-          <div className="rounded-2xl border border-white/10 bg-white/5 p-6 text-sm text-white/40">Loading activity logs...</div>
-        ) : error ? (
-          <div className="rounded-2xl border border-red-500/30 bg-red-500/10 p-6 text-sm text-red-300">{error}</div>
-        ) : events.length === 0 ? (
-          <div className="rounded-2xl border border-white/10 bg-white/5 p-8 text-center text-sm text-white/40">
-            No activity recorded yet.
-          </div>
-        ) : (
-          <div className="overflow-hidden rounded-2xl border border-white/10 bg-white/5">
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[880px] text-sm">
-                <thead>
-                  <tr className="border-b border-white/10 text-left text-white/40">
-                    <th className="px-4 py-3 font-semibold">When</th>
-                    <th className="px-4 py-3 font-semibold">User</th>
-                    <th className="px-4 py-3 font-semibold">Action</th>
-                    <th className="px-4 py-3 font-semibold">Platform</th>
-                    <th className="px-4 py-3 font-semibold">Goal</th>
-                    <th className="px-4 py-3 font-semibold">Creative</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {events.map((event) => (
-                    <tr key={event.id} className="border-b border-white/5 text-white/80">
-                      <td className="whitespace-nowrap px-4 py-3">{new Date(event.createdAt).toLocaleString()}</td>
-                      <td className="px-4 py-3 font-mono text-xs text-white/50">{event.userId?.slice(0, 8)}…</td>
-                      <td className="px-4 py-3">{event.actionLabel}</td>
-                      <td className="px-4 py-3">{event.platform || "—"}</td>
-                      <td className="px-4 py-3">{event.campaignGoal || "—"}</td>
-                      <td className="px-4 py-3">{event.creativeName || "—"}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
-      </section>
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
+        <div className="xl:col-span-2">
+          <DashboardChartsLazy metrics={metrics} />
+        </div>
+        <RealtimePresence />
+      </div>
     </div>
   );
 }

@@ -1,18 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
   createServerSupabaseClient,
-  createWritableSupabaseClient,
   getAccessTokenFromRequest,
   getAuthenticatedUser,
 } from "@/app/lib/supabaseServer";
 import { requireAdminUser } from "@/app/lib/admin/permissions";
-import { formatActivityLogForAdmin, queryActivityLogs } from "@/app/lib/admin/activityAdmin";
+import { createServiceSupabase } from "@/app/lib/admin-platform/auth";
+import { listActivityLogsForAdmin } from "@/app/lib/admin-platform/services/activity-list.service";
 
 export const runtime = "nodejs";
 
 /**
- * Admin Dashboard activity feed (future UI: /dashboard/admin).
- * GET /api/admin/activity?limit=50&user_id=&action_type=&since=
+ * GET /api/admin/activity — legacy route; prefer /api/admin/v1/activity
  */
 export async function GET(request: NextRequest) {
   try {
@@ -32,23 +31,25 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: adminCheck.error }, { status: 403 });
     }
 
-    const params = request.nextUrl.searchParams;
-    const supabase = createWritableSupabaseClient(accessToken);
+    const supabase = createServiceSupabase();
+    if (!supabase) {
+      return NextResponse.json({ error: "Server configuration error" }, { status: 503 });
+    }
 
-    const { data, error } = await queryActivityLogs(supabase, {
+    const params = request.nextUrl.searchParams;
+    const { events, error } = await listActivityLogsForAdmin(supabase, {
       limit: Number(params.get("limit") || "50"),
       userId: params.get("user_id"),
       actionType: params.get("action_type"),
       since: params.get("since"),
+      search: params.get("search"),
     });
 
     if (error) {
       return NextResponse.json({ error }, { status: 400 });
     }
 
-    return NextResponse.json({
-      events: data.map(formatActivityLogForAdmin),
-    });
+    return NextResponse.json({ events });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to fetch admin activity";
     return NextResponse.json({ error: message }, { status: 500 });

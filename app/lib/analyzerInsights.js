@@ -16,6 +16,10 @@ import {
 import { buildPlatformOverviewSections } from "./campaignOverviewSections";
 import { enrichExtractionSignals } from "./creativeExtractionEnrichment";
 import {
+  buildEnrichedGoalReasonForInsight,
+  buildEnrichedVerticalReasonForInsight,
+} from "./analyzer/alignmentReasons.js";
+import {
   getEntryPayload,
   getExtractionSignals,
   getGoalAlignment,
@@ -164,34 +168,7 @@ function isMetaFeedNativeSize(size) {
 }
 
 function buildEnrichedGoalReason(goalAlignment, signals, campaignGoal) {
-  const parts = [];
-  const headline = signals?.headline || "";
-  const topic = signals?.topic_summary || signals?.dominant_visual_cue || "";
-  const emotional = Array.isArray(signals?.emotional_cues) ? signals.emotional_cues.join(", ") : "";
-  const cta = signals?.cta || "";
-  const persuasion = signals?.persuasion_style || "";
-
-  if (topic) parts.push(`Message focus: ${topic}`);
-  if (emotional) parts.push(`Emotional tone: ${emotional}`);
-  if (persuasion) parts.push(`Persuasion style: ${persuasion}`);
-  if (headline) parts.push(`Headline signals: "${headline}"`);
-  if (cta) parts.push(`CTA layer: "${cta}"`);
-
-  const baseReason = goalAlignment?.reason || "";
-  const goalLabel = campaignGoal || goalAlignment?.selected_goal || "campaign goal";
-
-  if (goalAlignment?.is_aligned === true) {
-    return parts.length
-      ? `Aligned with ${goalLabel} — content, tone, and message work together. ${parts.slice(0, 2).join(". ")}.`
-      : baseReason || `Creative messaging supports the ${goalLabel} objective across content and tone.`;
-  }
-
-  if (goalAlignment?.is_aligned === false) {
-    return baseReason
-      || `Content and tone read as ${goalAlignment?.detected_goal || "a different stage"} intent rather than ${goalLabel}. ${parts.slice(0, 2).join(". ")}`;
-  }
-
-  return baseReason || parts.join(". ") || "Goal alignment could not be fully determined from available signals.";
+  return buildEnrichedGoalReasonForInsight(goalAlignment, signals, campaignGoal);
 }
 
 function deriveMetaTechnicalQa(creative, payload) {
@@ -931,7 +908,10 @@ export function computeCreativeInsight(entry, platform, campaignGoal, campaignVe
       ...goalAlignment,
       enrichedReason: buildEnrichedGoalReason(goalAlignment, extractionSignals, campaignGoal),
     },
-    verticalAlignment,
+    verticalAlignment: {
+      ...verticalAlignment,
+      enrichedReason: buildEnrichedVerticalReasonForInsight(verticalAlignment, extractionSignals),
+    },
     extractionSignals,
     technicalQa: deriveTechnicalQa(creative, payload, platform),
     placementQa: derivePlacementQa(creative, payload, platform),
@@ -959,12 +939,20 @@ export function computeCampaignOverview(entries, platform, campaignGoal, campaig
   const verticalMisaligned = insights.filter((i) => i.verticalAlignment?.is_aligned === false);
   if (verticalMisaligned.length > 0) {
     const label = verticalLabelFn?.(campaignVertical) || campaignVertical;
-    launchRisks.push(`⚠️ ${verticalMisaligned.length} creative${verticalMisaligned.length === 1 ? "" : "s"} mismatched with the ${label} vertical`);
+    const sample = verticalMisaligned[0];
+    const detected = sample.verticalAlignment?.detected_vertical;
+    launchRisks.push(
+      `⚠️ ${verticalMisaligned.length} creative${verticalMisaligned.length === 1 ? "" : "s"} read as ${detected || "another category"} instead of ${label}`,
+    );
   }
 
   const goalMisaligned = insights.filter((i) => i.goalAlignment?.is_aligned === false);
   if (goalMisaligned.length > 0) {
-    launchRisks.push(`⚠️ ${goalMisaligned.length} creative${goalMisaligned.length === 1 ? "" : "s"} misaligned with campaign goal`);
+    const sample = goalMisaligned[0];
+    const detected = sample.goalAlignment?.detected_goal_stage || sample.goalAlignment?.detected_goal;
+    launchRisks.push(
+      `⚠️ ${goalMisaligned.length} creative${goalMisaligned.length === 1 ? "" : "s"} signal ${detected || "different"} intent vs ${goalText} goal`,
+    );
   }
 
   if (platform === "meta_ads") {

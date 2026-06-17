@@ -42,6 +42,12 @@ import {
   enforcePlatformFeedbackTone,
   type AnalyzerPlatform,
 } from "@/app/lib/analyzers/platformBrain";
+import {
+  buildGoalAlignmentReason,
+  buildVerticalAlignmentReason,
+  keywordMatchesInCorpus,
+  scoreCategoryKeywords,
+} from "@/app/lib/analyzer/alignmentReasons.js";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -72,6 +78,7 @@ interface ExtractionSignals {
   audience_clues: string[];
   creative_type_hint?: string;
   composition_notes?: string;
+  inferred_vertical?: string;
 }
 
 interface AttentionAnalysis {
@@ -638,7 +645,7 @@ const PLATFORM_BMI_PROFILE: Record<PlatformContext, {
 
 const PRODUCT_CATEGORY_HINTS: Record<string, string[]> = {
   healthcare: ["hospital", "clinic", "doctor", "medical", "patient", "wellness", "care", "treatment", "pharma", "health"],
-  technology: ["software", "saas", "platform", "cloud", "ai", "app", "tech", "automation", "digital", "workflow", "trial", "subscription", "dashboard", "integrate", "api", "enterprise", "product-led"],
+  technology: ["software", "saas", "platform", "cloud", " ai ", "app", "tech", "automation", "workflow", "trial", "subscription", "dashboard", "integrate", "api", "developer", "code"],
   automotive: ["car", "vehicle", "bike","suv", "sedan", "drive", "engine", "mileage", "dealership", "auto"],
   news_media: ["news", "headline", "breaking", "journal", "editorial", "media", "publisher"],
   sports: ["sports", "team", "match", "league", "athlete", "score", "stadium"],
@@ -971,6 +978,12 @@ function normalizeExtraction(raw: Record<string, unknown>): ExtractionSignals {
         ? s.composition_notes
         : typeof (s as any).compositionNotes === "string"
           ? (s as any).compositionNotes
+          : undefined,
+    inferred_vertical:
+      typeof s.inferred_vertical === "string"
+        ? s.inferred_vertical
+        : typeof (s as any).inferredVertical === "string"
+          ? (s as any).inferredVertical
           : undefined,
   };
 }
@@ -1312,7 +1325,7 @@ async function extractSignalsWithRetry(params: {
             },
           ],
         }),
-        10000,
+        20000,
         "OpenAI vision extraction"
       );
 
@@ -1431,7 +1444,7 @@ function deriveProductCategoryLabel(id: string, corpus: string): string {
   return PRODUCT_CATEGORY_LABELS[id] || PRODUCT_CATEGORY_LABELS.unknown;
 }
 
-function detectProductCategoryFromSignals(selectedVertical: string, extraction: ExtractionSignals): ProductCategoryDetection {
+function detectProductCategoryFromSignals(selectedVertical: string, extraction: ExtractionSignals, aiInferredVertical?: string | null): ProductCategoryDetection {
   const textCorpus = [extraction.headline, extraction.primary_message, extraction.cta].join(" ").toLowerCase();
   const visualCorpus = [
     extraction.visual_elements.join(" "),
@@ -1444,30 +1457,47 @@ function detectProductCategoryFromSignals(selectedVertical: string, extraction: 
 
   let bestVertical = "unknown";
   let bestScore = 0;
+  let selectedScore = 0;
 
   for (const [candidate, hints] of Object.entries(PRODUCT_CATEGORY_HINTS)) {
-    const score = hints.reduce((acc, keyword) => {
-      const textMatch = textCorpus.includes(keyword) ? 3 : 0;
-      const visualMatch = visualCorpus.includes(keyword) ? 1 : 0;
-      return acc + textMatch + visualMatch;
-    }, 0);
+    const boost = candidate === selectedVertical ? 3 : 0;
+    const score = scoreCategoryKeywords(hints, textCorpus, visualCorpus, boost);
+    if (candidate === selectedVertical) selectedScore = score;
     if (score > bestScore) {
       bestScore = score;
       bestVertical = candidate;
     }
   }
 
+  if (
+    aiInferredVertical
+    && KNOWN_VERTICALS.has(aiInferredVertical)
+    && aiInferredVertical !== "unknown"
+  ) {
+    const aiHints = PRODUCT_CATEGORY_HINTS[aiInferredVertical] ?? [];
+    const aiScore = scoreCategoryKeywords(aiHints, textCorpus, visualCorpus, 0);
+    if (aiScore >= 2 || aiInferredVertical === selectedVertical) {
+      bestVertical = aiInferredVertical;
+      bestScore = Math.max(bestScore, aiScore + 2);
+    }
+  }
+
+  if (selectedScore >= 3 && selectedScore >= bestScore - 1) {
+    bestVertical = selectedVertical;
+    bestScore = Math.max(bestScore, selectedScore);
+  }
+
   const detectedId = bestScore <= 0 ? "unknown" : bestVertical;
 
   const selectedHints = PRODUCT_CATEGORY_HINTS[selectedVertical] ?? [];
-  const matchedSelectedEvidence = selectedHints.filter((keyword) => corpus.includes(keyword));
+  const matchedSelectedEvidence = selectedHints.filter((keyword) => keywordMatchesInCorpus(keyword, corpus));
   const fitScore = selectedHints.length === 0
     ? 50
     : Math.min(100, Math.round((matchedSelectedEvidence.length / Math.min(4, selectedHints.length)) * 100));
 
   const detectedHints = detectedId !== "unknown" ? (PRODUCT_CATEGORY_HINTS[detectedId] ?? []) : [];
   const detectedEvidence = detectedId !== "unknown"
-    ? detectedHints.filter((keyword) => corpus.includes(keyword)).slice(0, 4)
+    ? detectedHints.filter((keyword) => keywordMatchesInCorpus(keyword, corpus)).slice(0, 4)
     : matchedSelectedEvidence.slice(0, 4);
 
   return {
@@ -1523,22 +1553,18 @@ function resolveGoalIsAligned(
 
 function resolveDetectedGoalForDisplay(
   detectedStage: CampaignGoal,
-  selectedGoal: CampaignGoal,
+  _selectedGoal: CampaignGoal,
 ): CampaignGoal {
-  const stage = detectedStage as GoalStage;
   const validStages: GoalStage[] = ["awareness", "consideration", "conversion"];
-  const normalizedStage = validStages.includes(stage) ? stage : GOAL_INTELLIGENCE_PROFILE[selectedGoal].stage;
-
-  if (normalizedStage === GOAL_INTELLIGENCE_PROFILE[selectedGoal].stage) {
-    return selectedGoal;
-  }
-
+  const stage = validStages.includes(detectedStage as GoalStage)
+    ? (detectedStage as GoalStage)
+    : "consideration";
   const stageRepresentatives: Record<GoalStage, CampaignGoal> = {
     awareness: "awareness",
     consideration: "consideration",
     conversion: "conversion",
   };
-  return stageRepresentatives[normalizedStage] || selectedGoal;
+  return stageRepresentatives[stage];
 }
 
 function resolveVerticalIsAligned(
@@ -1549,32 +1575,36 @@ function resolveVerticalIsAligned(
   const detected = productCategory.id;
   const fitScore = productCategory.fitScore;
 
-  // Strong keyword evidence for the user's selected vertical outweighs a mismatched category guess.
-  if (fitScore >= 60) return true;
   if (detected === selectedVertical) return true;
 
-  if (aiAnalysis?.vertical_match === true) return true;
-  if (aiAnalysis?.explicit_vertical_match === true && aiAnalysis?.vertical_match !== false) {
-    return fitScore >= 35 || detected === selectedVertical || detected === "unknown";
-  }
-
-  if (detected !== "unknown" && detected !== selectedVertical) {
-    if (areRelatedVerticals(detected, selectedVertical) && fitScore >= 40) return true;
-    if (fitScore >= 50) return true;
-    if (aiAnalysis?.explicit_vertical_match === false && aiAnalysis?.vertical_match === false && fitScore < 40) {
-      return false;
-    }
-    if (fitScore < 35) return false;
-    return null;
+  if (aiAnalysis?.vertical_match === true && (detected === selectedVertical || detected === "unknown")) {
+    return true;
   }
 
   if (detected === "unknown") {
     if (fitScore >= 55) return true;
-    if (fitScore >= 35) return null;
+    if (fitScore >= 40) return null;
     return false;
   }
 
-  return null;
+  if (detected !== selectedVertical) {
+    if (areRelatedVerticals(detected, selectedVertical) && fitScore >= 50) return true;
+    if (
+      aiAnalysis?.vertical_match === true
+      && aiAnalysis?.explicit_vertical_match !== false
+      && fitScore >= 45
+    ) {
+      return true;
+    }
+    if (aiAnalysis?.explicit_vertical_match === false && aiAnalysis?.vertical_match === false) {
+      return false;
+    }
+    return false;
+  }
+
+  if (fitScore >= 65) return true;
+  if (fitScore >= 45) return null;
+  return false;
 }
 
 function detectAdvertisingBehaviorFromSignals(
@@ -1724,9 +1754,10 @@ function buildVerticalIntelligence(
   extraction: ExtractionSignals,
   goal: CampaignGoal,
   ctaPressure: CtaPressure,
-  urgencyLevel: SignalLevel
+  urgencyLevel: SignalLevel,
+  aiInferredVertical?: string | null,
 ): VerticalIntelligence {
-  const productCategory = detectProductCategoryFromSignals(selectedVertical, extraction);
+  const productCategory = detectProductCategoryFromSignals(selectedVertical, extraction, aiInferredVertical);
   const advertisingBehavior = detectAdvertisingBehaviorFromSignals(
     extraction,
     ctaPressure,
@@ -4590,7 +4621,14 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const ocrMeta = extractionResult.meta;
     const ctaPressure = classifyCtaPressure(extraction.cta);
     const urgencyLevel = inferUrgencyLevel(extraction);
-    const verticalIntelligence = buildVerticalIntelligence(vertical, extraction, goal, ctaPressure, urgencyLevel);
+    const verticalIntelligence = buildVerticalIntelligence(
+      vertical,
+      extraction,
+      goal,
+      ctaPressure,
+      urgencyLevel,
+      extraction.inferred_vertical ?? null,
+    );
     const creativeTypeDetection = buildCreativeTypeDetection(extraction, ctaPressure, urgencyLevel);
     const creativeUnderstanding = buildCreativeUnderstanding(extraction, creativeTypeDetection, goal, ctaPressure, urgencyLevel);
     const detectedGoal = inferDetectedGoalFromSignals(
@@ -4867,9 +4905,13 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       detected_goal_stage: detectedGoal,
       detected_goal: resolveDetectedGoalForDisplay(detectedGoal, goal),
       is_aligned: goalAligned,
-      reason: goalAligned
-        ? (aiAnalysis?.goal_feedback || "Creative pressure and urgency cues align with selected campaign objective stage.")
-        : (aiAnalysis?.goal_feedback || "Creative pressure and urgency cues indicate a different stage intent than selected objective."),
+      reason: buildGoalAlignmentReason({
+        aligned: goalAligned,
+        selectedGoal: goal,
+        detectedStage: detectedGoal,
+        extraction,
+        aiFeedback: aiAnalysis?.goal_feedback ?? null,
+      }),
       ai_goal_feedback: aiAnalysis?.goal_feedback ?? null,
       objective_priorities: goalProfile.aiPriorities,
       objective_behavior: goalProfile.creativeBehavior,
@@ -4878,9 +4920,17 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       selected_vertical: vertical,
       detected_vertical: verticalIntelligence.productCategory.id,
       is_aligned: verticalIsAlignedResolved,
-      reason: (aiAnalysis?.vertical_feedback && aiAnalysis.vertical_feedback.trim().length > 0)
-        ? aiAnalysis.vertical_feedback
-        : verticalIntelligence.strategicInterpretation,
+      reason: buildVerticalAlignmentReason({
+        aligned: verticalIsAlignedResolved === true,
+        selectedVertical: vertical,
+        detectedVertical: verticalIntelligence.productCategory.id,
+        productLabel: verticalIntelligence.productCategory.label,
+        evidence: [
+          ...verticalIntelligence.productCategory.evidence,
+          ...verticalIntelligence.advertisingBehavior.evidence,
+        ],
+        aiFeedback: aiAnalysis?.vertical_feedback ?? null,
+      }),
       ai_vertical_feedback: aiAnalysis?.vertical_feedback ?? null,
       evidence: [
         ...verticalIntelligence.productCategory.evidence,
@@ -5094,7 +5144,8 @@ Return a single valid JSON object with EXACTLY this structure — no markdown, n
     "hierarchy_observations": "<string>",
     "trust_markers": ["<string>"],
     "urgency_signals": ["<string>"],
-    "audience_clues": ["<string>"]
+    "audience_clues": ["<string>"],
+    "inferred_vertical": "<healthcare|technology|automotive|news_media|sports|fitness|finance|luxury|travel|hotels|food|banking|real_estate|education|gaming|entertainment|ecommerce|fashion|unknown>"
   },
   "google_ads_dynamic_eval": {
     "campaign_goal_focus": "<string>",

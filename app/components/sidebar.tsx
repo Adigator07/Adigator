@@ -3,9 +3,10 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "../lib/supabase";
+import { useAdminAuth } from "../lib/admin-platform/AdminAuthContext";
 import {
   LayoutDashboard, PlusSquare, FolderOpen, Download, Settings,
-  Eye, Brain, LogOut, ChevronLeft, ChevronRight, MessageSquare
+  Eye, Brain, LogOut, ChevronLeft, ChevronRight, MessageSquare, Shield
 } from "lucide-react";
 
 const NAV_SECTIONS = [
@@ -32,6 +33,7 @@ const NAV_SECTIONS = [
 export default function Sidebar({ collapsed, setCollapsed, user }: any) {
   const pathname = usePathname();
   const router = useRouter();
+  const { isAdmin } = useAdminAuth();
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -133,6 +135,51 @@ export default function Sidebar({ collapsed, setCollapsed, user }: any) {
             </div>
           </div>
         ))}
+
+        {isAdmin && (
+          <div>
+            {!collapsed && (
+              <p className="text-[10px] text-amber-400/50 uppercase tracking-widest px-3 mb-2 font-bold">
+                Administration
+              </p>
+            )}
+            <Link href="/dashboard/admin">
+              <motion.div
+                whileHover={{ x: collapsed ? 0 : 2 }}
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-150 cursor-pointer relative group ${
+                  pathname.startsWith("/dashboard/admin")
+                    ? "bg-linear-to-r from-amber-600/30 to-orange-600/20 text-white border border-amber-500/30"
+                    : "text-amber-200/70 hover:bg-amber-500/10 hover:text-amber-100 border border-transparent"
+                }`}
+              >
+                <Shield size={18} className="shrink-0 text-amber-400" />
+                <AnimatePresence>
+                  {!collapsed && (
+                    <motion.span
+                      initial={{ opacity: 0, width: 0 }}
+                      animate={{ opacity: 1, width: "auto" }}
+                      exit={{ opacity: 0, width: 0 }}
+                      transition={{ duration: 0.15 }}
+                      className="text-sm font-medium flex-1 truncate whitespace-nowrap overflow-hidden"
+                    >
+                      Admin Console
+                    </motion.span>
+                  )}
+                </AnimatePresence>
+                {!collapsed && (
+                  <span className="text-[9px] px-1.5 py-0.5 rounded-full font-bold border shrink-0 bg-amber-500/20 text-amber-300 border-amber-500/30">
+                    ADMIN
+                  </span>
+                )}
+                {collapsed && (
+                  <div className="absolute left-full ml-3 px-2 py-1 bg-slate-800 border border-white/10 rounded-lg text-xs text-white font-medium whitespace-nowrap opacity-0 group-hover:opacity-100 transition pointer-events-none z-50">
+                    Admin Console
+                  </div>
+                )}
+              </motion.div>
+            </Link>
+          </div>
+        )}
       </nav>
 
       {/* User footer */}

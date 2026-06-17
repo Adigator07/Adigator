@@ -324,7 +324,7 @@ function buildProgrammaticCampaignHealth(insights, overview) {
       { label: "Creative Fit", score: dims.creativeFit, note: "IAB format + launch readiness" },
       { label: "Inventory Coverage", score: dims.placementReadiness, note: "Banner, native, open web, in-app" },
       { label: "Viewability & DSP", score: dims.technicalCompliance, note: "150KB guidance, DSP coverage, blindness" },
-      { label: "Brand Safety Fit", score: dims.goalAlignment, note: "Vertical tone + campaign objective" },
+      { label: "Objective Alignment", score: dims.goalAlignment, note: "Goal + vertical match from creative signals" },
     ],
     inventoryCoverage: [
       { label: "Display Banners", ready: bannerGood, total: insights.length },
@@ -484,14 +484,8 @@ function buildTechnicalQaSection(insights, platform) {
   const warn = items.filter((i) => i.status === "warn").length;
   const fail = items.filter((i) => i.status === "fail").length;
 
-  let summary = "";
-  if (platform === "google_ads") {
-    summary = `Google technical QA covers RDA minimum dimensions, 150KB Display weight guidance, mobile leaderboard readability, and Google audit signals. ${pass} passed · ${warn} warnings · ${fail} failures across the set.`;
-  } else if (platform === "meta_ads") {
-    summary = `Meta technical QA covers Tier-1 formats (1080×1080, 1080×1350, 1080×1920), text-overlay policy, file weight for Reels paint speed, and safe-zone collisions. ${pass} passed · ${warn} warnings · ${fail} failures.`;
-  } else {
-    summary = `Programmatic technical QA covers IAB compatibility, DSP buyer coverage, 150KB viewability guidance, auction readiness, and banner-blindness risk. ${pass} passed · ${warn} warnings · ${fail} failures.`;
-  }
+  const platformName = platform === "google_ads" ? "Google Ads" : platform === "meta_ads" ? "Meta Ads" : "Programmatic";
+  const summary = `${pass} passed · ${warn} warnings · ${fail} failures — ${platformName} file, size, and readability checks from uploaded creatives.`;
 
   return { summary, items, passRate: qaPassRate(items) };
 }

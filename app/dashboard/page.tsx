@@ -10,8 +10,9 @@ import {
 } from "../lib/supabaseDataService";
 import {
   Zap, TrendingUp, Eye, ImageIcon, Plus, ArrowRight, Clock,
-  ShoppingCart, Newspaper, Gamepad2, Coffee, Laptop, GraduationCap, Film, Sparkles,
+  ShoppingCart, Newspaper, Gamepad2, Coffee, Laptop, GraduationCap, Film, Sparkles, Shield,
 } from "lucide-react";
+import { useAdminAuth } from "../lib/admin-platform/AdminAuthContext";
 
 const TEMPLATE_CATEGORIES = [
   { id: "ecommerce",     label: "Ecommerce",     icon: ShoppingCart, color: "from-orange-500/20 to-orange-600/10", border: "border-orange-500/20", text: "text-orange-400" },
@@ -30,6 +31,7 @@ export default function Dashboard() {
   const [user, setUser] = useState<any>(null);
   const [stats, setStats] = useState({ totalCreatives: 0, validCreatives: 0, invalidCreatives: 0, platformsUsed: 0 });
   const [loading, setLoading] = useState(true);
+  const { isAdmin } = useAdminAuth();
 
   useEffect(() => {
     const load = async () => {
@@ -101,6 +103,7 @@ export default function Dashboard() {
           {[
             { href: "/preview-tool?step=1", icon: Plus, label: "Open Preview Tool", sub: "Launch the full analyzer workflow", color: "from-purple-600 to-blue-600" },
             { href: "/preview-tool?step=3", icon: Clock, label: "Resume Analysis", sub: "Continue where you left off", color: "from-blue-600 to-cyan-600" },
+            ...(isAdmin ? [{ href: "/dashboard/admin", icon: Shield, label: "Admin Console", sub: "Users, analytics, audit logs & system health", color: "from-amber-600 to-orange-600" }] : []),
           ].map((a) => {
             const Icon = a.icon;
             return (
