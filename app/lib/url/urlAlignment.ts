@@ -90,6 +90,11 @@ function buildHeuristicAlignment(input: UrlAlignmentInput): UrlAlignmentResult {
     suggestions.push("Ensure the destination page has a clear headline and offer that mirrors your ad creative.");
   }
 
+  const pageAbout = [
+    health?.pageTitle,
+    health?.h1,
+  ].filter(Boolean).join(" — ").trim();
+
   return {
     status: misaligned ? "misaligned" : "aligned",
     submitted_url: submitted,
@@ -97,6 +102,12 @@ function buildHeuristicAlignment(input: UrlAlignmentInput): UrlAlignmentResult {
     summary: misaligned
       ? "Landing page URL does not fully match your creative or campaign context."
       : "Landing page URL appears consistent with your submitted destination and campaign context.",
+    page_about: pageAbout
+      ? pageAbout.slice(0, 220)
+      : "Limited page content was detected — add a clearer headline and offer on the destination.",
+    misalignment_reason: misaligned && reasons.length
+      ? reasons[0].slice(0, 220)
+      : undefined,
     reasons: reasons.length ? reasons : [misaligned ? "URL-creative mismatch detected." : "URL and page signals look consistent."],
     suggestions: suggestions.length
       ? suggestions
@@ -127,11 +138,21 @@ function sanitizeAlignmentResponse(raw: unknown, input: UrlAlignmentInput): UrlA
   const confidence = Number(record.confidence);
   const finalUrl = input.urlHealth?.finalUrl || input.submittedUrl.trim();
 
+  const pageAbout = String(record.page_about || record.pageAbout || "").trim();
+  const misalignmentReason = String(record.misalignment_reason || record.misalignmentReason || "").trim();
+  const health = input.urlHealth;
+  const fallbackAbout = [
+    health?.pageTitle,
+    health?.h1,
+  ].filter(Boolean).join(" — ").trim();
+
   return {
     status,
     submitted_url: input.submittedUrl.trim(),
     final_url: finalUrl || null,
     summary,
+    page_about: pageAbout || fallbackAbout?.slice(0, 220) || undefined,
+    misalignment_reason: misalignmentReason || (status === "misaligned" && reasons.length ? reasons[0] : undefined),
     reasons: reasons.length ? reasons : [summary],
     suggestions: suggestions.length
       ? suggestions
@@ -198,7 +219,7 @@ export async function evaluateUrlAlignment(input: UrlAlignmentInput): Promise<Ur
     `Creatives: ${creativeSummaries || "none named"}`,
     "",
     "Return JSON only:",
-    '{ "status": "aligned"|"misaligned", "confidence": 0-100, "summary": "one sentence", "reasons": ["..."], "suggestions": ["actionable fix 1", "..."] }',
+    '{ "status": "aligned"|"misaligned", "confidence": 0-100, "summary": "one sentence", "page_about": "brief what the landing page is about", "misalignment_reason": "short why misaligned if applicable", "reasons": ["..."], "suggestions": ["actionable fix 1", "..."] }',
     "Suggestions must be specific and helpful when misaligned.",
   ].join("\n");
 

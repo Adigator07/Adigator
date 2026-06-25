@@ -1,4 +1,6 @@
 @import "tailwindcss";
+@import "./styles/login.css";
+@import "./styles/premium-ui.css";
 
 :root {
   --bg: #02030a;
@@ -83,7 +85,13 @@ a {
   text-decoration: none;
 }
 
-/* Marketing site — ensure CTA buttons stay readable on light pages */
+.marketing-page {
+  overflow-x: clip;
+}
+
+.marketing-page .marketing-section {
+  scroll-margin-top: 5rem;
+}
 .marketing-page .marketing-btn-dark,
 .marketing-page a.marketing-btn-dark {
   background-color: #0d0d0d;

@@ -4,9 +4,10 @@ import { usePathname, useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "../lib/supabase";
 import { useAdminAuth } from "../lib/admin-platform/AdminAuthContext";
+import { useOrgAuth } from "../lib/organization-platform/OrgAuthContext";
 import {
   LayoutDashboard, PlusSquare, FolderOpen, Download, Settings,
-  Eye, Brain, LogOut, ChevronLeft, ChevronRight, MessageSquare, Shield
+  Eye, Brain, LogOut, ChevronLeft, ChevronRight, MessageSquare, Shield, Building2
 } from "lucide-react";
 
 const NAV_SECTIONS = [
@@ -34,6 +35,7 @@ export default function Sidebar({ collapsed, setCollapsed, user }: any) {
   const pathname = usePathname();
   const router = useRouter();
   const { isAdmin } = useAdminAuth();
+  const { isOrgAdmin } = useOrgAuth();
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -136,6 +138,46 @@ export default function Sidebar({ collapsed, setCollapsed, user }: any) {
           </div>
         ))}
 
+        {isOrgAdmin && (
+          <div>
+            {!collapsed && (
+              <p className="text-[10px] text-sky-400/50 uppercase tracking-widest px-3 mb-2 font-bold">
+                Organization
+              </p>
+            )}
+            <Link href="/dashboard/organization">
+              <motion.div
+                whileHover={{ x: collapsed ? 0 : 2 }}
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-150 cursor-pointer relative group ${
+                  pathname.startsWith("/dashboard/organization")
+                    ? "bg-linear-to-r from-sky-600/30 to-blue-600/20 text-white border border-sky-500/30"
+                    : "text-sky-200/70 hover:bg-sky-500/10 hover:text-sky-100 border border-transparent"
+                }`}
+              >
+                <Building2 size={18} className="shrink-0 text-sky-400" />
+                <AnimatePresence>
+                  {!collapsed && (
+                    <motion.span
+                      initial={{ opacity: 0, width: 0 }}
+                      animate={{ opacity: 1, width: "auto" }}
+                      exit={{ opacity: 0, width: 0 }}
+                      transition={{ duration: 0.15 }}
+                      className="text-sm font-medium flex-1 truncate whitespace-nowrap overflow-hidden"
+                    >
+                      Organization Console
+                    </motion.span>
+                  )}
+                </AnimatePresence>
+                {!collapsed && (
+                  <span className="text-[9px] px-1.5 py-0.5 rounded-full font-bold border shrink-0 bg-sky-500/20 text-sky-300 border-sky-500/30">
+                    ORG
+                  </span>
+                )}
+              </motion.div>
+            </Link>
+          </div>
+        )}
+
         {isAdmin && (
           <div>
             {!collapsed && (
@@ -162,7 +204,7 @@ export default function Sidebar({ collapsed, setCollapsed, user }: any) {
                       transition={{ duration: 0.15 }}
                       className="text-sm font-medium flex-1 truncate whitespace-nowrap overflow-hidden"
                     >
-                      Admin Console
+                      Super Admin Console
                     </motion.span>
                   )}
                 </AnimatePresence>
@@ -173,7 +215,7 @@ export default function Sidebar({ collapsed, setCollapsed, user }: any) {
                 )}
                 {collapsed && (
                   <div className="absolute left-full ml-3 px-2 py-1 bg-slate-800 border border-white/10 rounded-lg text-xs text-white font-medium whitespace-nowrap opacity-0 group-hover:opacity-100 transition pointer-events-none z-50">
-                    Admin Console
+                    Super Admin Console
                   </div>
                 )}
               </motion.div>

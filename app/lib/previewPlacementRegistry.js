@@ -84,29 +84,19 @@ const PROG_MOBILE_APP_SIZES = [
 
 const PROG_OPEN_WEB_SIZES = [...new Set([...PROG_BANNER_SIZES, ...PROG_NATIVE_SIZES])];
 
-/** All publisher context templates for programmatic Display Website Preview. */
+/** Publisher templates for programmatic OpenAI preview studio (4 templates only). */
 export const PROGRAMMATIC_DISPLAY_WEBSITE_ENVIRONMENTS = [
   "news",
-  "commerce",
-  "social",
-  "luxury",
-  "sports",
-  "gaming",
-  "finance",
-  "travel",
-  "booking",
+  "blog",
+  "native_display",
+  "health",
 ];
 
 export const PROGRAMMATIC_ENVIRONMENT_LABELS = {
-  news: "Editorial / News",
-  commerce: "E-Commerce",
-  social: "Social Feed",
-  luxury: "Premium / Luxury",
-  sports: "Sports Media",
-  gaming: "Gaming",
-  finance: "Finance",
-  travel: "Travel",
-  booking: "Booking / Reservations",
+  news: "News Articles",
+  blog: "Blog",
+  native_display: "Native Display",
+  health: "Health",
 };
 
 /** @typedef {{ id: string, label: string, environments: string[], compatibleSizes: string[], devices?: string[], environmentFamilies?: string[], description?: string }} PreviewPlacement */

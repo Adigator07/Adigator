@@ -7,6 +7,8 @@ export interface UrlAlignmentResult {
   summary: string;
   reasons: string[];
   suggestions: string[];
+  page_about?: string;
+  misalignment_reason?: string;
   confidence: number;
   source: "openai" | "heuristic" | "unavailable";
   checked_at: string;

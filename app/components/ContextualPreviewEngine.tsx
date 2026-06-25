@@ -4,6 +4,8 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { PreviewEngineOutput, EnvironmentFamily, DeviceType } from "@/app/lib/preview-engine/types";
 import { compactAnalyzerOutputForPreview } from "@/app/lib/previewAnalyzerCompact";
+import { mapProgrammaticTemplateToRenderer } from "@/app/lib/programmaticPreviewPrompt";
+import { PROGRAMMATIC_ENVIRONMENT_LABELS } from "@/app/lib/previewPlacementRegistry";
 import NewsEnvironment from "./environments/NewsEnvironment";
 import CommerceEnvironment from "./environments/CommerceEnvironment";
 import SocialEnvironment from "./environments/SocialEnvironment";
@@ -37,7 +39,7 @@ interface Props {
   previewPlacement?: string;
   getSupportedDevicesForCreative?: (size: string) => string[];
   studioMode?: boolean;
-  fixedEnvironment?: EnvironmentFamily | null;
+  fixedEnvironment?: string | EnvironmentFamily | null;
   placementLabel?: string;
   onCopyCreative?: (creative: Record<string, unknown>) => void;
   onEditCreative?: (creative: Record<string, unknown>) => void;
@@ -57,6 +59,19 @@ const ENV_LABELS: Record<EnvironmentFamily, { label: string; icon: string; color
   travel: { label: "Travel Context", icon: "TR", color: "from-cyan-600/20 to-cyan-800/10 border-cyan-500/30" },
   booking: { label: "Booking Context", icon: "BK", color: "from-rose-600/20 to-rose-800/10 border-rose-500/30" },
 };
+
+const TEMPLATE_LABELS: Record<string, { label: string; icon: string; color: string }> = {
+  news: { label: PROGRAMMATIC_ENVIRONMENT_LABELS.news, icon: "NW", color: "from-blue-600/20 to-blue-800/10 border-blue-500/30" },
+  blog: { label: PROGRAMMATIC_ENVIRONMENT_LABELS.blog, icon: "BL", color: "from-amber-600/20 to-amber-800/10 border-amber-500/30" },
+  native_display: { label: PROGRAMMATIC_ENVIRONMENT_LABELS.native_display, icon: "ND", color: "from-violet-600/20 to-violet-800/10 border-violet-500/30" },
+  health: { label: PROGRAMMATIC_ENVIRONMENT_LABELS.health, icon: "HL", color: "from-emerald-600/20 to-emerald-800/10 border-emerald-500/30" },
+};
+
+function getTemplateMeta(templateId: string | null) {
+  if (templateId && TEMPLATE_LABELS[templateId]) return TEMPLATE_LABELS[templateId];
+  if (templateId && ENV_LABELS[templateId as EnvironmentFamily]) return ENV_LABELS[templateId as EnvironmentFamily];
+  return ENV_LABELS.news;
+}
 
 const DEVICE_OPTIONS: { id: DeviceType; label: string; icon: string; width: string }[] = [
   { id: "desktop", label: "Desktop", icon: "DS", width: "w-full" },
@@ -96,7 +111,7 @@ const SLOT_LABELS: Record<string, string> = {
   banner: "Banner Placement",
 };
 
-const TEMPLATE_LABELS: Record<string, string> = {
+const LEGACY_TEMPLATE_LABELS: Record<string, string> = {
   news: "Editorial Template",
   commerce: "Commerce Template",
   social: "Social Template",
@@ -142,6 +157,13 @@ function EnvironmentRenderer({
   }
 }
 
+function resolveRendererFamily(env: string): EnvironmentFamily {
+  if (["news", "commerce", "social", "luxury", "sports", "gaming", "finance", "travel", "booking"].includes(env)) {
+    return env as EnvironmentFamily;
+  }
+  return mapProgrammaticTemplateToRenderer(env) as EnvironmentFamily;
+}
+
 export default function ContextualPreviewEngine({
   creatives,
   vertical,
@@ -167,7 +189,7 @@ export default function ContextualPreviewEngine({
   const [internalDevice, setInternalDevice] = useState<DeviceType | null>(null);
   const device = controlledDevice ?? internalDevice;
   const setDevice = onDeviceChange ?? setInternalDevice;
-  const [selectedEnvironment, setSelectedEnvironment] = useState<EnvironmentFamily | null>(
+  const [selectedEnvironment, setSelectedEnvironment] = useState<string | EnvironmentFamily | null>(
     studioMode && fixedEnvironment
       ? fixedEnvironment
       : allowedEnvironmentFamilies?.[0] ?? null,
@@ -188,7 +210,7 @@ export default function ContextualPreviewEngine({
     }
     if (allowedEnvironmentFamilies?.length) {
       setSelectedEnvironment((current) => (
-        current && allowedEnvironmentFamilies.includes(current)
+        current && allowedEnvironmentFamilies.includes(current as EnvironmentFamily)
           ? current
           : allowedEnvironmentFamilies[0]
       ));
@@ -206,7 +228,7 @@ export default function ContextualPreviewEngine({
     }
   }, [device, onDeviceChange]);
 
-  const buildCacheKey = useCallback((creative: Props["creatives"][number], envOverride: EnvironmentFamily | null = selectedEnvironment) => {
+  const buildCacheKey = useCallback((creative: Props["creatives"][number], envOverride: string | EnvironmentFamily | null = selectedEnvironment) => {
     return [vertical, goal, device ?? "unselected", envOverride ?? "auto", creative.url, creative.size].join("|");
   }, [vertical, goal, device, selectedEnvironment]);
 
@@ -220,7 +242,7 @@ export default function ContextualPreviewEngine({
     activeKeyRef.current = activeCreative ? buildCacheKey(activeCreative, selectedEnvironment) : "";
   }, [activeCreative, buildCacheKey]);
 
-  const fetchPreview = useCallback(async (targetCreative: Props["creatives"][number], withLoading = true, envOverride: EnvironmentFamily | null = selectedEnvironment) => {
+  const fetchPreview = useCallback(async (targetCreative: Props["creatives"][number], withLoading = true, envOverride: string | EnvironmentFamily | null = selectedEnvironment) => {
     if (!targetCreative?.url || !vertical || !goal || !envOverride || !device) return;
 
     const cacheKey = buildCacheKey(targetCreative, envOverride);
@@ -297,9 +319,11 @@ export default function ContextualPreviewEngine({
     fetchPreview(activeCreative, true, selectedEnvironment);
   }, [activeCreative, buildCacheKey, fetchPreview, selectedEnvironment]);
 
-  const currentEnv: EnvironmentFamily = selectedEnvironment ?? "news";
+  const templateId = String(fixedEnvironment || selectedEnvironment || "news");
+  const rendererEnv = resolveRendererFamily(templateId);
+  const currentEnv: EnvironmentFamily = rendererEnv;
   const isMobilePreview = device === "mobile";
-  const envMeta = ENV_LABELS[currentEnv] ?? ENV_LABELS.news;
+  const envMeta = getTemplateMeta(templateId);
   const activeExpectedSlot = activeCreative ? getExpectedSlotForSize(activeCreative.size) : null;
   const visibleEnvironmentEntries = (Object.entries(ENV_LABELS) as [EnvironmentFamily, typeof ENV_LABELS[EnvironmentFamily]][])
     .filter(([key]) => !allowedEnvironmentFamilies?.length || allowedEnvironmentFamilies.includes(key));
@@ -320,7 +344,7 @@ export default function ContextualPreviewEngine({
 
   const alignedCount = creativeAlignment.filter((item) => item.isSupported).length;
   const unsupportedCount = creativeAlignment.length - alignedCount;
-  const studioEnvMeta = fixedEnvironment ? ENV_LABELS[fixedEnvironment] : null;
+  const studioEnvMeta = fixedEnvironment ? getTemplateMeta(String(fixedEnvironment)) : null;
 
   if (loading) {
     if (studioMode) {
@@ -442,7 +466,7 @@ export default function ContextualPreviewEngine({
 
   const { previewDecision, creativeMapping } = output;
   const slotLabel = SLOT_LABELS[creativeMapping?.slotType] || "Strategic Placement";
-  const templateLabel = TEMPLATE_LABELS[previewDecision?.primaryTemplate] || "Strategic Template";
+  const templateLabel = LEGACY_TEMPLATE_LABELS[previewDecision?.primaryTemplate] || "Strategic Template";
   const activePlacementKey = activeCreative
     ? pickPlacement(activeCreative.size, creativeMapping?.slotType)
     : null;
@@ -510,7 +534,7 @@ export default function ContextualPreviewEngine({
                 className={isMobilePreview ? "max-h-[calc(100vh-320px)] overflow-y-auto" : ""}
               >
                 <EnvironmentRenderer
-                  env={currentEnv}
+                  env={rendererEnv}
                   output={output}
                   creativeUrl={resolvedCreativeUrl}
                   creativeSize={activeCreative.size}
@@ -770,7 +794,7 @@ export default function ContextualPreviewEngine({
                 transition={{ duration: 0.25 }}
               >
                 <EnvironmentRenderer
-                  env={currentEnv}
+                  env={rendererEnv}
                   output={output}
                   creativeUrl={resolvedCreativeUrl}
                   creativeSize={activeCreative.size}

@@ -77,3 +77,7 @@ export async function isCurrentUserAdmin() {
   const role = await getCurrentUserRole();
   return isAdminRole(role);
 }
+
+export async function getCurrentUserAdminRole() {
+  return getCurrentUserRole();
+}

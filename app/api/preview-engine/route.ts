@@ -13,7 +13,7 @@ import {
   selectEnvironmentFamily,
   buildPreviewEngineOutput,
 } from "@/app/lib/preview-engine/index";
-import { buildProgrammaticPreviewPrompt } from "@/app/lib/programmaticPreviewPrompt";
+import { buildProgrammaticPreviewPrompt, mapProgrammaticTemplateToRenderer } from "@/app/lib/programmaticPreviewPrompt";
 import { compactAnalyzerOutputForPreview } from "@/app/lib/previewAnalyzerCompact";
 import type {
   PreviewEngineInput,
@@ -243,12 +243,12 @@ function normalizeGeneratedEnvironment(
 
 // ── Environment content prompt (compact — see programmaticPreviewPrompt.js) ───
 function buildContentPrompt(
-  env: EnvironmentFamily,
+  templateId: string,
   vertical: string,
   goal: string,
   hints: PromptHints
 ): string {
-  return buildProgrammaticPreviewPrompt(env, vertical, goal, hints);
+  return buildProgrammaticPreviewPrompt(templateId, vertical, goal, hints);
 }
 
 const MAX_PREVIEW_PROMPT_CHARS = 6000;
@@ -293,14 +293,15 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       );
     }
 
-    const environment = preferredEnvironment ?? selectEnvironmentFamily(vertical, goal);
-  const promptHints = buildPromptHints(body);
+    const templateId = preferredEnvironment ?? selectEnvironmentFamily(vertical, goal);
+    const rendererFamily = mapProgrammaticTemplateToRenderer(String(templateId)) as EnvironmentFamily;
+    const promptHints = buildPromptHints(body);
     let generatedEnv: GeneratedEnvironment;
 
     // Try AI content generation, fall back to deterministic content
     try {
       const client = getClient();
-      const prompt = buildContentPrompt(environment, vertical, goal, promptHints);
+      const prompt = buildContentPrompt(String(templateId), vertical, goal, promptHints);
 
       if (prompt.length > MAX_PREVIEW_PROMPT_CHARS) {
         throw new Error("Preview prompt exceeded size limit");
@@ -316,14 +317,14 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
       const raw = completion.choices[0]?.message?.content ?? "{}";
       const parsed = JSON.parse(raw) as Partial<GeneratedEnvironment> & { landingPage?: Partial<LandingPageContent> };
-      generatedEnv = normalizeGeneratedEnvironment(parsed, environment, vertical, goal, promptHints);
+      generatedEnv = normalizeGeneratedEnvironment(parsed, rendererFamily, vertical, goal, promptHints);
     } catch (aiErr) {
       console.warn("[preview-engine] AI content generation failed, using fallback:", aiErr);
-      generatedEnv = buildFallbackContent(environment, vertical, goal, promptHints);
+      generatedEnv = buildFallbackContent(rendererFamily, vertical, goal, promptHints);
     }
 
     const output = buildPreviewEngineOutput(
-      { preferredEnvironment, vertical, goal, device, creativeSize, creativeType, analyzerOutput, ctaText, headline, logoPresent, riskFlags },
+      { preferredEnvironment: rendererFamily, vertical, goal, device, creativeSize, creativeType, analyzerOutput, ctaText, headline, logoPresent, riskFlags },
       generatedEnv
     );
 

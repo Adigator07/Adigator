@@ -36,8 +36,8 @@ export default function AdminOverviewPage() {
   return (
     <div className="space-y-6 pb-10">
       <div>
-        <h1 className="text-3xl font-extrabold text-white">Admin Overview</h1>
-        <p className="mt-1 text-sm text-white/40">Enterprise visibility into users, activity, and platform health.</p>
+        <h1 className="text-3xl font-extrabold text-white">Super Admin Overview</h1>
+        <p className="mt-1 text-sm text-white/40">Platform-wide visibility into organizations, users, activity, and health.</p>
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">

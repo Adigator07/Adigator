@@ -1,0 +1,1157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Adigator — Complete Website Documentation</title>
+  <style>
+    @page { margin: 18mm 16mm 20mm 16mm; }
+    * { box-sizing: border-box; }
+    body {
+      font-family: "Segoe UI", Calibri, Arial, sans-serif;
+      font-size: 10.5pt;
+      line-height: 1.55;
+      color: #1a1a2e;
+      max-width: 100%;
+      margin: 0;
+      padding: 0;
+    }
+    h1 {
+      font-size: 22pt;
+      color: #0f172a;
+      border-bottom: 3px solid #3b82f6;
+      padding-bottom: 8px;
+      margin: 0 0 16px;
+      page-break-after: avoid;
+    }
+    h2 {
+      font-size: 14pt;
+      color: #1e40af;
+      margin: 28px 0 10px;
+      padding-top: 8px;
+      border-top: 1px solid #e2e8f0;
+      page-break-after: avoid;
+    }
+    h3 {
+      font-size: 12pt;
+      color: #334155;
+      margin: 18px 0 8px;
+      page-break-after: avoid;
+    }
+    h4 { font-size: 11pt; color: #475569; margin: 14px 0 6px; }
+    p { margin: 0 0 8px; }
+    ul { margin: 4px 0 12px 20px; padding: 0; }
+    li { margin-bottom: 4px; }
+    code {
+      font-family: Consolas, "Courier New", monospace;
+      font-size: 9pt;
+      background: #f1f5f9;
+      padding: 1px 5px;
+      border-radius: 3px;
+    }
+    pre.code-block {
+      font-family: Consolas, monospace;
+      font-size: 8.5pt;
+      background: #0f172a;
+      color: #e2e8f0;
+      padding: 12px 14px;
+      border-radius: 6px;
+      overflow-x: auto;
+      white-space: pre-wrap;
+      margin: 10px 0 14px;
+      page-break-inside: avoid;
+    }
+    table.doc-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 10px 0 16px;
+      font-size: 9.5pt;
+      page-break-inside: avoid;
+    }
+    table.doc-table th {
+      background: #1e40af;
+      color: #fff;
+      text-align: left;
+      padding: 7px 10px;
+      font-weight: 600;
+    }
+    table.doc-table td {
+      border: 1px solid #cbd5e1;
+      padding: 6px 10px;
+      vertical-align: top;
+    }
+    table.doc-table tr:nth-child(even) td { background: #f8fafc; }
+    hr.section-break { border: none; border-top: 1px solid #e2e8f0; margin: 20px 0; }
+    a { color: #2563eb; text-decoration: none; }
+    strong { color: #0f172a; }
+    .cover {
+      text-align: center;
+      padding: 60px 20px 40px;
+      page-break-after: always;
+    }
+    .cover h1 { border: none; font-size: 28pt; margin-bottom: 8px; }
+    .cover .subtitle { font-size: 13pt; color: #64748b; margin-bottom: 32px; }
+    .cover .meta { font-size: 10pt; color: #94a3b8; }
+  </style>
+</head>
+<body>
+  <div class="cover">
+    <h1>Adigator</h1>
+    <p class="subtitle">Complete Website Documentation</p>
+    <p class="meta">Version 1.0 · June 2026 · adigator.in</p>
+    <p class="meta">All pages · features · tools · workflows · APIs · database schema</p>
+  </div>
+  <h1>Adigator — Complete Website Documentation</h1>
+<p><strong>Document Version:</strong> 1.0  </p>
+<p><strong>Platform Version:</strong> 0.1.0  </p>
+<p><strong>Last Updated:</strong> June 2026  </p>
+<p><strong>Production URL:</strong> https://adigator.in  </p>
+<p><strong>Repository:</strong> github.com/Adigator07/Adigator</p>
+<hr class="section-break" />
+<h2>Table of Contents</h2>
+<p>1. <a href="#1-executive-summary">Executive Summary</a></p>
+<p>2. <a href="#2-product-purpose--value-proposition">Product Purpose &amp; Value Proposition</a></p>
+<p>3. <a href="#3-technology-stack">Technology Stack</a></p>
+<p>4. <a href="#4-system-architecture">System Architecture</a></p>
+<p>5. <a href="#5-complete-site-map--every-page">Complete Site Map — Every Page</a></p>
+<p>6. <a href="#6-marketing-website">Marketing Website</a></p>
+<p>7. <a href="#7-authentication--user-roles">Authentication &amp; User Roles</a></p>
+<p>8. <a href="#8-preview-tool--complete-workflow">Preview Tool — Complete Workflow</a></p>
+<p>9. <a href="#9-campaign-readiness--validation">Campaign Readiness &amp; Validation</a></p>
+<p>10. <a href="#10-strategic-analyzer-step-3">Strategic Analyzer (Step 3)</a></p>
+<p>11. <a href="#11-preview-studio-step-4">Preview Studio (Step 4)</a></p>
+<p>12. <a href="#12-user-dashboard">User Dashboard</a></p>
+<p>13. <a href="#13-organization-platform-multi-tenant">Organization Platform (Multi-Tenant)</a></p>
+<p>14. <a href="#14-super-admin-platform">Super Admin Platform</a></p>
+<p>15. <a href="#15-communication-platform">Communication Platform</a></p>
+<p>16. <a href="#16-settings-downloads--account">Settings, Downloads &amp; Account</a></p>
+<p>17. <a href="#17-guest-demo-access">Guest Demo Access</a></p>
+<p>18. <a href="#18-complete-api-reference">Complete API Reference</a></p>
+<p>19. <a href="#19-database-schema-supabase">Database Schema (Supabase)</a></p>
+<p>20. <a href="#20-data-services--analytics">Data Services &amp; Analytics</a></p>
+<p>21. <a href="#21-export--reporting">Export &amp; Reporting</a></p>
+<p>22. <a href="#22-supported-platforms-goals--verticals">Supported Platforms, Goals &amp; Verticals</a></p>
+<p>23. <a href="#23-environment-variables">Environment Variables</a></p>
+<p>24. <a href="#24-development--deployment">Development &amp; Deployment</a></p>
+<p>25. <a href="#25-project-structure">Project Structure</a></p>
+<p>26. <a href="#26-known-limitations--roadmap-items">Known Limitations &amp; Roadmap Items</a></p>
+<p>27. <a href="#27-appendix-key-design-decisions">Appendix: Key Design Decisions</a></p>
+<hr class="section-break" />
+<h2>1. Executive Summary</h2>
+<p><strong>Adigator</strong> is an AI-powered advertising creative intelligence platform for performance marketers, agencies, and in-house ad teams. It provides an end-to-end workflow to configure campaigns, upload and validate display creatives, run strategic AI analysis, preview ads in realistic placement contexts, export stakeholder reports, and collaborate on creative review.</p>
+<h3>Core Capabilities</h3>
+<table class="doc-table">
+<thead><tr>
+<tr><th>Capability</th><th>Description</th></tr>
+</thead><tbody>
+<tbody>
+<tr>
+<tr><td>Creative Validation</td><td>Catch wrong dimensions, file weight, format, and inventory mismatches before launch</td></tr>
+<tr><td>Strategic Analysis</td><td>AI + rule-based scoring for goal/vertical alignment, attention path, and business impact</td></tr>
+<tr><td>Preview Studio</td><td>26+ platform-native placement templates with safe-zone and crop simulation</td></tr>
+<tr><td>Campaign Readiness</td><td>URL health, UTM checks, duplicate detection, and readiness scoring</td></tr>
+<tr><td>Multi-Tenant Orgs</td><td>Organizations, teams, and role-based member management</td></tr>
+<tr><td>Collaboration</td><td>Chat-based creative review with Brand Owner and Servicing Team roles</td></tr>
+<tr><td>Reporting</td><td>PPTX strategic deck export and PDF analysis reports</td></tr>
+<tr><td>Enterprise Admin</td><td>Super admin console for users, analytics, audit, health, and org provisioning</td></tr>
+</tbody></table>
+<h3>Primary User Entry Points</h3>
+<table class="doc-table">
+<thead><tr>
+<tr><th>Entry</th><th>URL</th><th>Audience</th></tr>
+</thead><tbody>
+<tbody>
+<tr>
+<tr><td>Marketing Landing</td><td><code>/</code></td><td>Prospects</td></tr>
+<tr><td>Interactive Demo</td><td><code>/preview-tool?demo=1&amp;step=1</code></td><td>Guests (one free session)</td></tr>
+<tr><td>Preview Tool (Full)</td><td><code>/preview-tool</code></td><td>Authenticated users</td></tr>
+<tr><td>User Dashboard</td><td><code>/dashboard</code></td><td>Logged-in users</td></tr>
+<tr><td>Sign In</td><td><code>/login</code></td><td>All users</td></tr>
+</tbody></table>
+<hr class="section-break" />
+<h2>2. Product Purpose &amp; Value Proposition</h2>
+<p>Adigator solves the gap between creative production and campaign launch. Teams upload display creatives and receive:</p>
+<p>1. <strong>Technical validation</strong> against Google Ads, Meta Ads, and Programmatic size/inventory matrices</p>
+<p>2. <strong>Strategic intelligence</strong> on whether creatives align with campaign goals and industry verticals</p>
+<p>3. <strong>Contextual previews</strong> showing how ads appear in Search, Feed, Stories, publisher sites, and more</p>
+<p>4. <strong>Actionable recommendations</strong> prioritized by business impact</p>
+<p>5. <strong>Exportable reports</strong> for client presentations and internal QA sign-off</p>
+<h3>Target Users</h3>
+<ul>
+<li>Performance marketing teams</li>
+<li>Creative strategists and designers</li>
+<li>Ad operations specialists</li>
+<li>Digital agencies</li>
+<li>In-house brand marketing teams</li>
+<li>Enterprise organizations with multiple teams</li>
+</ul>
+<h3>Trust &amp; Compliance Messaging</h3>
+<p>The marketing site displays SOC 2, GDPR, and ISO compliance badges as trust signals for enterprise buyers.</p>
+<hr class="section-break" />
+<h2>3. Technology Stack</h2>
+<h3>Frontend</h3>
+<table class="doc-table">
+<thead><tr>
+<tr><th>Technology</th><th>Version</th><th>Role</th></tr>
+</thead><tbody>
+<tbody>
+<tr>
+<tr><td>Next.js</td><td>16.2.3</td><td>App Router, SSR/SSG, API routes</td></tr>
+<tr><td>React</td><td>19.2.4</td><td>UI components</td></tr>
+<tr><td>TypeScript</td><td>5.9.x</td><td>Type-safe API, validation, types</td></tr>
+<tr><td>Tailwind CSS</td><td>4.2.x</td><td>Styling and responsive design</td></tr>
+<tr><td>Framer Motion</td><td>12.x</td><td>Page transitions, card animations</td></tr>
+<tr><td>GSAP</td><td>3.15.x</td><td>Marketing page motion</td></tr>
+<tr><td>Lucide React</td><td>1.8.x</td><td>Icon system</td></tr>
+<tr><td>Recharts</td><td>3.8.x</td><td>Dashboard and admin charts</td></tr>
+</tbody></table>
+<h3>Backend &amp; Services</h3>
+<table class="doc-table">
+<thead><tr>
+<tr><th>Technology</th><th>Role</th></tr>
+</thead><tbody>
+<tbody>
+<tr>
+<tr><td>Next.js API Routes</td><td>Serverless REST endpoints</td></tr>
+<tr><td>OpenAI API</td><td>Creative extraction, strategic analysis, vision element detection</td></tr>
+<tr><td>Supabase</td><td>Auth, PostgreSQL, Row Level Security, file storage</td></tr>
+<tr><td>Sharp</td><td>Server-side image processing</td></tr>
+<tr><td>IndexedDB</td><td>Client-side creative blob storage</td></tr>
+<tr><td>Socket.IO + Redis</td><td>Optional realtime presence (admin)</td></tr>
+</tbody></table>
+<h3>Export &amp; Media Libraries</h3>
+<table class="doc-table">
+<thead><tr>
+<tr><th>Library</th><th>Role</th></tr>
+</thead><tbody>
+<tbody>
+<tr>
+<tr><td>pptxgenjs</td><td>PPTX strategic report export</td></tr>
+<tr><td>html2canvas</td><td>Preview PNG download from Preview Studio</td></tr>
+<tr><td>jspdf</td><td>PDF report generation from analysis</td></tr>
+</tbody></table>
+<hr class="section-break" />
+<h2>4. System Architecture</h2>
+<pre class="code-block">
+┌─────────────────────────────────────────────────────────────────────┐
+│                         Client (Browser)                             │
+│  Marketing │ User Dashboard │ Preview Tool │ Communications │ Admin │
+└────────────┬──────────────────────────────┬─────────────────────────┘
+             │                              │
+             ▼                              ▼
+┌────────────────────────────┐   ┌────────────────────────────────────┐
+│   Next.js App Router       │   │   Client Storage                    │
+│   Pages + API Routes       │   │   localStorage, sessionStorage,     │
+└────────────┬───────────────┘   │   IndexedDB (creative blobs)        │
+             │                   └────────────────────────────────────┘
+             ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│                        API Layer (app/api/)                          │
+│  analyze-creative │ validate │ url-validation │ preview-engine     │
+│  creatives │ session │ activity │ admin/v1 │ organization/v1       │
+│  communications │ google/meta/programmatic-creative-analysis         │
+└────────────┬──────────────────────────────┬─────────────────────────┘
+             │                              │
+             ▼                              ▼
+┌────────────────────────────┐   ┌────────────────────────────────────┐
+│   OpenAI API (GPT-4o)      │   │   Supabase                          │
+│   Vision + text analysis   │   │   Auth, PostgreSQL + RLS, Storage   │
+└────────────────────────────┘   └────────────────────────────────────┘
+</pre>
+<h3>Analysis Pipeline</h3>
+<p>1. <strong>Upload</strong> — Read pixel dimensions from file headers (PNG/JPEG/GIF/WebP)</p>
+<p>2. <strong>Validate</strong> — Match against platform size matrix; score inventory, IAB, DSP, auction readiness</p>
+<p>3. <strong>Analyze</strong> — OpenAI vision extraction + deterministic rule layers → strategic JSON</p>
+<p>4. <strong>Preview</strong> — Template-based placement previews + AI element detection for safe zones</p>
+<p>5. <strong>Export</strong> — Aggregate results into PPTX deck or PDF report</p>
+<hr class="section-break" />
+<h2>5. Complete Site Map — Every Page</h2>
+<h3>Public / Marketing Pages</h3>
+<table class="doc-table">
+<thead><tr>
+<tr><th>Route</th><th>Page Name</th><th>Description</th></tr>
+</thead><tbody>
+<tbody>
+<tr>
+<tr><td><code>/</code></td><td>Home / Landing</td><td>Hero, live animated cards, pipeline engine, feature grid, workflow modules, partner badges, CTAs</td></tr>
+<tr><td><code>/solutions</code></td><td>Solutions</td><td>Tabbed content: Use Cases, Teams, Industry verticals</td></tr>
+<tr><td><code>/about</code></td><td>About</td><td>Company values, stats, platform pillars, origin timeline</td></tr>
+<tr><td><code>/product</code></td><td>Product</td><td>Extended marketing: Prism (performance), Adroom (creation), testimonials, blog teasers</td></tr>
+<tr><td><code>/demo</code></td><td>Demo Walkthrough</td><td>Product video player, 4-step explanation, CTAs to interactive demo or sign-in</td></tr>
+<tr><td><code>/login</code></td><td>Login / Register</td><td>Email/password auth, role selection on register</td></tr>
+<tr><td><code>/login?mode=register</code></td><td>Registration</td><td>Username, email, password, role (Brand Owner / Servicing Team)</td></tr>
+<tr><td><code>/preview-tool</code></td><td>Preview Tool (Gated)</td><td>Full 4-step Creative Studio with guest demo limits</td></tr>
+<tr><td><code>/preview-tool?demo=1&amp;step=1</code></td><td>Guest Demo Entry</td><td>One free session per browser</td></tr>
+<tr><td><code>/preview-tool?step=1</code></td><td>Fresh Campaign</td><td>Always starts at Step 1 from dashboard links</td></tr>
+<tr><td><code>/preview</code></td><td>Preview Tool (Direct)</td><td>Same tool without demo gate; &quot;Live Preview&quot; nav entry</td></tr>
+</tbody></table>
+<h3>Authenticated Application Pages</h3>
+<table class="doc-table">
+<thead><tr>
+<tr><th>Route</th><th>Page Name</th><th>Description</th></tr>
+</thead><tbody>
+<tbody>
+<tr>
+<tr><td><code>/dashboard</code></td><td>User Dashboard</td><td>Personal workspace stats, quick actions, activity analytics</td></tr>
+<tr><td><code>/dashboard/communications</code></td><td>Communications</td><td>Real-time chat + creative review workflow</td></tr>
+<tr><td><code>/settings</code></td><td>Account Settings</td><td>Profile (read-only), notifications placeholder, security info</td></tr>
+<tr><td><code>/downloads</code></td><td>Export History</td><td>Placeholder for future export history listing</td></tr>
+</tbody></table>
+<h3>Super Admin Console (`/dashboard/admin/*`)</h3>
+<p>Requires platform admin role (<code>admin</code> or <code>super_admin</code> in profiles).</p>
+<table class="doc-table">
+<thead><tr>
+<tr><th>Route</th><th>Page Name</th><th>Description</th></tr>
+</thead><tbody>
+<tbody>
+<tr>
+<tr><td><code>/dashboard/admin</code></td><td>Platform Overview</td><td>Users, online count, DAU/MAU, retention, session metrics, charts</td></tr>
+<tr><td><code>/dashboard/admin/organizations</code></td><td>Organizations</td><td>Create and list organizations (create requires super_admin)</td></tr>
+<tr><td><code>/dashboard/admin/users</code></td><td>User Management</td><td>Paginated user list with search and status badges</td></tr>
+<tr><td><code>/dashboard/admin/users/[id]</code></td><td>User Detail</td><td>Profile, suspend/ban, reset password, permissions</td></tr>
+<tr><td><code>/dashboard/admin/analytics</code></td><td>Platform Analytics</td><td>DAU/WAU/MAU, retention, churn, session charts</td></tr>
+<tr><td><code>/dashboard/admin/activity</code></td><td>Activity Logs</td><td>Platform-wide user activity with search/filter</td></tr>
+<tr><td><code>/dashboard/admin/permissions</code></td><td>Permissions</td><td>Role hierarchy and feature access matrix</td></tr>
+<tr><td><code>/dashboard/admin/audit</code></td><td>Audit Trail</td><td>Immutable admin action log</td></tr>
+<tr><td><code>/dashboard/admin/health</code></td><td>System Health</td><td>Database, Redis, server memory checks</td></tr>
+<tr><td><code>/dashboard/admin/notifications</code></td><td>Notifications</td><td>Admin notification center (placeholder)</td></tr>
+<tr><td><code>/dashboard/admin/settings</code></td><td>Admin Settings</td><td>Environment variable status display</td></tr>
+</tbody></table>
+<h3>Organization Admin Console (`/dashboard/organization/*`)</h3>
+<p>Requires org admin role (<code>owner</code> or <code>org_admin</code> in organization_members).</p>
+<table class="doc-table">
+<thead><tr>
+<tr><th>Route</th><th>Page Name</th><th>Description</th></tr>
+</thead><tbody>
+<tbody>
+<tr>
+<tr><td><code>/dashboard/organization</code></td><td>Org Overview</td><td>Teams, members, analyses, previews, downloads, recent activity</td></tr>
+<tr><td><code>/dashboard/organization/teams</code></td><td>Teams</td><td>Create and list teams within the organization</td></tr>
+<tr><td><code>/dashboard/organization/users</code></td><td>Members</td><td>Member list with roles and team assignment</td></tr>
+<tr><td><code>/dashboard/organization/activity</code></td><td>Org Activity</td><td>Organization-scoped activity feed</td></tr>
+</tbody></table>
+<h3>Sidebar Links Without Pages (Planned)</h3>
+<table class="doc-table">
+<thead><tr>
+<tr><th>Link</th><th>Status</th></tr>
+</thead><tbody>
+<tbody>
+<tr>
+<tr><td><code>/projects</code></td><td>Not implemented — linked in sidebar only</td></tr>
+<tr><td><code>/intelligence</code></td><td>Not implemented — linked in sidebar only</td></tr>
+</tbody></table>
+<hr class="section-break" />
+<h2>6. Marketing Website</h2>
+<h3>Navigation (`app/lib/siteNavigation.ts`)</h3>
+<p><strong>Header links:</strong> Solutions, About  </p>
+<p><strong>CTAs:</strong> Get a Demo → <code>/preview-tool?demo=1&amp;step=1</code>; Watch Demo → <code>/demo</code>; Sign In → <code>/login</code></p>
+<p><strong>Footer columns:</strong> Products, Solutions, Resources, Company</p>
+<h3>Home Page (`/`)</h3>
+<p><strong>Positioning:</strong> Creative intelligence platform for analysis, validation, preview, and reporting.</p>
+<p><strong>Sections:</strong></p>
+<ul>
+<li>Hero with rotating headline and animated <code>HeroLiveCards</code> component</li>
+<li><code>PipelineCoreEngine</code> — hub-and-spoke visualization of 7 workflow modules</li>
+<li>Feature grid: AI creative intelligence, cross-platform compliance, preview studio</li>
+<li>Workflow modules: Upload &amp; Validate → Strategic Analysis → Contextual Preview → Export &amp; Report</li>
+<li>Audience insights for agencies, brands, and teams</li>
+<li>Trust badges (SOC 2, GDPR, ISO)</li>
+<li>CTAs to sign in and start demo</li>
+</ul>
+<h3>Solutions Page (`/solutions`)</h3>
+<p><strong>Tabs:</strong> Use Cases (<code>#use-case</code>), Teams (<code>#team</code>), Industry (<code>#industry</code>)</p>
+<table class="doc-table">
+<thead><tr>
+<tr><th>Section</th><th>Content</th></tr>
+</thead><tbody>
+<tbody>
+<tr>
+<tr><td>Use Cases</td><td>Pre-launch validation, creative QA &amp; approval, multi-platform scaling, strategic reporting</td></tr>
+<tr><td>Teams</td><td>Performance marketing, creative/design, agencies, brand/in-house</td></tr>
+<tr><td>Industries</td><td>Retail, healthcare/pharma, financial services, media/entertainment</td></tr>
+</tbody></table>
+<h3>About Page (`/about`)</h3>
+<ul>
+<li>Values: Clarity over chaos, preview in context, built for scale</li>
+<li>Stats: 10 analysis layers, 3 platforms, 4-step workflow, unlimited teams per org</li>
+<li>Pillars: Preview Studio, Validation Engine, AI Orchestrator, Organization Platform</li>
+<li>Timeline: Problem → insight → platform → multi-tenant today</li>
+</ul>
+<h3>Product Page (`/product`)</h3>
+<p>Extended marketing not in main nav:</p>
+<ul>
+<li>Platform overview (<code>#overview</code>)</li>
+<li>Ad Performance / Prism (<code>#prism</code>)</li>
+<li>Ad Creation / Adroom (<code>#adroom</code>)</li>
+<li>Testimonials carousel, blog cards, DSP logo ticker</li>
+<li>Final CTA to preview tool</li>
+</ul>
+<h3>Demo Page (`/demo`)</h3>
+<ul>
+<li>Embedded product walkthrough video (<code>/video.mp4</code>)</li>
+<li>Four demo talking points explaining the workflow</li>
+<li>CTAs to interactive demo or sign-in for unlimited access</li>
+</ul>
+<hr class="section-break" />
+<h2>7. Authentication &amp; User Roles</h2>
+<h3>Login Page (`/login`)</h3>
+<p><strong>Sign In:</strong></p>
+<ul>
+<li>Email and password via Supabase <code>signInWithPassword</code></li>
+<li>Post-auth redirect to <code>/dashboard</code></li>
+<li>Logs <code>user_login</code> activity event</li>
+<li>Google OAuth button rendered (placeholder — no handler currently)</li>
+</ul>
+<p><strong>Registration (<code>?mode=register</code>):</strong></p>
+<ul>
+<li>Fields: username, email, password, confirm password</li>
+<li>Role selection stored in <code>profiles</code> and auth metadata:</li>
+</ul>
+<table class="doc-table">
+<thead><tr>
+<tr><th>Role ID</th><th>Label</th><th>Purpose</th></tr>
+</thead><tbody>
+<tbody>
+<tr>
+<tr><td><code>usa_client</code></td><td>Brand Owner</td><td>Creates conversations, assigns creatives for review</td></tr>
+<tr><td><code>end_client</code></td><td>Servicing Team</td><td>Reviews and approves assigned creatives</td></tr>
+</tbody></table>
+<p><strong>Password Reset:</strong></p>
+<ul>
+<li>&quot;Forgot password?&quot; links to <code>/login?reset=1</code> — reset UI not yet implemented for users</li>
+<li>Super admins can trigger password reset from user detail page</li>
+</ul>
+<h3>Role Systems (Three Layers)</h3>
+<table class="doc-table">
+<thead><tr>
+<tr><th>Layer</th><th>Roles</th><th>Detection</th></tr>
+</thead><tbody>
+<tbody>
+<tr>
+<tr><td>Communications</td><td><code>admin</code>, <code>usa_client</code>, <code>end_client</code></td><td><code>profiles.role</code></td></tr>
+<tr><td>Platform Admin</td><td><code>super_admin</code>, <code>admin</code>, <code>moderator</code>, <code>support</code></td><td><code>profiles.admin_role</code> + <code>AdminAuthContext</code></td></tr>
+<tr><td>Organization</td><td><code>owner</code>, <code>org_admin</code>, <code>team_lead</code>, <code>member</code></td><td><code>organization_members.member_role</code></td></tr>
+</tbody></table>
+<h3>Session Protection</h3>
+<ul>
+<li>Dashboard layout requires Supabase session; redirects to <code>/login</code> if unauthenticated</li>
+<li>Admin routes enforce staff role with denial screens</li>
+<li>Org routes enforce org admin membership</li>
+</ul>
+<hr class="section-break" />
+<h2>8. Preview Tool — Complete Workflow</h2>
+<p><strong>Main component:</strong> <code>app/components/PreviewTool.jsx</code> (~3,000 lines)  </p>
+<p><strong>Entry points:</strong> <code>/preview-tool</code> (gated) and <code>/preview</code> (direct)  </p>
+<p><strong>URL state:</strong> <code>?step=1|2|3|4</code>, optional <code>?demo=1</code></p>
+<h3>Step Overview</h3>
+<table class="doc-table">
+<thead><tr>
+<tr><th>Step</th><th>Label</th><th>Primary Function</th></tr>
+</thead><tbody>
+<tbody>
+<tr>
+<tr><td>1</td><td>Setup</td><td>Select platform, goal, vertical, campaign name</td></tr>
+<tr><td>2</td><td>Upload</td><td>Upload creatives, validate, compress, fix issues</td></tr>
+<tr><td>3</td><td>Analysis</td><td>Run AI strategic analyzer on valid creatives</td></tr>
+<tr><td>4</td><td>Preview Studio</td><td>Placement previews, safe zones, PPTX export</td></tr>
+</tbody></table>
+<h3>State Persistence</h3>
+<table class="doc-table">
+<thead><tr>
+<tr><th>Data</th><th>Storage</th></tr>
+</thead><tbody>
+<tbody>
+<tr>
+<tr><td>Campaign config</td><td>localStorage (platform, goal, vertical, audience, URL)</td></tr>
+<tr><td>Creatives metadata</td><td>localStorage via <code>workflowStorage.js</code></td></tr>
+<tr><td>Creative binary files</td><td>IndexedDB via <code>creativeAssetStore.js</code></td></tr>
+<tr><td>Analysis session</td><td>Supabase <code>analysis_sessions</code> + localStorage session ID</td></tr>
+<tr><td>Authenticated saves</td><td>Supabase <code>creatives</code>, <code>analyzer_results</code>, <code>activity_logs</code></td></tr>
+</tbody></table>
+<h3>Navigation Rules</h3>
+<ul>
+<li>Dashboard links always open <code>?step=1</code> for fresh campaign setup</li>
+<li>Step 1 Back (logged in) → <code>/dashboard</code>; guests → landing page <code>/</code></li>
+<li>&quot;Start New Analysis&quot; clears all config and creatives</li>
+<li>Progress bar animates between steps</li>
+</ul>
+<hr class="section-break" />
+<h3>Step 1: Campaign Setup</h3>
+<p><strong>Fields:</strong></p>
+<table class="doc-table">
+<thead><tr>
+<tr><th>Field</th><th>Options</th></tr>
+</thead><tbody>
+<tbody>
+<tr>
+<tr><td>Platform</td><td>Google Ads, Meta Ads, Programmatic Ads</td></tr>
+<tr><td>Campaign Goal</td><td>Platform-specific objectives (Awareness, Traffic, Conversion, Leads, etc.)</td></tr>
+<tr><td>Industry Vertical</td><td>17 verticals (Healthcare, Technology, E-commerce, Gaming, etc.)</td></tr>
+<tr><td>Campaign Name</td><td>Optional free text</td></tr>
+<tr><td>Audience Stage</td><td>Cold / Warm / Hot (backend support; defaults to cold)</td></tr>
+</tbody></table>
+<p><strong>Requirements to advance:</strong> Platform + goal + vertical selected</p>
+<p><strong>Summary cards</strong> display current selections before proceeding.</p>
+<hr class="section-break" />
+<h3>Step 2: Upload &amp; Validation</h3>
+<p><strong>Upload flow:</strong></p>
+<p>1. Drag-and-drop or file picker for JPG, PNG, GIF, WebP</p>
+<p>2. <code>readImageDimensionsFromBlob()</code> reads true pixel dimensions</p>
+<p>3. <code>validateCreativeAsset()</code> runs platform size matrix matching</p>
+<p>4. Creatives stored in IndexedDB; metadata in localStorage</p>
+<p>5. Authenticated users: <code>saveCreative()</code> persists to Supabase</p>
+<p><strong>Per-creative validation metrics:</strong></p>
+<table class="doc-table">
+<thead><tr>
+<tr><th>Metric</th><th>Description</th></tr>
+</thead><tbody>
+<tbody>
+<tr>
+<tr><td>Size</td><td>Detected dimensions (e.g., 300×250)</td></tr>
+<tr><td>Placement Type</td><td>Display, native, mobile, etc.</td></tr>
+<tr><td>Device Classification</td><td>Desktop, mobile, tablet, multi</td></tr>
+<tr><td>IAB Compatibility</td><td>Standard IAB banner compatibility</td></tr>
+<tr><td>DSP Compatibility</td><td>Count of supported DSPs (0–7)</td></tr>
+<tr><td>Inventory Availability</td><td>Premium, standard, limited, unsupported</td></tr>
+<tr><td>Auction Readiness</td><td>Score 0–100 with band</td></tr>
+<tr><td>Premium Placement Potential</td><td>Eligibility for premium packages</td></tr>
+<tr><td>Status</td><td>PASS, WARNING, or CRITICAL</td></tr>
+</tbody></table>
+<p><strong>Step 2 features:</strong></p>
+<table class="doc-table">
+<thead><tr>
+<tr><th>Feature</th><th>Description</th></tr>
+</thead><tbody>
+<tbody>
+<tr>
+<tr><td>Platform intelligence matrix</td><td>Supported size groups per platform</td></tr>
+<tr><td>Valid vs Critical lists</td><td>Creatives split by validation severity</td></tr>
+<tr><td>Per-creative edit</td><td><code>EditCreativeModal</code> for crop/resize</td></tr>
+<tr><td>Compression</td><td>Per-creative or bulk target KB compression</td></tr>
+<tr><td>Auto-fix</td><td>Convert formats, compress to target size</td></tr>
+<tr><td>URL validation</td><td>Landing page health + AI alignment check</td></tr>
+<tr><td>Campaign readiness report</td><td>Rule-based checks via <code>/api/validate</code></td></tr>
+<tr><td>Remove creative</td><td>Deletes from IndexedDB and Supabase record</td></tr>
+</tbody></table>
+<p><strong>Requirements to advance:</strong> At least one uploaded creative</p>
+<hr class="section-break" />
+<h3>Step 3: Strategic Analyzer</h3>
+<p><strong>Trigger:</strong> Manual &quot;Start Analysis&quot; button for valid creatives</p>
+<p><strong>API:</strong> Platform-specific analysis via <code>/api/analyze-creative</code> (primary orchestrator)</p>
+<p><strong>UI tabs:</strong></p>
+<ul>
+<li><strong>Overview</strong> — Campaign health, briefing, technical QA, URL alignment, risk scoring (<code>AnalyzerOverview</code>)</li>
+<li><strong>Creative Analysis</strong> — Per-creative strategic breakdown (<code>AnalyzerCreativeSection</code>)</li>
+</ul>
+<p><strong>Actions:</strong></p>
+<ul>
+<li>Export PDF report from analysis panel</li>
+<li>Navigate to Preview Studio when complete</li>
+</ul>
+<p><strong>Persistence:</strong> Saves to <code>analyzer_results</code> and tracks <code>analyzer_usage</code> activity for authenticated users</p>
+<hr class="section-break" />
+<h3>Step 4: Preview Studio</h3>
+<p><strong>Component:</strong> <code>app/components/PreviewStudio/index.jsx</code></p>
+<p><strong>Google Ads (8 placements):</strong> Search, Display, YouTube, App, Discover, Gmail, Maps, Shopping</p>
+<p><strong>Meta Ads (10 placements):</strong> Facebook Feed/Stories/Reels, Instagram Feed/Stories/Explore, Messenger, Audience Network, Threads</p>
+<p><strong>Programmatic (8 templates):</strong> Healthcare, Technology, Food, E-commerce, Gaming, News, OTT, Blogs</p>
+<p><strong>Google/Meta additional tabs:</strong></p>
+<ul>
+<li>Safe Zone Overlay — AI element detection + visualization</li>
+<li>Crop Simulation — Center-crop preview across standard formats</li>
+</ul>
+<p><strong>Step 4 actions:</strong></p>
+<ul>
+<li>Export PPTX — Strategic report deck</li>
+<li>Download PNG — Per-placement preview capture</li>
+<li>Start New Analysis — Reset entire workflow</li>
+<li>Back to Step 3</li>
+</ul>
+<hr class="section-break" />
+<h2>9. Campaign Readiness &amp; Validation</h2>
+<h3>Architecture</h3>
+<pre class="code-block">
+app/types/validation.ts           — TypeScript types
+app/constants/googleSpecs.ts      — Google Ads requirements
+app/constants/metaSpecs.ts        — Meta Ads requirements
+app/constants/programmaticSpecs.ts — Programmatic rules
+app/lib/validators/reportBuilder.ts — Aggregates module results
+app/lib/url/healthCheck.ts        — Landing page HTTP analysis
+app/lib/url/utmValidator.ts       — UTM parameter rules
+app/lib/image/duplicateDetector.ts — Perceptual duplicate detection
+app/api/validate/route.ts         — POST endpoint
+app/api/url-validation/route.ts   — Landing page + creative alignment
+</pre>
+<h3>Readiness Score</h3>
+<ul>
+<li>Starts at 100</li>
+<li>−15 per error, −5 per warning</li>
+<li>Levels: Ready (≥85), Review Needed (60–84), Not Ready (&lt;60)</li>
+</ul>
+<h3>Validation Layers</h3>
+<p>1. <strong>Client</strong> (<code>creativeValidation.js</code>) — Dimension matching, mime types, file weight, inventory tier</p>
+<p>2. <strong>Server <code>/api/validate</code></strong> — Platform validators, duplicates, URL health, UTM, alignment</p>
+<p>3. <strong>Server <code>/api/url-validation</code></strong> — Deeper URL + creative visual alignment (OpenAI when configured)</p>
+<hr class="section-break" />
+<h2>10. Strategic Analyzer (Step 3)</h2>
+<h3>Endpoint</h3>
+<p><code>POST /api/analyze-creative</code> — Accepts multipart form: image + goal, platform, vertical, audience_stage</p>
+<h3>Analysis Layers</h3>
+<table class="doc-table">
+<thead><tr>
+<tr><th>Layer</th><th>Function</th></tr>
+</thead><tbody>
+<tbody>
+<tr>
+<tr><td>1. Extraction</td><td>OpenAI vision — headline, CTA, colors, layout, emotional cues</td></tr>
+<tr><td>2. Signal Classification</td><td>CTA pressure, urgency, funnel stage inference</td></tr>
+<tr><td>3. Vertical Intelligence</td><td>Product category, advertising behavior</td></tr>
+<tr><td>4. Creative Type Detection</td><td>Static, carousel-like, hybrid</td></tr>
+<tr><td>5. Attention Analysis</td><td>First-focus path, friction points</td></tr>
+<tr><td>6. Goal Alignment</td><td>Detected vs selected campaign goal</td></tr>
+<tr><td>7. Vertical Alignment</td><td>Keyword fit + AI vertical match</td></tr>
+<tr><td>8. Platform Alignment</td><td>Google/Meta/Programmatic fit scoring</td></tr>
+<tr><td>9. Campaign Alignment</td><td>Overall aligned / partially / misaligned</td></tr>
+<tr><td>10. Strategic Recommendations</td><td>Prioritized HIGH/MEDIUM/LOW fixes</td></tr>
+<tr><td>11. Business Impact</td><td>Affected metrics, consequence modeling</td></tr>
+<tr><td>12. Enterprise QA</td><td>Launch readiness, compliance, inventory simulation</td></tr>
+</tbody></table>
+<h3>Output Fields (per creative)</h3>
+<ul>
+<li><code>main_strategic_problem</code>, <code>attention_analysis</code>, <code>business_consequence</code></li>
+<li><code>strategic_recommendations[]</code>, <code>expected_improvement</code></li>
+<li><code>strategic_alignment_score</code>, <code>campaign_alignment</code></li>
+<li><code>goal_alignment</code>, <code>vertical_alignment</code>, <code>business_impact</code></li>
+<li><code>adigator_analysis</code>, <code>extraction_signals</code>, <code>ai_analysis</code></li>
+</ul>
+<hr class="section-break" />
+<h2>11. Preview Studio (Step 4)</h2>
+<h3>Safe Zone APIs</h3>
+<table class="doc-table">
+<thead><tr>
+<tr><th>Platform</th><th>Endpoint</th><th>Purpose</th></tr>
+</thead><tbody>
+<tbody>
+<tr>
+<tr><td>Google</td><td><code>/api/google-creative-analysis</code></td><td>Vision element detection for safe zones</td></tr>
+<tr><td>Meta</td><td><code>/api/meta-creative-analysis</code></td><td>Vision element detection for safe zones</td></tr>
+<tr><td>Programmatic</td><td><code>/api/programmatic-creative-analysis</code></td><td>IAB banner element detection</td></tr>
+</tbody></table>
+<h3>Contextual Preview Engine</h3>
+<p><code>POST /api/preview-engine</code> — Generates landing-page/environment JSON for programmatic contextual previews using analyzer output.</p>
+<h3>Device Modes</h3>
+<p>Desktop and mobile preview modes where applicable per placement.</p>
+<hr class="section-break" />
+<h2>12. User Dashboard</h2>
+<p><strong>Route:</strong> <code>/dashboard</code>  </p>
+<p><strong>Layout:</strong> Sidebar + topbar shell (admin/org routes use separate shells)</p>
+<h3>Overview Section</h3>
+<table class="doc-table">
+<thead><tr>
+<tr><th>Stat Card</th><th>Source</th></tr>
+</thead><tbody>
+<tbody>
+<tr>
+<tr><td>Total Creatives</td><td>Supabase <code>creatives</code> + activity upload history + analyzer results</td></tr>
+<tr><td>Valid Creatives</td><td>Cumulative validation passes (DB + activity logs)</td></tr>
+<tr><td>Invalid Creatives</td><td>Cumulative validation failures (DB + activity logs)</td></tr>
+<tr><td>Platforms Used</td><td>Activity log platform usage</td></tr>
+</tbody></table>
+<p>*Note: Valid and invalid counts are cumulative — a creative fixed after initial failure may appear in both totals.*</p>
+<h3>Quick Actions</h3>
+<table class="doc-table">
+<thead><tr>
+<tr><th>Action</th><th>Destination</th></tr>
+</thead><tbody>
+<tbody>
+<tr>
+<tr><td>Open Preview Tool</td><td><code>/preview-tool?step=1</code></td></tr>
+<tr><td>Resume Analysis</td><td><code>/preview-tool?step=3</code></td></tr>
+<tr><td>Organization Console</td><td><code>/dashboard/organization</code> (org admins only)</td></tr>
+<tr><td>Super Admin Console</td><td><code>/dashboard/admin</code> (platform admins only)</td></tr>
+</tbody></table>
+<h3>Activity Analytics</h3>
+<p><code>UserAnalyticsCharts</code> component displays:</p>
+<ul>
+<li>Platform usage breakdown</li>
+<li>Analysis activity over time (14-day window)</li>
+<li>Preview studio opens, reports downloaded, analyzer runs</li>
+</ul>
+<h3>Data Sources</h3>
+<ul>
+<li><code>fetchUserCreatives()</code> — Direct Supabase query</li>
+<li><code>fetchUserDashboardAnalytics()</code> — Merged local + remote activity logs (up to 5,000 events)</li>
+<li><code>fetchAnalyzerResultCreativeIds()</code> — Creatives with saved analysis</li>
+<li><code>computeCreativeCountStats()</code> — Merges all sources for accurate totals</li>
+</ul>
+<hr class="section-break" />
+<h2>13. Organization Platform (Multi-Tenant)</h2>
+<h3>Data Model</h3>
+<pre class="code-block">
+Organization
+  └── Teams (many)
+  └── Members (users with roles and optional team assignment)
+</pre>
+<p><strong>Tables:</strong> <code>organizations</code>, <code>teams</code>, <code>organization_members</code></p>
+<p><strong>Member roles:</strong> <code>owner</code>, <code>org_admin</code>, <code>team_lead</code>, <code>member</code>  </p>
+<p><strong>Org status:</strong> <code>active</code>, <code>suspended</code>, <code>trial</code></p>
+<h3>Organization Admin Features</h3>
+<table class="doc-table">
+<thead><tr>
+<tr><th>Feature</th><th>Description</th></tr>
+</thead><tbody>
+<tbody>
+<tr>
+<tr><td>Org dashboard</td><td>Member count, team count, activity metrics</td></tr>
+<tr><td>Team management</td><td>Create teams, view team list</td></tr>
+<tr><td>Member management</td><td>View members, assign roles and teams</td></tr>
+<tr><td>Activity feed</td><td>Org-scoped user activity</td></tr>
+</tbody></table>
+<h3>API Endpoints</h3>
+<table class="doc-table">
+<thead><tr>
+<tr><th>Method</th><th>Route</th><th>Purpose</th></tr>
+</thead><tbody>
+<tbody>
+<tr>
+<tr><td>GET</td><td><code>/api/organization/v1/membership</code></td><td>Current user's org membership</td></tr>
+<tr><td>GET</td><td><code>/api/organization/v1/members</code></td><td>List org members</td></tr>
+<tr><td>PATCH</td><td><code>/api/organization/v1/members/[id]</code></td><td>Update role, team, status</td></tr>
+<tr><td>GET</td><td><code>/api/organization/v1/teams</code></td><td>List teams</td></tr>
+<tr><td>POST</td><td><code>/api/organization/v1/teams</code></td><td>Create team</td></tr>
+<tr><td>GET</td><td><code>/api/organization/v1/dashboard</code></td><td>Org metrics</td></tr>
+</tbody></table>
+<h3>Setup</h3>
+<p>Run <code>supabase/migrations/20260616_organizations_teams.sql</code> or <code>supabase/RUN_ORGANIZATIONS_SETUP.sql</code> in Supabase SQL Editor.</p>
+<p>Super admins create organizations via <code>/dashboard/admin/organizations</code>.</p>
+<hr class="section-break" />
+<h2>14. Super Admin Platform</h2>
+<h3>RBAC Roles</h3>
+<p><code>super_admin</code> → <code>admin</code> → <code>moderator</code> → <code>support</code> → <code>user</code></p>
+<h3>Permissions</h3>
+<p><code>users:read</code>, <code>users:write</code>, <code>audit:read</code>, <code>analytics:read</code>, <code>health:read</code>, <code>permissions:write</code></p>
+<h3>Admin API (`/api/admin/v1/*`)</h3>
+<table class="doc-table">
+<thead><tr>
+<tr><th>Endpoint</th><th>Purpose</th></tr>
+</thead><tbody>
+<tbody>
+<tr>
+<tr><td>GET <code>/dashboard</code></td><td>Platform metrics</td></tr>
+<tr><td>GET <code>/analytics</code></td><td>Extended analytics (DAU/WAU/MAU, retention)</td></tr>
+<tr><td>GET <code>/health</code></td><td>DB, Redis, realtime health</td></tr>
+<tr><td>GET <code>/users</code></td><td>Paginated user list (CSV export available)</td></tr>
+<tr><td>GET <code>/users/[id]</code></td><td>User detail</td></tr>
+<tr><td>POST <code>/users/[id]/actions</code></td><td>Suspend, ban, reset password, update, delete</td></tr>
+<tr><td>GET <code>/activity</code></td><td>Cross-user activity logs</td></tr>
+<tr><td>GET <code>/audit</code></td><td>Admin audit trail</td></tr>
+<tr><td>GET <code>/permissions</code></td><td>Role definitions and feature matrix</td></tr>
+<tr><td>GET/POST <code>/organizations</code></td><td>List/create organizations</td></tr>
+</tbody></table>
+<h3>Admin Database Tables</h3>
+<p><code>admin_user_sessions</code>, <code>admin_user_activity</code>, <code>admin_feature_permissions</code>, <code>admin_audit_logs</code>, <code>admin_notifications</code>, <code>admin_feature_usage</code>, <code>admin_error_logs</code>, <code>admin_role_definitions</code></p>
+<h3>Setup</h3>
+<p>Run <code>supabase/migrations/20260615_admin_enterprise_platform.sql</code>  </p>
+<p>Grant access: <code>UPDATE profiles SET role = 'admin', admin_role = 'super_admin' WHERE email = '...'</code></p>
+<p>See <code>docs/ADMIN_PLATFORM_SETUP.md</code> for full setup guide.</p>
+<hr class="section-break" />
+<h2>15. Communication Platform</h2>
+<p><strong>Route:</strong> <code>/dashboard/communications</code>  </p>
+<p><strong>Component:</strong> <code>CommunicationPlatform.jsx</code></p>
+<h3>Features</h3>
+<ul>
+<li>Real-time chat via Supabase realtime + <code>useCommunicationRealtime</code></li>
+<li>Direct and project conversations</li>
+<li>Message types: text, file, creative attachment, system events</li>
+<li>Creative review workflow with statuses: pending → in_review → approved / revision_requested</li>
+<li>Activity timeline per conversation</li>
+<li>In-app notifications</li>
+<li>User presence tracking</li>
+</ul>
+<h3>Review Workflow</h3>
+<p>1. Brand Owner creates conversation and assigns creatives</p>
+<p>2. Servicing Team receives assignment notification</p>
+<p>3. Reviewer approves or requests revision with notes</p>
+<p>4. Status updates tracked in <code>creative_reviews</code> table</p>
+<h3>API Endpoints</h3>
+<table class="doc-table">
+<thead><tr>
+<tr><th>Method</th><th>Route</th><th>Purpose</th></tr>
+</thead><tbody>
+<tbody>
+<tr>
+<tr><td>GET/POST</td><td><code>/api/communications/conversations</code></td><td>List/create conversations</td></tr>
+<tr><td>GET/PATCH</td><td><code>/api/communications/conversations/[id]</code></td><td>Detail/update</td></tr>
+<tr><td>GET/POST</td><td><code>/api/communications/conversations/[id]/messages</code></td><td>Messages</td></tr>
+<tr><td>GET/POST</td><td><code>/api/communications/conversations/[id]/activity</code></td><td>Activity events</td></tr>
+<tr><td>POST</td><td><code>/api/communications/attachments/[id]/review</code></td><td>Submit review</td></tr>
+<tr><td>GET/PATCH</td><td><code>/api/communications/notifications</code></td><td>Notifications</td></tr>
+<tr><td>GET/PATCH</td><td><code>/api/communications/users</code></td><td>User search/update</td></tr>
+</tbody></table>
+<hr class="section-break" />
+<h2>16. Settings, Downloads &amp; Account</h2>
+<h3>Settings (`/settings`)</h3>
+<table class="doc-table">
+<thead><tr>
+<tr><th>Section</th><th>Status</th></tr>
+</thead><tbody>
+<tbody>
+<tr>
+<tr><td>Profile</td><td>Read-only name and email from Supabase auth</td></tr>
+<tr><td>Notifications</td><td>Placeholder — email alerts coming soon</td></tr>
+<tr><td>Security</td><td>Password/session managed by login; link to re-authenticate</td></tr>
+</tbody></table>
+<h3>Downloads (`/downloads`)</h3>
+<p>Placeholder page directing users to export from Preview Tool Step 3 (PDF) or Step 4 (PPTX).</p>
+<h3>Admin Settings (`/dashboard/admin/settings`)</h3>
+<p>Displays environment variable configuration status (Supabase URL, keys, Realtime URL).</p>
+<hr class="section-break" />
+<h2>17. Guest Demo Access</h2>
+<p><strong>Logic file:</strong> <code>app/lib/demoAccess.js</code>  </p>
+<p><strong>Gate component:</strong> <code>PreviewToolGate.jsx</code></p>
+<h3>Rules</h3>
+<table class="doc-table">
+<thead><tr>
+<tr><th>User Type</th><th>Access</th></tr>
+</thead><tbody>
+<tbody>
+<tr>
+<tr><td>Authenticated</td><td>Unlimited Preview Tool use; data persists to Supabase</td></tr>
+<tr><td>Guest (first visit)</td><td>One demo session via <code>?demo=1&amp;step=1</code></td></tr>
+<tr><td>Guest (demo used, tab closed)</td><td>Blocked — must sign in</td></tr>
+</tbody></table>
+<h3>Storage Keys</h3>
+<table class="doc-table">
+<thead><tr>
+<tr><th>Key</th><th>Storage</th><th>Purpose</th></tr>
+</thead><tbody>
+<tbody>
+<tr>
+<tr><td><code>adigator_guest_demo_used</code></td><td>localStorage</td><td>Permanent &quot;demo consumed&quot; flag</td></tr>
+<tr><td><code>adigator_guest_demo_active</code></td><td>sessionStorage</td><td>Active tab session flag</td></tr>
+<tr><td><code>adigator_preview_refresh</code></td><td>sessionStorage</td><td>Distinguishes refresh vs navigate-away</td></tr>
+</tbody></table>
+<h3>Blocked User Experience</h3>
+<p>Shows sign-in CTA and link to watch demo video instead of Preview Tool.</p>
+<hr class="section-break" />
+<h2>18. Complete API Reference</h2>
+<h3>Creative Intelligence</h3>
+<table class="doc-table">
+<thead><tr>
+<tr><th>Method</th><th>Route</th><th>Purpose</th></tr>
+</thead><tbody>
+<tbody>
+<tr>
+<tr><td>POST</td><td><code>/api/analyze-creative</code></td><td>Full strategic analysis orchestrator</td></tr>
+<tr><td>POST</td><td><code>/api/validate</code></td><td>Campaign readiness report</td></tr>
+<tr><td>POST</td><td><code>/api/url-validation</code></td><td>Landing page + creative alignment</td></tr>
+<tr><td>POST</td><td><code>/api/google-creative-analysis</code></td><td>Google safe zone element detection</td></tr>
+<tr><td>POST</td><td><code>/api/meta-creative-analysis</code></td><td>Meta safe zone element detection</td></tr>
+<tr><td>POST</td><td><code>/api/programmatic-creative-analysis</code></td><td>Programmatic element detection</td></tr>
+</tbody></table>
+<h3>Preview</h3>
+<table class="doc-table">
+<thead><tr>
+<tr><th>Method</th><th>Route</th><th>Purpose</th></tr>
+</thead><tbody>
+<tbody>
+<tr>
+<tr><td>POST</td><td><code>/api/preview-engine</code></td><td>Contextual preview engine</td></tr>
+<tr><td>GET</td><td><code>/api/preview-engine</code></td><td>Engine metadata</td></tr>
+<tr><td>POST</td><td><code>/api/preview-templates</code></td><td>Legacy template generation</td></tr>
+</tbody></table>
+<h3>Creatives &amp; Sessions</h3>
+<table class="doc-table">
+<thead><tr>
+<tr><th>Method</th><th>Route</th><th>Purpose</th></tr>
+</thead><tbody>
+<tbody>
+<tr>
+<tr><td>GET/POST</td><td><code>/api/creatives</code></td><td>List/save user creatives</td></tr>
+<tr><td>POST</td><td><code>/api/session/create</code></td><td>Create analysis session</td></tr>
+<tr><td>POST</td><td><code>/api/session/update</code></td><td>Update session</td></tr>
+<tr><td>GET</td><td><code>/api/session/[id]</code></td><td>Fetch session</td></tr>
+</tbody></table>
+<h3>Activity</h3>
+<table class="doc-table">
+<thead><tr>
+<tr><th>Method</th><th>Route</th><th>Purpose</th></tr>
+</thead><tbody>
+<tbody>
+<tr>
+<tr><td>POST</td><td><code>/api/activity/log</code></td><td>Log user activity</td></tr>
+<tr><td>GET</td><td><code>/api/activity/list</code></td><td>List activity (admin-gated)</td></tr>
+</tbody></table>
+<p>*All routes above require Bearer token from Supabase session unless noted.*</p>
+<hr class="section-break" />
+<h2>19. Database Schema (Supabase)</h2>
+<h3>Core Tables</h3>
+<table class="doc-table">
+<thead><tr>
+<tr><th>Table</th><th>Purpose</th></tr>
+</thead><tbody>
+<tbody>
+<tr>
+<tr><td><code>creatives</code></td><td>Uploaded creative metadata (name, type, size, is_valid, validation_status, file_url)</td></tr>
+<tr><td><code>analyzer_results</code></td><td>JSON analysis per creative/platform/goal</td></tr>
+<tr><td><code>activity_logs</code></td><td>User activity audit trail</td></tr>
+<tr><td><code>analysis_sessions</code></td><td>Persistent analysis session state</td></tr>
+<tr><td><code>user_activity_events</code></td><td>Structured activity events</td></tr>
+</tbody></table>
+<h3>Communication Tables</h3>
+<table class="doc-table">
+<thead><tr>
+<tr><th>Table</th><th>Purpose</th></tr>
+</thead><tbody>
+<tbody>
+<tr>
+<tr><td><code>profiles</code></td><td>User roles, admin_role, status, company info</td></tr>
+<tr><td><code>conversations</code></td><td>Chat threads (direct/project)</td></tr>
+<tr><td><code>conversation_participants</code></td><td>Membership and read state</td></tr>
+<tr><td><code>messages</code></td><td>Text, file, creative, system messages</td></tr>
+<tr><td><code>attachments</code></td><td>File/creative attachments</td></tr>
+<tr><td><code>creative_reviews</code></td><td>Review status and notes</td></tr>
+<tr><td><code>comm_activity_events</code></td><td>Communication audit trail</td></tr>
+<tr><td><code>comm_notifications</code></td><td>In-app notifications</td></tr>
+</tbody></table>
+<h3>Organization Tables</h3>
+<table class="doc-table">
+<thead><tr>
+<tr><th>Table</th><th>Purpose</th></tr>
+</thead><tbody>
+<tbody>
+<tr>
+<tr><td><code>organizations</code></td><td>Org name, slug, status, plan, industry</td></tr>
+<tr><td><code>teams</code></td><td>Teams within an organization</td></tr>
+<tr><td><code>organization_members</code></td><td>User membership, role, team assignment</td></tr>
+</tbody></table>
+<h3>Admin Tables</h3>
+<table class="doc-table">
+<thead><tr>
+<tr><th>Table</th><th>Purpose</th></tr>
+</thead><tbody>
+<tbody>
+<tr>
+<tr><td><code>admin_audit_logs</code></td><td>Admin actions on users/system</td></tr>
+<tr><td><code>admin_user_sessions</code></td><td>Login sessions</td></tr>
+<tr><td><code>admin_feature_permissions</code></td><td>Per-user feature toggles</td></tr>
+<tr><td><code>admin_role_definitions</code></td><td>RBAC role catalog</td></tr>
+</tbody></table>
+<h3>Storage</h3>
+<p><strong>Bucket:</strong> <code>creative-assets</code>  </p>
+<p><strong>Path pattern:</strong> <code>{user_id}/{creative_id}/{filename}</code></p>
+<h3>Migration Files</h3>
+<table class="doc-table">
+<thead><tr>
+<tr><th>File</th><th>Purpose</th></tr>
+</thead><tbody>
+<tbody>
+<tr>
+<tr><td><code>20260526_adigator_core_tables_rls.sql</code></td><td>Core tables + RLS</td></tr>
+<tr><td><code>20260527_communication_platform.sql</code></td><td>Communications schema</td></tr>
+<tr><td><code>20260615_admin_enterprise_platform.sql</code></td><td>Admin enterprise tables</td></tr>
+<tr><td><code>20260616_organizations_teams.sql</code></td><td>Multi-tenant org schema</td></tr>
+<tr><td><code>RUN_PREVIEW_TOOL_TABLES.sql</code></td><td>Idempotent preview tool setup</td></tr>
+<tr><td><code>RUN_ORGANIZATIONS_SETUP.sql</code></td><td>Org setup helper</td></tr>
+<tr><td><code>FIX_DATABASE.sql</code></td><td>Schema repair script</td></tr>
+</tbody></table>
+<hr class="section-break" />
+<h2>20. Data Services &amp; Analytics</h2>
+<h3>`supabaseDataService.js`</h3>
+<table class="doc-table">
+<thead><tr>
+<tr><th>Function</th><th>Purpose</th></tr>
+</thead><tbody>
+<tbody>
+<tr>
+<tr><td><code>saveCreative()</code></td><td>Upload blob to storage + POST <code>/api/creatives</code></td></tr>
+<tr><td><code>saveAnalyzerResult()</code></td><td>Insert analyzer_results row</td></tr>
+<tr><td><code>trackUserActivity()</code></td><td>POST <code>/api/activity/log</code> with localStorage fallback</td></tr>
+<tr><td><code>trackValidationOutcome()</code></td><td>Deduped validation pass/fail events</td></tr>
+<tr><td><code>fetchUserCreatives()</code></td><td>Query user's creatives from Supabase</td></tr>
+<tr><td><code>deleteCreativeRecord()</code></td><td>Delete creative row</td></tr>
+</tbody></table>
+<h3>Activity Event Types</h3>
+<p><code>page_visit</code>, <code>upload</code>, <code>validation_outcome</code>, <code>analyzer_usage</code>, <code>navigation</code>, <code>download</code>, <code>generate_action</code>, <code>platform_selection</code>, <code>button_click</code>, <code>user_login</code></p>
+<h3>Dashboard Analytics (`userDashboardAnalytics.js`)</h3>
+<p>Merges local + remote activity logs to compute:</p>
+<ul>
+<li>Analysis by day (14-day chart)</li>
+<li>Platform usage counts</li>
+<li>Preview studio opens, reports downloaded, analyzer runs</li>
+<li>Creative validity sets from upload and validation_outcome events</li>
+</ul>
+<hr class="section-break" />
+<h2>21. Export &amp; Reporting</h2>
+<h3>PPTX Export</h3>
+<ul>
+<li><strong>Trigger:</strong> Step 4 &quot;Export PPTX&quot; button</li>
+<li><strong>File:</strong> <code>app/lib/exportPptx.js</code></li>
+<li><strong>Library:</strong> pptxgenjs</li>
+<li><strong>Content:</strong> Campaign summary, per-creative analysis, alignment scores, recommendations</li>
+<li><strong>Filename:</strong> <code>Adigator_Advertising_Intelligence_{N}Creatives.pptx</code></li>
+</ul>
+<h3>PDF Export</h3>
+<ul>
+<li><strong>Trigger:</strong> Step 3 analysis panel download</li>
+<li><strong>Library:</strong> jspdf</li>
+<li><strong>Content:</strong> Analysis summary and per-creative findings</li>
+</ul>
+<h3>PNG Export</h3>
+<ul>
+<li><strong>Trigger:</strong> Preview Studio download button per placement</li>
+<li><strong>Library:</strong> html2canvas</li>
+<li><strong>Content:</strong> Rendered placement template capture</li>
+</ul>
+<hr class="section-break" />
+<h2>22. Supported Platforms, Goals &amp; Verticals</h2>
+<h3>Platforms</h3>
+<table class="doc-table">
+<thead><tr>
+<tr><th>ID</th><th>Name</th><th>Placements</th><th>Safe Zone</th></tr>
+</thead><tbody>
+<tbody>
+<tr>
+<tr><td><code>google_ads</code></td><td>Google Ads</td><td>8</td><td>Yes</td></tr>
+<tr><td><code>meta_ads</code></td><td>Meta Ads</td><td>10</td><td>Yes</td></tr>
+<tr><td><code>programmatic</code></td><td>Programmatic Ads</td><td>8</td><td>No</td></tr>
+</tbody></table>
+<h3>Campaign Goals</h3>
+<p><strong>Google &amp; Meta:</strong> Awareness, Traffic, Conversion, Lead Generation, Engagement, App Installs, Retargeting, Video Views</p>
+<p><strong>Programmatic:</strong> Awareness, Consideration, Conversion</p>
+<h3>Audience Stages</h3>
+<p>Cold (first-touch), Warm (partially familiar), Hot (retargeting/high-intent)</p>
+<h3>Industry Verticals (17)</h3>
+<p>Healthcare, Technology, Automotive, News/Media, Sports, Fitness, Business/Finance, Luxury, Travel, Hotels, Restaurants/Food, Banking/FinTech, Real Estate, Education/EdTech, Gaming, Entertainment/OTT, E-commerce/Retail, Fashion</p>
+<h3>Standard Display Sizes (examples)</h3>
+<p>300×250, 336×280, 728×90, 970×90, 970×250, 160×600, 300×600, 320×50, 320×100, 468×60, and more per platform registry.</p>
+<hr class="section-break" />
+<h2>23. Environment Variables</h2>
+<pre class="code-block">
+# Required — Supabase
+NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+
+# Required for admin/org APIs
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+
+# Required for AI analysis
+OPENAI_API_KEY=sk-...
+OPENAI_MODEL=gpt-4o                    # optional, defaults to gpt-4o
+
+# Optional — Realtime presence
+NEXT_PUBLIC_REALTIME_URL=http://localhost:4010
+REDIS_URL=redis://localhost:6379
+REALTIME_PORT=4010
+
+# Optional — Email alerts (admin)
+SMTP_HOST=
+SMTP_USER=
+ADMIN_EMAIL=
+</pre>
+<hr class="section-break" />
+<h2>24. Development &amp; Deployment</h2>
+<h3>Local Development</h3>
+<pre class="code-block">
+npm install
+npm run dev        # http://localhost:3000
+</pre>
+<h3>Production Build</h3>
+<pre class="code-block">
+npm run build
+npm start
+</pre>
+<h3>Lint</h3>
+<pre class="code-block">
+npm run lint
+</pre>
+<h3>Deployment</h3>
+<ul>
+<li><strong>Platform:</strong> Vercel (Next.js native)</li>
+<li><strong>Production URL:</strong> adigator.in</li>
+<li><strong>Database:</strong> Apply Supabase migrations via SQL Editor</li>
+<li><strong>Realtime server:</strong> Optional separate service at <code>services/realtime-server/</code></li>
+</ul>
+<h3>Database Setup Order</h3>
+<p>1. <code>RUN_PREVIEW_TOOL_TABLES.sql</code> or core migrations</p>
+<p>2. <code>RUN_COMMUNICATION_PLATFORM.sql</code></p>
+<p>3. <code>20260615_admin_enterprise_platform.sql</code></p>
+<p>4. <code>20260616_organizations_teams.sql</code> or <code>RUN_ORGANIZATIONS_SETUP.sql</code></p>
+<hr class="section-break" />
+<h2>25. Project Structure</h2>
+<pre class="code-block">
+Adigator/
+├── app/
+│   ├── api/                         # 37+ API route handlers
+│   ├── components/
+│   │   ├── PreviewTool.jsx          # Main 4-step wizard
+│   │   ├── PreviewToolGate.jsx      # Guest demo gate
+│   │   ├── PreviewStudio/           # Step 4 previews
+│   │   ├── communications/          # Chat/review platform
+│   │   ├── admin/                   # Super admin UI shell
+│   │   ├── organization/            # Org admin UI shell
+│   │   ├── marketing/               # Landing page components
+│   │   ├── dashboard/               # User dashboard charts
+│   │   └── Validation*.tsx          # Readiness UI
+│   ├── dashboard/                   # All dashboard pages
+│   ├── login/                       # Auth pages
+│   ├── lib/                         # Business logic, services, validators
+│   ├── preview-tool/                # Gated preview tool route
+│   ├── preview/                     # Direct preview tool route
+│   ├── settings/                    # Account settings
+│   └── styles/                      # login.css, premium-ui.css
+├── docs/                            # Documentation (this file)
+├── supabase/                        # SQL migrations and setup scripts
+├── services/realtime-server/        # Optional Socket.IO presence server
+├── public/                          # Static assets
+└── package.json
+</pre>
+<hr class="section-break" />
+<h2>26. Known Limitations &amp; Roadmap Items</h2>
+<table class="doc-table">
+<thead><tr>
+<tr><th>Item</th><th>Status</th></tr>
+</thead><tbody>
+<tbody>
+<tr>
+<tr><td>Google OAuth on login</td><td>UI only — no handler</td></tr>
+<tr><td>User password reset</td><td>Link exists; reset flow not implemented</td></tr>
+<tr><td><code>/projects</code> page</td><td>Sidebar link only</td></tr>
+<tr><td><code>/intelligence</code> page</td><td>Sidebar link only</td></tr>
+<tr><td>User notification settings</td><td>Placeholder on <code>/settings</code></td></tr>
+<tr><td>Admin notifications</td><td>Placeholder on admin console</td></tr>
+<tr><td>Downloads history</td><td>Placeholder on <code>/downloads</code></td></tr>
+<tr><td>Audience stage UI</td><td>Backend support; no visible Step 1 selector</td></tr>
+<tr><td>Guest demo enforcement</td><td>Client-side only (no server-side limit)</td></tr>
+</tbody></table>
+<hr class="section-break" />
+<h2>27. Appendix: Key Design Decisions</h2>
+<h3>Hybrid AI + Rules</h3>
+<p>OpenAI handles vision extraction and strategic language; deterministic rules enforce platform size matrices and scoring consistency.</p>
+<h3>IndexedDB for Creative Blobs</h3>
+<p>Full-resolution images exceed localStorage limits; IndexedDB enables refresh-safe re-hydration.</p>
+<h3>Template-Based Preview Studio</h3>
+<p>26 hardcoded placement templates for speed and consistency; OpenAI used only for safe-zone detection.</p>
+<h3>Cumulative Dashboard Metrics</h3>
+<p>Valid/invalid creative counts are cumulative across upload history to reflect total testing activity, not just current state.</p>
+<h3>Multi-Tenant Architecture</h3>
+<p>Organizations provide team isolation within a single Supabase instance with RLS policies scoped per org membership.</p>
+<h3>Activity Log Privacy</h3>
+<p>User aggregate reads from <code>activity_logs</code> are admin-only; users access their own events via merged local + permitted remote reads for dashboard stats.</p>
+<hr class="section-break" />
+<h2>Document Information</h2>
+<table class="doc-table">
+<thead><tr>
+<tr><th>Item</th><th>Value</th></tr>
+</thead><tbody>
+<tbody>
+<tr>
+<tr><td>File</td><td><code>docs/ADIGATOR_COMPLETE_WEBSITE_DOCUMENTATION.md</code></td></tr>
+<tr><td>Companion docs</td><td><code>docs/ADIGATOR_PLATFORM_DOCUMENTATION.md</code>, <code>docs/ADMIN_PLATFORM_SETUP.md</code></td></tr>
+<tr><td>Agent rules</td><td><code>AGENTS.md</code></td></tr>
+<tr><td>Schema reference</td><td><code>supabase/migrations/</code></td></tr>
+</tbody></table>
+<p>*This document covers every page, feature, tool, API endpoint, database table, workflow, and role system in the Adigator platform as of June 2026.*</p>
+<hr class="section-break" />
+<p><strong>© Adigator — Creative Intelligence Platform</strong></p>
+</body>
+</html>

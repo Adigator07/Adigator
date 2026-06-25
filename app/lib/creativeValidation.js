@@ -343,10 +343,10 @@ function buildFileWeightIssues(file, platform, size, intelligence) {
   if (isBanner && fileSize > 150 * 1024) {
     return [{
       type: "weight",
-      severity: "high",
-      message: "File size exceeds the 150KB limit for standard display banners.",
-      recommendation: "Compress the creative to 150KB or below before analysis.",
-      scorePenalty: 30,
+      severity: "medium",
+      message: `File size is ${Math.round(fileSize / 1024)}KB — above the 150KB recommendation for display banners.`,
+      recommendation: "Larger files may slow ad delivery and reduce placement eligibility. Compress when possible, but you can continue.",
+      scorePenalty: 8,
     }];
   }
 
@@ -385,16 +385,48 @@ function buildFileWeightIssues(file, platform, size, intelligence) {
   if (fileSize > 150 * 1024) {
     return [{
       type: "weight",
-      severity: platform === "programmatic" && !isBanner ? "medium" : "high",
+      severity: "medium",
       message: platform === "programmatic"
-        ? "File size exceeds 150KB display guidance — may affect viewability scores."
-        : "File size exceeds the required 150KB limit.",
-      recommendation: "Compress the creative to 150KB or below for optimal display delivery.",
-      scorePenalty: platform === "programmatic" ? 12 : 30,
+        ? `File size is ${Math.round(fileSize / 1024)}KB — above 150KB display guidance; may affect viewability.`
+        : `File size is ${Math.round(fileSize / 1024)}KB — above the 150KB recommendation.`,
+      recommendation: "Compress for faster load and better placement odds. You can still proceed to the next step.",
+      scorePenalty: platform === "programmatic" ? 8 : 10,
     }];
   }
 
   return [];
+}
+
+function buildPlatformIntelligenceFallback(size, platform, platformLabel) {
+  if (platform === "programmatic") {
+    return {
+      size,
+      sizeLabel: "Unsupported Size",
+      placementType: "unsupported",
+      sizeGroup: "unsupported",
+      deviceClassification: "Unsupported",
+      iabCompatibility: { compatible: false, standard: "Not in supported matrix", message: `${size} is not in the programmatic matrix.` },
+      dspCompatibility: { supported: [], count: 0, coverage: "No DSP support" },
+      inventory: { category: "Unsupported", score: 0, message: "No reliable inventory for this size." },
+      auctionReadiness: { score: 0, band: "Not Eligible", message: "Unsupported size for auction strategy." },
+      premiumPlacement: { eligible: false, label: "Not Eligible", message: "Not eligible for premium packages." },
+      responsiveCompatibility: "Unsupported",
+    };
+  }
+
+  return {
+    size,
+    sizeLabel: size,
+    placementType: platform === "google_ads" ? "display" : "feed",
+    sizeGroup: "platform",
+    deviceClassification: "Multi-device",
+    iabCompatibility: {
+      compatible: true,
+      standard: platformLabel,
+      message: `${size} validated against ${platformLabel} size matrix.`,
+    },
+    responsiveCompatibility: "Supported",
+  };
 }
 
 export async function validateCreativeAsset({ file, image, platform }) {
@@ -413,7 +445,9 @@ export async function validateCreativeAsset({ file, image, platform }) {
   const canonicalSize = sizeMatch?.match || actualSize;
   const size = actualSize;
   const issues = [];
-  const intelligence = resolveSizeIntelligence(canonicalSize);
+  const intelligence = normalizedPlatform === "programmatic"
+    ? resolveSizeIntelligence(canonicalSize)
+    : null;
   const fileMime = String(file?.type || "").toLowerCase();
   const rdaFit = normalizedPlatform === "google_ads" ? evaluateGoogleRdaFit(canonicalSize) : null;
   const googleSizeTier = normalizedPlatform === "google_ads" ? classifyGoogleSizeTier(canonicalSize) : null;
@@ -433,15 +467,15 @@ export async function validateCreativeAsset({ file, image, platform }) {
       type: "dimension_normalization",
       severity: "medium",
       message: `Detected ${sizeMatch.detectedSize} — orientation matches supported ${canonicalSize}.`,
-      recommendation: "Re-export with embedded orientation or use the canonical dimensions for placement matching.",
+      recommendation: "Dimensions are accepted for this platform.",
       scorePenalty: 0,
     });
   } else if (sizeMatch && sizeMatch.type === "tolerance" && sizeMatch.detectedSize !== canonicalSize) {
     issues.push({
       type: "dimension_normalization",
       severity: "medium",
-      message: `Detected ${sizeMatch.detectedSize} — within export tolerance of supported ${canonicalSize}.`,
-      recommendation: "Dimensions are accepted; re-export at exact pixel size if your ad server requires it.",
+      message: `Detected ${sizeMatch.detectedSize} — within tolerance of supported ${canonicalSize}.`,
+      recommendation: "No resize required — your creative matches an accepted size.",
       scorePenalty: 0,
     });
   }
@@ -545,39 +579,7 @@ export async function validateCreativeAsset({ file, image, platform }) {
     platform: normalizedPlatform,
     supportedSizes,
     supportedSizeGroups: platformGroups,
-    intelligence: intelligence || {
-      size,
-      sizeLabel: "Unsupported Size",
-      placementType: "unsupported",
-      sizeGroup: "unsupported",
-      deviceClassification: "Unsupported",
-      iabCompatibility: {
-        compatible: false,
-        standard: "Not in supported matrix",
-        message: `${size} is not currently in the supported ${platformLabel} matrix.`,
-      },
-      dspCompatibility: {
-        supported: [],
-        count: 0,
-        coverage: "No DSP support",
-      },
-      inventory: {
-        category: "Unsupported",
-        score: 0,
-        message: "No reliable inventory availability for this size in current matrix.",
-      },
-      auctionReadiness: {
-        score: 0,
-        band: "Not Eligible",
-        message: "Unsupported size for production auction strategy.",
-      },
-      premiumPlacement: {
-        eligible: false,
-        label: "Not Eligible",
-        message: "Unsupported size is not eligible for premium placement packages.",
-      },
-      responsiveCompatibility: "Unsupported",
-    },
+    intelligence: intelligence || buildPlatformIntelligenceFallback(canonicalSize, normalizedPlatform, platformLabel),
     googleStandards: normalizedPlatform === "google_ads"
       ? {
         ecosystemFocus: ["responsive_display_ads", "uploaded_banner_ads"],
@@ -628,7 +630,8 @@ export function finalizeValidationForPlatform(validation, platform, size) {
   };
 }
 
-function applyValidationFields(creative, validation) {
+export function applyValidationFields(creative, validation) {
+  const isProgrammatic = validation.platform === "programmatic";
   return {
     ...creative,
     validation,
@@ -636,10 +639,12 @@ function applyValidationFields(creative, validation) {
     placementType: validation.intelligence?.placementType,
     deviceClassification: validation.intelligence?.deviceClassification,
     iabCompatibility: validation.intelligence?.iabCompatibility,
-    dspCompatibility: validation.intelligence?.dspCompatibility,
-    inventoryAvailability: validation.intelligence?.inventory,
-    auctionReadiness: validation.intelligence?.auctionReadiness,
-    premiumPlacementPotential: validation.intelligence?.premiumPlacement,
+    ...(isProgrammatic ? {
+      dspCompatibility: validation.intelligence?.dspCompatibility,
+      inventoryAvailability: validation.intelligence?.inventory,
+      auctionReadiness: validation.intelligence?.auctionReadiness,
+      premiumPlacementPotential: validation.intelligence?.premiumPlacement,
+    } : {}),
   };
 }
 

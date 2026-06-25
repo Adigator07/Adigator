@@ -246,14 +246,18 @@ export function buildExtractionUserPromptLock(
   goalStage: string,
   vertical: string,
   groundingRules: string,
+  campaignBrief?: string,
 ): string {
   const reminder = getCrossPlatformForbiddenReminder(platform);
+  const briefBlock = campaignBrief?.trim()
+    ? `\n- Client Brief / Campaign Description: ${campaignBrief.trim()}\n\nTreat the campaign objective and client brief as primary context for alignment. Prefer brief-grounded reasoning over generic assumptions.`
+    : "";
   return `Analyze this advertising creative.
 
 ## ACTIVE ANALYSIS LOCK (mandatory)
 - Platform: ${platformLabel} — ${reminder}
 - Campaign Goal: ${goal.replace(/_/g, " ")} (${goalStage} stage)
-- Industry Vertical: ${vertical.replace(/_/g, " ")}
+- Industry Vertical: ${vertical.replace(/_/g, " ")}${briefBlock}
 
 Use ONLY the ${platformLabel} analyzer brain from system instructions. Do not apply other platforms' logic.
 

@@ -4,9 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
 import {
-  MARKETING_CTA,
   MARKETING_FOOTER_COLUMNS,
-  MARKETING_NAV_LINKS,
   MARKETING_PARTNER_BADGES,
 } from "@/app/lib/siteNavigation";
 import MarketingNav from "@/app/components/MarketingNav";
@@ -23,62 +21,79 @@ const SOLUTIONS: Record<TabKey, SolutionCard[]> = {
   "use-case": [
     {
       icon: "↗",
-      title: "Performance & Budget Optimization",
-      description: "Continuously reallocate spend toward high-performing creatives, channels, and audience segments.",
+      title: "Pre-Launch Validation",
+      description:
+        "Catch wrong dimensions, oversized files, and incompatible formats across Google, Meta, and Programmatic before budget is wasted on rejected ads.",
     },
     {
       icon: "◎",
-      title: "Audience Targeting",
-      description: "Find high-intent audience pockets and refine targeting with confidence across each campaign cycle.",
+      title: "Creative QA & Approval",
+      description:
+        "Replace endless email threads and screenshot chains with structured analysis, contextual previews, and shareable reports stakeholders actually understand.",
     },
     {
       icon: "✦",
-      title: "Ad Creation",
-      description: "Generate, score, and iterate high-impact ad creative variants without slowing your launch cadence.",
+      title: "Multi-Platform Scaling",
+      description:
+        "Adapt one creative set across channels with platform-specific intelligence — size matrices, placement rules, and inventory fit built in.",
     },
     {
       icon: "◌",
-      title: "Insights & Monitoring",
-      description: "Monitor trend shifts and performance anomalies in real time before they impact results.",
+      title: "Strategic Reporting",
+      description:
+        "Turn raw creative performance signals into presentation-ready PPTX decks for client reviews, leadership updates, and campaign retrospectives.",
     },
   ],
   team: [
     {
       icon: "Δ",
-      title: "Performance Teams",
-      description: "Turn media planning and optimization into a repeatable growth engine with cleaner decision loops.",
+      title: "Performance Marketing Teams",
+      description:
+        "Launch faster with validated creatives and clear go/no-go signals. Spend less time firefighting platform rejections and more time optimizing.",
     },
     {
       icon: "◈",
-      title: "Creative Teams",
-      description: "Move from subjective review cycles to measurable creative impact backed by clear AI guidance.",
+      title: "Creative & Design Teams",
+      description:
+        "Get objective feedback on attention, alignment, and format fit — so revisions are data-informed, not subjective opinion loops.",
     },
     {
       icon: "▣",
-      title: "Agencies",
-      description: "Scale strategy and execution across clients while keeping quality high and delivery timelines tight.",
+      title: "Agencies & Servicing Teams",
+      description:
+        "Manage multiple clients with organization workspaces, team permissions, and a unified review workflow from upload to client sign-off.",
+    },
+    {
+      icon: "◇",
+      title: "Brand & In-House Teams",
+      description:
+        "Keep creative standards consistent across regions and channels with one platform for validation, preview, and strategic documentation.",
     },
   ],
   industry: [
     {
       icon: "◍",
-      title: "Retail",
-      description: "Maximize conversion and catalog performance with adaptive creatives built for seasonal demand.",
+      title: "Retail & E-commerce",
+      description:
+        "Validate product creatives across seasonal campaigns, catalog ads, and high-velocity promotional bursts without compliance surprises.",
     },
     {
       icon: "◉",
-      title: "Consumer Packaged Goods",
-      description: "Elevate awareness and market share with message testing tuned for fast-moving inventory cycles.",
+      title: "Healthcare & Pharma",
+      description:
+        "Review ad clarity, messaging alignment, and placement context with the rigor regulated industries demand — before ads reach live inventory.",
     },
     {
       icon: "✚",
-      title: "Healthcare",
-      description: "Deliver compliant, high-clarity campaigns that build trust and improve patient acquisition outcomes.",
+      title: "Financial Services",
+      description:
+        "Ensure creative assets meet platform specs and brand guidelines across trust-sensitive campaigns with auditable analysis output.",
     },
     {
       icon: "⬡",
-      title: "Telecoms",
-      description: "Reduce acquisition costs and improve retention with precise segmentation and plan-specific messaging.",
+      title: "Media & Entertainment",
+      description:
+        "Preview high-impact visuals in realistic publisher environments and accelerate approval cycles for launch-day deadlines.",
     },
   ],
 };
@@ -90,33 +105,33 @@ const TAB_LABELS: Record<TabKey, string> = {
 };
 
 const RESULT_STATS = [
-  { value: "69% RoAS improvement", brand: "Axiom" },
-  { value: "41% lower CPI", brand: "Northstar" },
-  { value: "28% CAC reduction", brand: "Helio" },
-  { value: "34% faster launch velocity", brand: "Maven" },
+  { value: "10-layer analysis", brand: "Deep creative scoring" },
+  { value: "3 ad platforms", brand: "Google · Meta · Programmatic" },
+  { value: "Real publisher previews", brand: "Contextual Preview Studio" },
+  { value: "PPTX export", brand: "Stakeholder-ready reports" },
 ];
 
 const TESTIMONIALS = [
   {
     quote:
-      "Adigator gave us a clearer path from strategy to execution. We launched better campaigns in half the time with stronger efficiency.",
-    author: "Nora Patel",
-    role: "VP, Performance Marketing",
-    company: "Brightline",
+      "We used to lose a full day to format issues and revision rounds. Adigator catches problems upfront and gives our clients previews they can actually sign off on.",
+    author: "Sarah Chen",
+    role: "Director of Media Operations",
+    company: "Horizon Media Group",
   },
   {
     quote:
-      "The platform helped our creative and media teams finally work from the same source of truth. Results became predictable.",
-    author: "Daniel Cruz",
-    role: "Head of Growth",
-    company: "Axiom",
+      "Finally, creative and performance teams work from the same analysis. No more debating whether an ad is 'ready' — the platform tells us, clearly.",
+    author: "Marcus Webb",
+    role: "Head of Performance",
+    company: "Brandscale Agency",
   },
   {
     quote:
-      "We cut weeks of back-and-forth and turned experimentation into a weekly rhythm that consistently improved campaign output.",
-    author: "Mina Shah",
-    role: "Director, Digital Strategy",
-    company: "Northstar",
+      "The preview studio changed how we present to clients. Seeing ads in a real article layout beats any static mockup we've ever shipped.",
+    author: "Priya Nair",
+    role: "Creative Strategy Lead",
+    company: "Northline Digital",
   },
 ];
 
@@ -126,6 +141,9 @@ function Footer() {
       <div className="mx-auto grid w-[min(1280px,92vw)] gap-12 md:grid-cols-5">
         <div className="md:col-span-2">
           <p className="text-2xl font-black tracking-tight">Adigator</p>
+          <p className="mt-3 max-w-sm text-sm leading-relaxed text-[#66665F]">
+            Creative intelligence for teams who validate, preview, and launch with confidence.
+          </p>
           <p className="mt-6 text-sm text-[#66665F]">© 2026 Adigator. All rights reserved.</p>
         </div>
 
@@ -204,15 +222,16 @@ export default function SolutionsPage() {
       <MarketingNav activePath="/solutions" />
 
       <main className="pt-28">
-        <section className="mx-auto w-[min(980px,92vw)] py-32 text-center md:py-40">
+        <section className="marketing-section mx-auto w-[min(980px,92vw)] py-16 text-center sm:py-20 md:py-28">
           <span className="inline-flex rounded-full border border-[#D4D3CC] bg-white px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-[#51514A]">
             Solutions
           </span>
-          <h1 className="mx-auto mt-8 max-w-5xl text-[clamp(2.6rem,7vw,5.2rem)] font-black leading-[0.94] tracking-[-0.04em]">
-            No matter your role or goal, Adigator adapts to your needs.
+          <h1 className="mx-auto mt-6 max-w-5xl text-[clamp(2rem,6vw,5.2rem)] font-black leading-[0.94] tracking-[-0.04em] sm:mt-8">
+            One platform for every team that ships ads.
           </h1>
           <p className="mx-auto mt-7 max-w-2xl text-lg leading-relaxed text-[#5C5C56]">
-            Configure your operating model by use case, team, or industry and unlock an execution system built for the way you work.
+            Whether you validate creatives, manage client campaigns, or lead an in-house org —
+            Adigator adapts to how your team works and eliminates the friction between creative and launch.
           </p>
         </section>
 
@@ -252,7 +271,9 @@ export default function SolutionsPage() {
                   </div>
                   <h3 className="text-2xl font-black leading-tight tracking-tight">{card.title}</h3>
                   <p className="mt-4 min-h-16 text-sm leading-relaxed text-[#585852]">{card.description}</p>
-                  <button className="mt-6 text-sm font-semibold text-[#141414]">Learn more →</button>
+                  <Link href="/preview-tool" className="mt-6 inline-block text-sm font-semibold text-[#141414] hover:underline">
+                    Explore Preview Studio →
+                  </Link>
                 </article>
               ))}
             </motion.div>
@@ -261,7 +282,7 @@ export default function SolutionsPage() {
 
         <section id="industry" className="bg-[#0D0D0D] py-24 text-white">
           <div className="mx-auto w-[min(1280px,92vw)]">
-            <p className="mb-8 text-sm uppercase tracking-[0.18em] text-[#A4A4A4]">Results</p>
+            <p className="mb-8 text-sm uppercase tracking-[0.18em] text-[#A4A4A4]">Platform capabilities</p>
             <div ref={statsViewportRef} className="overflow-hidden">
               <motion.div
                 ref={statsTrackRef}
@@ -283,7 +304,7 @@ export default function SolutionsPage() {
           </div>
         </section>
 
-        <section id="team" className="mx-auto w-[min(980px,92vw)] py-32 text-center">
+        <section id="team" className="marketing-section mx-auto w-[min(980px,92vw)] py-16 text-center sm:py-20 md:py-24">
           <p className="text-sm uppercase tracking-[0.18em] text-[#6A6A63]">What customers say</p>
           <AnimatePresence mode="wait">
             <motion.blockquote
@@ -324,16 +345,17 @@ export default function SolutionsPage() {
         <section className="mx-auto w-[min(1280px,92vw)] py-8 pb-32">
           <div className="saas-hover flex flex-col items-start gap-6 rounded-[28px] border border-[#DBDAD2] bg-white px-8 py-10 md:flex-row md:items-center md:justify-between md:px-12">
             <div>
-              <p className="text-sm uppercase tracking-[0.18em] text-[#686861]">Agency Partners</p>
+              <p className="text-sm uppercase tracking-[0.18em] text-[#686861]">Get started</p>
               <h3 className="mt-3 text-3xl font-black leading-tight tracking-tight md:text-4xl">
-                Looking for a stellar marketing agency?
+                See Adigator in action
               </h3>
               <p className="mt-3 max-w-2xl text-sm text-[#5B5B55]">
-                Connect with vetted partners that specialize in creative strategy, media planning, and end-to-end performance execution.
+                Walk through the full workflow — set campaign objectives, upload creatives, run analysis,
+                preview in context, and export a strategic report. No setup required.
               </p>
             </div>
-            <Link href="/preview-tool" className="saas-hover inline-flex items-center gap-2 rounded-full bg-[#0D0D0D] px-7 py-3 text-sm font-semibold text-white">
-              Browse Partner Agencies →
+            <Link href="/preview-tool?demo=1&step=1" className="saas-hover inline-flex items-center gap-2 rounded-full bg-[#0D0D0D] px-7 py-3 text-sm font-semibold text-white">
+              Launch Preview Studio →
             </Link>
           </div>
         </section>

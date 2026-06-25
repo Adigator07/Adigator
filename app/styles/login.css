@@ -1,0 +1,190 @@
+/* Login page styles — kept when marketing/preview UI was reverted */
+
+:root {
+  --agi-bg: #0a0b0f;
+  --agi-accent-blue: #3b7bff;
+  --agi-accent-cyan: #00d4ff;
+  --agi-accent-green: #00ff88;
+  --agi-text-primary: #f0f2ff;
+  --agi-text-secondary: #8890a8;
+  --agi-text-muted: #4a5068;
+  --agi-border-subtle: rgba(59, 123, 255, 0.12);
+  --agi-border-active: rgba(59, 123, 255, 0.35);
+}
+
+@keyframes agi-mesh-drift {
+  0% { opacity: 0.85; transform: scale(1) translate(0, 0); }
+  100% { opacity: 1; transform: scale(1.04) translate(-1%, 1%); }
+}
+
+@keyframes agi-shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-6px); }
+  40% { transform: translateX(6px); }
+  60% { transform: translateX(-4px); }
+  80% { transform: translateX(4px); }
+}
+
+@keyframes agi-logo-pulse {
+  0%, 100% { transform: scale(1); opacity: 0.85; }
+  50% { transform: scale(1.04); opacity: 1; }
+}
+
+.agi-particle-fallback {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 70% 55% at 15% 20%, rgba(59, 123, 255, 0.22), transparent 55%),
+    radial-gradient(ellipse 55% 45% at 85% 75%, rgba(0, 212, 255, 0.16), transparent 50%),
+    #0a0b0f;
+  animation: agi-mesh-drift 14s ease-in-out infinite alternate;
+}
+
+.agi-hero-glow {
+  text-shadow: 0 0 40px rgba(59, 123, 255, 0.25), 0 2px 24px rgba(0, 0, 0, 0.5);
+}
+
+.agi-stat-value {
+  font-family: var(--font-mono), monospace;
+  font-weight: 600;
+}
+
+.agi-shake { animation: agi-shake 0.4s ease-in-out; }
+
+.agi-btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 52px;
+  padding: 0 28px;
+  border-radius: 10px;
+  border: 1px solid rgba(59, 123, 255, 0.35);
+  background: var(--agi-accent-blue);
+  color: #fff;
+  font-weight: 600;
+  font-size: 0.95rem;
+  transition: transform 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.agi-btn-primary:hover:not(:disabled) {
+  background: #4d8bff;
+  transform: translateY(-1px);
+  box-shadow: 0 8px 24px rgba(59, 123, 255, 0.35);
+}
+
+.agi-btn-primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.agi-btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 52px;
+  padding: 0 28px;
+  border-radius: 10px;
+  border: 1px solid var(--agi-border-subtle);
+  background: transparent;
+  color: var(--agi-text-primary);
+  font-weight: 600;
+  font-size: 0.95rem;
+  transition: border-color 0.2s ease, background-color 0.2s ease;
+}
+
+.agi-btn-ghost:hover {
+  border-color: var(--agi-border-active);
+  background: rgba(59, 123, 255, 0.06);
+}
+
+.agi-input {
+  width: 100%;
+  height: 52px;
+  padding: 0 16px;
+  border-radius: 10px;
+  border: 1px solid rgba(100, 110, 140, 0.45);
+  background: #0f1118;
+  color: #f0f2ff;
+  font-size: 0.95rem;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.agi-input:focus {
+  outline: none;
+  border-color: var(--agi-accent-blue);
+  box-shadow: 0 0 0 3px rgba(59, 123, 255, 0.15);
+}
+
+.agi-input-error {
+  border-color: #ff4444 !important;
+}
+
+.agi-floating-field {
+  position: relative;
+}
+
+.agi-floating-field .agi-input {
+  padding-top: 22px;
+  padding-bottom: 8px;
+}
+
+.agi-floating-label {
+  position: absolute;
+  left: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #8890a8;
+  font-size: 0.95rem;
+  pointer-events: none;
+  transition: top 0.2s ease, left 0.2s ease, transform 0.2s ease, font-size 0.2s ease, color 0.2s ease;
+}
+
+.agi-floating-field:focus-within .agi-floating-label,
+.agi-floating-field:has(.agi-input:not(:placeholder-shown)) .agi-floating-label {
+  top: 10px;
+  transform: translateY(0);
+  font-size: 0.68rem;
+  color: #00d4ff;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+/* Icon fields — label and icon sit above the text line */
+.agi-floating-field--has-icon .agi-input {
+  padding-left: 44px;
+  padding-top: 28px;
+  padding-bottom: 10px;
+}
+
+.agi-floating-field--has-icon .agi-floating-label {
+  left: 44px;
+  top: 28px;
+  transform: translateY(0);
+}
+
+.agi-floating-field--has-icon:focus-within .agi-floating-label,
+.agi-floating-field--has-icon:has(.agi-input:not(:placeholder-shown)) .agi-floating-label {
+  left: 44px;
+  top: 8px;
+}
+
+.agi-field-icon {
+  position: absolute;
+  left: 16px;
+  top: 32px;
+  color: #8890a8;
+  pointer-events: none;
+  transition: color 0.2s ease;
+}
+
+.agi-floating-field--has-icon:focus-within .agi-field-icon,
+.agi-floating-field--has-icon:has(.agi-input:not(:placeholder-shown)) .agi-field-icon {
+  color: #6b9fff;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .agi-particle-fallback { animation: none; }
+  .agi-shake { animation: none; }
+}

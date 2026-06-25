@@ -38,6 +38,7 @@ export default function AnalyzerOverview({
   verticalText,
   platform,
   urlValidation = null,
+  campaignBrief = "",
 }) {
   if (!overview) return null;
 
@@ -79,6 +80,16 @@ export default function AnalyzerOverview({
 
       {/* URL Validation — Step 2 result shown only in Overview */}
       <UrlValidationSection urlValidation={urlValidation} />
+
+      {!campaignBrief?.trim() ? (
+        <section className="rounded-2xl border border-sky-200 bg-sky-50 p-4">
+          <p className="text-sm font-semibold text-sky-900">Improve analysis accuracy</p>
+          <p className="mt-1 text-sm text-sky-800 leading-relaxed">
+            Add a <strong>Client Brief / Campaign Description</strong> in Step 1 for tighter alignment between your creative, objective, vertical, and landing page.
+            Update the brief and click <strong>Reanalyze</strong> to refresh results.
+          </p>
+        </section>
+      ) : null}
 
       {/* 2. Campaign Health Summary */}
       {health ? (
@@ -485,6 +496,20 @@ function UrlValidationSection({ urlValidation }) {
           ? "The landing page content aligns with your selected platform, goal, and vertical."
           : "The landing page content does not align with your selected platform, goal, or vertical."}
       </p>
+
+      {urlValidation.page_about ? (
+        <p className="mt-3 text-sm text-slate-700 leading-relaxed">
+          <span className="font-semibold text-slate-900">About the page: </span>
+          {urlValidation.page_about}
+        </p>
+      ) : null}
+
+      {!isAligned && urlValidation.misalignment_reason ? (
+        <p className="mt-2 text-sm text-slate-700 leading-relaxed">
+          <span className="font-semibold text-slate-900">Why misaligned: </span>
+          {urlValidation.misalignment_reason}
+        </p>
+      ) : null}
 
       {urlValidation.submitted_url ? (
         <p className="mt-3 flex items-center gap-1.5 break-all text-xs text-slate-700">

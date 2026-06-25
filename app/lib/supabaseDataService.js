@@ -337,6 +337,36 @@ export async function trackUserActivity(actionType, payload = {}, options = {}) 
   });
 }
 
+/**
+ * Record a creative validation pass/fail for dashboard cumulative stats.
+ */
+export async function trackValidationOutcome({
+  creativeId,
+  creativeName,
+  isValid,
+  platform,
+  metadata = {},
+}) {
+  if (!creativeId) {
+    return { data: null, error: null, skipped: true };
+  }
+
+  const valid = Boolean(isValid);
+  return trackUserActivity("validation_outcome", {
+    action_label: valid ? "Creative validation passed" : "Creative validation failed",
+    platform,
+    metadata: {
+      creative_id: String(creativeId),
+      creative_name: creativeName || null,
+      is_valid: valid,
+      outcome: valid ? "pass" : "fail",
+      ...metadata,
+    },
+  }, {
+    dedupeKey: `validation-${creativeId}-${valid ? "pass" : "fail"}`,
+  });
+}
+
 export const LOCAL_ACTIVITY_KEY = "adigator_local_activity_v1";
 
 function readLocalActivity() {
@@ -383,11 +413,18 @@ export async function fetchUserCreatives() {
   const user = await getAuthenticatedUser().catch(() => null);
   if (!user) return [];
 
-  const { data, error } = await supabase
+  let { data, error } = await supabase
     .from("creatives")
     .select("*")
     .eq("user_id", user.id)
     .order("uploaded_at", { ascending: false });
+
+  if (error && /uploaded_at/i.test(error.message || "")) {
+    ({ data, error } = await supabase
+      .from("creatives")
+      .select("*")
+      .eq("user_id", user.id));
+  }
 
   if (error) {
     console.warn("[Adigator] Failed to fetch creatives:", error.message);

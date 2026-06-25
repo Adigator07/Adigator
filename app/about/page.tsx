@@ -4,10 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import {
-  MARKETING_CTA,
-  MARKETING_DEMO_VIDEO,
   MARKETING_FOOTER_COLUMNS,
-  MARKETING_NAV_LINKS,
   MARKETING_PARTNER_BADGES,
 } from "@/app/lib/siteNavigation";
 import MarketingNav from "@/app/components/MarketingNav";
@@ -15,78 +12,85 @@ import MarketingNav from "@/app/components/MarketingNav";
 const VALUES = [
   {
     icon: "◌",
-    title: "Deterministic reasoning",
+    title: "Clarity over chaos",
     description:
-      "Core scoring and alignment layers are deterministic so every recommendation can be traced and reviewed.",
+      "Advertising teams drown in scattered files, screenshots, and subjective feedback. Adigator replaces that noise with structured analysis everyone can trust.",
   },
   {
     icon: "↗",
-    title: "Platform realism",
+    title: "Preview what audiences see",
     description:
-      "Preview workflows simulate realistic publisher contexts instead of isolated ad mockups.",
+      "A creative approved in isolation is not a creative approved in context. Our preview studio places ads inside real publisher environments for honest review.",
   },
   {
     icon: "✦",
-    title: "Operational output",
+    title: "Built for scale",
     description:
-      "Analysis is designed to end in action: validation, preview decisions, and stakeholder-ready export files.",
+      "From solo marketers to multi-team organizations, Adigator grows with you — personal dashboards, org workspaces, and platform-wide administration.",
   },
 ];
 
 const STATS = [
-  { value: "10", label: "analysis layers in orchestrator" },
-  { value: "3", label: "platform intelligence matrices" },
-  { value: "1", label: "adigator output contract" },
-  { value: "10", label: "preview environment families" },
+  { value: "10", label: "layers of creative analysis" },
+  { value: "3", label: "major ad platforms supported" },
+  { value: "4", label: "step end-to-end workflow" },
+  { value: "∞", label: "teams per organization" },
 ];
 
 const PLATFORM_PILLARS = [
   {
-    name: "Analyze Creative API",
-    role: "Strategic Intelligence Core",
-    detail: "Combines extraction, attention, platform/inventory alignment, and weighted scoring.",
+    name: "Preview Studio",
+    role: "Campaign setup to launch",
+    detail: "Define objectives, upload creatives, validate formats, run analysis, preview placements, and export reports — the complete creative QA cycle.",
   },
   {
-    name: "Creative Validation Library",
-    role: "Platform + Format Guardrails",
-    detail: "Maps ad sizes and media types across Google Ads, Meta Ads, and Programmatic ecosystems.",
+    name: "Creative Validation Engine",
+    role: "Platform compliance, automated",
+    detail: "Size matrices, file-weight checks, and placement rules for Google Ads, Meta Ads, and Programmatic — flagged before you go live.",
   },
   {
-    name: "Preview Engine API",
-    role: "Environment-Aware Simulation",
-    detail: "Generates landing experiences, placement context, and deterministic slot outputs.",
+    name: "AI Analysis Orchestrator",
+    role: "Strategic intelligence layer",
+    detail: "Ten scoring layers evaluate attention, goal alignment, vertical fit, inventory compatibility, and launch readiness in one deterministic flow.",
   },
   {
-    name: "Strategic Export Layer",
-    role: "PPTX Reporting",
-    detail: "Builds stakeholder-ready strategic decks from orchestrator contract fields.",
+    name: "Organization Platform",
+    role: "Teams, permissions, visibility",
+    detail: "Super admins oversee all organizations. Org admins manage teams and members. Users focus on their own creatives and activity.",
   },
 ];
 
 const TIMELINE = [
   {
-    year: "Phase 1",
-    title: "Validation-first workflow",
-    body: "The project began with creative format checks and ad-platform compatibility scoring.",
+    year: "The problem",
+    title: "Creative review was broken",
+    body: "Teams juggled spreadsheets, email chains, and static mockups. Platform rejections, missed specs, and slow approvals cost time and budget on every campaign.",
   },
   {
-    year: "Phase 2",
-    title: "Adigator analysis contract",
-    body: "Strategic payloads were standardized with explicit campaign, goal, and vertical alignment fields.",
+    year: "The insight",
+    title: "Validation and preview belong together",
+    body: "We saw that checking dimensions alone wasn't enough — stakeholders need to see ads in context and understand why a creative is ready or not.",
   },
   {
-    year: "Phase 3",
-    title: "Contextual preview engine",
-    body: "Environment templates and slot intelligence enabled realistic preview review before launch.",
+    year: "The platform",
+    title: "Adigator was built",
+    body: "A unified workflow emerged: campaign objectives, upload and validate, deep AI analysis, contextual preview, and strategic PPTX export — one product, one pipeline.",
   },
   {
-    year: "Phase 4",
-    title: "Strategic export and reporting",
-    body: "PPTX export workflows were added so teams can share analysis decisions across stakeholders.",
+    year: "Today",
+    title: "Built for organizations",
+    body: "Multi-tenant workspaces, team management, communications, and tiered dashboards now support advertisers, agencies, and enterprise marketing orgs at scale.",
   },
 ];
 
-const PROJECT_SURFACES = ["/", "/product", "/solutions", "/preview-tool", "/preview", "/dashboard"];
+const PLATFORM_SURFACES = [
+  { label: "Landing", href: "/" },
+  { label: "Solutions", href: "/solutions" },
+  { label: "Preview Studio", href: "/preview-tool" },
+  { label: "Live Preview", href: "/preview" },
+  { label: "User Dashboard", href: "/dashboard" },
+  { label: "Org Console", href: "/dashboard/organization" },
+];
 
 function Footer() {
   return (
@@ -94,6 +98,9 @@ function Footer() {
       <div className="mx-auto grid w-[min(1280px,92vw)] gap-12 md:grid-cols-5">
         <div className="md:col-span-2">
           <p className="text-2xl font-black tracking-tight">Adigator</p>
+          <p className="mt-3 max-w-sm text-sm leading-relaxed text-[#66665F]">
+            Creative intelligence for the teams who ship advertising at scale.
+          </p>
           <p className="mt-6 text-sm text-[#66665F]">© 2026 Adigator. All rights reserved.</p>
         </div>
 
@@ -142,38 +149,39 @@ export default function AboutPage() {
       <MarketingNav activePath="/about" />
 
       <main className="pt-28">
-        <section className="mx-auto grid w-[min(1280px,92vw)] gap-12 py-32 md:grid-cols-2 md:items-center md:py-40">
+        <section className="marketing-section mx-auto grid w-[min(1280px,92vw)] gap-10 py-16 sm:gap-12 sm:py-20 md:grid-cols-2 md:items-center md:py-28 lg:gap-12">
           <div>
             <span className="inline-flex rounded-full border border-[#D4D3CC] bg-white px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-[#51514A]">
-              About The Project
+              About Adigator
             </span>
-            <h1 className="mt-8 max-w-3xl text-[clamp(2.6rem,7vw,5.4rem)] font-black leading-[0.95] tracking-[-0.04em]">
-              Built to unify analysis, validation, preview, and reporting.
+            <h1 className="mt-6 max-w-3xl text-[clamp(2rem,6vw,5.4rem)] font-black leading-[0.95] tracking-[-0.04em] sm:mt-8">
+              We built the platform we wished existed for creative teams.
             </h1>
             <p className="mt-7 max-w-xl text-lg leading-relaxed text-[#5C5C56]">
-              Adigator is a practical intelligence platform for ad workflows. It combines the analyze-creative orchestrator,
-              platform-size validation matrices, contextual preview generation, and strategic presentation export into one product surface.
+              Adigator is a creative intelligence platform for advertisers, agencies, and marketing organizations.
+              We unify validation, AI-powered analysis, contextual preview, and strategic reporting — so teams
+              stop guessing and start launching with confidence.
             </p>
           </div>
 
           <div className="grid grid-cols-4 grid-rows-4 gap-3">
             <div className="saas-hover col-span-2 row-span-2 rounded-[24px] border border-[#DAD9D1] bg-[#0D0D0D] p-5 text-white">
-              <p className="text-xs uppercase tracking-[0.14em] text-white/60">Core API</p>
-              <p className="mt-3 text-2xl font-black">Analyze Creative</p>
-              <p className="mt-3 text-sm text-white/70">Extraction → Platform Fit → Alignment → Weighted Decision Intelligence.</p>
+              <p className="text-xs uppercase tracking-[0.14em] text-white/60">Our mission</p>
+              <p className="mt-3 text-2xl font-black">Launch better ads, faster</p>
+              <p className="mt-3 text-sm text-white/70">Every creative deserves a fair review — validated against platform rules, analyzed for impact, and previewed in the world it will live in.</p>
             </div>
             <div className="saas-hover col-span-2 row-span-1 rounded-[20px] border border-[#DAD9D1] bg-white p-4">
-              <p className="text-xs uppercase tracking-[0.14em] text-[#5E5E58]">Validation</p>
-              <p className="mt-2 text-sm font-semibold">Google, Meta, Programmatic size intelligence groups</p>
+              <p className="text-xs uppercase tracking-[0.14em] text-[#5E5E58]">Who we serve</p>
+              <p className="mt-2 text-sm font-semibold">Advertisers, agencies, brand teams, and enterprise marketing organizations</p>
             </div>
             <div className="saas-hover col-span-1 row-span-2 rounded-[20px] border border-[#DAD9D1] bg-[#EEF0E7] p-4">
               <p className="text-xs uppercase tracking-[0.14em] text-[#4E4E49]">Preview</p>
-              <p className="mt-2 text-sm font-semibold">Environment-driven ad slots</p>
+              <p className="mt-2 text-sm font-semibold">Real publisher environments, not flat mockups</p>
             </div>
             <div className="saas-hover col-span-1 row-span-1 rounded-[20px] border border-[#DAD9D1] bg-white" />
             <div className="saas-hover col-span-2 row-span-1 rounded-[20px] border border-[#DAD9D1] bg-white p-4">
-              <p className="text-xs uppercase tracking-[0.14em] text-[#5E5E58]">Reporting</p>
-              <p className="mt-2 text-sm font-semibold">Strategic analysis exported to PPTX for stakeholder review</p>
+              <p className="text-xs uppercase tracking-[0.14em] text-[#5E5E58]">Output</p>
+              <p className="mt-2 text-sm font-semibold">Strategic PPTX reports ready for client and leadership review</p>
             </div>
           </div>
         </section>
@@ -208,8 +216,8 @@ export default function AboutPage() {
 
         <section className="mx-auto w-[min(1280px,92vw)] py-24 md:py-32">
           <div className="mb-10">
-            <p className="text-sm uppercase tracking-[0.18em] text-[#676760]">Platform Pillars</p>
-            <h2 className="mt-3 text-5xl font-black tracking-tight">Built from modular workflow systems</h2>
+            <p className="text-sm uppercase tracking-[0.18em] text-[#676760]">What powers Adigator</p>
+            <h2 className="mt-3 text-3xl font-black tracking-tight sm:text-4xl lg:text-5xl">Four pillars. One connected workflow.</h2>
           </div>
 
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-2">
@@ -225,7 +233,7 @@ export default function AboutPage() {
                 </p>
                 <div className="mt-6 h-px bg-[#E2E1D9]" />
                 <p className="mt-4 text-xs uppercase tracking-[0.14em] text-[#71716A]">
-                  Production capability
+                  Core capability
                 </p>
               </article>
             ))}
@@ -234,8 +242,8 @@ export default function AboutPage() {
 
         <section className="mx-auto w-[min(1100px,92vw)] py-24 md:py-32">
           <div className="mb-10 text-center">
-            <p className="text-sm uppercase tracking-[0.18em] text-[#676760]">Company Story</p>
-            <h2 className="mt-3 text-5xl font-black tracking-tight">Our timeline</h2>
+            <p className="text-sm uppercase tracking-[0.18em] text-[#676760]">Our story</p>
+            <h2 className="mt-3 text-3xl font-black tracking-tight sm:text-4xl lg:text-5xl">From frustration to platform</h2>
           </div>
 
           <div className="relative mx-auto max-w-4xl">
@@ -269,28 +277,30 @@ export default function AboutPage() {
         <section className="mx-auto w-[min(1280px,92vw)] py-8 pb-24 md:pb-32">
           <div className="saas-hover flex flex-col items-start gap-6 rounded-[28px] border border-[#DBDAD2] bg-white px-8 py-10 md:flex-row md:items-center md:justify-between md:px-12">
             <div>
-              <p className="text-sm uppercase tracking-[0.18em] text-[#686861]">Contribute</p>
-              <h3 className="mt-3 text-4xl font-black leading-tight tracking-tight">Extend the Adigator workflow.</h3>
+              <p className="text-sm uppercase tracking-[0.18em] text-[#686861]">Experience it</p>
+              <h3 className="mt-3 text-4xl font-black leading-tight tracking-tight">See what better creative workflow feels like.</h3>
               <p className="mt-3 max-w-2xl text-sm text-[#5B5B55]">
-                Build deeper analysis layers, richer preview environments, and stronger launch diagnostics for campaign teams.
+                Open Preview Studio and walk through a real campaign — validate creatives, run analysis,
+                preview in context, and export a report. No sales call required.
               </p>
             </div>
-            <Link href={MARKETING_DEMO_VIDEO.href} className="marketing-btn-dark saas-hover inline-flex items-center gap-2 rounded-full px-7 py-3 text-sm font-semibold">
-              Open Preview Studio →
+            <Link href="/preview-tool?demo=1&step=1" className="marketing-btn-dark saas-hover inline-flex items-center gap-2 rounded-full px-7 py-3 text-sm font-semibold">
+              Try Preview Studio →
             </Link>
           </div>
         </section>
 
         <section className="mx-auto w-[min(1100px,92vw)] py-8 pb-24 text-center md:pb-32">
-          <p className="text-sm uppercase tracking-[0.18em] text-[#66665F]">Project Surface Area</p>
-          <div className="mt-8 grid grid-cols-2 gap-3 grayscale md:grid-cols-3 lg:grid-cols-6">
-            {PROJECT_SURFACES.map((logo) => (
-              <div
-                key={logo}
-                className="rounded-xl border border-[#D8D7CF] bg-white px-4 py-3 text-sm font-semibold text-[#50504B]"
+          <p className="text-sm uppercase tracking-[0.18em] text-[#66665F]">Explore the platform</p>
+          <div className="mt-8 grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
+            {PLATFORM_SURFACES.map((surface) => (
+              <Link
+                key={surface.href}
+                href={surface.href}
+                className="saas-hover rounded-xl border border-[#D8D7CF] bg-white px-4 py-3 text-sm font-semibold text-[#50504B] hover:text-[#0D0D0D]"
               >
-                {logo}
-              </div>
+                {surface.label}
+              </Link>
             ))}
           </div>
         </section>

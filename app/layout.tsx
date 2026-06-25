@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Inter, Cormorant_Garamond } from "next/font/google";
+import { Inter, JetBrains_Mono, Cormorant_Garamond } from "next/font/google";
 import "./globals.css";
 
 const inter = Inter({
@@ -7,6 +7,13 @@ const inter = Inter({
   weight: ["400", "500", "600", "700", "800", "900"],
   display: "swap",
   variable: "--font-inter",
+});
+
+const jetbrainsMono = JetBrains_Mono({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+  display: "swap",
+  variable: "--font-mono",
 });
 
 const cormorant = Cormorant_Garamond({
@@ -24,9 +31,15 @@ export const metadata: Metadata = {
   },
 };
 
+export const viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 5,
+};
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`dark ${inter.variable} ${cormorant.variable}`} data-scroll-behavior="smooth">
+    <html lang="en" className={`dark ${inter.variable} ${jetbrainsMono.variable} ${cormorant.variable}`} data-scroll-behavior="smooth">
       <body className="antialiased" style={{ fontFamily: "var(--font-inter), sans-serif" }}>
         {children}
       </body>

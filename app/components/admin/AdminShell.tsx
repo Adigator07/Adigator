@@ -7,6 +7,7 @@ import {
   ArrowLeft,
   BarChart3,
   Bell,
+  Building2,
   HeartPulse,
   LayoutDashboard,
   LogOut,
@@ -24,6 +25,7 @@ import { cn } from "@/app/lib/utils";
 
 const NAV = [
   { href: "/dashboard/admin", label: "Overview", icon: LayoutDashboard, exact: true },
+  { href: "/dashboard/admin/organizations", label: "Organizations", icon: Building2 },
   { href: "/dashboard/admin/users", label: "Users", icon: Users },
   { href: "/dashboard/admin/analytics", label: "Analytics", icon: BarChart3 },
   { href: "/dashboard/admin/activity", label: "Activity", icon: Activity },
@@ -78,7 +80,7 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
             {mobileOpen ? <X size={18} /> : <Menu size={18} />}
           </button>
           <Shield className="text-amber-400" size={20} />
-          <span className="text-sm font-bold uppercase tracking-widest text-amber-300">Admin Console</span>
+          <span className="text-sm font-bold uppercase tracking-widest text-amber-300">Super Admin Console</span>
         </div>
         <div className="flex items-center gap-2">
           <Link

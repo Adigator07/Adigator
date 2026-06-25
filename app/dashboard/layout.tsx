@@ -6,6 +6,7 @@ import { supabase } from "../lib/supabase";
 import Sidebar from "../components/sidebar";
 import Topbar from "../components/topbar";
 import { AdminAuthProvider } from "../lib/admin-platform/AdminAuthContext";
+import { OrgAuthProvider } from "../lib/organization-platform/OrgAuthContext";
 
 function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -13,6 +14,7 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const isAdminRoute = pathname?.startsWith("/dashboard/admin");
+  const isOrgRoute = pathname?.startsWith("/dashboard/organization");
 
   useEffect(() => {
     const getUser = async () => {
@@ -28,7 +30,7 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
     return () => subscription.unsubscribe();
   }, [router]);
 
-  if (isAdminRoute) {
+  if (isAdminRoute || isOrgRoute) {
     return <>{children}</>;
   }
 
@@ -46,7 +48,9 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   return (
     <AdminAuthProvider>
-      <DashboardLayoutInner>{children}</DashboardLayoutInner>
+      <OrgAuthProvider>
+        <DashboardLayoutInner>{children}</DashboardLayoutInner>
+      </OrgAuthProvider>
     </AdminAuthProvider>
   );
 }

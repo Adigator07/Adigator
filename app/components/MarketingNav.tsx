@@ -40,11 +40,11 @@ export default function MarketingNav({ activePath }: MarketingNavProps) {
       }`}
     >
       <div className="mx-auto flex w-[min(1280px,92vw)] items-center justify-between gap-3">
-        <Link href="/" className="text-2xl font-black tracking-tight text-[#0D0D0D]">
+        <Link href="/" className="text-xl font-black tracking-tight text-[#0D0D0D] sm:text-2xl">
           Adigator
         </Link>
 
-        <div className="hidden items-center gap-8 md:flex">
+        <div className="hidden items-center gap-6 md:flex md:gap-8">
           {MARKETING_NAV_LINKS.map((item) => {
             const active = currentPath === item.href;
             return (
@@ -66,11 +66,11 @@ export default function MarketingNav({ activePath }: MarketingNavProps) {
           })}
         </div>
 
-        <div className="hidden items-center gap-3 md:flex">
-          <Link href={MARKETING_SIGN_IN.href} className="marketing-btn-outline rounded-full px-5 py-2.5 text-sm font-semibold">
+        <div className="hidden items-center gap-2 md:flex md:gap-3">
+          <Link href={MARKETING_SIGN_IN.href} className="marketing-btn-outline rounded-full px-4 py-2 text-xs font-semibold sm:px-5 sm:py-2.5 sm:text-sm">
             {MARKETING_SIGN_IN.label}
           </Link>
-          <Link href={MARKETING_CTA.href} className="marketing-btn-lime rounded-full px-6 py-3 text-sm font-semibold">
+          <Link href={MARKETING_CTA.href} className="marketing-btn-lime rounded-full px-5 py-2.5 text-xs font-semibold sm:px-6 sm:py-3 sm:text-sm">
             {MARKETING_CTA.label}
           </Link>
         </div>

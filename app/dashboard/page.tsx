@@ -1,28 +1,25 @@
 "use client";
+
 import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { SkeletonStatCard, SkeletonProjectCard } from "../components/SkeletonLoader";
+import { SkeletonStatCard } from "../components/SkeletonLoader";
 import {
   fetchUserCreatives,
+  fetchAnalyzerResultCreativeIds,
   trackUserActivity,
 } from "../lib/supabaseDataService";
 import {
-  Zap, TrendingUp, Eye, ImageIcon, Plus, ArrowRight, Clock,
-  ShoppingCart, Newspaper, Gamepad2, Coffee, Laptop, GraduationCap, Film, Sparkles, Shield,
+  fetchUserDashboardAnalytics,
+  computeCreativeCountStats,
+} from "../lib/userDashboardAnalytics";
+import UserAnalyticsCharts from "../components/dashboard/UserAnalyticsCharts";
+import {
+  Zap, TrendingUp, Eye, ImageIcon, Plus, ArrowRight, Clock, Shield, Building2,
 } from "lucide-react";
 import { useAdminAuth } from "../lib/admin-platform/AdminAuthContext";
-
-const TEMPLATE_CATEGORIES = [
-  { id: "ecommerce",     label: "Ecommerce",     icon: ShoppingCart, color: "from-orange-500/20 to-orange-600/10", border: "border-orange-500/20", text: "text-orange-400" },
-  { id: "newspaper",    label: "News",           icon: Newspaper,    color: "from-blue-500/20 to-blue-600/10",   border: "border-blue-500/20",   text: "text-blue-400" },
-  { id: "gaming",       label: "Gaming",         icon: Gamepad2,     color: "from-green-500/20 to-green-600/10", border: "border-green-500/20",  text: "text-green-400" },
-  { id: "food",         label: "Food",           icon: Coffee,       color: "from-yellow-500/20 to-yellow-600/10",border: "border-yellow-500/20",text: "text-yellow-400" },
-  { id: "technology",   label: "Technology",     icon: Laptop,       color: "from-cyan-500/20 to-cyan-600/10",   border: "border-cyan-500/20",   text: "text-cyan-400" },
-  { id: "education",    label: "Education",      icon: GraduationCap,color: "from-purple-500/20 to-purple-600/10",border: "border-purple-500/20",text: "text-purple-400" },
-  { id: "entertainment",label: "Entertainment",  icon: Film,         color: "from-pink-500/20 to-pink-600/10",   border: "border-pink-500/20",   text: "text-pink-400" },
-];
+import { useOrgAuth } from "../lib/organization-platform/OrgAuthContext";
 
 const fade = { hidden: { opacity: 0, y: 16 }, visible: { opacity: 1, y: 0 } };
 const stagger = { hidden: {}, visible: { transition: { staggerChildren: 0.08 } } };
@@ -30,8 +27,10 @@ const stagger = { hidden: {}, visible: { transition: { staggerChildren: 0.08 } }
 export default function Dashboard() {
   const [user, setUser] = useState<any>(null);
   const [stats, setStats] = useState({ totalCreatives: 0, validCreatives: 0, invalidCreatives: 0, platformsUsed: 0 });
+  const [analytics, setAnalytics] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const { isAdmin } = useAdminAuth();
+  const { isOrgAdmin, organizationName, memberRole } = useOrgAuth();
 
   useEffect(() => {
     const load = async () => {
@@ -43,25 +42,24 @@ export default function Dashboard() {
           metadata: { page: "dashboard" },
         }, { dedupeKey: "page-visit-dashboard" });
 
-        const [creatives, analyzerPlatforms] = await Promise.all([
+        const [creatives, activityStats, analyzedCreativeIds] = await Promise.all([
           fetchUserCreatives(),
-          supabase
-            .from("analyzer_results")
-            .select("platform")
-            .eq("user_id", user.id),
+          fetchUserDashboardAnalytics(user.id),
+          fetchAnalyzerResultCreativeIds(),
         ]);
 
-        const validCreatives = creatives.filter((creative) => creative.is_valid === true).length;
-        const invalidCreatives = creatives.filter((creative) => creative.is_valid === false).length;
+        const counts = computeCreativeCountStats(creatives, activityStats, analyzedCreativeIds);
         const platformSet = new Set(
-          (analyzerPlatforms.data || []).map((row) => row.platform).filter(Boolean),
+          activityStats.platformUsage.filter((p) => p.count > 0).map((p) => p.platform),
         );
+
         setStats({
-          totalCreatives: creatives.length,
-          validCreatives,
-          invalidCreatives,
+          totalCreatives: counts.totalCreatives,
+          validCreatives: counts.validCreatives,
+          invalidCreatives: counts.invalidCreatives,
           platformsUsed: platformSet.size,
         });
+        setAnalytics(activityStats);
       }
       setLoading(false);
     };
@@ -74,43 +72,46 @@ export default function Dashboard() {
   return (
     <motion.div variants={stagger} initial="hidden" animate="visible" className="space-y-10 pb-10">
 
-      {/* ── Welcome ─────────────────────────────────────────── */}
       <motion.div variants={fade} className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2 text-purple-400 mb-1">
-            <Sparkles size={15} />
             <span className="text-xs font-bold tracking-widest uppercase">{today}</span>
           </div>
           <h1 className="text-3xl font-extrabold text-white leading-tight">
-            Good day, {firstName} 👋
+            Good day, {firstName}
           </h1>
-          <p className="text-white/40 mt-1 text-sm">Create stunning creatives in seconds</p>
+          <p className="text-white/40 mt-1 text-sm">
+            {organizationName
+              ? `Your personal workspace · ${organizationName}${memberRole ? ` (${memberRole.replace("_", " ")})` : ""}`
+              : "Your creative workflow at a glance"}
+          </p>
         </div>
         <Link href="/preview-tool?step=1">
           <motion.button
             whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.96 }}
-            className="flex items-center gap-2 px-5 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white font-semibold rounded-xl shadow-lg shadow-purple-500/25 hover:shadow-purple-500/40 transition-shadow"
+            className="flex items-center gap-2 px-5 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white font-semibold rounded-xl shadow-lg shadow-purple-500/25 hover:shadow-purple-500/50 transition-shadow premium-card-glow"
           >
             <Plus size={18} /> Open Preview Tool
           </motion.button>
         </Link>
       </motion.div>
 
-      {/* ── Quick Actions ────────────────────────────────────── */}
       <motion.div variants={fade}>
         <h2 className="text-sm font-bold text-white/40 uppercase tracking-widest mb-3">Quick Actions</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {[
             { href: "/preview-tool?step=1", icon: Plus, label: "Open Preview Tool", sub: "Launch the full analyzer workflow", color: "from-purple-600 to-blue-600" },
             { href: "/preview-tool?step=3", icon: Clock, label: "Resume Analysis", sub: "Continue where you left off", color: "from-blue-600 to-cyan-600" },
-            ...(isAdmin ? [{ href: "/dashboard/admin", icon: Shield, label: "Admin Console", sub: "Users, analytics, audit logs & system health", color: "from-amber-600 to-orange-600" }] : []),
+            ...(isOrgAdmin ? [{ href: "/dashboard/organization", icon: Building2, label: "Organization Console", sub: "Manage teams, users, and org activity", color: "from-sky-600 to-blue-600" }] : []),
+            ...(isAdmin ? [{ href: "/dashboard/admin", icon: Shield, label: "Super Admin Console", sub: "Organizations, users, analytics & platform health", color: "from-amber-600 to-orange-600" }] : []),
           ].map((a) => {
             const Icon = a.icon;
             return (
               <Link key={a.href + a.label} href={a.href}>
                 <motion.div
-                  whileHover={{ scale: 1.02, y: -2 }}
-                  className="group relative rounded-2xl border border-white/10 bg-white/5 p-4 flex items-center gap-4 hover:border-purple-500/30 hover:bg-white/8 transition-all cursor-pointer overflow-hidden"
+                  whileHover={{ scale: 1.02, y: -3 }}
+                  transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+                  className="group relative rounded-2xl border border-white/10 bg-white/5 p-4 flex items-center gap-4 hover:border-purple-500/35 hover:bg-white/8 transition-all cursor-pointer overflow-hidden premium-card premium-card-glow"
                 >
                   <div className={`w-11 h-11 rounded-xl bg-gradient-to-br ${a.color} flex items-center justify-center shrink-0`}>
                     <Icon size={20} className="text-white" />
@@ -127,7 +128,6 @@ export default function Dashboard() {
         </div>
       </motion.div>
 
-      {/* ── Stats ───────────────────────────────────────────── */}
       <motion.div variants={fade}>
         <h2 className="text-sm font-bold text-white/40 uppercase tracking-widest mb-3">Overview</h2>
         {loading ? (
@@ -138,14 +138,15 @@ export default function Dashboard() {
           <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
             {[
               { label: "Total Creatives", value: stats.totalCreatives, Icon: ImageIcon, color: "from-blue-500/20 to-blue-600/10", border: "border-blue-500/20", text: "text-blue-400" },
-              { label: "Valid Creatives",  value: stats.validCreatives,  Icon: TrendingUp, color: "from-green-500/20 to-green-600/10", border: "border-green-500/20", text: "text-green-400" },
-              { label: "Invalid",          value: stats.invalidCreatives,Icon: Zap,        color: "from-red-500/20 to-red-600/10",   border: "border-red-500/20",   text: "text-red-400" },
-              { label: "Platforms Used",     value: stats.platformsUsed,     Icon: Eye,        color: "from-purple-500/20 to-purple-600/10",border: "border-purple-500/20",text: "text-purple-400" },
+              { label: "Valid Creatives", value: stats.validCreatives, Icon: TrendingUp, color: "from-green-500/20 to-green-600/10", border: "border-green-500/20", text: "text-green-400" },
+              { label: "Invalid", value: stats.invalidCreatives, Icon: Zap, color: "from-red-500/20 to-red-600/10", border: "border-red-500/20", text: "text-red-400" },
+              { label: "Platforms Used", value: stats.platformsUsed, Icon: Eye, color: "from-purple-500/20 to-purple-600/10", border: "border-purple-500/20", text: "text-purple-400" },
             ].map((s) => (
               <motion.div
                 key={s.label}
-                whileHover={{ scale: 1.02, y: -2 }}
-                className={`rounded-2xl border ${s.border} bg-gradient-to-br ${s.color} p-5 transition-all`}
+                whileHover={{ scale: 1.02, y: -3 }}
+                transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+                className={`rounded-2xl border ${s.border} bg-gradient-to-br ${s.color} p-5 transition-all premium-card premium-card-glow`}
               >
                 <s.Icon size={20} className={`${s.text} mb-3`} />
                 <p className="text-3xl font-extrabold text-white">{s.value.toLocaleString()}</p>
@@ -154,80 +155,20 @@ export default function Dashboard() {
             ))}
           </div>
         )}
+        {!loading && stats.validCreatives > 0 && stats.invalidCreatives > 0 ? (
+          <p className="text-xs text-white/30 mt-2">
+            Valid and invalid counts are cumulative across your upload history. A creative fixed after an initial failure may appear in both totals.
+          </p>
+        ) : null}
       </motion.div>
 
-      {/* ── Core Product ─────────────────────────────────────── */}
       <motion.div variants={fade}>
-        <h2 className="text-sm font-bold text-white/40 uppercase tracking-widest mb-3">Core Product</h2>
-        <Link href="/preview-tool?step=1" className="group relative rounded-2xl border-2 border-purple-500/50 bg-gradient-to-br from-purple-600/25 via-blue-600/15 to-purple-600/10 p-8 hover:border-purple-400 hover:shadow-2xl hover:shadow-purple-500/30 transition-all duration-300 block overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-r from-purple-600/0 via-purple-600/5 to-blue-600/0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
-          <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center gap-6">
-            <div className="shrink-0 w-16 h-16 rounded-2xl bg-gradient-to-br from-purple-600 to-blue-600 flex items-center justify-center text-3xl shadow-lg shadow-purple-500/30">
-              🎨
-            </div>
-            <div className="flex-1">
-              <div className="flex items-center gap-3 mb-2">
-                <h3 className="text-2xl font-extrabold text-white">Creative Preview Studio</h3>
-                <span className="bg-gradient-to-r from-purple-500 to-blue-500 text-white text-xs px-2.5 py-1 rounded-full font-bold tracking-wide">FLAGSHIP</span>
-              </div>
-              <p className="text-white/60 text-sm leading-relaxed mb-4">Upload your ad creatives, validate against IAB standards, rename &amp; organize them, then preview across 9 industry-specific templates — news, gaming, ecommerce &amp; more. Export a pixel-perfect PPTX deck in one click.</p>
-              <div className="flex flex-wrap gap-2">
-                {["9 Templates","7 Ad Formats","PPTX Export","Slide Mode","Auto-Fix"].map(tag => (
-                  <span key={tag} className="text-xs text-purple-300 bg-purple-500/15 border border-purple-500/25 px-2.5 py-1 rounded-full">{tag}</span>
-                ))}
-              </div>
-            </div>
-            <div className="shrink-0 flex items-center gap-2 text-purple-400 group-hover:text-white font-bold text-sm transition-colors">
-              Launch Studio <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
-            </div>
-          </div>
-        </Link>
-      </motion.div>
-
-      {/* ── Recent Projects ─────────────────────────────────── */}
-      <motion.div variants={fade}>
-        <h2 className="text-sm font-bold text-white/40 uppercase tracking-widest mb-3">Recent Projects</h2>
+        <h2 className="text-sm font-bold text-white/40 uppercase tracking-widest mb-3">Activity Analytics</h2>
         {loading ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {[...Array(3)].map((_, i) => <SkeletonProjectCard key={i} />)}
-          </div>
+          <div className="h-64 animate-pulse rounded-2xl border border-white/10 bg-white/5" />
         ) : (
-          <div className="rounded-2xl border border-white/10 bg-white/5 p-8 text-center">
-            <div className="text-4xl mb-3">📂</div>
-            <p className="text-white font-semibold mb-1">No projects yet</p>
-            <p className="text-white/40 text-sm mb-4">Start a new creative preview to see your projects here.</p>
-            <Link href="/preview">
-              <motion.button whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.96 }}
-                className="px-5 py-2.5 bg-gradient-to-r from-purple-600 to-blue-600 text-white font-semibold rounded-xl text-sm">
-                Create First Project
-              </motion.button>
-            </Link>
-          </div>
+          <UserAnalyticsCharts analytics={analytics} />
         )}
-      </motion.div>
-
-      {/* ── Template Categories ──────────────────────────────── */}
-      <motion.div variants={fade}>
-        <h2 className="text-sm font-bold text-white/40 uppercase tracking-widest mb-3">Template Categories</h2>
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-3">
-          {TEMPLATE_CATEGORIES.map((cat) => {
-            const Icon = cat.icon;
-            return (
-              <Link key={cat.id} href={`/preview`}>
-                <motion.div
-                  whileHover={{ scale: 1.05, y: -3 }}
-                  whileTap={{ scale: 0.96 }}
-                  className={`group rounded-2xl border ${cat.border} bg-gradient-to-br ${cat.color} p-4 flex flex-col items-center gap-2 cursor-pointer transition-all hover:shadow-lg`}
-                >
-                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center bg-white/10 group-hover:bg-white/20 transition`}>
-                    <Icon size={20} className={cat.text} />
-                  </div>
-                  <span className="text-xs font-semibold text-white/70 group-hover:text-white transition text-center">{cat.label}</span>
-                </motion.div>
-              </Link>
-            );
-          })}
-        </div>
       </motion.div>
 
     </motion.div>

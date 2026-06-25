@@ -24,6 +24,8 @@ import GoogleSafeZoneOverlay from "./GoogleAds/GoogleSafeZoneOverlay";
 import GoogleCropSimulation from "./GoogleAds/GoogleCropSimulation";
 import MetaSafeZoneOverlay from "./MetaAds/MetaSafeZoneOverlay";
 import MetaCropSimulation from "./MetaAds/MetaCropSimulation";
+import ProgrammaticPreviewStudio from "./ProgrammaticPreviewStudio";
+import StaticGoogleMetaPreviewStudio from "./StaticGoogleMetaPreviewStudio";
 
 const GOOGLE_META_STUDIO_MODES = [
   { id: "previews", label: "Placement Previews" },
@@ -214,6 +216,8 @@ export default function PreviewStudio({
   sourceCreatives = [],
   brandName,
   keyMessage,
+  vertical,
+  goal,
   imageUrls = [],
   onCopyCreative,
   onEditCreative,
@@ -284,6 +288,34 @@ export default function PreviewStudio({
       <PreviewEmptyState
         title="Select a platform in Step 1"
         description="Choose Programmatic Ads, Google Ads, or Meta Ads to open the matching preview studio."
+      />
+    );
+  }
+
+  if (externalPlatform === "programmatic") {
+    return (
+      <ProgrammaticPreviewStudio
+        sourceCreatives={sourceCreatives}
+        creatives={creatives}
+        vertical={vertical}
+        goal={goal}
+        onCopyCreative={onCopyCreative}
+        onEditCreative={onEditCreative}
+      />
+    );
+  }
+
+  if (externalPlatform === "google_ads" || externalPlatform === "meta_ads") {
+    return (
+      <StaticGoogleMetaPreviewStudio
+        platform={externalPlatform}
+        vertical={vertical}
+        goal={goal}
+        brandName={brandName}
+        keyMessage={keyMessage}
+        sourceCreatives={sourceCreatives}
+        onCopyCreative={onCopyCreative}
+        onEditCreative={onEditCreative}
       />
     );
   }

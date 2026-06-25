@@ -1,0 +1,18 @@
+-- ═══════════════════════════════════════════════════════════════════════════════
+-- ORGANIZATIONS — Supabase setup instructions
+-- ═══════════════════════════════════════════════════════════════════════════════
+--
+-- ERROR "relation public.organizations does not exist"?
+--   → You ran INSERT before CREATE TABLE. Run the setup file first.
+--
+-- ✅ RUN THIS FILE IN SUPABASE SQL EDITOR (copy entire contents):
+--    supabase/RUN_ORGANIZATIONS_SETUP.sql
+--
+-- ❌ DO NOT RUN:
+--    app/dashboard/admin/organizations/page.tsx  (React — starts with "use client")
+--    INSERT-only snippets without running setup first
+--
+-- After setup succeeds, create orgs from the app:
+--    /dashboard/admin/organizations  (Super Admin UI)
+--
+-- Or uncomment STEP 2 at the bottom of RUN_ORGANIZATIONS_SETUP.sql

@@ -129,28 +129,30 @@ function CreativeCard({
           <InfoRow label="Device" value={creative.deviceClassification || "Unknown"} />
           <InfoRow
             label="IAB"
-            value={creative.iabCompatibility?.compatible ? "Compatible" : "Not Compatible"}
-            valueClass={creative.iabCompatibility?.compatible ? "text-emerald-300" : "text-red-300"}
+            value={creative.iabCompatibility?.compatible ? "Compatible" : "Review"}
+            valueClass={creative.iabCompatibility?.compatible ? "text-emerald-300" : "text-amber-300"}
           />
-          <InfoRow
-            label="DSP"
-            value={`${creative.dspCompatibility?.count || 0} / 7`}
-            valueClass={(creative.dspCompatibility?.count || 0) >= 6 ? "text-emerald-300" : "text-amber-300"}
-          />
-          <InfoRow
-            label="Inventory"
-            value={creative.inventoryAvailability?.category || "Unclassified"}
-          />
-          <InfoRow
-            label="Auction"
-            value={`${readinessScore}/100`}
-            valueClass={readinessClass}
-          />
-          <InfoRow
-            label="Premium"
-            value={creative.premiumPlacementPotential?.eligible ? "Eligible" : "Standard"}
-            valueClass={creative.premiumPlacementPotential?.eligible ? "text-fuchsia-300" : "text-gray-300"}
-          />
+          {(creative.validation?.platform === "programmatic" || creative.dspCompatibility) ? (
+            <>
+              <InfoRow
+                label="DSP"
+                value={`${creative.dspCompatibility?.count || 0} / 7`}
+                valueClass={(creative.dspCompatibility?.count || 0) >= 6 ? "text-emerald-300" : "text-amber-300"}
+              />
+              <InfoRow label="Inventory" value={creative.inventoryAvailability?.category || "Unclassified"} />
+              <InfoRow label="Auction" value={`${readinessScore}/100`} valueClass={readinessClass} />
+              <InfoRow
+                label="Premium"
+                value={creative.premiumPlacementPotential?.eligible ? "Eligible" : "Standard"}
+                valueClass={creative.premiumPlacementPotential?.eligible ? "text-fuchsia-300" : "text-gray-300"}
+              />
+            </>
+          ) : (
+            <InfoRow
+              label="Format"
+              value={creative.validation?.metaStandards?.sizeTier || creative.validation?.googleStandards?.sizeTier || "Validated"}
+            />
+          )}
         </div>
       </div>
     </motion.div>

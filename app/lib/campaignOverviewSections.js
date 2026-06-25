@@ -4,28 +4,42 @@
  */
 
 import { CAMPAIGN_LAUNCH_STATUS } from "./analyzerInsights";
+import { summarizePlacementMatrix } from "./platformQaBuilders";
+import { getPlacementColumns } from "./placementCompatibility";
 
 function clampScore(value) {
   return Math.max(0, Math.min(100, Math.round(value)));
+}
+
+function normalizeQaKey(text) {
+  return String(text || "").toLowerCase().replace(/\s+/g, " ").trim().slice(0, 120);
 }
 
 function aggregateQaItems(insights, field) {
   const bucket = new Map();
   for (const insight of insights) {
     for (const item of insight[field] || []) {
-      const key = item.text;
-      const existing = bucket.get(key) || { ...item, count: 0, creativeNames: [] };
+      const key = `${item.status}:${normalizeQaKey(item.text)}`;
+      const existing = bucket.get(key) || { ...item, count: 0, creativeNames: [], sizes: [] };
       existing.count += 1;
       if (!existing.creativeNames.includes(insight.creativeName)) {
         existing.creativeNames.push(insight.creativeName);
       }
+      if (insight.creativeSize && !existing.sizes.includes(insight.creativeSize)) {
+        existing.sizes.push(insight.creativeSize);
+      }
+      if (existing.count > 1 && existing.sizes.length) {
+        existing.text = `${item.text} (${existing.count} creatives: ${existing.sizes.slice(0, 3).join(", ")}${existing.sizes.length > 3 ? "…" : ""})`;
+      }
       bucket.set(key, existing);
     }
   }
-  return [...bucket.values()].sort((a, b) => {
-    const order = { fail: 0, warn: 1, pass: 2 };
-    return (order[a.status] ?? 3) - (order[b.status] ?? 3);
-  });
+  return [...bucket.values()]
+    .sort((a, b) => {
+      const order = { fail: 0, warn: 1, pass: 2 };
+      return (order[a.status] ?? 3) - (order[b.status] ?? 3);
+    })
+    .slice(0, 8);
 }
 
 function qaPassRate(items) {
@@ -492,14 +506,18 @@ function buildTechnicalQaSection(insights, platform) {
 
 function buildPlacementQaSection(insights, platform, overview) {
   const items = aggregateQaItems(insights, "placementQa");
+  const columns = overview.placementColumns || getPlacementColumns(platform);
+  const matrixSummary = summarizePlacementMatrix(platform, insights, columns);
 
-  let summary = "";
-  if (platform === "google_ads") {
-    summary = "Placement QA scores GDN, Responsive Display, Demand Gen, Gmail, App Inventory, and YouTube companion fit per creative. See compatibility matrix below.";
-  } else if (platform === "meta_ads") {
-    summary = "Placement QA scores Facebook Feed, Instagram Feed, Stories, Reels, Messenger, and Audience Network viability with Meta-specific crop and safe-zone rules.";
-  } else {
-    summary = "Placement QA scores Native Ads, Display Banners, Mobile App Inventory, and Open Web premium publisher fit for RTB delivery.";
+  let summary = matrixSummary;
+  if (!summary) {
+    if (platform === "google_ads") {
+      summary = "Placement QA reflects GDN, Responsive Display, Demand Gen, Gmail, App, and YouTube companion fit per creative size.";
+    } else if (platform === "meta_ads") {
+      summary = "Placement QA reflects Feed, Stories, Reels, Messenger, and Audience Network fit with Meta-specific ratios.";
+    } else {
+      summary = "Placement QA reflects Native, Display Banner, Mobile App, and Open Web RTB inventory fit.";
+    }
   }
 
   return {
@@ -507,7 +525,7 @@ function buildPlacementQaSection(insights, platform, overview) {
     items,
     passRate: qaPassRate(items),
     placementMatrix: overview.placementMatrix,
-    placementColumns: overview.placementColumns,
+    placementColumns: columns,
     deviceMatrix: overview.deviceMatrix,
     deviceColumns: overview.deviceColumns,
     placementLegend: overview.placementLegend,

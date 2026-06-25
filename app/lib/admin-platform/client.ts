@@ -62,6 +62,13 @@ export const adminApi = {
     if (!res.ok) throw new Error("Export failed");
     return res.text();
   },
+  getOrganizations: () =>
+    adminFetch<import("@/app/lib/organization-platform/types").PlatformOrgMetrics>("/organizations"),
+  createOrganization: (body: { name: string; slug?: string; ownerUserId?: string; plan?: string }) =>
+    adminFetch<{ organization: import("@/app/lib/organization-platform/types").Organization }>("/organizations", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
 };
 
 export { getAccessToken };

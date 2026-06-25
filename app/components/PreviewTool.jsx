@@ -54,6 +54,7 @@ import {
 } from "../lib/workflowStorage";
 import {
   trackUserActivity,
+  trackValidationOutcome,
   saveCreative,
   saveAnalyzerResult,
   deleteCreativeRecord,
@@ -143,12 +144,12 @@ function NavBtn({ onClick, children, variant = "primary", disabled = false, clas
 function SelectionCard({ selected, onClick, children, activeClasses }) {
   return (
     <motion.div
-      whileHover={{ scale: 1.03 }}
-      whileTap={{ scale: 0.97 }}
-      animate={selected ? { boxShadow: ["0 0 0 rgba(14,165,233,0)", "0 0 24px rgba(14,165,233,0.4)", "0 0 0 rgba(14,165,233,0)"] } : { boxShadow: "0 0 0 rgba(0,0,0,0)" }}
-      transition={selected ? { duration: 1.6, repeat: Infinity, ease: "easeInOut" } : { duration: 0.2 }}
+      whileHover={{ scale: 1.02, y: -2 }}
+      whileTap={{ scale: 0.98 }}
+      animate={selected ? { boxShadow: "0 0 28px rgba(14,165,233,0.35), 0 8px 24px -8px rgba(99,102,241,0.25)" } : { boxShadow: "0 1px 3px rgba(15,23,42,0.08)" }}
+      transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
       onClick={onClick}
-      className={`preview-tool-interactive cursor-pointer rounded-2xl p-8 border-2 transition-all duration-200 shadow-sm hover:shadow-md ${selected ? "border-sky-500 bg-sky-50 shadow-lg" : "border-slate-300 bg-white hover:border-sky-400 hover:bg-sky-50"
+      className={`preview-tool-interactive preview-selection-card premium-surface premium-surface-light cursor-pointer rounded-2xl p-8 border-2 transition-all duration-300 ${selected ? "is-selected border-sky-500 bg-sky-50 shadow-lg" : "border-slate-300 bg-white hover:border-sky-400 hover:bg-sky-50"
         }`}
     >
       {children}
@@ -288,8 +289,35 @@ const VERTICALS = [
 const VERTICAL_TITLE_MAP = Object.fromEntries(VERTICALS.map((v) => [v.id, v.title]));
 
 
-const containerVariants = { hidden: { opacity: 0 }, visible: { opacity: 1, transition: { staggerChildren: 0.1 } } };
-const itemVariants = { hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } };
+const containerVariants = {
+  hidden: { opacity: 0 },
+  visible: { opacity: 1, transition: { staggerChildren: 0.09, delayChildren: 0.04 } },
+  exit: { opacity: 0, transition: { duration: 0.2 } },
+};
+const itemVariants = {
+  hidden: { opacity: 0, y: 18, filter: "blur(4px)" },
+  visible: {
+    opacity: 1,
+    y: 0,
+    filter: "blur(0px)",
+    transition: { duration: 0.4, ease: [0.22, 1, 0.36, 1] },
+  },
+};
+const stepPanelVariants = {
+  hidden: { opacity: 0, x: 28, filter: "blur(6px)" },
+  visible: {
+    opacity: 1,
+    x: 0,
+    filter: "blur(0px)",
+    transition: { duration: 0.45, ease: [0.22, 1, 0.36, 1], staggerChildren: 0.08 },
+  },
+  exit: {
+    opacity: 0,
+    x: -24,
+    filter: "blur(6px)",
+    transition: { duration: 0.28, ease: [0.4, 0, 1, 1] },
+  },
+};
 
 const VALID_VERTICALS = new Set([
   "automotive", "banking", "ecommerce", "education", "entertainment",
@@ -1132,7 +1160,9 @@ export default function PreviewTool() {
         campaign_goal: campaignGoal,
         metadata: { direction: "exit", from_step: step },
       }, { dedupeKey: "nav-exit-step-1" });
-      router.push("/");
+      void isAuthenticatedUser().then((authed) => {
+        router.push(authed ? "/dashboard" : "/");
+      });
       return;
     }
     const prevStep = Math.max(step - 1, 1);
@@ -1337,6 +1367,20 @@ export default function PreviewTool() {
         return null;
       }
 
+      const supabaseId = result.supabaseCreativeId || creative.supabaseCreativeId || null;
+      const trackingId = supabaseId || creative.id;
+
+      void trackValidationOutcome({
+        creativeId: trackingId,
+        creativeName: creative.name,
+        isValid: Boolean(creative.valid),
+        platform,
+        metadata: {
+          ad_size: creative.size || null,
+          validation_status: creative.validation?.status || null,
+        },
+      });
+
       if (result.skipped) return creative.supabaseCreativeId || null;
 
       if (result.supabaseCreativeId && result.supabaseCreativeId !== creative.supabaseCreativeId) {
@@ -1417,6 +1461,12 @@ export default function PreviewTool() {
         vertical: campaignVertical,
         metadata: {
           count: preparedCreatives.length,
+          creative_ids: preparedCreatives.map((c) => c.id),
+          creative_outcomes: preparedCreatives.map((c) => ({
+            id: c.id,
+            name: c.name,
+            is_valid: Boolean(c.valid),
+          })),
           creative_names: preparedCreatives.map((c) => c.name),
           sizes: preparedCreatives.map((c) => c.size),
           ad_sizes: preparedCreatives.map((c) => c.size),
@@ -1425,6 +1475,20 @@ export default function PreviewTool() {
           audience_stage: campaignAudienceStage,
         },
       }, { dedupeKey: `upload-${platform}-${preparedCreatives.length}-${preparedCreatives[0]?.name || "batch"}` });
+
+      preparedCreatives.forEach((creative) => {
+        void trackValidationOutcome({
+          creativeId: creative.id,
+          creativeName: creative.name,
+          isValid: Boolean(creative.valid),
+          platform,
+          metadata: {
+            ad_size: creative.size || null,
+            validation_status: creative.validation?.status || null,
+            source: "upload",
+          },
+        });
+      });
       if (uploadSummary.criticalCount > 0) {
         addToast(`Uploaded ${preparedCreatives.length} creatives: ${uploadSummary.warningCount} warning(s), ${uploadSummary.criticalCount} critical.`, "error");
       } else if (uploadSummary.warningCount > 0) {
@@ -2247,10 +2311,10 @@ export default function PreviewTool() {
       {/* PROGRESS */}
       <div className="h-1 bg-slate-300">
         <motion.div
-          className="h-full bg-gradient-to-r from-sky-500 via-cyan-500 to-emerald-500"
+          className="h-full bg-gradient-to-r from-sky-500 via-cyan-500 to-emerald-500 origin-left"
           initial={{ scaleX: 0 }}
           animate={{ scaleX: step / TOTAL_STEPS }}
-          transition={{ duration: 0.5, ease: "easeOut" }}
+          transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
         />
       </div>
 
@@ -2259,22 +2323,22 @@ export default function PreviewTool() {
 
           {/* STEP 1: SETUP CAMPAIGN */}
           {step === 1 && (
-            <motion.div key="step-1" variants={containerVariants} initial="hidden" animate="visible" exit="hidden" className="space-y-8 pb-24">
+            <motion.div key="step-1" variants={stepPanelVariants} initial="hidden" animate="visible" exit="exit" className="space-y-8 pb-24">
               <motion.section variants={itemVariants} className="space-y-5">
                 <div>
                   <h2 className="text-4xl font-bold text-slate-900">Step 1: Campaign Setup</h2>
                   <p className="mt-2 text-slate-700 text-lg">Configure platform, goal, and vertical before uploading creatives.</p>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="rounded-xl border border-slate-300 bg-white p-4 shadow-sm">
+                  <div className="rounded-xl border border-slate-300 bg-white p-4 shadow-sm premium-surface premium-surface-light">
                     <p className="text-xs uppercase tracking-wide text-slate-500">Platform</p>
                     <p className="text-sm font-semibold text-slate-800 mt-1">{selectedPlatformConfig?.title || "Not selected"}</p>
                   </div>
-                  <div className="rounded-xl border border-slate-300 bg-white p-4 shadow-sm">
+                  <div className="rounded-xl border border-slate-300 bg-white p-4 shadow-sm premium-surface premium-surface-light">
                     <p className="text-xs uppercase tracking-wide text-slate-500">Campaign Goal</p>
                     <p className="text-sm font-semibold text-slate-800 mt-1">{campaignGoal ? getGoalTitle(campaignGoal, platform) : "Not selected"}</p>
                   </div>
-                  <div className="rounded-xl border border-slate-300 bg-white p-4 shadow-sm">
+                  <div className="rounded-xl border border-slate-300 bg-white p-4 shadow-sm premium-surface premium-surface-light">
                     <p className="text-xs uppercase tracking-wide text-slate-500">Industry Vertical</p>
                     <p className="text-sm font-semibold text-slate-800 mt-1">{campaignVertical ? (VERTICAL_TITLE_MAP[campaignVertical] || campaignVertical) : "Not selected"}</p>
                   </div>
@@ -2373,7 +2437,7 @@ export default function PreviewTool() {
 
           {/* STEP 2: UPLOAD & VALIDATE */}
           {step === 2 && (
-            <motion.div key="step-2" variants={itemVariants} initial="hidden" animate="visible" exit="hidden" className="space-y-8">
+            <motion.div key="step-2" variants={stepPanelVariants} initial="hidden" animate="visible" exit="exit" className="space-y-8">
               <div>
                 <h2 className="text-4xl font-bold text-slate-900 mb-2">Step 2: Upload & Validate</h2>
                 <p className="text-slate-700 text-lg">
@@ -2787,7 +2851,7 @@ export default function PreviewTool() {
 
           {/* STEP 3: AI ANALYSIS */}
           {step === 3 && (
-            <motion.div key="step-3" variants={itemVariants} initial="hidden" animate="visible" exit="hidden" className="space-y-6">
+            <motion.div key="step-3" variants={stepPanelVariants} initial="hidden" animate="visible" exit="exit" className="space-y-6">
               <div>
                 <h2 className="text-4xl font-bold text-white mb-2">Step 3: AI Analysis</h2>
                 <p className="text-gray-400">Analyze your creatives against {PLATFORMS.find(p => p.id === platform)?.title} standards.</p>
@@ -2854,7 +2918,7 @@ export default function PreviewTool() {
 
           {/* STEP 4: PREVIEW STUDIO */}
           {step === 4 && (
-            <motion.div key="step-4" variants={itemVariants} initial="hidden" animate="visible" exit="hidden" className="space-y-8">
+            <motion.div key="step-4" variants={stepPanelVariants} initial="hidden" animate="visible" exit="exit" className="space-y-8">
               <div className="flex items-center justify-between flex-wrap gap-4">
                 <div>
                   <h2 className="text-4xl font-bold text-white mb-2">Step 4: Preview Studio</h2>
