@@ -183,7 +183,7 @@ export function getSafeZoneVerdict(analysis) {
   return {
     tone: "warn",
     title: "Review recommended",
-    message: "Some elements are close to placement edges — double-check before launch.",
+    message: "Some elements are close to placement edges. Double-check before launch.",
   };
 }
 

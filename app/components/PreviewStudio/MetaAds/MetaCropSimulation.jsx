@@ -63,10 +63,10 @@ export default function MetaCropSimulation({ imageUrl, imageSize, elements }) {
   const summaryTitle = poorCount > 0
     ? `${poorCount} placement${poorCount > 1 ? "s" : ""} may crop badly`
     : reviewCount > 0
-      ? "Mostly good — review flagged placements"
+      ? "Mostly good. Review flagged placements"
       : "Crops look good across Meta placements";
   const summaryMessage = poorCount > 0
-    ? "Keep logos and CTAs in the center 70% — Stories and Reels trim top and bottom heavily."
+    ? "Keep logos and CTAs in the center 70%. Stories and Reels trim top and bottom heavily."
     : reviewCount > 0
       ? "Check previews with amber badges and move edge content inward."
       : "Your creative should read well in Feed, Stories, and Reels crops.";

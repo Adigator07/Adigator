@@ -8,6 +8,12 @@ import { Eye, EyeOff, Lock, Mail, Loader2, Check } from "lucide-react";
 import ParticleCanvas from "@/app/components/ParticleCanvas";
 import { MARKETING_CTA } from "@/app/lib/siteNavigation";
 import { supabase } from "@/app/lib/supabase";
+import {
+  GENERIC_AUTH_VALIDATION_ERROR,
+  GENERIC_SIGNUP_RESPONSE_MESSAGE,
+  LOGIN_INCORRECT_CREDENTIALS_ERROR,
+  PASSWORD_RESET_REQUEST_MESSAGE,
+} from "@/app/lib/auth/constants";
 import { logUserActivity } from "@/app/lib/userActivity";
 import { REGISTRATION_ROLES, getPostAuthRedirect } from "@/app/lib/communications/roleLabels";
 import type { UserRole } from "@/app/lib/communications/types";
@@ -35,6 +41,7 @@ export default function LoginContent() {
   const searchParams = useSearchParams();
   const reduceMotion = useReducedMotion();
   const isRegisterMode = searchParams.get("mode") === "register";
+  const isResetMode = searchParams.get("reset") === "1";
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -44,6 +51,8 @@ export default function LoginContent() {
   const [errors, setErrors] = useState<FieldErrors>({});
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [resetEmail, setResetEmail] = useState("");
+  const [resetMessage, setResetMessage] = useState<string | null>(null);
   const [shakeField, setShakeField] = useState<string | null>(null);
 
   const triggerShake = (field: string) => {
@@ -51,76 +60,135 @@ export default function LoginContent() {
     setTimeout(() => setShakeField(null), 400);
   };
 
+  const handlePasswordReset = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setLoading(true);
+    setResetMessage(null);
+    setErrors({});
+
+    try {
+      const response = await fetch("/api/auth/reset-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: resetEmail.trim() }),
+      });
+      const result = await response.json().catch(() => ({}));
+      setResetMessage(result.message || PASSWORD_RESET_REQUEST_MESSAGE);
+    } catch {
+      setResetMessage(PASSWORD_RESET_REQUEST_MESSAGE);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const nextErrors: FieldErrors = {};
 
-    if (isRegisterMode && !username.trim()) nextErrors.username = "Username is required.";
-    if (!email.trim()) nextErrors.email = "Email is required.";
-    if (!password.trim()) nextErrors.password = "Password is required.";
     if (isRegisterMode) {
-      if (!confirmPassword.trim()) nextErrors.confirmPassword = "Please confirm your password.";
-      else if (password.trim() !== confirmPassword.trim()) nextErrors.confirmPassword = "Passwords do not match.";
-      if (!selectedRole) nextErrors.role = "Please select your role.";
+      if (!username.trim() || !email.trim() || !password.trim() || !confirmPassword.trim() || !selectedRole) {
+        nextErrors.form = GENERIC_AUTH_VALIDATION_ERROR;
+      } else if (password.trim() !== confirmPassword.trim()) {
+        nextErrors.form = GENERIC_AUTH_VALIDATION_ERROR;
+      }
+    } else if (!email.trim() || !password.trim()) {
+      nextErrors.form = LOGIN_INCORRECT_CREDENTIALS_ERROR;
     }
 
     if (Object.keys(nextErrors).length > 0) {
       setErrors(nextErrors);
-      const first = Object.keys(nextErrors)[0];
-      triggerShake(first);
+      triggerShake("form");
       return;
     }
 
     setLoading(true);
     setErrors({});
 
-    const syncProfileRole = async (userId: string, userEmail: string, fullName: string, role: RegisterRole) => {
-      await supabase.from("profiles").upsert({
-        id: userId,
-        email: userEmail,
-        full_name: fullName,
-        role,
-        updated_at: new Date().toISOString(),
-      }, { onConflict: "id" });
-    };
-
     try {
-      if (isRegisterMode) {
-        const { data, error } = await supabase.auth.signUp({
-          email: email.trim(),
-          password: password.trim(),
-          options: {
-            data: { full_name: username.trim(), username: username.trim(), role: selectedRole },
-          },
-        });
-        if (error) throw error;
-        if (data.user) await syncProfileRole(data.user.id, email.trim(), username.trim(), selectedRole);
-        if (data.session) {
-          await logUserActivity("user_registered", { event_label: "User registered and signed in", metadata: { email: email.trim(), role: selectedRole } });
-          setSuccess(true);
-          setTimeout(() => router.replace(getPostAuthRedirect(selectedRole)), 500);
-          return;
-        }
-        setErrors({ form: "Registration successful. Check your email to confirm your account, then log in." });
+      const endpoint = isRegisterMode ? "/api/auth/signup" : "/api/auth/login";
+      const payload = isRegisterMode
+        ? {
+            email: email.trim(),
+            password,
+            confirmPassword,
+            username: username.trim(),
+            displayName: username.trim(),
+            role: selectedRole,
+          }
+        : { email: email.trim(), password };
+
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      const result = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        const message = isRegisterMode
+          ? (response.status === 400 ? (result.error || GENERIC_AUTH_VALIDATION_ERROR) : GENERIC_SIGNUP_RESPONSE_MESSAGE)
+          : LOGIN_INCORRECT_CREDENTIALS_ERROR;
+        setErrors({ form: message });
+        triggerShake("form");
         return;
       }
 
-      const { data, error } = await supabase.auth.signInWithPassword({ email: email.trim(), password: password.trim() });
-      if (error) throw error;
-
-      if (data.session?.user) {
-        const metaRole = data.session.user.user_metadata?.role as RegisterRole | undefined;
-        if (metaRole) {
-          await syncProfileRole(data.session.user.id, data.session.user.email || email.trim(), data.session.user.user_metadata?.full_name || username.trim(), metaRole);
-        }
-        const { data: profile } = await supabase.from("profiles").select("role").eq("id", data.session.user.id).maybeSingle();
-        await logUserActivity("user_login", { event_label: "User logged in", metadata: { email: email.trim(), role: profile?.role || metaRole } });
-        setSuccess(true);
-        setTimeout(() => router.replace(getPostAuthRedirect(profile?.role || metaRole || "end_client")), 500);
+      if (isRegisterMode && (result.requiresEmailConfirmation || !result.session)) {
+        setErrors({ form: result.message || GENERIC_SIGNUP_RESPONSE_MESSAGE });
+        return;
       }
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Authentication failed.";
-      setErrors({ form: message });
+
+      if (!result.session?.access_token || !result.session?.refresh_token) {
+        if (isRegisterMode) {
+          setErrors({ form: result.message || GENERIC_SIGNUP_RESPONSE_MESSAGE });
+          return;
+        }
+        setErrors({ form: LOGIN_INCORRECT_CREDENTIALS_ERROR });
+        triggerShake("form");
+        return;
+      }
+
+      const { error: sessionError } = await supabase.auth.setSession({
+        access_token: result.session.access_token,
+        refresh_token: result.session.refresh_token,
+      });
+      if (sessionError) throw sessionError;
+
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        setErrors({ form: LOGIN_INCORRECT_CREDENTIALS_ERROR });
+        triggerShake("form");
+        return;
+      }
+
+      const metaRole = user.user_metadata?.role as RegisterRole | undefined;
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", user.id)
+        .maybeSingle();
+
+      const resolvedRole = (profile?.role || metaRole || selectedRole || "end_client") as RegisterRole;
+
+      if (isRegisterMode) {
+        await logUserActivity("user_registered", {
+          event_label: "User registered and signed in",
+          metadata: { email: user.email || email.trim(), role: resolvedRole },
+        });
+      } else {
+        await logUserActivity("user_login", {
+          event_label: "User logged in",
+          metadata: { email: user.email || email.trim(), role: resolvedRole },
+        });
+      }
+
+      setSuccess(true);
+      setTimeout(() => router.replace(getPostAuthRedirect(resolvedRole)), 500);
+    } catch {
+      setErrors({
+        form: isRegisterMode ? GENERIC_SIGNUP_RESPONSE_MESSAGE : LOGIN_INCORRECT_CREDENTIALS_ERROR,
+      });
       triggerShake("form");
     } finally {
       setLoading(false);
@@ -185,12 +253,52 @@ export default function LoginContent() {
               <Link href="/" className="text-lg font-extrabold lg:hidden">
                 <span className="bg-gradient-to-r from-[#3B7BFF] to-[#00D4FF] bg-clip-text text-transparent">Adigator</span>
               </Link>
-              <h2 className="mt-2 text-2xl font-bold text-[#f0f2ff]">{isRegisterMode ? "Create account" : "Welcome back"}</h2>
+              <h2 className="mt-2 text-2xl font-bold text-[#f0f2ff]">
+                {isResetMode ? "Reset password" : isRegisterMode ? "Create account" : "Welcome back"}
+              </h2>
               <p className="mt-1 text-sm text-[#8890a8]">
-                {isRegisterMode ? "Register to access your workspace" : "Sign in to continue"}
+                {isResetMode
+                  ? "We'll email you a link to choose a new password"
+                  : isRegisterMode
+                    ? "Register to access your workspace"
+                    : "Sign in to continue"}
               </p>
             </div>
 
+            {isResetMode ? (
+              <form onSubmit={handlePasswordReset} noValidate className="space-y-4">
+                <div className={`agi-floating-field agi-floating-field--has-icon ${shakeField === "email" ? "agi-shake" : ""}`}>
+                  <input
+                    id="reset-email"
+                    type="email"
+                    placeholder=" "
+                    value={resetEmail}
+                    onChange={(e) => setResetEmail(e.target.value)}
+                    className="agi-input"
+                  />
+                  <label htmlFor="reset-email" className="agi-floating-label">Email</label>
+                  <Mail size={16} className="agi-field-icon" />
+                </div>
+
+                {resetMessage ? (
+                  <p className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-300">
+                    {resetMessage}
+                  </p>
+                ) : null}
+
+                <button type="submit" disabled={loading} className="agi-btn-primary w-full">
+                  {loading ? <Loader2 size={20} className="animate-spin" /> : null}
+                  <span>{loading ? "Please wait…" : "Send reset link"}</span>
+                </button>
+
+                <p className="text-center text-sm text-[var(--agi-text-muted)]">
+                  <Link href="/login" className="font-semibold text-[var(--agi-accent-cyan)] hover:underline">
+                    Back to log in
+                  </Link>
+                </p>
+              </form>
+            ) : (
+              <>
             <button
               type="button"
               className="agi-btn-ghost w-full !h-12 !text-sm"
@@ -326,6 +434,8 @@ export default function LoginContent() {
               {" · "}
               <Link href={MARKETING_CTA.href} className="font-semibold text-[var(--agi-accent-cyan)] hover:underline">Get a demo</Link>
             </p>
+              </>
+            )}
           </motion.div>
         </section>
       </div>

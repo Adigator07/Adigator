@@ -113,7 +113,7 @@ export default function AdminActivityPage() {
                     <td className="py-2.5 pr-4">
                       <Badge variant="default">{e.actionType.replace(/_/g, " ")}</Badge>
                     </td>
-                    <td className="py-2.5">{e.platform || "—"}</td>
+                    <td className="py-2.5">{e.platform || "None"}</td>
                   </tr>
                 ))}
               </tbody>

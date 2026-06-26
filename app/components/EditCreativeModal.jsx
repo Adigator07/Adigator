@@ -169,7 +169,7 @@ export default function EditCreativeModal({ creative, platform, onApply, onClose
             <div>
               <h2 className="text-2xl font-bold text-slate-100">Edit Creative</h2>
               <p className="text-sm text-slate-300 mt-0.5">
-                {creative.name} — Current: {creative.size}
+                {creative.name}: Current {creative.size}
               </p>
             </div>
             <button

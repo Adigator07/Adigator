@@ -94,7 +94,7 @@ export default function CommerceEnvironment({ content, slotType, creativeUrl, cr
               <div className="space-y-4">
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2">Price Range</p>
-                  {["Under $25", "$25–$50", "$50–$100", "$100–$250", "$250+"].map((p) => (
+                  {["Under $25", "$25 to $50", "$50 to $100", "$100 to $250", "$250+"].map((p) => (
                     <label key={p} className="flex items-center gap-2 text-sm text-slate-600 py-0.5 cursor-pointer hover:text-slate-900">
                       <input type="checkbox" className="rounded" /> {p}
                     </label>
@@ -130,7 +130,7 @@ export default function CommerceEnvironment({ content, slotType, creativeUrl, cr
         {/* Product grid */}
         <main>
           <div className="flex items-center justify-between mb-4">
-            <p className="text-sm text-slate-600"><strong>1–{PRODUCTS.length}</strong> of 2,841 results</p>
+            <p className="text-sm text-slate-600"><strong>1 to {PRODUCTS.length}</strong> of 2,841 results</p>
             <select className="border border-slate-200 rounded-lg text-sm px-3 py-1.5 bg-white text-slate-700 focus:outline-none">
               <option>Sort: Featured</option>
               <option>Price: Low to High</option>

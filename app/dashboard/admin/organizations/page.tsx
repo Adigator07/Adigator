@@ -65,7 +65,7 @@ export default function AdminOrganizationsPage() {
       <div>
         <h1 className="text-3xl font-extrabold text-white">Organizations</h1>
         <p className="mt-1 text-sm text-white/40">
-          Super Admin view — monitor all companies, teams, and members across the platform.
+          Super Admin view: monitor all companies, teams, and members across the platform.
         </p>
       </div>
 

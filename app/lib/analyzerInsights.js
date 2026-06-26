@@ -112,7 +112,7 @@ function isStrategicallyAligned(goal, vertical) {
   return goal?.is_aligned === true && vertical?.is_aligned === true;
 }
 
-/** High-severity upload issues that should block launch — not weight warnings on native assets. */
+/** High-severity upload issues that should block launch. not weight warnings on native assets. */
 function hasLaunchBlockingValidation(creative, platform) {
   const validation = creative?.validation;
   if (!validation) return false;
@@ -183,23 +183,23 @@ function deriveMetaTechnicalQa(creative, payload) {
   const metaEval = payload?.ai_analysis?.meta_ads_dynamic_eval;
 
   if (size === "1080x1080") {
-    items.push({ status: "pass", text: "1080×1080 — Meta Tier-1 square format for Feed, Carousel, and Marketplace grids" });
+    items.push({ status: "pass", text: "1080×1080. Meta Tier-1 square format for Feed, Carousel, and Marketplace grids" });
   } else if (size === "1080x1350") {
-    items.push({ status: "pass", text: "1080×1350 (4:5) — mobile-first Feed format with extra vertical storytelling room" });
+    items.push({ status: "pass", text: "1080×1350 (4:5). mobile-first Feed format with extra vertical storytelling room" });
   } else if (size === "1080x1920") {
-    items.push({ status: "pass", text: "1080×1920 (9:16) — full-screen Stories/Reels native canvas" });
+    items.push({ status: "pass", text: "1080×1920 (9:16). full-screen Stories/Reels native canvas" });
   } else if (size === "1200x628") {
-    items.push({ status: "warn", text: "1200×628 link-ad ratio — works for Feed link previews but not Stories/Reels inventory" });
+    items.push({ status: "warn", text: "1200×628 link-ad ratio. works for Feed link previews but not Stories/Reels inventory" });
   } else {
-    items.push({ status: "warn", text: `${size || "Unknown size"} is non-core for Meta — export 1080×1080, 1080×1350, or 1080×1920` });
+    items.push({ status: "warn", text: `${size || "Unknown size"} is non-core for Meta. export 1080×1080, 1080×1350, or 1080×1920` });
   }
 
   if (signals.text_density === "high") {
-    items.push({ status: "warn", text: "Heavy text overlay detected — Meta delivery may throttle; keep copy under ~20% of frame" });
+    items.push({ status: "warn", text: "Heavy text overlay detected. Meta delivery may throttle; keep copy under ~20% of frame" });
   } else if (signals.text_density === "moderate") {
-    items.push({ status: "warn", text: "Moderate text overlay — verify CTA and headline sit outside Stories top/bottom 14% safe zones" });
+    items.push({ status: "warn", text: "Moderate text overlay. verify CTA and headline sit outside Stories top/bottom 14% safe zones" });
   } else {
-    items.push({ status: "pass", text: "Text load is light — aligned with Meta's in-feed and Reels delivery preferences" });
+    items.push({ status: "pass", text: "Text load is light. aligned with Meta's in-feed and Reels delivery preferences" });
   }
 
   if (fileKb && fileKb <= 5120) {
@@ -209,7 +209,7 @@ function deriveMetaTechnicalQa(creative, payload) {
   }
 
   if (hasValidationIssueType(creative, "safe_zone")) {
-    items.push({ status: "fail", text: "CTA or headline likely overlaps Meta UI chrome — move action elements to center 70% of frame" });
+    items.push({ status: "fail", text: "CTA or headline likely overlaps Meta UI chrome. move action elements to center 70% of frame" });
   }
 
   if (Array.isArray(metaEval?.avoided_elements_found) && metaEval.avoided_elements_found.length > 0) {
@@ -243,36 +243,36 @@ function deriveMetaMainRisk(creative, payload, campaignVertical) {
   const primaryKeys = getPrimaryPlacementKeys("meta_ads", creative);
 
   if (vertical?.is_aligned === false) {
-    return `Vertical bleed — creative reads as ${vertical.detected_vertical || "another category"}, not ${campaignVertical || vertical.selected_vertical}. Meta's interest targeting may deliver to the wrong audience cluster.`;
+    return `Vertical bleed. creative reads as ${vertical.detected_vertical || "another category"}, not ${campaignVertical || vertical.selected_vertical}. Meta's interest targeting may deliver to the wrong audience cluster.`;
   }
 
   if (goal?.is_aligned === false) {
     const detected = goal.detected_goal || "conversion";
-    return `Message tone signals ${detected}-stage intent — emotional hook and CTA pressure don't match your selected ${goal.selected_goal || "campaign"} goal on Meta.`;
+    return `Message tone signals ${detected}-stage intent. emotional hook and CTA pressure don't match your selected ${goal.selected_goal || "campaign"} goal on Meta.`;
   }
 
   if (hasValidationIssueType(creative, "safe_zone")) {
-    return "Story-safe zone violation — headline or CTA sits in Meta's top/bottom UI overlay area, making the ad ineffective when users tap through.";
+    return "Story-safe zone violation. headline or CTA sits in Meta's top/bottom UI overlay area, making the ad ineffective when users tap through.";
   }
 
   if (primaryKeys.some((key) => scores[key] === "bad")) {
     if (scores.facebook_feed === "bad" || scores.instagram_feed === "bad") {
-      return "Feed placement not recommended — current aspect ratio breaks Meta in-feed card layout.";
+      return "Feed placement not recommended. current aspect ratio breaks Meta in-feed card layout.";
     }
-    return "Primary Meta placement blocked — re-export to 1080×1080, 1080×1350, or 1080×1920 for the inventory you plan to run.";
+    return "Primary Meta placement blocked. re-export to 1080×1080, 1080×1350, or 1080×1920 for the inventory you plan to run.";
   }
 
   if (!feedNative) {
     if (signals.text_density === "high" && (scores.stories === "bad" || scores.reels === "bad")) {
-      return "Text-heavy overlay plus non-vertical canvas — Meta may suppress delivery in Stories/Reels where UI chrome covers bottom-third CTAs.";
+      return "Text-heavy overlay plus non-vertical canvas. Meta may suppress delivery in Stories/Reels where UI chrome covers bottom-third CTAs.";
     }
     if (scores.reels === "bad" || scores.stories === "bad") {
-      return "Vertical Stories/Reels inventory blocked — export 1080×1920 for full-screen short-form placements.";
+      return "Vertical Stories/Reels inventory blocked. export 1080×1920 for full-screen short-form placements.";
     }
   }
 
   if (feedNative && signals.text_density === "high" && scores.facebook_feed !== "good" && scores.instagram_feed !== "good") {
-    return "Heavy text overlay on feed canvas — Meta may throttle delivery; keep copy under ~20% of frame.";
+    return "Heavy text overlay on feed canvas. Meta may throttle delivery; keep copy under ~20% of frame.";
   }
 
   if (Array.isArray(metaEval?.avoided_elements_found) && metaEval.avoided_elements_found[0]) {
@@ -295,20 +295,20 @@ function deriveGoogleMainRisk(creative, payload, campaignVertical) {
   const dims = parseSize(size);
 
   if (vertical?.is_aligned === false) {
-    return `Vertical mismatch — creative cues read as ${vertical.detected_vertical || "another industry"}, not ${campaignVertical || vertical.selected_vertical}. Google audience signals may misalign with keyword/theme targeting.`;
+    return `Vertical mismatch. creative cues read as ${vertical.detected_vertical || "another industry"}, not ${campaignVertical || vertical.selected_vertical}. Google audience signals may misalign with keyword/theme targeting.`;
   }
 
   if (size === "1080x1080" && scores.youtube_companion === "bad" && !isNativeCreativeSize(size, "google_ads")) {
-    return "Square master fits Demand Gen but not YouTube Companion — export 728×90 or 300×250 for companion slots.";
+    return "Square master fits Demand Gen but not YouTube Companion. export 728×90 or 300×250 for companion slots.";
   }
 
   if ((size === "728x90" || size === "320x50") && signals.text_density === "high") {
-    return "Leaderboard/mobile banner with heavy text — users scan in under 1 second on GDN; message won't land before scroll.";
+    return "Leaderboard/mobile banner with heavy text. users scan in under 1 second on GDN; message won't land before scroll.";
   }
 
   if (hasValidationIssueType(creative, "rda") && !isNativeCreativeSize(size, "google_ads")) {
     if (dims && dims.width < 600 && dims.height < 314) {
-      return "Responsive Display Asset failure — Google won't expand this creative across all eligible Display Network sizes.";
+      return "Responsive Display Asset failure. Google won't expand this creative across all eligible Display Network sizes.";
     }
   }
 
@@ -318,15 +318,15 @@ function deriveGoogleMainRisk(creative, payload, campaignVertical) {
     && !isNativeCreativeSize(size, "google_ads")
     && sizeInGroups(size, PLATFORM_SUPPORTED_SIZE_GROUPS.google_ads)
   ) {
-    return "File size exceeds Google Display 150KB guidance — slower loads can hurt viewability metrics and Quality Score on display placements.";
+    return "File size exceeds Google Display 150KB guidance. slower loads can hurt viewability metrics and Quality Score on display placements.";
   }
 
   if (scores.gdn === "bad" && getPrimaryPlacementKeys("google_ads", creative).includes("gdn")) {
-    return `GDN delivery blocked — ${size} is outside core IAB sizes Google expects for news site and banner rotation.`;
+    return `GDN delivery blocked. ${size} is outside core IAB sizes Google expects for news site and banner rotation.`;
   }
 
   if (goal?.is_aligned === false) {
-    return `Message reads ${goal.detected_goal || "conversion"}-stage while campaign targets ${goal.selected_goal || "awareness"} — Search/Display copy should match funnel intent for Quality Score.`;
+    return `Message reads ${goal.detected_goal || "conversion"}-stage while campaign targets ${goal.selected_goal || "awareness"}. Search/Display copy should match funnel intent for Quality Score.`;
   }
 
   if (Array.isArray(googleEval?.avoided_elements_found) && googleEval.avoided_elements_found[0]) {
@@ -350,19 +350,19 @@ function deriveProgrammaticMainRisk(creative, payload, campaignVertical) {
   const intel = creative?.validation?.intelligence;
 
   if (vertical?.is_aligned === false) {
-    return `Publisher-context mismatch — creative reads ${vertical.detected_vertical || "off-category"} vs ${campaignVertical || vertical.selected_vertical}. Contextual and vertical PMP deals may under-deliver.`;
+    return `Publisher-context mismatch. creative reads ${vertical.detected_vertical || "off-category"} vs ${campaignVertical || vertical.selected_vertical}. Contextual and vertical PMP deals may under-deliver.`;
   }
 
   if (enterpriseQa?.banner_blindness_risk === "HIGH") {
-    return "Banner blindness risk is high — creative matches generic display patterns users ignore in news and finance page clutter.";
+    return "Banner blindness risk is high. creative matches generic display patterns users ignore in news and finance page clutter.";
   }
 
   if ((size === "728x90" || size === "320x50" || size === "320x100") && signals.text_density === "high") {
-    return "Leaderboard/mobile banner overloaded with text — peripheral vision won't decode the offer before scroll in RTB environments.";
+    return "Leaderboard/mobile banner overloaded with text. peripheral vision won't decode the offer before scroll in RTB environments.";
   }
 
   if (scores.display_banners === "bad" && getPrimaryPlacementKeys("programmatic", creative).includes("display_banners")) {
-    return `${size} sits outside core IAB programmatic inventory — expect thin fill and higher CPMs on open exchange.`;
+    return `${size} sits outside core IAB programmatic inventory. expect thin fill and higher CPMs on open exchange.`;
   }
 
   if (
@@ -370,19 +370,19 @@ function deriveProgrammaticMainRisk(creative, payload, campaignVertical) {
     && creative.fileSizeKB > 150
     && !isNativeCreativeSize(size, "programmatic")
   ) {
-    return "150KB+ payload slows first render — viewability providers may score below threshold, reducing bid competitiveness in DV360/TTD.";
+    return "150KB+ payload slows first render. viewability providers may score below threshold, reducing bid competitiveness in DV360/TTD.";
   }
 
   if (goal?.is_aligned === false && goal?.detected_goal === "conversion") {
-    return `Hard conversion CTA on ${goal.selected_goal || "awareness"}-stage display traffic — cold programmatic users need brand hook before click pressure.`;
+    return `Hard conversion CTA on ${goal.selected_goal || "awareness"}-stage display traffic. cold programmatic users need brand hook before click pressure.`;
   }
 
   if (intel?.auctionReadiness?.band === "Challenging" || intel?.auctionReadiness?.band === "Watchlist") {
-    return "Low auction readiness — format may struggle to win impressions against higher-fill 300×250 and 728×90 competition.";
+    return "Low auction readiness. format may struggle to win impressions against higher-fill 300×250 and 728×90 competition.";
   }
 
   if (scores.native_ads === "bad" && scores.display_banners === "warning") {
-    return "Neither native nor standard display inventory strong — creative may float in remnant tiers with low viewability.";
+    return "Neither native nor standard display inventory strong. creative may float in remnant tiers with low viewability.";
   }
 
   if (Array.isArray(progEval?.avoided_elements_found) && progEval.avoided_elements_found[0]) {
@@ -405,13 +405,13 @@ function deriveMainRisk(creative, payload, platform, campaignVertical) {
   const risks = [];
 
   if (vertical?.is_aligned === false) {
-    risks.push(`Vertical mismatch — reads as ${vertical.detected_vertical || "another category"} vs selected ${campaignVertical || vertical.selected_vertical}`);
+    risks.push(`Vertical mismatch. reads as ${vertical.detected_vertical || "another category"} vs selected ${campaignVertical || vertical.selected_vertical}`);
   }
   if (goal?.is_aligned === false) {
-    risks.push(`Goal mismatch — message tone fits ${goal.detected_goal || "different"} intent more than selected goal`);
+    risks.push(`Goal mismatch. message tone fits ${goal.detected_goal || "different"} intent more than selected goal`);
   }
   if (hasLaunchBlockingValidation(creative, platform)) {
-    risks.push("Technical validation failed — dimensions or format not platform-safe");
+    risks.push("Technical validation failed. dimensions or format not platform-safe");
   }
 
   const apiRisk = payload?.adigator_analysis?.main_risk || payload?.main_strategic_problem;
@@ -649,7 +649,7 @@ export function computeCampaignOverview(entries, platform, campaignGoal, campaig
         || i.technicalQa.some((t) => t.status === "fail" && /safe.?zone/i.test(t.text))),
     );
     if (storyRisk.length > 0) {
-      launchRisks.push(`⚠️ Story-safe zones affected in ${storyRisk.length} creative${storyRisk.length === 1 ? "" : "s"} — text may sit too close to UI overlays`);
+      launchRisks.push(`⚠️ Story-safe zones affected in ${storyRisk.length} creative${storyRisk.length === 1 ? "" : "s"}. text may sit too close to UI overlays`);
     }
   }
 
@@ -669,7 +669,7 @@ export function computeCampaignOverview(entries, platform, campaignGoal, campaig
       i.technicalQa.some((t) => /banner.?blindness/i.test(t.text)),
     );
     if (blindnessRisk.length > 0) {
-      launchRisks.push(`⚠️ Banner blindness risk elevated in ${blindnessRisk.length} creative${blindnessRisk.length === 1 ? "" : "s"} — may underperform on news/finance inventory`);
+      launchRisks.push(`⚠️ Banner blindness risk elevated in ${blindnessRisk.length} creative${blindnessRisk.length === 1 ? "" : "s"}. may underperform on news/finance inventory`);
     }
   }
 
@@ -750,7 +750,7 @@ export function computeCampaignOverview(entries, platform, campaignGoal, campaig
     recommendationBullets.push(`${reviewCount} creative${reviewCount === 1 ? " needs" : "s need"} minor placement or copy adjustments.`);
   }
   if (recommendationBullets.length === 0 && launchRisks.length === 0) {
-    recommendationBullets.push("All creatives pass platform checks — ready for launch.");
+    recommendationBullets.push("All creatives pass platform checks. ready for launch.");
   }
 
   const columns = getPlacementColumns(platform);
@@ -817,7 +817,7 @@ export function qaItemIcon(status) {
   return "✕";
 }
 
-/** Dev verification matrix — aligned goal/vertical creatives should not be red. */
+/** Dev verification matrix. aligned goal/vertical creatives should not be red. */
 export function runAnalyzerStatusMatrix() {
   const alignedPayload = {
     goal_alignment: { is_aligned: true, selected_goal: "awareness", detected_goal: "awareness" },

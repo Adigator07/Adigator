@@ -30,7 +30,7 @@ function normalizeSeverity(severity) {
 export function StudioRecommendationsPanel({
   title = "Recommendations",
   items = [],
-  emptyMessage = "No issues detected — creative elements look well positioned.",
+  emptyMessage = "No issues detected. Creative elements look well positioned.",
   className = "",
 }) {
   return (

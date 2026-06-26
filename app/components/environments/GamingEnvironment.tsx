@@ -72,7 +72,7 @@ export default function GamingEnvironment({ content, slotType, creativeUrl, crea
               <p className="text-sm text-slate-400 mb-2">{GAMES[0].genre}</p>
               <p className="text-emerald-400 text-sm font-semibold mb-5">{GAMES[0].players}</p>
               <div className="flex gap-3 flex-wrap">
-                <button className="bg-emerald-500 hover:bg-emerald-400 text-black text-sm font-black px-6 py-3 rounded-xl transition">Play Now — Free</button>
+                <button className="bg-emerald-500 hover:bg-emerald-400 text-black text-sm font-black px-6 py-3 rounded-xl transition">Play Now. Free</button>
                 <button className="border border-white/20 text-white text-sm font-semibold px-5 py-3 rounded-xl hover:bg-white/10 transition">Watch Trailer</button>
               </div>
             </div>

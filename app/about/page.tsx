@@ -1,96 +1,145 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import Link from "next/link";
-import { motion } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 import {
+  ArrowDown,
+  Briefcase,
+  Check,
+  CheckCircle2,
+  Megaphone,
+  Palette,
+  Shield,
+  Target,
+  Users,
+  X,
+} from "lucide-react";
+import {
+  MARKETING_CTA,
   MARKETING_FOOTER_COLUMNS,
   MARKETING_PARTNER_BADGES,
 } from "@/app/lib/siteNavigation";
 import MarketingNav from "@/app/components/MarketingNav";
+import ValidationLayerDiagram from "@/app/components/marketing/ValidationLayerDiagram";
 
-const VALUES = [
+const BEFORE_ADIGATOR_FLOW = [
+  "Client sends brief",
+  "Creative team designs ads",
+  "Campaign manager builds campaign",
+  "AdOps launches campaign",
+  "Performance problems appear",
+  "Everyone blames the creative",
+];
+
+const CAMPAIGN_TEAMS = [
+  { title: "Creative Team", icon: Palette },
+  { title: "Campaign Managers", icon: Target },
+  { title: "Media Buyers", icon: Megaphone },
+  { title: "Ad Operations", icon: Briefcase },
+  { title: "QA Teams", icon: Shield },
+  { title: "Clients", icon: Users },
+];
+
+const BELIEFS = [
+  "Campaign quality starts before launch.",
+  "Small operational mistakes become expensive.",
+  "Better validation creates better campaigns.",
+  "Every campaign deserves one final review.",
+  "Technology should reduce operational complexity, not add to it.",
+];
+
+const TIMELINE_2025 = [
+  "Observed recurring campaign failures across advertising operations.",
+  "Identified a missing validation layer.",
+  "Built internal validation workflows.",
+  "Created Adigator Creative Studio.",
+  "Expanding into Campaign Operations Quality Management.",
+];
+
+const FOUR_PILLARS = [
   {
-    icon: "◌",
-    title: "Clarity over chaos",
+    title: "Campaign Validation",
     description:
-      "Advertising teams drown in scattered files, screenshots, and subjective feedback. Adigator replaces that noise with structured analysis everyone can trust.",
+      "Align campaign objective, creatives, landing pages, and messaging before anyone signs off.",
+    icon: Target,
   },
   {
-    icon: "↗",
-    title: "Preview what audiences see",
-    description:
-      "A creative approved in isolation is not a creative approved in context. Our preview studio places ads inside real publisher environments for honest review.",
+    title: "Platform Validation",
+    description: "Meta, Google, and Programmatic technical compatibility checked in one pass.",
+    icon: Shield,
   },
   {
-    icon: "✦",
-    title: "Built for scale",
-    description:
-      "From solo marketers to multi-team organizations, Adigator grows with you — personal dashboards, org workspaces, and platform-wide administration.",
+    title: "Creative Validation",
+    description: "Creative quality, placement compatibility, and launch readiness validated together.",
+    icon: Palette,
+  },
+  {
+    title: "Operational Quality",
+    description: "Reduce manual review, standardize validation, and support enterprise workflows.",
+    icon: Briefcase,
   },
 ];
 
-const STATS = [
-  { value: "10", label: "layers of creative analysis" },
-  { value: "3", label: "major ad platforms supported" },
-  { value: "4", label: "step end-to-end workflow" },
-  { value: "∞", label: "teams per organization" },
+const DIFFERENTIATORS = [
+  { others: "Analyze creatives", adigator: "Validates the campaign" },
+  { others: "Review images", adigator: "Reviews campaign intent" },
+  { others: "Show previews", adigator: "Explains launch risks" },
+  { others: "Focus on AI", adigator: "Focuses on operational quality" },
 ];
 
-const PLATFORM_PILLARS = [
-  {
-    name: "Preview Studio",
-    role: "Campaign setup to launch",
-    detail: "Define objectives, upload creatives, validate formats, run analysis, preview placements, and export reports — the complete creative QA cycle.",
-  },
-  {
-    name: "Creative Validation Engine",
-    role: "Platform compliance, automated",
-    detail: "Size matrices, file-weight checks, and placement rules for Google Ads, Meta Ads, and Programmatic — flagged before you go live.",
-  },
-  {
-    name: "AI Analysis Orchestrator",
-    role: "Strategic intelligence layer",
-    detail: "Ten scoring layers evaluate attention, goal alignment, vertical fit, inventory compatibility, and launch readiness in one deterministic flow.",
-  },
-  {
-    name: "Organization Platform",
-    role: "Teams, permissions, visibility",
-    detail: "Super admins oversee all organizations. Org admins manage teams and members. Users focus on their own creatives and activity.",
-  },
+const WHO_WE_BUILD_FOR = [
+  "Agency Operations",
+  "Campaign Managers",
+  "Creative Teams",
+  "QA Teams",
+  "Media Buyers",
+  "Brands",
+  "Enterprise Marketing",
+  "Outsourcing Teams",
 ];
 
-const TIMELINE = [
-  {
-    year: "The problem",
-    title: "Creative review was broken",
-    body: "Teams juggled spreadsheets, email chains, and static mockups. Platform rejections, missed specs, and slow approvals cost time and budget on every campaign.",
-  },
-  {
-    year: "The insight",
-    title: "Validation and preview belong together",
-    body: "We saw that checking dimensions alone wasn't enough — stakeholders need to see ads in context and understand why a creative is ready or not.",
-  },
-  {
-    year: "The platform",
-    title: "Adigator was built",
-    body: "A unified workflow emerged: campaign objectives, upload and validate, deep AI analysis, contextual preview, and strategic PPTX export — one product, one pipeline.",
-  },
-  {
-    year: "Today",
-    title: "Built for organizations",
-    body: "Multi-tenant workspaces, team management, communications, and tiered dashboards now support advertisers, agencies, and enterprise marketing orgs at scale.",
-  },
+const VISION_ROADMAP = [
+  { phase: "Today", label: "Creative Validation" },
+  { phase: "Next", label: "Campaign Validation" },
+  { phase: "Next", label: "Operational Quality Management" },
+  { phase: "Future", label: "Campaign Intelligence Platform" },
 ];
 
-const PLATFORM_SURFACES = [
-  { label: "Landing", href: "/" },
-  { label: "Solutions", href: "/solutions" },
-  { label: "Preview Studio", href: "/preview-tool" },
-  { label: "Live Preview", href: "/preview" },
-  { label: "User Dashboard", href: "/dashboard" },
-  { label: "Org Console", href: "/dashboard/organization" },
-];
+function SectionHeader({
+  eyebrow,
+  title,
+  description,
+  dark = false,
+  center = false,
+}: {
+  eyebrow: string;
+  title: string;
+  description?: string;
+  dark?: boolean;
+  center?: boolean;
+}) {
+  return (
+    <div className={`mb-10 max-w-3xl sm:mb-12 ${center ? "mx-auto text-center" : ""}`}>
+      <p
+        className={`text-sm font-semibold uppercase tracking-[0.18em] ${dark ? "text-[#9CA3AF]" : "text-[#6B7280]"}`}
+      >
+        {eyebrow}
+      </p>
+      <h2
+        className={`mt-3 text-3xl font-black leading-tight tracking-tight sm:text-4xl lg:text-5xl ${dark ? "text-white" : ""}`}
+      >
+        {title}
+      </h2>
+      {description ? (
+        <p
+          className={`mt-4 text-base leading-relaxed sm:text-lg ${dark ? "text-[#A3A3A3]" : "text-[#5A5A55]"} ${center ? "mx-auto" : ""}`}
+        >
+          {description}
+        </p>
+      ) : null}
+    </div>
+  );
+}
 
 function Footer() {
   return (
@@ -99,7 +148,8 @@ function Footer() {
         <div className="md:col-span-2">
           <p className="text-2xl font-black tracking-tight">Adigator</p>
           <p className="mt-3 max-w-sm text-sm leading-relaxed text-[#66665F]">
-            Creative intelligence for the teams who ship advertising at scale.
+            The pre launch campaign validation layer for agencies and brands who refuse to waste media spend on
+            preventable errors.
           </p>
           <p className="mt-6 text-sm text-[#66665F]">© 2026 Adigator. All rights reserved.</p>
         </div>
@@ -135,173 +185,370 @@ function Footer() {
 }
 
 export default function AboutPage() {
-  const [scrolled, setScrolled] = useState(false);
-
-  useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 14);
-    onScroll();
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
-  }, []);
+  const reduceMotion = useReducedMotion();
 
   return (
     <div className="marketing-page min-h-screen bg-[#F5F5F0] text-[#0D0D0D]">
       <MarketingNav activePath="/about" />
 
       <main className="pt-28">
-        <section className="marketing-section mx-auto grid w-[min(1280px,92vw)] gap-10 py-16 sm:gap-12 sm:py-20 md:grid-cols-2 md:items-center md:py-28 lg:gap-12">
-          <div>
-            <span className="inline-flex rounded-full border border-[#D4D3CC] bg-white px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-[#51514A]">
-              About Adigator
-            </span>
-            <h1 className="mt-6 max-w-3xl text-[clamp(2rem,6vw,5.4rem)] font-black leading-[0.95] tracking-[-0.04em] sm:mt-8">
-              We built the platform we wished existed for creative teams.
-            </h1>
-            <p className="mt-7 max-w-xl text-lg leading-relaxed text-[#5C5C56]">
-              Adigator is a creative intelligence platform for advertisers, agencies, and marketing organizations.
-              We unify validation, AI-powered analysis, contextual preview, and strategic reporting — so teams
-              stop guessing and start launching with confidence.
-            </p>
-          </div>
+        {/* Hero */}
+        <section className="marketing-section mx-auto w-[min(980px,92vw)] py-16 sm:py-20 md:py-28">
+          <span className="inline-flex rounded-full border border-[#D4D3CC] bg-white px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-[#51514A]">
+            About Adigator
+          </span>
 
-          <div className="grid grid-cols-4 grid-rows-4 gap-3">
-            <div className="saas-hover col-span-2 row-span-2 rounded-[24px] border border-[#DAD9D1] bg-[#0D0D0D] p-5 text-white">
-              <p className="text-xs uppercase tracking-[0.14em] text-white/60">Our mission</p>
-              <p className="mt-3 text-2xl font-black">Launch better ads, faster</p>
-              <p className="mt-3 text-sm text-white/70">Every creative deserves a fair review — validated against platform rules, analyzed for impact, and previewed in the world it will live in.</p>
-            </div>
-            <div className="saas-hover col-span-2 row-span-1 rounded-[20px] border border-[#DAD9D1] bg-white p-4">
-              <p className="text-xs uppercase tracking-[0.14em] text-[#5E5E58]">Who we serve</p>
-              <p className="mt-2 text-sm font-semibold">Advertisers, agencies, brand teams, and enterprise marketing organizations</p>
-            </div>
-            <div className="saas-hover col-span-1 row-span-2 rounded-[20px] border border-[#DAD9D1] bg-[#EEF0E7] p-4">
-              <p className="text-xs uppercase tracking-[0.14em] text-[#4E4E49]">Preview</p>
-              <p className="mt-2 text-sm font-semibold">Real publisher environments, not flat mockups</p>
-            </div>
-            <div className="saas-hover col-span-1 row-span-1 rounded-[20px] border border-[#DAD9D1] bg-white" />
-            <div className="saas-hover col-span-2 row-span-1 rounded-[20px] border border-[#DAD9D1] bg-white p-4">
-              <p className="text-xs uppercase tracking-[0.14em] text-[#5E5E58]">Output</p>
-              <p className="mt-2 text-sm font-semibold">Strategic PPTX reports ready for client and leadership review</p>
+          <p className="mx-auto mt-8 max-w-3xl text-lg leading-relaxed text-[#5C5C56] sm:text-xl">
+            Advertising has become faster than its quality control. Campaigns move from client brief to launch through
+            multiple teams, platforms, and tools. Along the way, small mismatches between campaign intent, creatives,
+            landing pages, platform requirements, and technical setup often go unnoticed until budgets are already being
+            spent. Adigator was built to close that gap.
+          </p>
+
+          <h1 className="mx-auto mt-10 max-w-4xl text-center text-[clamp(2rem,5.5vw,4rem)] font-black leading-[1.02] tracking-[-0.04em]">
+            We Didn&apos;t Build Another AI Tool.
+            <br />
+            <span className="text-[#2D2D27]">We Built the Validation Layer Campaigns Were Missing.</span>
+          </h1>
+
+          <p className="mx-auto mt-7 max-w-2xl text-center text-lg leading-relaxed text-[#5C5C56]">
+            Every campaign passes through multiple teams before launch. Yet no one validates whether campaign intent,
+            creatives, landing pages, platform requirements, and technical setup actually align. Adigator was built to
+            solve that gap.
+          </p>
+
+          <div className="mt-10 flex flex-wrap justify-center gap-4">
+            <Link href="/product" className="marketing-btn-outline saas-hover rounded-full px-8 py-4 text-base font-semibold">
+              See Product
+            </Link>
+            <Link href={MARKETING_CTA.href} className="marketing-btn-lime saas-hover rounded-full px-8 py-4 text-base font-bold">
+              {MARKETING_CTA.label}
+            </Link>
+          </div>
+        </section>
+
+        {/* Why We Started Adigator */}
+        <section id="why-we-started" className="border-y border-[#DEDDD5] bg-[#FAFAF7] py-16 sm:py-20 md:py-24">
+          <div className="mx-auto w-[min(1280px,92vw)]">
+            <SectionHeader
+              eyebrow="Why we started Adigator"
+              title="The creative wasn't always the problem"
+              description="Before Adigator, campaigns followed a familiar path. Problems showed up after launch, and teams pointed at the wrong layer."
+            />
+
+            <div className="grid gap-10 lg:grid-cols-2 lg:gap-16">
+              <div>
+                <p className="mb-4 text-center text-xs font-bold uppercase tracking-[0.18em] text-[#6B7280] lg:text-left">
+                  Before Adigator
+                </p>
+                <div className="mx-auto flex max-w-sm flex-col items-center gap-2 lg:mx-0 lg:max-w-none lg:items-stretch">
+                  {BEFORE_ADIGATOR_FLOW.map((step, i) => (
+                    <div key={step} className="flex w-full flex-col items-center lg:items-stretch">
+                      <motion.div
+                        initial={reduceMotion ? false : { opacity: 0, y: 8 }}
+                        whileInView={{ opacity: 1, y: 0 }}
+                        viewport={{ once: true }}
+                        transition={{ delay: i * 0.04 }}
+                        className={`w-full rounded-xl border px-5 py-3.5 text-center text-sm font-semibold sm:text-base ${
+                          step === "Everyone blames the creative"
+                            ? "border-red-200 bg-red-50 text-red-800"
+                            : "border-[#DEDDD5] bg-white text-[#0D0D0D]"
+                        }`}
+                      >
+                        {step}
+                      </motion.div>
+                      {i < BEFORE_ADIGATOR_FLOW.length - 1 ? (
+                        <ArrowDown size={18} className="my-1.5 text-[#9CA3AF]" aria-hidden />
+                      ) : null}
+                    </div>
+                  ))}
+                </div>
+
+                <motion.div
+                  initial={reduceMotion ? false : { opacity: 0, y: 10 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  className="mx-auto mt-6 max-w-sm rounded-2xl border border-amber-300/60 bg-amber-50 p-6 text-center lg:mx-0 lg:max-w-none lg:text-left"
+                >
+                  <p className="text-sm font-bold uppercase tracking-[0.14em] text-amber-800">But often</p>
+                  <p className="mt-3 text-lg font-black leading-snug text-[#0D0D0D]">
+                    The creative wasn&apos;t the problem.
+                  </p>
+                  <p className="mt-2 text-base font-semibold text-amber-900">
+                    The campaign was never validated.
+                  </p>
+                </motion.div>
+              </div>
+
+              <div className="flex flex-col justify-center rounded-3xl border border-[#DEDDD5] bg-white p-8 sm:p-10">
+                <p className="text-sm font-bold uppercase tracking-[0.18em] text-[#6B7280]">
+                  That&apos;s why we built Adigator
+                </p>
+                <h3 className="mt-4 text-2xl font-black leading-tight tracking-tight sm:text-3xl">
+                  The final validation layer before launch
+                </h3>
+                <ul className="mt-8 space-y-4">
+                  {[
+                    "Adigator doesn't replace your creative team.",
+                    "It doesn't replace campaign managers.",
+                    "It doesn't replace AdOps.",
+                    "It becomes the final validation layer before launch.",
+                  ].map((line) => (
+                    <li key={line} className="flex items-start gap-3 text-base leading-relaxed text-[#3D3D38]">
+                      <CheckCircle2 size={20} className="mt-0.5 shrink-0 text-emerald-600" />
+                      {line}
+                    </li>
+                  ))}
+                </ul>
+              </div>
             </div>
           </div>
         </section>
 
-        <section className="mx-auto w-[min(1280px,92vw)] py-24 md:py-32">
-          <div className="grid gap-6 md:grid-cols-3">
-            {VALUES.map((value) => (
-              <article
-                key={value.title}
-                className="saas-hover rounded-3xl border border-[#DEDDD5] bg-white p-8 shadow-[0_12px_24px_rgba(15,23,42,0.05)]"
-              >
-                <div className="mb-6 inline-flex h-14 w-14 items-center justify-center rounded-full border border-[#D9D8D0] bg-[#F8F8F4] text-2xl font-bold">
-                  {value.icon}
+        {/* Campaign Validation Gap */}
+        <ValidationLayerDiagram
+          eyebrow="The campaign validation gap"
+          title="Traditional workflows launch campaigns. They don't validate them."
+          description="Small mismatches between brief, creative, landing page, and platform requirements slip through every handoff until media is live."
+          gapLabel="No validation"
+        />
+
+        {/* Campaign Reality */}
+        <section id="reality" className="bg-[#0D0D0D] py-16 text-white sm:py-20 md:py-24">
+          <div className="mx-auto w-[min(1280px,92vw)]">
+            <SectionHeader
+              dark
+              center
+              eyebrow="Campaign reality"
+              title="One campaign. Multiple teams. One opportunity to get it right."
+              description="Each team completes its task. Few validate the entire campaign together."
+            />
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {CAMPAIGN_TEAMS.map((team, i) => (
+                <motion.article
+                  key={team.title}
+                  initial={{ opacity: 0, y: 12 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: i * 0.04 }}
+                  className="saas-hover rounded-2xl border border-[#2A2A2A] bg-[#151515] p-6"
+                >
+                  <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-[#1F1F1F] text-[#C8F04D]">
+                    <team.icon size={20} />
+                  </div>
+                  <h3 className="text-lg font-black tracking-tight">{team.title}</h3>
+                  <p className="mt-2 text-sm text-[#A3A3A3]">Completes its part of the workflow.</p>
+                </motion.article>
+              ))}
+            </div>
+            <p className="mx-auto mt-10 max-w-2xl text-center text-lg font-semibold text-[#D4D4D4]">
+              Adigator is where those parts get validated together, before launch.
+            </p>
+          </div>
+        </section>
+
+        {/* Our Mission */}
+        <section id="mission" className="marketing-section mx-auto w-[min(780px,92vw)] py-16 text-center sm:py-20 md:py-24">
+          <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#6B7280]">Our mission</p>
+          <h2 className="mt-4 text-3xl font-black leading-tight tracking-tight sm:text-4xl lg:text-5xl">
+            To make campaign validation a standard part of every advertising workflow.
+          </h2>
+          <p className="mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-[#5A5A55]">
+            Just as developers don&apos;t deploy code without testing, campaigns shouldn&apos;t launch without
+            validation.
+          </p>
+        </section>
+
+        {/* What We Believe */}
+        <section id="beliefs" className="border-y border-[#DEDDD5] bg-[#FAFAF7] py-16 sm:py-20 md:py-24">
+          <div className="mx-auto w-[min(1280px,92vw)]">
+            <SectionHeader eyebrow="What we believe" title="Principles that guide how we build" />
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {BELIEFS.map((belief, i) => (
+                <motion.div
+                  key={belief}
+                  initial={{ opacity: 0, y: 10 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: i * 0.04 }}
+                  className="saas-hover flex items-start gap-4 rounded-2xl border border-[#DEDDD5] bg-white p-6"
+                >
+                  <Check size={18} className="mt-0.5 shrink-0 text-emerald-600" />
+                  <p className="text-base font-semibold leading-relaxed text-[#0D0D0D]">{belief}</p>
+                </motion.div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* Timeline */}
+        <section id="timeline" className="marketing-section mx-auto w-[min(1280px,92vw)] py-16 sm:py-20 md:py-24">
+          <SectionHeader
+            eyebrow="Our story"
+            title="How Adigator came to be"
+            description="From observing recurring failures to building the validation layer campaigns were missing."
+          />
+          <div className="mx-auto max-w-lg">
+            <div className="mb-6 inline-flex rounded-full border border-[#DEDDD5] bg-white px-5 py-2 text-sm font-black tracking-tight">
+              2025
+            </div>
+            <div className="flex flex-col gap-2">
+              {TIMELINE_2025.map((step, i) => (
+                <div key={step} className="flex flex-col items-center">
+                  <motion.div
+                    initial={reduceMotion ? false : { opacity: 0, y: 8 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true }}
+                    transition={{ delay: i * 0.05 }}
+                    className="w-full rounded-xl border border-[#DEDDD5] bg-white px-5 py-4 text-center text-sm font-semibold leading-relaxed sm:text-base"
+                  >
+                    {step}
+                  </motion.div>
+                  {i < TIMELINE_2025.length - 1 ? (
+                    <ArrowDown size={18} className="my-1.5 text-[#9CA3AF]" aria-hidden />
+                  ) : null}
                 </div>
-                <h3 className="text-2xl font-black tracking-tight">{value.title}</h3>
-                <p className="mt-4 text-sm leading-relaxed text-[#585852]">{value.description}</p>
-              </article>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* Four Pillars */}
+        <section id="pillars" className="bg-[#0D0D0D] py-16 text-white sm:py-20 md:py-24">
+          <div className="mx-auto w-[min(1280px,92vw)]">
+            <SectionHeader
+              dark
+              eyebrow="Four pillars"
+              title="What Adigator validates at every stage"
+              description="Validation, quality, consistency, and readiness across the full campaign stack."
+            />
+            <div className="grid gap-5 sm:grid-cols-2">
+              {FOUR_PILLARS.map((pillar, i) => (
+                <motion.article
+                  key={pillar.title}
+                  initial={{ opacity: 0, y: 12 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: i * 0.05 }}
+                  className="saas-hover rounded-3xl border border-[#2D2D2D] bg-[#141414] p-8"
+                >
+                  <div className="mb-5 flex h-12 w-12 items-center justify-center rounded-xl bg-[#1F1F1F] text-[#C8F04D]">
+                    <pillar.icon size={22} />
+                  </div>
+                  <h3 className="text-2xl font-black tracking-tight">{pillar.title}</h3>
+                  <p className="mt-4 text-base leading-relaxed text-[#A8A8A8]">{pillar.description}</p>
+                </motion.article>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* What Makes Adigator Different */}
+        <section id="different" className="marketing-section mx-auto w-[min(1280px,92vw)] py-16 sm:py-20 md:py-24">
+          <SectionHeader
+            eyebrow="What makes Adigator different"
+            title="We validate campaigns, not just creatives"
+            description="Most tools stop at image analysis. Adigator focuses on operational quality across the full campaign path."
+          />
+          <div className="grid gap-5 sm:grid-cols-2">
+            {DIFFERENTIATORS.map((item, i) => (
+              <motion.article
+                key={item.others}
+                initial={{ opacity: 0, y: 12 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: i * 0.04 }}
+                className="saas-hover overflow-hidden rounded-2xl border border-[#DEDDD5] bg-white"
+              >
+                <div className="flex items-center gap-3 border-b border-[#ECEAE3] bg-[#FAFAF7] px-6 py-4">
+                  <X size={16} className="shrink-0 text-[#9CA3AF]" />
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-[0.14em] text-[#9CA3AF]">Others</p>
+                    <p className="text-base font-semibold text-[#6B7280]">{item.others}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3 px-6 py-5">
+                  <CheckCircle2 size={18} className="shrink-0 text-emerald-600" />
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-[0.14em] text-emerald-700">Adigator</p>
+                    <p className="text-lg font-black tracking-tight">{item.adigator}</p>
+                  </div>
+                </div>
+              </motion.article>
             ))}
           </div>
         </section>
 
-        <section className="bg-[#0D0D0D] py-24 text-white md:py-28">
-          <div className="mx-auto grid w-[min(1280px,92vw)] gap-8 md:grid-cols-4">
-            {STATS.map((stat) => (
-              <div key={stat.label} className="saas-hover rounded-3xl border border-[#2A2A2A] bg-[#151515] p-7">
-                <p className="text-5xl font-black tracking-tight text-[#C8F04D]">{stat.value}</p>
-                <p className="mt-3 text-sm uppercase tracking-[0.14em] text-[#A8A8A8]">{stat.label}</p>
+        {/* Who We Build For */}
+        <section id="who" className="border-y border-[#DEDDD5] bg-[#FAFAF7] py-16 sm:py-20 md:py-24">
+          <div className="mx-auto w-[min(1280px,92vw)] text-center">
+            <SectionHeader
+              center
+              eyebrow="Who we build for"
+              title="Built for teams who ship campaigns at scale"
+              description="If your workflow spans creative, campaign management, media buying, AdOps, or QA, Adigator was built for you."
+            />
+            <div className="flex flex-wrap justify-center gap-3">
+              {WHO_WE_BUILD_FOR.map((audience) => (
+                <span
+                  key={audience}
+                  className="rounded-full border border-[#DEDDD5] bg-white px-5 py-2.5 text-sm font-bold text-[#0D0D0D]"
+                >
+                  {audience}
+                </span>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* Where We're Going */}
+        <section id="vision" className="marketing-section mx-auto w-[min(1280px,92vw)] py-16 sm:py-20 md:py-24">
+          <SectionHeader
+            eyebrow="Where we're going"
+            title="From creative validation to campaign operations quality"
+            description="Our roadmap reflects one direction: make validation standard across every stage of campaign operations."
+          />
+          <div className="mx-auto flex max-w-md flex-col items-center gap-2">
+            {VISION_ROADMAP.map((step, i) => (
+              <div key={step.label} className="flex w-full flex-col items-center">
+                <motion.div
+                  initial={reduceMotion ? false : { opacity: 0, y: 8 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: i * 0.05 }}
+                  className={`w-full rounded-xl border px-5 py-4 text-center ${
+                    i === VISION_ROADMAP.length - 1
+                      ? "border-[#C8F04D]/50 bg-[#C8F04D]/10"
+                      : "border-[#DEDDD5] bg-white"
+                  }`}
+                >
+                  <p className="text-xs font-bold uppercase tracking-[0.16em] text-[#6B7280]">{step.phase}</p>
+                  <p className="mt-1 text-base font-black tracking-tight sm:text-lg">{step.label}</p>
+                </motion.div>
+                {i < VISION_ROADMAP.length - 1 ? (
+                  <ArrowDown size={18} className="my-1.5 text-[#9CA3AF]" aria-hidden />
+                ) : null}
               </div>
             ))}
           </div>
         </section>
 
-        <section className="mx-auto w-[min(1280px,92vw)] py-24 md:py-32">
-          <div className="mb-10">
-            <p className="text-sm uppercase tracking-[0.18em] text-[#676760]">What powers Adigator</p>
-            <h2 className="mt-3 text-3xl font-black tracking-tight sm:text-4xl lg:text-5xl">Four pillars. One connected workflow.</h2>
-          </div>
-
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-2">
-            {PLATFORM_PILLARS.map((member) => (
-              <article
-                key={member.name}
-                className="group saas-hover rounded-3xl border border-[#DEDDD5] bg-white p-6"
-              >
-                <p className="text-xl font-black tracking-tight">{member.name}</p>
-                <p className="mt-1 text-sm font-semibold text-[#4C4C46]">{member.role}</p>
-                <p className="mt-4 text-sm text-[#5E5E58]">
-                  {member.detail}
-                </p>
-                <div className="mt-6 h-px bg-[#E2E1D9]" />
-                <p className="mt-4 text-xs uppercase tracking-[0.14em] text-[#71716A]">
-                  Core capability
-                </p>
-              </article>
-            ))}
-          </div>
-        </section>
-
-        <section className="mx-auto w-[min(1100px,92vw)] py-24 md:py-32">
-          <div className="mb-10 text-center">
-            <p className="text-sm uppercase tracking-[0.18em] text-[#676760]">Our story</p>
-            <h2 className="mt-3 text-3xl font-black tracking-tight sm:text-4xl lg:text-5xl">From frustration to platform</h2>
-          </div>
-
-          <div className="relative mx-auto max-w-4xl">
-            <div className="absolute left-1/2 top-0 hidden h-full w-px -translate-x-1/2 bg-[#D8D7CF] md:block" />
-            <div className="space-y-8">
-              {TIMELINE.map((item, idx) => {
-                const right = idx % 2 === 1;
-                return (
-                  <motion.div
-                    key={`${item.year}-${item.title}`}
-                    initial={{ opacity: 0, y: 20 }}
-                    whileInView={{ opacity: 1, y: 0 }}
-                    viewport={{ once: true, amount: 0.25 }}
-                    transition={{ duration: 0.4, delay: idx * 0.08 }}
-                    className={`relative flex ${right ? "md:justify-end" : "md:justify-start"}`}
-                  >
-                    <div className="saas-hover w-full rounded-2xl border border-[#DEDDD5] bg-white p-6 md:w-[46%]">
-                      <span className="inline-flex rounded-full border border-[#D3D2CA] bg-[#F8F8F4] px-3 py-1 text-xs font-semibold tracking-[0.14em] text-[#50504B]">
-                        {item.year}
-                      </span>
-                      <h3 className="mt-4 text-2xl font-black tracking-tight">{item.title}</h3>
-                      <p className="mt-3 text-sm leading-relaxed text-[#595952]">{item.body}</p>
-                    </div>
-                  </motion.div>
-                );
-              })}
-            </div>
-          </div>
-        </section>
-
-        <section className="mx-auto w-[min(1280px,92vw)] py-8 pb-24 md:pb-32">
-          <div className="saas-hover flex flex-col items-start gap-6 rounded-[28px] border border-[#DBDAD2] bg-white px-8 py-10 md:flex-row md:items-center md:justify-between md:px-12">
-            <div>
-              <p className="text-sm uppercase tracking-[0.18em] text-[#686861]">Experience it</p>
-              <h3 className="mt-3 text-4xl font-black leading-tight tracking-tight">See what better creative workflow feels like.</h3>
-              <p className="mt-3 max-w-2xl text-sm text-[#5B5B55]">
-                Open Preview Studio and walk through a real campaign — validate creatives, run analysis,
-                preview in context, and export a report. No sales call required.
-              </p>
-            </div>
-            <Link href="/preview-tool?demo=1&step=1" className="marketing-btn-dark saas-hover inline-flex items-center gap-2 rounded-full px-7 py-3 text-sm font-semibold">
-              Try Preview Studio →
+        {/* Final CTA */}
+        <section className="marketing-section mx-auto w-[min(980px,92vw)] py-16 sm:py-20 md:py-28">
+          <div className="saas-hover rounded-[32px] border border-[#DBDAD2] bg-white px-8 py-12 text-center shadow-[0_20px_50px_rgba(15,23,42,0.08)] sm:px-12 sm:py-16">
+            <h2 className="mx-auto max-w-3xl text-[clamp(1.75rem,4vw,3rem)] font-black leading-tight tracking-tight">
+              Every Campaign Deserves One Final Validation Before Launch.
+            </h2>
+            <p className="mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-[#5A5A55]">
+              Whether you&apos;re launching five creatives or five thousand campaigns, Adigator helps your team validate
+              with confidence.
+            </p>
+            <Link
+              href={MARKETING_CTA.href}
+              className="marketing-btn-lime saas-hover mt-10 inline-flex rounded-full px-10 py-4 text-base font-bold"
+            >
+              Book a Demo
             </Link>
-          </div>
-        </section>
-
-        <section className="mx-auto w-[min(1100px,92vw)] py-8 pb-24 text-center md:pb-32">
-          <p className="text-sm uppercase tracking-[0.18em] text-[#66665F]">Explore the platform</p>
-          <div className="mt-8 grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
-            {PLATFORM_SURFACES.map((surface) => (
-              <Link
-                key={surface.href}
-                href={surface.href}
-                className="saas-hover rounded-xl border border-[#D8D7CF] bg-white px-4 py-3 text-sm font-semibold text-[#50504B] hover:text-[#0D0D0D]"
-              >
-                {surface.label}
-              </Link>
-            ))}
           </div>
         </section>
       </main>

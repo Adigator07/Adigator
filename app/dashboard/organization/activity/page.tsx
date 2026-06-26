@@ -12,7 +12,7 @@ export default function OrganizationActivityPage() {
       <div>
         <h1 className="text-3xl font-extrabold text-white">Activity</h1>
         <p className="mt-1 text-sm text-white/40">
-          Platform interactions across your organization — analyses, previews, and downloads.
+          Platform interactions across your organization: analyses, previews, and downloads.
         </p>
       </div>
 

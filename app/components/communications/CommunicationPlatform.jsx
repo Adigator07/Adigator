@@ -319,7 +319,7 @@ function NewConversationModal({ open, onClose, onCreated }) {
           <div>
             <h2 className="text-lg font-bold text-white">New Message</h2>
             <p className="text-xs text-white/40">
-              Step {step} of 2 — {step === 1 ? "Recipient & details" : "Attach files (optional)"}
+              Step {step} of 2: {step === 1 ? "Recipient & details" : "Attach files (optional)"}
             </p>
           </div>
           <button onClick={onClose} className="text-white/40 hover:text-white"><X size={20} /></button>
@@ -394,7 +394,7 @@ function NewConversationModal({ open, onClose, onCreated }) {
               <label className="block w-full border-2 border-dashed border-white/20 rounded-xl p-8 text-center cursor-pointer hover:border-[#4F7EF7]/50 transition">
                 <Paperclip size={24} className="mx-auto text-white/30 mb-2" />
                 <p className="text-sm text-white/60">Drop files or click to browse</p>
-                <p className="text-[11px] text-white/30 mt-1">Images, videos, PDFs — optional</p>
+                <p className="text-[11px] text-white/30 mt-1">Images, videos, PDFs. Optional.</p>
                 <input type="file" multiple accept="image/*,video/*,.pdf" className="hidden" onChange={(e) => setFiles(Array.from(e.target.files || []))} />
               </label>
               {files.length > 0 && (

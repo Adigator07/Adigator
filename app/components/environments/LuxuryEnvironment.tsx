@@ -147,7 +147,7 @@ export default function LuxuryEnvironment({ content, slotType, creativeUrl, crea
               <div className="border border-stone-200 p-5">
                 <p className="text-[10px] font-sans uppercase tracking-[0.3em] text-stone-400 mb-4 border-b border-stone-200 pb-3">From the Editor</p>
                 <p className="text-sm text-stone-700 leading-relaxed italic">"This season we asked ourselves what luxury really means in an age of abundance. The answer surprised us."</p>
-                <p className="text-[11px] font-sans mt-3 text-stone-500">— Sophie Laurent, Editor-in-Chief</p>
+                <p className="text-[11px] font-sans mt-3 text-stone-500">Sophie Laurent, Editor-in-Chief</p>
               </div>
               <div className="border border-stone-200 p-4">
                 <p className="text-[10px] font-sans uppercase tracking-[0.3em] text-stone-400 mb-3">Subscribe</p>

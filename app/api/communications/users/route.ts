@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import { GENERIC_USER_LOOKUP_ERROR } from "@/app/lib/auth/constants";
 import { createServerSupabaseClient, getAccessTokenFromRequest, getAuthenticatedUser } from "@/app/lib/supabaseServer";
 
 
@@ -60,7 +61,7 @@ export async function GET(request: NextRequest) {
 
       if (error) return json(false, null, error.message, 400);
 
-      if (!data) return json(false, null, "No registered user found with that email", 404);
+      if (!data) return json(false, null, GENERIC_USER_LOOKUP_ERROR, 404);
 
       return json(true, data, null);
 

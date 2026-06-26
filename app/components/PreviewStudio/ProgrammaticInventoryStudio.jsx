@@ -165,7 +165,7 @@ export default function ProgrammaticInventoryStudio({ sourceCreatives = [], bran
         <div>
           <h3 className="text-lg font-bold text-gray-900">Programmatic Inventory Preview</h3>
           <p className="text-sm text-gray-500 mt-1">
-            Each creative size is shown in a matching publisher placement — not forced into a single template.
+            Each creative size is shown in a matching publisher placement, not forced into a single template.
           </p>
         </div>
         <div className="flex rounded-xl border border-gray-200 overflow-hidden">

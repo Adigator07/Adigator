@@ -10,12 +10,12 @@ export const MARKETING_NAV_LINKS: MarketingNavLink[] = [
 ];
 
 export const MARKETING_CTA = {
-  label: "Get a Demo",
+  label: "Book Demo",
   href: "/preview-tool?demo=1&step=1",
 };
 
 export const MARKETING_DEMO_VIDEO = {
-  label: "Watch Demo",
+  label: "Watch Product Tour",
   href: "/demo",
 };
 
@@ -28,8 +28,8 @@ export const MARKETING_FOOTER_COLUMNS = [
   {
     title: "Products",
     items: [
-      { label: "Preview Studio", href: "/preview-tool" },
-      { label: "Creative Analysis", href: "/preview" },
+      { label: "Campaign Validation", href: "/preview-tool" },
+      { label: "Creative Preview", href: "/preview" },
       { label: "Dashboard", href: "/dashboard" },
     ],
   },
@@ -37,9 +37,10 @@ export const MARKETING_FOOTER_COLUMNS = [
     title: "Solutions",
     items: [
       { label: "Solutions Overview", href: "/solutions" },
-      { label: "For Performance Teams", href: "/solutions#team" },
-      { label: "By Industry", href: "/solutions#industry" },
-      { label: "Use Cases", href: "/solutions#use-case" },
+      { label: "Problems We Solve", href: "/solutions#problems" },
+      { label: "By Team", href: "/solutions#team" },
+      { label: "By Platform", href: "/solutions#platform" },
+      { label: "By Workflow", href: "/solutions#workflow" },
     ],
   },
   {

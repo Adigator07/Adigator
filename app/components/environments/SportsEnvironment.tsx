@@ -52,7 +52,7 @@ export default function SportsEnvironment({ content, slotType, creativeUrl, crea
         {/* Ticker */}
         <div className="bg-red-600 text-white text-xs font-semibold px-4 py-1.5 flex items-center gap-3 overflow-hidden">
           <span className="bg-white text-red-600 text-[9px] uppercase tracking-wider px-2 py-0.5 rounded shrink-0">Live Scores</span>
-          <span className="truncate">Man City 2–1 Arsenal (74') · Real Madrid 3–2 Bayern (FT) · Lakers 108–104 Celtics (Q4) · Chiefs 24–17 Eagles (HT)</span>
+          <span className="truncate">Man City 2 to 1 Arsenal (74') · Real Madrid 3 to 2 Bayern (FT) · Lakers 108 to 104 Celtics (Q4) · Chiefs 24 to 17 Eagles (HT)</span>
         </div>
       </header>
 
@@ -87,7 +87,7 @@ export default function SportsEnvironment({ content, slotType, creativeUrl, crea
                 <p className="text-sm font-bold text-white">{MATCHES[0].home}</p>
               </div>
               <div className="text-center">
-                <p className="text-5xl font-black text-white">{MATCHES[0].homeScore}<span className="text-slate-500 mx-2">—</span>{MATCHES[0].awayScore}</p>
+                <p className="text-5xl font-black text-white">{MATCHES[0].homeScore}<span className="text-slate-500 mx-2">vs</span>{MATCHES[0].awayScore}</p>
                 <div className="mt-2 bg-red-500/20 border border-red-500/30 rounded-full px-3 py-1">
                   <p className="text-red-400 text-xs font-bold">{MATCHES[0].status}</p>
                 </div>
@@ -99,8 +99,8 @@ export default function SportsEnvironment({ content, slotType, creativeUrl, crea
             </div>
             <div className="grid grid-cols-3 gap-3 mt-4 border-t border-white/10 pt-4 text-center">
               <div><p className="text-lg font-black text-white">68%</p><p className="text-[10px] text-slate-500 uppercase tracking-wider">Possession</p></div>
-              <div><p className="text-lg font-black text-white">14–8</p><p className="text-[10px] text-slate-500 uppercase tracking-wider">Shots</p></div>
-              <div><p className="text-lg font-black text-white">5–3</p><p className="text-[10px] text-slate-500 uppercase tracking-wider">On Target</p></div>
+              <div><p className="text-lg font-black text-white">14 to 8</p><p className="text-[10px] text-slate-500 uppercase tracking-wider">Shots</p></div>
+              <div><p className="text-lg font-black text-white">5 to 3</p><p className="text-[10px] text-slate-500 uppercase tracking-wider">On Target</p></div>
             </div>
           </div>
 
@@ -111,7 +111,7 @@ export default function SportsEnvironment({ content, slotType, creativeUrl, crea
                 <p className="text-[9px] uppercase tracking-widest text-slate-500 mb-2">{m.league}</p>
                 <div className="flex items-center justify-between gap-2">
                   <p className="text-xs font-semibold text-white truncate">{m.home}</p>
-                  <p className="text-base font-black text-white whitespace-nowrap">{m.homeScore}–{m.awayScore}</p>
+                  <p className="text-base font-black text-white whitespace-nowrap">{m.homeScore} to {m.awayScore}</p>
                   <p className="text-xs font-semibold text-slate-400 truncate text-right">{m.away}</p>
                 </div>
                 <div className={`mt-2 text-center text-[9px] font-bold uppercase tracking-wider ${m.status === "FT" ? "text-slate-500" : "text-amber-400"}`}>{m.status}</div>

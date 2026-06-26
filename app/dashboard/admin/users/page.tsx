@@ -109,7 +109,7 @@ export default function AdminUsersPage() {
                     <td className="px-2 py-3">{u.adminRole || u.role}</td>
                     <td className="px-2 py-3"><Badge variant={statusVariant(u.status)}>{u.status}</Badge></td>
                     <td className="px-2 py-3 whitespace-nowrap">{new Date(u.createdAt).toLocaleDateString()}</td>
-                    <td className="px-2 py-3 whitespace-nowrap">{u.lastLoginAt ? new Date(u.lastLoginAt).toLocaleString() : "—"}</td>
+                    <td className="px-2 py-3 whitespace-nowrap">{u.lastLoginAt ? new Date(u.lastLoginAt).toLocaleString() : "None"}</td>
                     <td className="px-2 py-3">
                       <div className="flex flex-wrap gap-1">
                         {u.status !== "suspended" ? (

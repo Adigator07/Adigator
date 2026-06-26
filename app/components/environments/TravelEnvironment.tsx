@@ -190,7 +190,7 @@ export default function TravelEnvironment({ content, slotType, creativeUrl, crea
             </div>
             <div className="bg-white border border-slate-200 rounded-2xl p-4">
               <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3">Visa Requirements</h4>
-              {[["Greece", "EU passport — No visa"], ["Japan", "Most passports — Visa free 90 days"], ["Argentina", "No visa required 90 days"]].map(([country, req]) => (
+              {[["Greece", "EU passport. No visa"], ["Japan", "Most passports. Visa free 90 days"], ["Argentina", "No visa required 90 days"]].map(([country, req]) => (
                 <div key={country} className="py-1.5 border-b border-slate-100">
                   <p className="text-xs font-semibold text-slate-800">{country}</p>
                   <p className="text-[11px] text-slate-500">{req}</p>

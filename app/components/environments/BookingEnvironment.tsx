@@ -9,7 +9,7 @@ const LISTINGS = [
   { name: "Solstice Spa & Wellness", category: "Day Spa · $$$", rating: 4.7, reviews: 543, distance: "0.8 mi", open: "Open until 8pm", tags: ["Appointments", "Gift Cards"], gradient: "from-rose-200 to-pink-200" },
   { name: "Atlas Coffee Roasters", category: "Coffee · $", rating: 4.9, reviews: 2341, distance: "0.1 mi", open: "Open until 6pm", tags: ["Dine-In", "WiFi", "Outdoor Seats"], gradient: "from-amber-300 to-orange-300" },
   { name: "Neon Nights Cocktail Bar", category: "Bar & Lounge · $$", rating: 4.6, reviews: 789, distance: "0.4 mi", open: "Open until 2am", tags: ["Reservations", "Late Night"], gradient: "from-violet-200 to-purple-200" },
-  { name: "Greenway Farmers Market", category: "Fresh Produce · $", rating: 4.8, reviews: 1567, distance: "1.2 mi", open: "Sat–Sun 8am–2pm", tags: ["Organic", "Local"], gradient: "from-green-200 to-emerald-200" },
+  { name: "Greenway Farmers Market", category: "Fresh Produce · $", rating: 4.8, reviews: 1567, distance: "1.2 mi", open: "Sat to Sun 8am to 2pm", tags: ["Organic", "Local"], gradient: "from-green-200 to-emerald-200" },
 ];
 
 const MAP_PINS = [
@@ -21,7 +21,7 @@ const MAP_PINS = [
 ];
 
 const REVIEWS = [
-  { author: "Sarah M.", rating: 5, text: "Best pasta I've had outside of Rome. The ambiance is perfect for a date night — highly recommend!", place: "Trattoria Bella Roma", time: "2 days ago" },
+  { author: "Sarah M.", rating: 5, text: "Best pasta I've had outside of Rome. The ambiance is perfect for a date night. Highly recommend!", place: "Trattoria Bella Roma", time: "2 days ago" },
   { author: "Jake T.", rating: 5, text: "Incredible espresso. The owners know their beans and it shows. My go-to spot every morning.", place: "Atlas Coffee Roasters", time: "3 days ago" },
   { author: "Priya S.", rating: 4, text: "Lovely spa experience. The deep tissue massage was phenomenal. Will definitely be back.", place: "Solstice Spa & Wellness", time: "1 week ago" },
 ];
@@ -233,7 +233,7 @@ export default function BookingEnvironment({ content, slotType, creativeUrl, cre
             </div>
             <div className="bg-white border border-slate-200 rounded-2xl p-4">
               <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3">Today's Hours</h4>
-              <p className="text-xs text-slate-500 mb-2">Most places open until 9pm–11pm tonight</p>
+              <p className="text-xs text-slate-500 mb-2">Most places open until 9pm to 11pm tonight</p>
               <div className="flex items-center gap-2">
                 <div className="w-2 h-2 bg-green-500 rounded-full" />
                 <p className="text-xs text-green-600 font-semibold">142 places currently open</p>

@@ -35,7 +35,7 @@ const OVERVIEW_NOTES = [
 ];
 
 const PERFORMANCE_BULLETS = [
-  "Identify, understand and act - fast",
+  "Identify, understand and act fast",
   "Automate spend and optimization to drive performance",
   "Simulate, report and plan across all channels",
   "Align and work collaboratively with incredible ease",
@@ -622,7 +622,7 @@ export default function ProductPage() {
                     <div>
                       <p className="text-sm font-semibold text-[#0D0D0D]">
                         {post.author}
-                        <span className="font-normal text-[#66665F]"> - {post.role}</span>
+                        <span className="font-normal text-[#66665F]">, {post.role}</span>
                       </p>
                       <p className="text-xs text-[#787872]">{post.date}</p>
                     </div>

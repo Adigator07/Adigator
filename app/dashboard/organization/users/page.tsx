@@ -72,7 +72,7 @@ export default function OrganizationUsersPage() {
                       <p className="font-medium text-white">{member.fullName || member.email}</p>
                       <p className="text-xs text-white/40">{member.email}</p>
                     </td>
-                    <td className="py-3 pr-4 text-white/70">{member.teamName || "—"}</td>
+                    <td className="py-3 pr-4 text-white/70">{member.teamName || "None"}</td>
                     <td className="py-3 pr-4">
                       <Badge variant="default">{orgMemberRoleLabel(member.memberRole)}</Badge>
                     </td>

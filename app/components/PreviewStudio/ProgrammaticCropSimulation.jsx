@@ -75,8 +75,8 @@ function CropPreviewCard({ simulation, imageUrl, imageW, imageH }) {
           <Metric label="Visibility" value={`${simulation.visibilityPercent}%`} />
           <Metric label="Cropped" value={`${simulation.croppedAreaPercent}%`} />
           <Metric label="Readability" value={simulation.readabilityScore} />
-          <Metric label="CTA vis." value={simulation.ctaVisibility != null ? `${simulation.ctaVisibility}%` : "—"} />
-          <Metric label="Logo vis." value={simulation.logoVisibility != null ? `${simulation.logoVisibility}%` : "—"} />
+          <Metric label="CTA vis." value={simulation.ctaVisibility != null ? `${simulation.ctaVisibility}%` : "N/A"} />
+          <Metric label="Logo vis." value={simulation.logoVisibility != null ? `${simulation.logoVisibility}%` : "N/A"} />
         </div>
 
         {simulation.warnings.length ? (

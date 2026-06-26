@@ -157,9 +157,9 @@ function CreativeSelectCard({ insight, isActive, onSelect, index, previewUrl }) 
               <span className="font-semibold">Risk:</span> {insight.mainRisk}
             </p>
           ) : insight.launchStatusKey === "ready" ? (
-            <p className="mt-2 text-[11px] text-emerald-800">No issues detected — creative is fully aligned for launch.</p>
+            <p className="mt-2 text-[11px] text-emerald-800">No issues detected. Creative is fully aligned for launch.</p>
           ) : (
-            <p className="mt-2 text-[11px] text-amber-800">Minor recommendations available — see details below.</p>
+            <p className="mt-2 text-[11px] text-amber-800">Minor recommendations available. See details below.</p>
           )}
           {insight.recommendedFix ? (
             <p className="mt-2 text-[11px] text-slate-800 leading-snug">{insight.recommendedFix}</p>
@@ -200,7 +200,7 @@ export default function AnalyzerCreativeSection({
     <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-5 items-start">
       <div className="space-y-2">
         <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-600 px-1 mb-2">
-          Creatives — select for status
+          Creatives: select for status
         </p>
         {insights.map((item, index) => (
           <CreativeSelectCard
@@ -272,9 +272,9 @@ export default function AnalyzerCreativeSection({
                 : "border-amber-200 bg-white text-amber-900"
           }`}>
             {verticalStatus.emoji} {verticalStatus.label}
-            {verticalStatus.key === "misaligned" ? " — Creative does not match the selected vertical." : null}
-            {verticalStatus.key === "review" ? " — Creative partially matches the selected vertical." : null}
-            {verticalStatus.key === "aligned" ? " — Creative matches the selected vertical." : null}
+            {verticalStatus.key === "misaligned" ? ". Creative does not match the selected vertical." : null}
+            {verticalStatus.key === "review" ? ". Creative partially matches the selected vertical." : null}
+            {verticalStatus.key === "aligned" ? ". Creative matches the selected vertical." : null}
           </div>
           <div className="space-y-2 text-sm text-slate-800 leading-relaxed">
             <p>
@@ -302,7 +302,7 @@ export default function AnalyzerCreativeSection({
               <h4 className="text-sm font-semibold text-slate-900">Creative Extraction Signals</h4>
             </div>
             <p className="text-[11px] text-slate-500 mb-3">
-              {platformLabel} analysis — logo, CTA, and layout signals validated for this platform&apos;s placements and formats.
+              {platformLabel} analysis: logo, CTA, and layout signals validated for this platform&apos;s placements and formats.
             </p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               <FieldBlock label="Headline" value={extractionSignals.headline} />

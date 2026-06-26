@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { GENERIC_RECIPIENT_LOOKUP_ERROR } from "@/app/lib/auth/constants";
 import { createServerSupabaseClient, createUserSupabaseClient, createWritableSupabaseClient, getAccessTokenFromRequest, getAuthenticatedUser } from "@/app/lib/supabaseServer";
 import { createConversationWithParticipants, createNotification, logCommActivity } from "@/app/lib/communications/commServer";
 import { isCreativeMimeType } from "@/app/lib/communications/permissions";
@@ -106,7 +107,7 @@ export async function POST(request: NextRequest) {
       .eq("id", user.id)
       .single();
 
-    if (!profile) return json(false, null, "Profile not found", 404);
+    if (!profile) return json(false, null, "Unauthorized", 401);
 
     if (recipientEmail) {
       const { data: byEmail, error: emailError } = await userClient
@@ -116,9 +117,9 @@ export async function POST(request: NextRequest) {
         .neq("id", user.id)
         .maybeSingle();
 
-      if (emailError) return json(false, null, emailError.message, 400);
+      if (emailError) return json(false, null, GENERIC_RECIPIENT_LOOKUP_ERROR, 400);
       if (!byEmail) {
-        return json(false, null, `No registered user found for ${recipientEmail}. They must register first.`, 404);
+        return json(false, null, GENERIC_RECIPIENT_LOOKUP_ERROR, 404);
       }
       recipientId = byEmail.id;
     }
@@ -137,7 +138,7 @@ export async function POST(request: NextRequest) {
       .eq("id", recipientId)
       .single();
 
-    if (!assignee) return json(false, null, "Recipient not found", 404);
+    if (!assignee) return json(false, null, GENERIC_RECIPIENT_LOOKUP_ERROR, 404);
 
     let conversation;
     try {

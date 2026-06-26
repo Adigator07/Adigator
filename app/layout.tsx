@@ -24,7 +24,7 @@ const cormorant = Cormorant_Garamond({
 });
 
 export const metadata: Metadata = {
-  title: "Adigator — Creative Intelligence Platform",
+  title: "Adigator | Pre Launch Campaign Validation Platform",
   description: "Analyze and optimize your ad creatives with AI",
   icons: {
     icon: "/Screenshot_2026-04-29_134437-removebg-preview.png",

@@ -49,9 +49,9 @@ export default function AdminSettingsPage() {
       <Card>
         <CardHeader><CardTitle>Server configuration</CardTitle></CardHeader>
         <CardContent className="space-y-2 text-sm text-white/60">
-          <p><code className="text-amber-300">SUPABASE_SERVICE_ROLE_KEY</code> — required for admin APIs (check System Health)</p>
-          <p><code className="text-amber-300">REDIS_URL</code> — optional cache layer</p>
-          <p><code className="text-amber-300">ADMIN_EMAIL</code>, <code className="text-amber-300">SECURITY_EMAIL</code> — alert routing</p>
+          <p><code className="text-amber-300">SUPABASE_SERVICE_ROLE_KEY</code>: required for admin APIs (check System Health)</p>
+          <p><code className="text-amber-300">REDIS_URL</code>: optional cache layer</p>
+          <p><code className="text-amber-300">ADMIN_EMAIL</code>, <code className="text-amber-300">SECURITY_EMAIL</code>: alert routing</p>
         </CardContent>
       </Card>
     </div>

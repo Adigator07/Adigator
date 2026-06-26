@@ -20,7 +20,7 @@ const DEMO_POINTS = [
   },
   {
     title: "Why users stay satisfied",
-    description: "Faster launch reviews, fewer rework cycles, and platform-native guidance that feels like working with a senior media strategist — not a generic checklist.",
+    description: "Faster launch reviews, fewer rework cycles, and platform-native guidance that feels like working with a senior media strategist, not a generic checklist.",
   },
 ];
 

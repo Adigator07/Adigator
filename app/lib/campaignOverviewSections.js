@@ -1,6 +1,6 @@
 /**
  * Platform-dedicated Overview tab sections for Step 3.
- * Google Ads, Meta Ads, and Programmatic each use separate logic — no shared generic framework.
+ * Google Ads, Meta Ads, and Programmatic each use separate logic. no shared generic framework.
  */
 
 import { CAMPAIGN_LAUNCH_STATUS } from "./analyzerInsights";
@@ -133,16 +133,16 @@ function buildGoogleCampaignHealth(insights, overview) {
   }
 
   if (gdnGood < insights.length) {
-    weaknesses.push(`${insights.length - gdnGood} creative${insights.length - gdnGood === 1 ? "" : "s"} weak on GDN — verify 300×250, 728×90, or 970×250 masters`);
+    weaknesses.push(`${insights.length - gdnGood} creative${insights.length - gdnGood === 1 ? "" : "s"} weak on GDN. verify 300×250, 728×90, or 970×250 masters`);
   }
   if (rdaGood < insights.length) {
-    weaknesses.push("Responsive Display gaps — export 600×314+ landscape or 1200×1200 square for Performance Max/RDA");
+    weaknesses.push("Responsive Display gaps. export 600×314+ landscape or 1200×1200 square for Performance Max/RDA");
   }
   if (dgGood < Math.ceil(insights.length * 0.5)) {
-    weaknesses.push("Demand Gen coverage limited — add 1200×628 or 1080×1080 native assets");
+    weaknesses.push("Demand Gen coverage limited. add 1200×628 or 1080×1080 native assets");
   }
   if (ytGood < insights.length) {
-    weaknesses.push("YouTube companion readiness incomplete — 16:9 or Tier-1 banner sizes improve in-stream pairing");
+    weaknesses.push("YouTube companion readiness incomplete. 16:9 or Tier-1 banner sizes improve in-stream pairing");
   }
   if (overview.misalignedCount > 0) {
     weaknesses.push(`${overview.misalignedCount} creative${overview.misalignedCount === 1 ? "" : "s"} misaligned with campaign goal or vertical intent`);
@@ -158,7 +158,7 @@ function buildGoogleCampaignHealth(insights, overview) {
     optimizationTips.push("Reduce copy on mobile leaderboard sizes (320×50) before Search companion deployment");
   }
   if (!optimizationTips.length) {
-    optimizationTips.push("Maintain current display asset mix — add companion banner sizes if expanding YouTube placements");
+    optimizationTips.push("Maintain current display asset mix. add companion banner sizes if expanding YouTube placements");
   }
 
   return {
@@ -207,7 +207,7 @@ function buildMetaCampaignHealth(insights, overview) {
     strengths.push("All creatives fit Facebook & Instagram Feed card ratios (1:1 or 4:5)");
   }
   if (storiesGood >= Math.ceil(insights.length * 0.7)) {
-    strengths.push("Stories inventory supported — 9:16 safe-zone margins acceptable");
+    strengths.push("Stories inventory supported. 9:16 safe-zone margins acceptable");
   }
   if (reelsGood >= Math.ceil(insights.length * 0.5)) {
     strengths.push("Reels vertical canvas viable for short-form thumb-stop delivery");
@@ -217,22 +217,22 @@ function buildMetaCampaignHealth(insights, overview) {
   }
 
   if (feedGood < insights.length) {
-    weaknesses.push(`${insights.length - feedGood} creative${insights.length - feedGood === 1 ? "" : "s"} may letterbox in Feed — export 1080×1080 or 1080×1350`);
+    weaknesses.push(`${insights.length - feedGood} creative${insights.length - feedGood === 1 ? "" : "s"} may letterbox in Feed. export 1080×1080 or 1080×1350`);
   }
   if (reelsGood < Math.ceil(insights.length * 0.5)) {
-    weaknesses.push("Reels inventory blocked or cropped — 1080×1920 native required for full-screen");
+    weaknesses.push("Reels inventory blocked or cropped. 1080×1920 native required for full-screen");
   }
   if (storiesGood < insights.length) {
-    weaknesses.push("Stories safe zones at risk — CTA/headline may collide with profile bar and bottom UI");
+    weaknesses.push("Stories safe zones at risk. CTA/headline may collide with profile bar and bottom UI");
   }
   if (audienceGood < Math.ceil(insights.length * 0.5)) {
-    weaknesses.push("Audience Network extension limited — simplify layout for in-app banner contexts");
+    weaknesses.push("Audience Network extension limited. simplify layout for in-app banner contexts");
   }
 
   const textHeavy = insights.filter((i) => i.extractionSignals?.text_density === "high").length;
   if (textHeavy > 0) {
-    weaknesses.push(`Heavy text overlay in ${textHeavy} creative${textHeavy === 1 ? "" : "s"} — Meta may throttle delivery`);
-    optimizationTips.push("Move copy to primary text/caption — keep frame under ~20% text for Feed delivery");
+    weaknesses.push(`Heavy text overlay in ${textHeavy} creative${textHeavy === 1 ? "" : "s"}. Meta may throttle delivery`);
+    optimizationTips.push("Move copy to primary text/caption. keep frame under ~20% text for Feed delivery");
   }
   if (reelsGood < insights.length) {
     optimizationTips.push("Export dedicated 1080×1920 Reels/Stories masters with center-weighted subjects");
@@ -301,17 +301,17 @@ function buildProgrammaticCampaignHealth(insights, overview) {
     weaknesses.push(`${insights.length - bannerGood} creative${insights.length - bannerGood === 1 ? "" : "s"} outside core IAB banner matrix`);
   }
   if (nativeGood < Math.ceil(insights.length * 0.5)) {
-    weaknesses.push("Native inventory weak — banner aspect won't render cleanly in native units");
+    weaknesses.push("Native inventory weak. banner aspect won't render cleanly in native units");
   }
   if (openWebGood < insights.length) {
-    weaknesses.push("Open web premium publisher fit limited — verify 336×280 or 970×250 for high-impact");
+    weaknesses.push("Open web premium publisher fit limited. verify 336×280 or 970×250 for high-impact");
   }
 
   const blindness = insights.filter((i) =>
     i.technicalQa.some((t) => /banner.?blindness/i.test(t.text)),
   ).length;
   if (blindness > 0) {
-    weaknesses.push(`Banner blindness risk in ${blindness} creative${blindness === 1 ? "" : "s"} — generic layout may be skipped on news/finance sites`);
+    weaknesses.push(`Banner blindness risk in ${blindness} creative${blindness === 1 ? "" : "s"}. generic layout may be skipped on news/finance sites`);
   }
 
   if (bannerGood < insights.length) {
@@ -465,11 +465,11 @@ function buildCreativeAnalysisSection(insights, platform) {
   if (platform === "google_ads") {
     summary = `${aligned}/${insights.length} display creatives launch-ready for Google Ads.${misalignedVertical ? ` ${misalignedVertical} vertical mismatch.` : ""}${misalignedGoal ? ` ${misalignedGoal} goal mismatch.` : ""}`;
     highlights = [
-      textHeavy ? `${textHeavy} asset${textHeavy === 1 ? "" : "s"} carry high text density — risky for 320×50/728×90 placements` : null,
+      textHeavy ? `${textHeavy} asset${textHeavy === 1 ? "" : "s"} carry high text density. risky for 320×50/728×90 placements` : null,
       visualCues.length ? `Visual signals: ${visualCues.join("; ")}` : null,
       perCreative.filter((c) => c.headline).length
         ? `Headlines detected in ${perCreative.filter((c) => c.headline).length} creative${perCreative.filter((c) => c.headline).length === 1 ? "" : "s"}`
-        : "Visual-led assets — verify ad copy in Google Ads UI",
+        : "Visual-led assets. verify ad copy in Google Ads UI",
     ];
   } else if (platform === "meta_ads") {
     summary = `${aligned}/${insights.length} static image creatives evaluated for Meta placements.${misalignedVertical ? ` ${misalignedVertical} vertical conflict.` : ""}${misalignedGoal ? ` ${misalignedGoal} goal conflict.` : ""}`;
@@ -499,7 +499,7 @@ function buildTechnicalQaSection(insights, platform) {
   const fail = items.filter((i) => i.status === "fail").length;
 
   const platformName = platform === "google_ads" ? "Google Ads" : platform === "meta_ads" ? "Meta Ads" : "Programmatic";
-  const summary = `${pass} passed · ${warn} warnings · ${fail} failures — ${platformName} file, size, and readability checks from uploaded creatives.`;
+  const summary = `${pass} passed · ${warn} warnings · ${fail} failures. ${platformName} file, size, and readability checks from uploaded creatives.`;
 
   return { summary, items, passRate: qaPassRate(items) };
 }

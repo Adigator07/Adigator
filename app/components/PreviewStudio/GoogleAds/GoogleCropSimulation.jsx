@@ -90,7 +90,7 @@ export default function GoogleCropSimulation({ imageUrl, imageSize, elements }) 
   const summaryTitle = poorCount > 0
     ? `${poorCount} format${poorCount > 1 ? "s" : ""} may crop badly`
     : reviewCount > 0
-      ? "Mostly good — review a few formats"
+      ? "Mostly good. Review a few formats"
       : "Crops look good across formats";
   const summaryMessage = poorCount > 0
     ? "Center your logo, product, and CTA so they survive landscape, square, and portrait crops."

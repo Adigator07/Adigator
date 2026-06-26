@@ -22,7 +22,7 @@ export default function PreviewControls({
       <div className="grid gap-4 md:grid-cols-2">
         <div>
           <label className="block text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">
-            Step 1 — Platform
+            Step 1: Platform
           </label>
           {lockPlatform ? (
             <div className="rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-sm font-medium text-sky-800">
@@ -45,7 +45,7 @@ export default function PreviewControls({
 
         <div>
           <label className="block text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">
-            Step 2 — Placement
+            Step 2: Placement
           </label>
           <select
             value={placement}
@@ -61,7 +61,7 @@ export default function PreviewControls({
         </div>
       </div>
       <p className="text-xs text-gray-500">
-        Step 3 — Preview renders automatically below. Use Download PNG to export the exact preview frame.
+        Step 3: Preview renders automatically below. Use Download PNG to export the exact preview frame.
       </p>
     </div>
   );

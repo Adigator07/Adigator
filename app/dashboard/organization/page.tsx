@@ -35,7 +35,7 @@ export default function OrganizationOverviewPage() {
       <div>
         <h1 className="text-3xl font-extrabold text-white">{metrics.organization.name}</h1>
         <p className="mt-1 text-sm text-white/40">
-          Organization dashboard — teams, usage, creative activity, and member engagement.
+          Organization dashboard: teams, usage, creative activity, and member engagement.
         </p>
       </div>
 

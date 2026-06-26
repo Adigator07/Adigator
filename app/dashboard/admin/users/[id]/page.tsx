@@ -65,10 +65,10 @@ export default function AdminUserProfilePage() {
         <Card>
           <CardHeader><CardTitle>Basic Information</CardTitle></CardHeader>
           <CardContent className="space-y-2 text-sm text-white/70">
-            <p><span className="text-white/40">Phone:</span> {String(user.phone || "—")}</p>
-            <p><span className="text-white/40">Country:</span> {String(user.country || "—")}</p>
+            <p><span className="text-white/40">Phone:</span> {String(user.phone || "None")}</p>
+            <p><span className="text-white/40">Country:</span> {String(user.country || "None")}</p>
             <p><span className="text-white/40">Role:</span> {String(user.adminRole || user.role)}</p>
-            <p><span className="text-white/40">Last login:</span> {user.lastLoginAt ? new Date(String(user.lastLoginAt)).toLocaleString() : "—"}</p>
+            <p><span className="text-white/40">Last login:</span> {user.lastLoginAt ? new Date(String(user.lastLoginAt)).toLocaleString() : "None"}</p>
           </CardContent>
         </Card>
 
@@ -110,7 +110,7 @@ export default function AdminUserProfilePage() {
             {sessions.slice(0, 10).map((s) => (
               <div key={String(s.id)} className="rounded-lg border border-white/10 px-3 py-2">
                 <p className="text-white/80">{new Date(String(s.login_time)).toLocaleString()}</p>
-                <p className="text-xs text-white/40">{String(s.device || "—")} · {String(s.browser || "—")} · {String(s.ip_address || "—")}</p>
+                <p className="text-xs text-white/40">{String(s.device || "None")} · {String(s.browser || "None")} · {String(s.ip_address || "None")}</p>
               </div>
             ))}
           </CardContent>

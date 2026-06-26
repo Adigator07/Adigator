@@ -1782,7 +1782,7 @@ export default function PreviewTool() {
       } else if (result?.status === "failed") {
         addToast(`Could not apply fix: ${fixAction.label}`, "error");
       } else if (result?.status === "skipped") {
-        addToast("Fix skipped — creative may already meet the requirement.", "info");
+        addToast("Fix skipped. Creative may already meet the requirement.", "info");
       }
     } catch (error) {
       addToast(error?.message || "Failed to apply fix.", "error");
@@ -2071,15 +2071,15 @@ export default function PreviewTool() {
         else doc.setTextColor(248, 113, 113);
 
         doc.setFontSize(13);
-        doc.text(`${rank === 0 ? "1st" : rank === 1 ? "2nd" : rank === 2 ? "3rd" : `#${rank + 1}`}. ${res.creative.name} — ${score}/100`, 40, currentY);
+        doc.text(`${rank === 0 ? "1st" : rank === 1 ? "2nd" : rank === 2 ? "3rd" : `#${rank + 1}`}. ${res.creative.name}: ${score}/100`, 40, currentY);
         currentY += 16;
 
         doc.setFontSize(10); doc.setTextColor(148, 163, 184);
         let verdict = "";
         if (score >= 80) verdict = `"${res.creative.name}" is perfect and strongly aligned with all standards.`;
-        else if (score >= 65) verdict = `"${res.creative.name}" meets most standards — minor improvements suggested.`;
-        else if (score >= 45) verdict = `"${res.creative.name}" needs work — CTA alignment and visibility require attention.`;
-        else verdict = `"${res.creative.name}" has critical issues — align strategic message before scaling spend.`;
+        else if (score >= 65) verdict = `"${res.creative.name}" meets most standards. Minor improvements suggested.`;
+        else if (score >= 45) verdict = `"${res.creative.name}" needs work. CTA alignment and visibility require attention.`;
+        else verdict = `"${res.creative.name}" has critical issues. Align strategic message before scaling spend.`;
 
         const lines = doc.splitTextToSize(verdict, 515);
         doc.text(lines, 50, currentY);
@@ -2269,7 +2269,7 @@ export default function PreviewTool() {
     ]);
 
     if (result) {
-      addToast(`Readiness score: ${result.overall_score}/100 — ${result.readiness_level.replace("_", " ")}`, result.readiness_level === "ready" ? "success" : "info");
+      addToast(`Readiness score: ${result.overall_score}/100. ${result.readiness_level.replace("_", " ")}`, result.readiness_level === "ready" ? "success" : "info");
     } else {
       addToast("Readiness check failed.", "error");
     }
@@ -2801,7 +2801,7 @@ export default function PreviewTool() {
                   <p className="text-xs text-sky-700 font-medium">Checking URL against your creatives with OpenAI…</p>
                 ) : urlValidation?.submitted_url && urlValidation.submitted_url === landingUrl.trim() ? (
                   <p className="text-xs text-slate-500">
-                    URL check complete — open Step 3 Overview to see alignment status and suggestions.
+                    URL check complete. Open Step 3 Overview to see alignment status and suggestions.
                   </p>
                 ) : null}
               </div>

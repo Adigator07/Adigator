@@ -28,7 +28,7 @@ const ARTICLES = [
     headline: "UN climate summit reaches binding agreement on carbon credit markets",
     byline: "Priya Ramesh · World Affairs",
     excerpt:
-      "After 72 hours of negotiations, 140 nations signed a framework standardising carbon credit pricing — a deal analysts call the most consequential since Paris 2015.",
+      "After 72 hours of negotiations, 140 nations signed a framework standardising carbon credit pricing. A deal analysts call the most consequential since Paris 2015.",
     readTime: "5 min read",
   },
   {
@@ -37,7 +37,7 @@ const ARTICLES = [
     headline: "Researchers publish results of first successful lab-grown kidney transplant",
     byline: "Dr. Elena Vasquez · Health & Science",
     excerpt:
-      "A team at Johns Hopkins has documented a 100-day follow-up with a transplant patient showing full organ function — a milestone for bioengineered organ research.",
+      "A team at Johns Hopkins has documented a 100-day follow-up with a transplant patient showing full organ function. A milestone for bioengineered organ research.",
     readTime: "7 min read",
   },
 ];

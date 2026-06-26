@@ -86,12 +86,11 @@ export async function getAuthenticatedUser(accessToken: string): Promise<{ user:
     const { data, error } = await supabase.auth.getUser(accessToken);
 
     if (error) {
-      return { user: null, error: error.message };
+      return { user: null, error: "Unauthorized" };
     }
 
     return { user: data.user ?? null, error: null };
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "Authentication failed.";
-    return { user: null, error: message };
+  } catch {
+    return { user: null, error: "Unauthorized" };
   }
 }

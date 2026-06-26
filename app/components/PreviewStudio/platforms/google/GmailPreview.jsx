@@ -26,7 +26,7 @@ export default function GmailPreview({ headline, description, cta, brandName }) 
             <div key={email.subject} className="flex items-center gap-3 px-4 py-3 border-b border-gray-100 hover:bg-gray-50">
               <span className="text-gray-400">☐ ☆</span>
               <span className="w-40 shrink-0 font-medium text-sm truncate">{email.sender}</span>
-              <span className="flex-1 text-sm truncate"><strong>{email.subject}</strong> — {email.snippet}</span>
+              <span className="flex-1 text-sm truncate"><strong>{email.subject}</strong>: {email.snippet}</span>
               <span className="text-xs text-gray-500 shrink-0">{email.time}</span>
             </div>
           ))}
@@ -34,14 +34,14 @@ export default function GmailPreview({ headline, description, cta, brandName }) 
             <span className="text-gray-400">☐ ☆</span>
             <AdBadge />
             <span className="w-36 shrink-0 font-medium text-sm truncate">{brandName}</span>
-            <span className="flex-1 text-sm truncate"><strong>{headline}</strong> — {description}</span>
+            <span className="flex-1 text-sm truncate"><strong>{headline}</strong>: {description}</span>
             <span className="shrink-0 rounded-full bg-[#1a73e8] px-3 py-1 text-xs font-semibold text-white">{cta}</span>
           </div>
           {after.map((email) => (
             <div key={email.subject} className="flex items-center gap-3 px-4 py-3 border-b border-gray-100">
               <span className="text-gray-400">☐ ☆</span>
               <span className="w-40 shrink-0 font-medium text-sm truncate">{email.sender}</span>
-              <span className="flex-1 text-sm truncate"><strong>{email.subject}</strong> — {email.snippet}</span>
+              <span className="flex-1 text-sm truncate"><strong>{email.subject}</strong>: {email.snippet}</span>
               <span className="text-xs text-gray-500 shrink-0">{email.time}</span>
             </div>
           ))}

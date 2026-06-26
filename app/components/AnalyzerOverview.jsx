@@ -59,7 +59,7 @@ export default function AnalyzerOverview({
         <h3 className="mt-2 text-xl font-black text-slate-900">Welcome back, {greetingName}.</h3>
         <p className="mt-1 text-sm font-semibold text-slate-800">{briefing?.headline || `${platformLabel} campaign intelligence`}</p>
         <p className="mt-2 max-w-3xl text-sm leading-relaxed text-slate-700">
-          {briefing?.narrative || `Risk-based launch analysis for ${platformLabel} — ${goalText} goal in ${verticalText}.`}
+          {briefing?.narrative || `Risk-based launch analysis for ${platformLabel}: ${goalText} goal in ${verticalText}.`}
         </p>
         {briefing?.focusAreas?.length ? (
           <div className="mt-3 flex flex-wrap gap-2">
@@ -253,7 +253,7 @@ export default function AnalyzerOverview({
                 <div>
                   <p className="text-sm font-semibold text-emerald-900">No critical launch risks</p>
                   <p className="mt-1 text-sm text-emerald-800">
-                    Campaign set passes {platformLabel} checks — no blocking issues detected across creatives.
+                    Campaign set passes {platformLabel} checks with no blocking issues detected across creatives.
                   </p>
                 </div>
               </div>
@@ -280,7 +280,7 @@ export default function AnalyzerOverview({
                     {row.mainRisk ? (
                       <p className="mt-1.5 text-xs text-amber-900 leading-relaxed"><span className="font-semibold">Risk:</span> {row.mainRisk}</p>
                     ) : row.statusKey === "ready" ? (
-                      <p className="mt-1.5 text-xs text-emerald-800">No blocking issues — launch ready.</p>
+                      <p className="mt-1.5 text-xs text-emerald-800">No blocking issues. Launch ready.</p>
                     ) : null}
                     {row.recommendedFix ? (
                       <p className="mt-1 text-xs text-slate-700 leading-relaxed"><span className="font-semibold">Fix:</span> {row.recommendedFix}</p>
@@ -474,7 +474,7 @@ function UrlValidationSection({ urlValidation }) {
     return (
       <section className="rounded-2xl border border-slate-200 bg-white p-5">
         <SectionHeader icon={Link2} label="URL Validation" accent="text-slate-600" />
-        <p className="mt-2 text-sm text-slate-600">Skipped — no URL was submitted.</p>
+        <p className="mt-2 text-sm text-slate-600">Skipped. No URL was submitted.</p>
       </section>
     );
   }

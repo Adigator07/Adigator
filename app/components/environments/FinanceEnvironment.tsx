@@ -22,7 +22,7 @@ const MARKET_NEWS = [
   { tag: "Fed", headline: "Federal Reserve holds rates steady, signals one cut before year-end", time: "10m" },
   { tag: "Earnings", headline: "NVIDIA posts record Q1 revenue, beats estimates by 18%", time: "45m" },
   { tag: "Crypto", headline: "Bitcoin surges past $95K as institutional buying accelerates", time: "1h" },
-  { tag: "IPO", headline: "Anthropic files for $40B IPO — largest AI listing in history", time: "2h" },
+  { tag: "IPO", headline: "Anthropic files for $40B IPO, largest AI listing in history", time: "2h" },
 ];
 
 export default function FinanceEnvironment({ content, slotType, creativeUrl, creativeSize, device }: EnvironmentProps) {
