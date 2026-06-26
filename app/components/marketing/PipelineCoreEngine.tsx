@@ -1,347 +1,316 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import { useEffect, useState } from "react";
+import { motion, useReducedMotion } from "framer-motion";
 import {
   BarChart3,
   Brain,
-  Eye,
   FileText,
-  Settings2,
-  ShieldCheck,
+  Globe,
+  LayoutGrid,
+  Lightbulb,
+  Link2,
+  Rocket,
   Sparkles,
-  Users,
+  Target,
+  User,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
-type PipelineModule = {
+type FlowNode = {
   id: string;
   label: string;
-  short: string;
   icon: LucideIcon;
-  x: number;
-  y: number;
 };
 
-const PIPELINE_MODULES: PipelineModule[] = [
-  { id: "insights", label: "Performance Insights", short: "Live metrics & campaign intelligence", icon: BarChart3, x: 50, y: 10 },
-  { id: "setup", label: "Campaign Setup", short: "Objectives, vertical & platform scope", icon: Settings2, x: 20, y: 26 },
-  { id: "validation", label: "Creative Validation", short: "Dimensions, file size & format QA", icon: ShieldCheck, x: 80, y: 26 },
-  { id: "analysis", label: "AI Analysis", short: "10-layer strategic scoring engine", icon: Sparkles, x: 14, y: 52 },
-  { id: "report", label: "Report Generation", short: "PPTX export for stakeholders", icon: FileText, x: 86, y: 52 },
-  { id: "collab", label: "Team Collaboration", short: "Org workspaces & communications", icon: Users, x: 24, y: 78 },
-  { id: "preview", label: "Preview Studio", short: "Publisher-context ad previews", icon: Eye, x: 76, y: 78 },
+const INPUTS: FlowNode[] = [
+  { id: "platforms", label: "Platforms", icon: LayoutGrid },
+  { id: "objective", label: "Campaign Objective", icon: Target },
+  { id: "vertical", label: "Vertical", icon: Globe },
+  { id: "brief", label: "Brief", icon: FileText },
+  { id: "url", label: "URL", icon: Link2 },
 ];
 
-const CENTER = { x: 50, y: 50 };
+const OUTPUTS: FlowNode[] = [
+  { id: "overview", label: "Overview", icon: BarChart3 },
+  { id: "recommendations", label: "Recommendations", icon: Lightbulb },
+  { id: "analysis", label: "Creative Analysis", icon: Sparkles },
+  { id: "preview", label: "Preview", icon: Globe },
+  { id: "pptx", label: "PPTX", icon: FileText },
+];
 
-function PipelineStatusBar({
-  activeIndex,
-  activeModule,
-  onSelect,
-  reduceMotion,
+type FlowPhase = "user" | "input" | "engine" | "output" | "launch";
+
+function getPhase(step: number): FlowPhase {
+  if (step === 0) return "user";
+  if (step <= INPUTS.length) return "input";
+  if (step === INPUTS.length + 1) return "engine";
+  if (step <= INPUTS.length + 1 + OUTPUTS.length) return "output";
+  return "launch";
+}
+
+function FlowNodeCard({
+  node,
+  active,
+  compact = false,
 }: {
-  activeIndex: number;
-  activeModule: PipelineModule;
-  onSelect: (index: number) => void;
-  reduceMotion: boolean;
+  node: FlowNode;
+  active: boolean;
+  compact?: boolean;
 }) {
+  const Icon = node.icon;
   return (
-    <div className="border-t border-white/5 bg-[#111111]/90 px-4 py-3 backdrop-blur-sm sm:px-5">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-2">
-          <span className="relative flex h-2 w-2">
-            {!reduceMotion ? (
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#C8F04D] opacity-50" />
-            ) : null}
-            <span className="relative inline-flex h-2 w-2 rounded-full bg-[#C8F04D]" />
-          </span>
-          <span className="text-[10px] font-semibold uppercase tracking-wider text-white/50 sm:text-xs">
-            Pipeline active
-          </span>
-        </div>
-        <motion.p
-          key={activeModule.id}
-          initial={{ opacity: 0, x: 6 }}
-          animate={{ opacity: 1, x: 0 }}
-          className="text-xs font-medium text-white sm:text-sm"
+    <div
+      className={`rounded-xl border px-3 py-2.5 transition-all duration-300 ${
+        active
+          ? "border-[#C8F04D]/50 bg-[#C8F04D]/10 shadow-[0_0_20px_rgba(200,240,77,0.15)]"
+          : "border-white/10 bg-[#141414]/80"
+      } ${compact ? "text-center" : ""}`}
+    >
+      <div className={`flex items-center gap-2 ${compact ? "flex-col" : ""}`}>
+        <div
+          className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg ${
+            active ? "bg-[#C8F04D]/20 text-[#C8F04D]" : "bg-white/5 text-white/50"
+          }`}
         >
-          <span className="text-violet-400">{activeIndex + 1}/{PIPELINE_MODULES.length}</span>
-          {" · "}
-          {activeModule.label}
-        </motion.p>
-      </div>
-      <p className="mt-1 text-[11px] text-white/40 lg:hidden">{activeModule.short}</p>
-      <div className="mt-2.5 flex gap-1">
-        {PIPELINE_MODULES.map((mod, i) => (
-          <button
-            key={mod.id}
-            type="button"
-            onClick={() => onSelect(i)}
-            className="group flex-1"
-            aria-label={`Show ${mod.label}`}
-          >
-            <div
-              className={`h-1 rounded-full transition-all ${
-                i === activeIndex
-                  ? "bg-gradient-to-r from-violet-500 to-[#C8F04D]"
-                  : "bg-white/10 group-hover:bg-white/20"
-              }`}
-            />
-          </button>
-        ))}
+          <Icon size={14} />
+        </div>
+        <span className={`font-semibold text-white ${compact ? "text-[10px] leading-tight" : "text-xs"}`}>
+          {node.label}
+        </span>
       </div>
     </div>
   );
 }
 
-function PipelineMobileView({
-  activeIndex,
-  setActiveIndex,
-  reduceMotion,
-}: {
-  activeIndex: number;
-  setActiveIndex: (i: number) => void;
-  reduceMotion: boolean;
-}) {
-  const activeModule = PIPELINE_MODULES[activeIndex];
-  const Icon = activeModule.icon;
-
+function UserIllustration({ active }: { active: boolean }) {
   return (
-    <div className="p-4 sm:p-5 lg:hidden">
-      <AnimatePresence mode="wait">
-        <motion.div
-          key={activeModule.id}
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -8 }}
-          transition={{ duration: 0.25 }}
-          className="flex items-center gap-3 rounded-2xl border border-violet-500/30 bg-[#141414] p-4"
-        >
-          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-violet-400/30 bg-violet-500/15 text-violet-300">
-            <Icon size={20} />
-          </div>
-          <div className="min-w-0 flex-1">
-            <p className="text-[10px] font-bold uppercase tracking-wider text-violet-400">
-              Step {activeIndex + 1} of {PIPELINE_MODULES.length}
-            </p>
-            <p className="truncate text-sm font-bold text-white">{activeModule.label}</p>
-            <p className="mt-0.5 text-xs leading-snug text-white/50">{activeModule.short}</p>
-          </div>
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[#C8F04D]/30 bg-[#C8F04D]/10">
-            <Brain size={16} className="text-[#C8F04D]" />
-          </div>
-        </motion.div>
-      </AnimatePresence>
-
-      <div className="mt-3 grid grid-cols-4 gap-2 sm:grid-cols-7">
-        {PIPELINE_MODULES.map((mod, i) => {
-          const StepIcon = mod.icon;
-          const active = i === activeIndex;
-          return (
-            <button
-              key={mod.id}
-              type="button"
-              onClick={() => setActiveIndex(i)}
-              className={`flex flex-col items-center gap-1 rounded-xl border p-2 transition ${
-                active
-                  ? "border-violet-400/50 bg-violet-500/15 text-violet-200"
-                  : "border-white/8 bg-white/5 text-white/40"
-              }`}
-              aria-label={mod.label}
-            >
-              <StepIcon size={14} />
-              <span className="hidden text-[8px] font-semibold uppercase leading-tight sm:block">
-                {mod.label.split(" ")[0]}
-              </span>
-            </button>
-          );
-        })}
+    <div
+      className={`flex flex-col items-center rounded-2xl border p-4 transition-all duration-300 ${
+        active
+          ? "border-[#C8F04D]/40 bg-[#C8F04D]/5 shadow-[0_0_24px_rgba(200,240,77,0.12)]"
+          : "border-white/10 bg-[#141414]"
+      }`}
+    >
+      <div className="relative flex h-16 w-16 items-center justify-center rounded-full border border-white/15 bg-gradient-to-b from-[#2A2A2A] to-[#111111]">
+        <User size={28} className="text-white/80" strokeWidth={1.5} />
+        {active ? (
+          <motion.span
+            className="absolute -right-0.5 -top-0.5 h-3 w-3 rounded-full bg-[#C8F04D]"
+            animate={{ scale: [1, 1.2, 1] }}
+            transition={{ duration: 1.2, repeat: Infinity }}
+          />
+        ) : null}
       </div>
+      <p className="mt-2 text-[10px] font-bold uppercase tracking-wider text-white/50">Campaign Team</p>
+    </div>
+  );
+}
 
-      {!reduceMotion ? (
-        <div className="mt-3 flex items-center justify-center gap-1.5 text-[10px] text-white/30">
-          <span className="h-px w-8 bg-gradient-to-r from-transparent to-violet-500/50" />
-          <Brain size={12} className="text-violet-400/60" />
-          <span className="h-px w-8 bg-gradient-to-l from-transparent to-violet-500/50" />
-        </div>
+function FlowArrow({ active, horizontal = true }: { active: boolean; horizontal?: boolean }) {
+  return (
+    <div
+      className={`relative flex shrink-0 items-center justify-center ${
+        horizontal ? "h-8 w-6 sm:w-10" : "h-6 w-full"
+      }`}
+    >
+      <div
+        className={`${horizontal ? "h-px w-full" : "h-full w-px"} ${
+          active ? "bg-[#C8F04D]/60" : "bg-white/10"
+        }`}
+      />
+      {active ? (
+        <motion.div
+          className={`absolute h-2 w-2 rounded-full bg-[#C8F04D] shadow-[0_0_8px_rgba(200,240,77,0.8)] ${
+            horizontal ? "" : ""
+          }`}
+          animate={horizontal ? { left: ["0%", "100%"], opacity: [0, 1, 1, 0] } : { top: ["0%", "100%"], opacity: [0, 1, 1, 0] }}
+          transition={{ duration: 1.4, repeat: Infinity, ease: "easeInOut" }}
+          style={horizontal ? { top: "50%", transform: "translateY(-50%)" } : { left: "50%", transform: "translateX(-50%)" }}
+        />
       ) : null}
     </div>
   );
 }
 
-function ConnectionLines({ activeId, reduceMotion }: { activeId: string; reduceMotion: boolean }) {
-  const lines = useMemo(
-    () =>
-      PIPELINE_MODULES.map((mod) => ({
-        id: mod.id,
-        x1: CENTER.x,
-        y1: CENTER.y,
-        x2: mod.x,
-        y2: mod.y,
-      })),
-    [],
-  );
-
+function CoreEngineHub({ active }: { active: boolean }) {
   return (
-    <svg className="pointer-events-none absolute inset-0 h-full w-full" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet" aria-hidden>
-      <defs>
-        <linearGradient id="pipe-line-grad" x1="0%" y1="0%" x2="100%" y2="0%">
-          <stop offset="0%" stopColor="rgba(168, 85, 247, 0.15)" />
-          <stop offset="50%" stopColor="rgba(200, 240, 77, 0.55)" />
-          <stop offset="100%" stopColor="rgba(168, 85, 247, 0.35)" />
-        </linearGradient>
-      </defs>
-      {lines.map((line) => {
-        const active = line.id === activeId;
-        return (
-          <g key={line.id}>
-            <line
-              x1={line.x1}
-              y1={line.y1}
-              x2={line.x2}
-              y2={line.y2}
-              stroke={active ? "url(#pipe-line-grad)" : "rgba(168, 85, 247, 0.16)"}
-              strokeWidth={active ? 0.28 : 0.16}
-              strokeDasharray={active ? "1 0.7" : "0.7 1"}
-              className={active && !reduceMotion ? "pipeline-line-active" : undefined}
-            />
-            {!reduceMotion && active ? (
-              <motion.circle
-                r="0.45"
-                fill="#C8F04D"
-                animate={{
-                  cx: [line.x2, line.x1],
-                  cy: [line.y2, line.y1],
-                  opacity: [0, 1, 1, 0],
-                }}
-                transition={{ duration: 1.6, repeat: Infinity, ease: "easeInOut" }}
-              />
-            ) : null}
-          </g>
-        );
-      })}
-    </svg>
+    <div className="flex flex-col items-center">
+      <div
+        className={`relative flex h-20 w-20 items-center justify-center rounded-2xl border transition-all duration-300 sm:h-24 sm:w-24 ${
+          active
+            ? "border-[#C8F04D]/50 bg-[#1A1A1A] shadow-[0_0_32px_rgba(200,240,77,0.2)]"
+            : "border-white/15 bg-[#0D0D0D]"
+        }`}
+      >
+        {!active ? null : (
+          <motion.div
+            className="absolute inset-0 rounded-2xl bg-[#C8F04D]/5"
+            animate={{ opacity: [0.3, 0.6, 0.3] }}
+            transition={{ duration: 2, repeat: Infinity }}
+          />
+        )}
+        <Brain className={active ? "text-[#C8F04D]" : "text-white/60"} size={32} strokeWidth={1.5} />
+      </div>
+      <p className="mt-2 text-center text-[10px] font-bold uppercase tracking-[0.16em] text-white/70">
+        Core Engine
+      </p>
+    </div>
   );
 }
 
-function HubDiagram({
-  activeIndex,
-  setActiveIndex,
-  reduceMotion,
-}: {
-  activeIndex: number;
-  setActiveIndex: (i: number) => void;
-  reduceMotion: boolean;
-}) {
-  const activeModule = PIPELINE_MODULES[activeIndex];
-
+function LaunchNode({ active }: { active: boolean }) {
   return (
-    <div className="relative mx-auto h-[260px] max-w-lg xl:h-[280px] xl:max-w-xl">
-      <ConnectionLines activeId={activeModule.id} reduceMotion={reduceMotion} />
-
-      {PIPELINE_MODULES.map((mod, i) => {
-        const Icon = mod.icon;
-        const active = i === activeIndex;
-        return (
-          <motion.button
-            key={mod.id}
-            type="button"
-            onClick={() => setActiveIndex(i)}
-            className="absolute -translate-x-1/2 -translate-y-1/2"
-            style={{ left: `${mod.x}%`, top: `${mod.y}%` }}
-            animate={{ scale: active ? 1.05 : 1 }}
-            transition={{ type: "spring", stiffness: 320, damping: 26 }}
-            aria-label={mod.label}
-          >
-            <div
-              className={`flex items-center gap-1.5 rounded-xl border px-2 py-1.5 backdrop-blur-md ${
-                active
-                  ? "border-violet-400/50 bg-[#1A1A1A]/95 shadow-[0_0_20px_rgba(168,85,247,0.2)]"
-                  : "border-white/10 bg-[#141414]/80"
-              }`}
-            >
-              <div
-                className={`flex h-6 w-6 items-center justify-center rounded-md ${
-                  active ? "bg-violet-500/20 text-violet-300" : "bg-white/5 text-violet-400/70"
-                }`}
-              >
-                <Icon size={12} />
-              </div>
-              {active ? (
-                <span className="max-w-[88px] truncate text-[9px] font-bold uppercase tracking-wide text-white/80">
-                  {mod.label.split(" ")[0]}
-                </span>
-              ) : null}
-            </div>
-          </motion.button>
-        );
-      })}
-
-      <div className="pointer-events-none absolute left-1/2 top-1/2 z-20 -translate-x-1/2 -translate-y-1/2">
-        {!reduceMotion ? (
-          <motion.div
-            className="absolute left-1/2 top-1/2 h-20 w-20 -translate-x-1/2 -translate-y-1/2 rounded-full bg-violet-600/20 blur-2xl"
-            animate={{ scale: [1, 1.1, 1], opacity: [0.35, 0.55, 0.35] }}
-            transition={{ duration: 3, repeat: Infinity }}
-          />
-        ) : null}
-        <div className="relative flex h-14 w-14 items-center justify-center rounded-full border border-violet-400/40 bg-[#0D0D0D]/95 shadow-[0_0_24px_rgba(168,85,247,0.3)]">
-          <Brain className="text-violet-300" size={24} strokeWidth={1.5} />
-        </div>
-        <p className="mt-1.5 text-center text-[8px] font-bold uppercase tracking-[0.18em] text-white/70">
-          Core Engine
-        </p>
+    <div
+      className={`flex flex-col items-center rounded-2xl border px-4 py-5 transition-all duration-300 sm:px-5 ${
+        active
+          ? "border-emerald-500/40 bg-emerald-500/10 shadow-[0_0_28px_rgba(16,185,129,0.15)]"
+          : "border-white/10 bg-[#141414]"
+      }`}
+    >
+      <div
+        className={`flex h-12 w-12 items-center justify-center rounded-full ${
+          active ? "bg-emerald-500/20 text-emerald-400" : "bg-white/5 text-white/40"
+        }`}
+      >
+        <Rocket size={22} />
       </div>
+      <p className="mt-3 max-w-[120px] text-center text-xs font-black leading-tight text-white sm:text-sm">
+        Campaign Launch with Perfection
+      </p>
     </div>
   );
 }
 
 export default function PipelineCoreEngine() {
   const reduceMotion = useReducedMotion();
-  const [activeIndex, setActiveIndex] = useState(0);
-  const activeModule = PIPELINE_MODULES[activeIndex];
+  const [tick, setTick] = useState(0);
+
+  const totalSteps = 1 + INPUTS.length + 1 + OUTPUTS.length + 1;
+  const step = tick % totalSteps;
+
+  let activeInput = -1;
+  let activeOutput = -1;
+  let userActive = false;
+  let engineActive = false;
+  let launchActive = false;
+  let arrowUserToInput = false;
+  let arrowInputToEngine = false;
+  let arrowEngineToOutput = false;
+  let arrowOutputToLaunch = false;
+
+  if (step === 0) {
+    userActive = true;
+    arrowUserToInput = true;
+  } else if (step <= INPUTS.length) {
+    activeInput = step - 1;
+    arrowInputToEngine = activeInput === INPUTS.length - 1;
+  } else if (step === INPUTS.length + 1) {
+    engineActive = true;
+    arrowEngineToOutput = true;
+  } else if (step <= INPUTS.length + 1 + OUTPUTS.length) {
+    activeOutput = step - INPUTS.length - 2;
+    arrowOutputToLaunch = activeOutput === OUTPUTS.length - 1;
+  } else {
+    launchActive = true;
+  }
 
   useEffect(() => {
     if (reduceMotion) return;
-    const id = window.setInterval(() => {
-      setActiveIndex((prev) => (prev + 1) % PIPELINE_MODULES.length);
-    }, 2800);
+    const id = window.setInterval(() => setTick((t) => t + 1), 1400);
     return () => window.clearInterval(id);
   }, [reduceMotion]);
+
+  const phase = getPhase(step);
+
+  if (reduceMotion) {
+    userActive = false;
+    engineActive = true;
+    launchActive = false;
+    activeInput = INPUTS.length - 1;
+    activeOutput = OUTPUTS.length - 1;
+  }
 
   return (
     <div className="pipeline-core-engine relative overflow-hidden rounded-2xl border border-[#2A2A2A] bg-[#0A0A0A] shadow-[0_16px_48px_rgba(0,0,0,0.35)] sm:rounded-3xl">
       <div
-        className="pointer-events-none absolute inset-0 opacity-20"
+        className="pointer-events-none absolute inset-0 opacity-15"
         style={{
           backgroundImage:
-            "linear-gradient(rgba(168,85,247,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(168,85,247,0.05) 1px, transparent 1px)",
-          backgroundSize: "24px 24px",
+            "linear-gradient(rgba(255,255,255,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.04) 1px, transparent 1px)",
+          backgroundSize: "28px 28px",
         }}
       />
 
-      <PipelineMobileView
-        activeIndex={activeIndex}
-        setActiveIndex={setActiveIndex}
-        reduceMotion={!!reduceMotion}
-      />
+      {/* Desktop horizontal flow */}
+      <div className="relative hidden p-6 lg:block xl:p-8">
+        <div className="flex items-center gap-2 xl:gap-3">
+          <UserIllustration active={userActive || (phase === "input" && activeInput === 0)} />
+          <FlowArrow active={arrowUserToInput || activeInput >= 0} />
 
-      <div className="relative hidden px-4 pb-2 pt-4 lg:block">
-        <HubDiagram
-          activeIndex={activeIndex}
-          setActiveIndex={setActiveIndex}
-          reduceMotion={!!reduceMotion}
-        />
-        <p className="mt-1 text-center text-xs text-white/40">{activeModule.short}</p>
+          <div className="flex min-w-0 flex-1 flex-col gap-2">
+            {INPUTS.map((node, i) => (
+              <FlowNodeCard key={node.id} node={node} active={i <= activeInput && phase !== "user"} />
+            ))}
+          </div>
+
+          <FlowArrow active={arrowInputToEngine || engineActive || phase === "output" || phase === "launch"} />
+
+          <CoreEngineHub active={engineActive || phase === "output" || phase === "launch"} />
+
+          <FlowArrow active={arrowEngineToOutput || activeOutput >= 0 || launchActive} />
+
+          <div className="flex min-w-0 flex-1 flex-col gap-2">
+            {OUTPUTS.map((node, i) => (
+              <FlowNodeCard key={node.id} node={node} active={i <= activeOutput && (phase === "output" || phase === "launch")} />
+            ))}
+          </div>
+
+          <FlowArrow active={arrowOutputToLaunch || launchActive} />
+
+          <LaunchNode active={launchActive} />
+        </div>
       </div>
 
-      <PipelineStatusBar
-        activeIndex={activeIndex}
-        activeModule={activeModule}
-        onSelect={setActiveIndex}
-        reduceMotion={!!reduceMotion}
-      />
+      {/* Mobile / tablet vertical flow */}
+      <div className="space-y-2 p-4 sm:p-5 lg:hidden">
+        <div className="flex justify-center">
+          <UserIllustration active={userActive} />
+        </div>
+        <FlowArrow active={arrowUserToInput} horizontal={false} />
+
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+          {INPUTS.map((node, i) => (
+            <FlowNodeCard key={node.id} node={node} active={i <= activeInput} compact />
+          ))}
+        </div>
+
+        <FlowArrow active={arrowInputToEngine || engineActive} horizontal={false} />
+
+        <div className="flex justify-center">
+          <CoreEngineHub active={engineActive || phase === "output" || phase === "launch"} />
+        </div>
+
+        <FlowArrow active={arrowEngineToOutput || activeOutput >= 0} horizontal={false} />
+
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+          {OUTPUTS.map((node, i) => (
+            <FlowNodeCard key={node.id} node={node} active={i <= activeOutput} compact />
+          ))}
+        </div>
+
+        <FlowArrow active={arrowOutputToLaunch || launchActive} horizontal={false} />
+
+        <div className="flex justify-center">
+          <LaunchNode active={launchActive} />
+        </div>
+      </div>
+
+      <div className="border-t border-white/5 bg-[#111111]/90 px-4 py-2.5 backdrop-blur-sm sm:px-5">
+        <p className="text-center text-[11px] text-white/45 sm:text-xs">
+          Campaign team → inputs → validation engine → outputs → launch ready
+        </p>
+      </div>
     </div>
   );
 }

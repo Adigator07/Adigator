@@ -186,34 +186,14 @@ const METRICS = [
   { value: "Unlimited", label: "Launch Readiness Reports" },
 ];
 
-function SectionHeader({
-  eyebrow,
-  title,
-  description,
-  dark = false,
-}: {
-  eyebrow: string;
-  title: string;
-  description?: string;
-  dark?: boolean;
-}) {
+function SectionHeader({ title, dark = false }: { title: string; dark?: boolean }) {
   return (
-    <div className="mb-10 max-w-3xl sm:mb-12">
-      <p
-        className={`text-sm font-semibold uppercase tracking-[0.18em] ${dark ? "text-[#9CA3AF]" : "text-[#6B7280]"}`}
-      >
-        {eyebrow}
-      </p>
+    <div className="mb-6 max-w-3xl sm:mb-8">
       <h2
-        className={`mt-3 text-3xl font-black leading-tight tracking-tight sm:text-4xl lg:text-5xl ${dark ? "text-white" : ""}`}
+        className={`text-3xl font-black leading-tight tracking-tight sm:text-4xl lg:text-5xl ${dark ? "text-white" : ""}`}
       >
         {title}
       </h2>
-      {description ? (
-        <p className={`mt-4 text-base leading-relaxed sm:text-lg ${dark ? "text-[#A3A3A3]" : "text-[#5A5A55]"}`}>
-          {description}
-        </p>
-      ) : null}
     </div>
   );
 }
@@ -299,7 +279,7 @@ export default function SolutionsPage() {
 
       <main className="pt-28">
         {/* 1. Hero */}
-        <section className="marketing-section mx-auto w-[min(980px,92vw)] py-16 text-center sm:py-20 md:py-28">
+        <section className="marketing-section marketing-section-compact mx-auto w-[min(980px,92vw)] text-center">
           <span className="inline-flex rounded-full border border-[#D4D3CC] bg-white px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-[#51514A]">
             Solutions
           </span>
@@ -322,12 +302,8 @@ export default function SolutionsPage() {
         </section>
 
         {/* 2. Problems We Solve */}
-        <section id="problems" className="marketing-section mx-auto w-[min(1280px,92vw)] py-12 sm:py-16 md:py-20">
-          <SectionHeader
-            eyebrow="The problems we solve"
-            title="Operational problems every campaign team recognizes"
-            description="These are not feature gaps. They are workflow failures that cost time, budget, and client trust."
-          />
+        <section id="problems" className="marketing-section marketing-section-compact mx-auto w-[min(1280px,92vw)]">
+          <SectionHeader title="Operational problems every campaign team recognizes" />
           <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
             {PROBLEMS_WE_SOLVE.map((problem, i) => (
               <motion.article
@@ -349,13 +325,9 @@ export default function SolutionsPage() {
         </section>
 
         {/* Campaign journey */}
-        <section id="journey" className="border-y border-[#DEDDD5] bg-[#FAFAF7] py-16 sm:py-20">
+        <section id="journey" className="border-y border-[#DEDDD5] bg-[#FAFAF7] marketing-section-compact">
           <div className="mx-auto w-[min(1280px,92vw)]">
-            <SectionHeader
-              eyebrow="The campaign journey"
-              title="Where validation fits in your workflow"
-              description="Most tools analyze creatives in isolation. Adigator validates the full campaign path from brief to launch."
-            />
+            <SectionHeader title="Where validation fits in your workflow" />
             <div className="mx-auto flex max-w-md flex-col items-center gap-2">
               {CAMPAIGN_JOURNEY.map((step, i) => (
                 <div key={step} className="flex w-full flex-col items-center">
@@ -382,11 +354,8 @@ export default function SolutionsPage() {
         </section>
 
         {/* Problem-based outcome cards */}
-        <section className="marketing-section mx-auto w-[min(1280px,92vw)] py-16 sm:py-20 md:py-24">
-          <SectionHeader
-            eyebrow="What you get"
-            title="Solutions to operational problems, not another feature list"
-          />
+        <section className="marketing-section marketing-section-compact mx-auto w-[min(1280px,92vw)]">
+          <SectionHeader title="Solutions to operational problems, not another feature list" />
           <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
             {OUTCOME_CARDS.map((card, i) => (
               <motion.article
@@ -408,14 +377,9 @@ export default function SolutionsPage() {
         </section>
 
         {/* Solutions by Workflow */}
-        <section id="workflow" className="bg-[#0D0D0D] py-16 text-white sm:py-20 md:py-24">
+        <section id="workflow" className="bg-[#0D0D0D] py-10 text-white sm:py-12 md:py-14">
           <div className="mx-auto w-[min(1280px,92vw)]">
-            <SectionHeader
-              dark
-              eyebrow="Solutions by workflow"
-              title="Built around how campaigns actually move"
-              description="Each workflow stage gets validation before it reaches the next handoff."
-            />
+            <SectionHeader dark title="Built around how campaigns actually move" />
             <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
               {WORKFLOW_SOLUTIONS.map((item, i) => (
                 <motion.article
@@ -435,41 +399,28 @@ export default function SolutionsPage() {
         </section>
 
         {/* Solutions by Team */}
-        <section id="team" className="marketing-section mx-auto w-[min(1280px,92vw)] py-16 sm:py-20 md:py-24">
-          <SectionHeader
-            eyebrow="Solutions by team"
-            title="Every role in the campaign chain, covered"
-            description="Creative, campaign management, media buying, AdOps, QA, brand, and agency operations all work from the same validation layer."
-          />
+        <section id="team" className="marketing-section marketing-section-compact mx-auto w-[min(1280px,92vw)]">
+          <SectionHeader title="Every role in the campaign chain, covered" />
           <SolutionGrid items={TEAM_SOLUTIONS} />
         </section>
 
         {/* Solutions by Platform */}
-        <section id="platform" className="border-y border-[#DEDDD5] bg-[#FAFAF7] py-16 sm:py-20 md:py-24">
+        <section id="platform" className="border-y border-[#DEDDD5] bg-[#FAFAF7] marketing-section-compact">
           <div className="mx-auto w-[min(1280px,92vw)]">
-            <SectionHeader
-              eyebrow="Solutions by platform"
-              title="One campaign. Multiple platforms. One validation pass."
-            />
+            <SectionHeader title="One campaign. Multiple platforms. One validation pass." />
             <SolutionGrid items={PLATFORM_SOLUTIONS} />
           </div>
         </section>
 
         {/* Why Teams Need This */}
         <ValidationLayerDiagram
-          eyebrow="Why teams need this"
           title="Everyone assumes someone else validated the campaign."
-          description="Without a dedicated validation layer, errors slip through every handoff. Adigator sits between campaign setup and launch."
           gapLabel="No validation"
         />
 
         {/* What Adigator Validates */}
-        <section id="validates" className="marketing-section mx-auto w-[min(1280px,92vw)] py-16 sm:py-20 md:py-24">
-          <SectionHeader
-            eyebrow="Validation scope"
-            title="What Adigator validates"
-            description="One connected pass across every component that can break a campaign before launch."
-          />
+        <section id="validates" className="marketing-section marketing-section-compact mx-auto w-[min(1280px,92vw)]">
+          <SectionHeader title="What Adigator validates" />
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
             {VALIDATES_GRID.map(({ label, icon: Icon }) => (
               <div
@@ -486,14 +437,9 @@ export default function SolutionsPage() {
         </section>
 
         {/* Industry / Who it's for */}
-        <section id="industry" className="bg-[#0D0D0D] py-16 text-white sm:py-20 md:py-24">
+        <section id="industry" className="bg-[#0D0D0D] py-10 text-white sm:py-12 md:py-14">
           <div className="mx-auto w-[min(1280px,92vw)]">
-            <SectionHeader
-              dark
-              eyebrow="Who it's for"
-              title="Built for teams who ship campaigns at scale"
-              description="Not a list of verticals. Real operational reasons agencies and brands adopt Adigator."
-            />
+            <SectionHeader dark title="Built for teams who ship campaigns at scale" />
             <div className="grid gap-5 sm:grid-cols-2">
               {INDUSTRY_SOLUTIONS.map((item, i) => (
                 <motion.article
@@ -516,11 +462,8 @@ export default function SolutionsPage() {
         </section>
 
         {/* Campaign Reality */}
-        <section id="reality" className="marketing-section mx-auto w-[min(1280px,92vw)] py-16 sm:py-20 md:py-24">
-          <SectionHeader
-            eyebrow="Campaign reality"
-            title="What happens when nobody validates before launch"
-          />
+        <section id="reality" className="marketing-section marketing-section-compact mx-auto w-[min(1280px,92vw)]">
+          <SectionHeader title="What happens when nobody validates before launch" />
           <div className="grid gap-8 lg:grid-cols-2">
             <div className="rounded-3xl border border-[#DEDDD5] bg-white p-8 sm:p-10">
               <div className="flex flex-wrap gap-3">
@@ -577,10 +520,9 @@ export default function SolutionsPage() {
         </section>
 
         {/* Why Adigator Exists */}
-        <section id="why-exists" className="border-y border-[#DEDDD5] bg-[#FAFAF7] py-16 sm:py-20 md:py-24">
+        <section id="why-exists" className="border-y border-[#DEDDD5] bg-[#FAFAF7] marketing-section-compact">
           <div className="mx-auto w-[min(780px,92vw)] text-center">
-            <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#6B7280]">Why Adigator exists</p>
-            <h2 className="mt-4 text-3xl font-black leading-tight tracking-tight sm:text-4xl lg:text-5xl">
+            <h2 className="text-3xl font-black leading-tight tracking-tight sm:text-4xl lg:text-5xl">
               Today&apos;s workflow focuses on launching campaigns. Not validating them.
             </h2>
             <p className="mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-[#5A5A55]">
@@ -591,9 +533,9 @@ export default function SolutionsPage() {
         </section>
 
         {/* Metrics */}
-        <section id="metrics" className="bg-[#0D0D0D] py-16 text-white sm:py-20 md:py-24">
+        <section id="metrics" className="bg-[#0D0D0D] py-10 text-white sm:py-12 md:py-14">
           <div className="mx-auto w-[min(1280px,92vw)]">
-            <SectionHeader dark eyebrow="Platform scale" title="Enterprise validation coverage" />
+            <SectionHeader dark title="Enterprise validation coverage" />
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {METRICS.map((metric, i) => (
                 <motion.article
@@ -613,8 +555,8 @@ export default function SolutionsPage() {
         </section>
 
         {/* Final CTA */}
-        <section className="marketing-section mx-auto w-[min(980px,92vw)] py-16 sm:py-20 md:py-28">
-          <div className="saas-hover rounded-[32px] border border-[#DBDAD2] bg-white px-8 py-12 text-center shadow-[0_20px_50px_rgba(15,23,42,0.08)] sm:px-12 sm:py-16">
+        <section className="marketing-section marketing-section-compact mx-auto w-[min(980px,92vw)]">
+          <div className="saas-hover rounded-[32px] border border-[#DBDAD2] bg-white px-8 py-10 text-center shadow-[0_20px_50px_rgba(15,23,42,0.08)] sm:px-12 sm:py-12">
             <h2 className="mx-auto max-w-3xl text-[clamp(1.75rem,4vw,3rem)] font-black leading-tight tracking-tight">
               Every Campaign Deserves One Final Validation Before Launch.
             </h2>

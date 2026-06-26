@@ -11,7 +11,9 @@ import {
   Globe,
   Image,
   Link2,
+  Megaphone,
   Monitor,
+  Radio,
   Shield,
   Smartphone,
   Target,
@@ -111,13 +113,13 @@ const VALIDATES_ITEMS = [
 ];
 
 const PLATFORMS = [
-  "Meta Ads",
-  "Google Ads",
-  "Programmatic Display",
-  "Native Advertising",
-  "Responsive Display",
-  "Premium Publisher Inventory",
-  "Cross device placements",
+  { name: "Meta Ads", desc: "Feed, Story, Reels, and safe zone validation.", icon: Megaphone },
+  { name: "Google Ads", desc: "Display, RDA, and Demand Gen requirements.", icon: Target },
+  { name: "Programmatic Display", desc: "RTB sizes, file weight, and inventory fit.", icon: BarChart3 },
+  { name: "Native Advertising", desc: "In feed and publisher native formats.", icon: Radio },
+  { name: "Responsive Display", desc: "Crop survival and asset group readiness.", icon: Monitor },
+  { name: "Premium Publisher Inventory", desc: "High impact and viewability safe layouts.", icon: Globe },
+  { name: "Cross device placements", desc: "Desktop, mobile, and tablet compatibility.", icon: Smartphone },
 ];
 
 const FEATURES = [
@@ -201,16 +203,13 @@ export default function HomePage() {
 
       <main className="pt-28">
         {/* Hero */}
-        <section className="marketing-section mx-auto w-[min(1280px,92vw)] py-16 sm:py-20 md:py-28">
+        <section className="marketing-section marketing-section-compact mx-auto w-[min(1280px,92vw)]">
           <div className="max-w-5xl">
-            <p className="text-sm font-semibold uppercase tracking-[0.2em] text-[#6B7280]">
-              Pre launch campaign validation
-            </p>
-            <h1 className="mt-4 text-[clamp(2rem,5.5vw,4.25rem)] font-black leading-[1.05] tracking-[-0.04em]">
+            <h1 className="text-[clamp(2rem,5.5vw,4.25rem)] font-black leading-[1.05] tracking-[-0.04em]">
               The Pre Launch Campaign Validation Platform That Helps You
             </h1>
 
-            <div className="mt-5 min-h-[3.5rem] sm:min-h-[4rem]">
+            <div className="mt-4 min-h-[3.5rem] sm:min-h-[4rem]">
               <AnimatePresence mode="wait">
                 <motion.p
                   key={HERO_BENEFITS[benefitIndex]}
@@ -229,7 +228,7 @@ export default function HomePage() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.4 }}
-              className="mt-6 max-w-2xl text-base leading-relaxed text-[#5A5A55] sm:mt-8 sm:text-lg md:text-xl"
+              className="mt-5 max-w-2xl text-base leading-relaxed text-[#5A5A55] sm:text-lg"
             >
               Validate campaign intent, creatives, landing pages, URLs, platform compatibility, and technical
               requirements before media spend begins.
@@ -239,7 +238,7 @@ export default function HomePage() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.55 }}
-              className="mt-10 flex flex-wrap gap-4"
+              className="mt-8 flex flex-wrap gap-4"
             >
               <Link
                 href={MARKETING_CTA.href}
@@ -260,33 +259,31 @@ export default function HomePage() {
           <HeroLiveCards />
         </section>
 
-        {/* Trusted by */}
-        <section className="border-y border-[#DCDACF] bg-white py-10">
-          <p className="text-center text-sm font-semibold uppercase tracking-[0.18em] text-[#6B7280]">
+        {/* Trusted by + ticker (dark) */}
+        <section className="relative overflow-hidden border-y border-[#1A1A1A] bg-[#0A0A0A] py-8 shadow-[inset_0_8px_32px_rgba(0,0,0,0.45)]">
+          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(255,255,255,0.04),transparent_70%)]" />
+          <p className="relative text-center text-lg font-black tracking-tight text-white sm:text-xl">
             Trusted by modern AdOps teams
           </p>
-        </section>
-
-        {/* Ticker */}
-        <section className="overflow-hidden border-b border-[#DCDACF] bg-[#ECECE6] py-6">
-          <div className="ticker-track flex min-w-max gap-4">
-            {[...TICKER_BENEFITS, ...TICKER_BENEFITS].map((item, idx) => (
-              <div
-                key={`${item}-${idx}`}
-                className="flex h-11 min-w-[max-content] items-center gap-2 rounded-full border border-[#D3D2CA] bg-white px-5 text-sm font-semibold text-[#363636]"
-              >
-                <Check size={14} className="text-emerald-600" />
-                {item}
-              </div>
-            ))}
+          <div className="ticker-track-dark relative mt-6 overflow-hidden py-1">
+            <div className="ticker-track flex min-w-max gap-3">
+              {[...TICKER_BENEFITS, ...TICKER_BENEFITS].map((item, idx) => (
+                <div
+                  key={`${item}-${idx}`}
+                  className="ticker-pill flex h-10 min-w-[max-content] items-center gap-2 rounded-full border px-4 text-sm font-semibold"
+                >
+                  <Check size={14} className="text-[#C8F04D]" />
+                  {item}
+                </div>
+              ))}
+            </div>
           </div>
         </section>
 
         {/* Why campaigns fail */}
-        <section className="marketing-section mx-auto w-[min(1280px,92vw)] py-16 sm:py-20 md:py-24">
-          <div className="mb-10 max-w-3xl">
-            <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#6B7280]">The problem</p>
-            <h2 className="mt-3 text-3xl font-black leading-tight tracking-tight sm:text-4xl lg:text-5xl">
+        <section className="marketing-section marketing-section-compact mx-auto w-[min(1280px,92vw)]">
+          <div className="mb-6 max-w-3xl">
+            <h2 className="text-3xl font-black leading-tight tracking-tight sm:text-4xl lg:text-5xl">
               Why campaigns fail before they even launch
             </h2>
           </div>
@@ -307,24 +304,18 @@ export default function HomePage() {
             ))}
           </div>
 
-          <p className="mt-10 text-center text-xl font-black tracking-tight sm:text-2xl">
+          <p className="mt-8 text-center text-xl font-black tracking-tight sm:text-2xl">
             Adigator fixes this before launch.
           </p>
         </section>
 
         {/* How it works */}
-        <section className="bg-[#0D0D0D] py-16 text-white sm:py-20 md:py-24">
+        <section className="bg-[#0D0D0D] py-10 text-white sm:py-12 md:py-14">
           <div className="mx-auto w-[min(1280px,92vw)]">
-            <div className="mb-8 flex flex-col gap-4 lg:mb-10 lg:flex-row lg:items-end lg:justify-between">
-              <div>
-                <p className="text-sm uppercase tracking-[0.2em] text-[#9CA3AF]">How Adigator works</p>
-                <h2 className="mt-3 text-3xl font-black tracking-tight sm:text-4xl lg:text-5xl">
-                  Four steps from brief to launch ready
-                </h2>
-              </div>
-              <p className="max-w-sm text-sm text-[#A3A3A3] lg:text-right">
-                One connected validation workflow, not scattered checks across spreadsheets and ad platforms.
-              </p>
+            <div className="mb-6 lg:mb-8">
+              <h2 className="text-3xl font-black tracking-tight sm:text-4xl lg:text-5xl">
+                Four steps from brief to launch ready
+              </h2>
             </div>
 
             <div className="roller-coaster-shell overflow-hidden px-1">
@@ -359,10 +350,9 @@ export default function HomePage() {
         </section>
 
         {/* What Adigator validates */}
-        <section className="marketing-section mx-auto w-[min(1280px,92vw)] py-16 sm:py-20 md:py-24">
-          <div className="mb-10 max-w-3xl">
-            <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#6B7280]">Everything in one pass</p>
-            <h2 className="mt-3 text-3xl font-black leading-tight tracking-tight sm:text-4xl lg:text-5xl">
+        <section className="marketing-section marketing-section-compact mx-auto w-[min(1280px,92vw)]">
+          <div className="mb-6 max-w-3xl">
+            <h2 className="text-3xl font-black leading-tight tracking-tight sm:text-4xl lg:text-5xl">
               What Adigator validates
             </h2>
           </div>
@@ -383,44 +373,45 @@ export default function HomePage() {
         </section>
 
         {/* Platform coverage */}
-        <section className="border-y border-[#DEDDD5] bg-[#FAFAF7] py-16 sm:py-20">
+        <section className="border-y border-[#DEDDD5] bg-[#FAFAF7] marketing-section-compact">
           <div className="mx-auto w-[min(1280px,92vw)]">
-            <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#6B7280]">Supported platforms</p>
-            <h2 className="mt-3 text-3xl font-black tracking-tight sm:text-4xl">Platform coverage</h2>
-            <div className="mt-8 flex flex-wrap gap-3">
-              {PLATFORMS.map((platform) => (
-                <span
-                  key={platform}
-                  className="rounded-full border border-[#DEDDD5] bg-white px-5 py-2.5 text-sm font-semibold text-[#0D0D0D]"
+            <h2 className="text-3xl font-black tracking-tight sm:text-4xl">Platform coverage</h2>
+            <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {PLATFORMS.map((platform, i) => (
+                <motion.article
+                  key={platform.name}
+                  initial={{ opacity: 0, y: 16 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: i * 0.05, duration: 0.35 }}
+                  className="platform-card rounded-2xl border border-[#DEDDD5] bg-white p-5 shadow-[0_8px_20px_rgba(15,23,42,0.04)]"
                 >
-                  {platform}
-                </span>
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#EEF0E7] text-[#0D0D0D]">
+                    <platform.icon size={18} />
+                  </div>
+                  <h3 className="mt-3 text-base font-black tracking-tight">{platform.name}</h3>
+                  <p className="mt-2 text-sm leading-relaxed text-[#5B5B55]">{platform.desc}</p>
+                </motion.article>
               ))}
             </div>
           </div>
         </section>
 
-        {/* Real campaign workflow + pipeline (engine unchanged) */}
-        <section className="marketing-section mx-auto w-[min(1280px,92vw)] py-16 sm:py-20 md:py-24">
-          <div className="mb-8 max-w-3xl sm:mb-10">
-            <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#6B7280]">Real campaign workflow</p>
-            <h2 className="mt-3 text-3xl font-black leading-tight tracking-tight sm:mt-4 sm:text-4xl lg:text-5xl">
-              From client brief to validated launch
+        {/* Real campaign workflow + pipeline */}
+        <section className="marketing-section marketing-section-compact mx-auto w-[min(1280px,92vw)]">
+          <div className="mb-6 max-w-3xl">
+            <h2 className="text-3xl font-black leading-tight tracking-tight sm:text-4xl lg:text-5xl">
+              Your campaign path, validated end to end
             </h2>
-            <p className="mt-4 text-base leading-relaxed text-[#5A5A55] sm:mt-5 sm:text-lg">
-              Every campaign moves through one connected validation engine: setup, asset QA, alignment checks,
-              contextual preview, and stakeholder ready output.
-            </p>
           </div>
 
           <PipelineCoreEngine />
         </section>
 
         {/* Features */}
-        <section className="marketing-section mx-auto w-[min(1280px,92vw)] py-16 sm:py-20 md:py-24">
-          <div className="mb-8 sm:mb-10">
-            <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#6B7280]">Features</p>
-            <h2 className="mt-3 text-3xl font-black tracking-tight sm:text-4xl lg:text-5xl">
+        <section className="marketing-section marketing-section-compact mx-auto w-[min(1280px,92vw)]">
+          <div className="mb-6">
+            <h2 className="text-3xl font-black tracking-tight sm:text-4xl lg:text-5xl">
               Built for operational teams, not tool collectors
             </h2>
           </div>
@@ -442,10 +433,9 @@ export default function HomePage() {
         </section>
 
         {/* Workflow CTA block */}
-        <section className="marketing-section mx-auto grid w-[min(1280px,92vw)] gap-10 py-16 sm:gap-12 sm:py-20 md:grid-cols-2 md:items-center md:py-24 lg:gap-16">
+        <section className="marketing-section marketing-section-compact mx-auto grid w-[min(1280px,92vw)] gap-8 md:grid-cols-2 md:items-center lg:gap-12">
           <div>
-            <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#6B7280]">Why Adigator</p>
-            <h2 className="mt-3 text-3xl font-black leading-tight tracking-tight sm:mt-4 sm:text-4xl lg:text-5xl">
+            <h2 className="text-3xl font-black leading-tight tracking-tight sm:text-4xl lg:text-5xl">
               Stop paying for launch mistakes after media is live
             </h2>
             <ul className="mt-6 space-y-3 text-base text-[#4B4B45] sm:mt-8 sm:space-y-4 sm:text-lg">
@@ -479,44 +469,46 @@ export default function HomePage() {
         </section>
 
         {/* Preview */}
-        <section className="marketing-section mx-auto w-[min(1280px,92vw)] py-16 sm:py-20 md:py-24">
-          <div className="mb-8 max-w-3xl sm:mb-10">
-            <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#6B7280]">Creative preview</p>
-            <h2 className="mt-3 text-3xl font-black leading-tight tracking-tight sm:text-4xl lg:text-5xl">
-              See your creative before it goes live
-            </h2>
-            <p className="mt-4 text-base leading-relaxed text-[#5A5A55] sm:text-lg">
-              Preview ads in realistic publisher environments, not flat mockups in a slide deck.
-            </p>
-          </div>
+        <section className="relative overflow-hidden marketing-section-compact">
+          <div className="preview-gradient-loop absolute inset-0" aria-hidden />
+          <div className="relative mx-auto w-[min(1280px,92vw)] py-10 sm:py-12">
+            <div className="mb-6 max-w-3xl">
+              <h2 className="text-3xl font-black leading-tight tracking-tight text-white sm:text-4xl lg:text-5xl">
+                See your creative before it goes live
+              </h2>
+            </div>
 
-          <div className="flex flex-wrap gap-3">
-            {PREVIEW_ENVIRONMENTS.map((env) => (
-              <span
-                key={env}
-                className="rounded-full border border-[#DEDDD5] bg-white px-4 py-2 text-sm font-semibold text-[#363636]"
-              >
-                {env}
-              </span>
-            ))}
-          </div>
+            <div className="flex flex-wrap gap-2.5">
+              {PREVIEW_ENVIRONMENTS.map((env, i) => (
+                <motion.span
+                  key={env}
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  whileInView={{ opacity: 1, scale: 1 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: i * 0.03 }}
+                  className="rounded-full border border-white/15 bg-white/10 px-4 py-2 text-sm font-semibold text-white/90 backdrop-blur-sm"
+                >
+                  {env}
+                </motion.span>
+              ))}
+            </div>
 
-          <Link
-            href="/preview-tool?demo=1&step=1"
-            className="saas-hover mt-8 inline-flex rounded-full bg-[#0D0D0D] px-8 py-4 text-base font-bold text-white"
-          >
-            Try the preview workflow →
-          </Link>
+            <Link
+              href="/preview-tool?demo=1&step=1"
+              className="saas-hover mt-6 inline-flex rounded-full border border-white/20 bg-white px-8 py-3.5 text-base font-bold text-[#0D0D0D] shadow-[0_8px_24px_rgba(0,0,0,0.35)]"
+            >
+              Try the preview workflow →
+            </Link>
+          </div>
         </section>
 
         {/* Built for + Agency benefits */}
-        <section className="border-t border-[#DEDDD5] bg-[#FAFAF7] py-16 sm:py-20 md:py-24">
+        <section className="border-t border-[#DEDDD5] bg-[#FAFAF7] marketing-section-compact">
           <div className="mx-auto w-[min(1280px,92vw)]">
-            <div className="grid gap-16 lg:grid-cols-2">
+            <div className="grid gap-10 lg:grid-cols-2">
               <div>
-                <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#6B7280]">Built for</p>
-                <h2 className="mt-3 text-3xl font-black tracking-tight sm:text-4xl">Teams who own launch quality</h2>
-                <div className="mt-8 flex flex-wrap gap-2">
+                <h2 className="text-3xl font-black tracking-tight sm:text-4xl">Teams who own launch quality</h2>
+                <div className="mt-6 flex flex-wrap gap-2">
                   {BUILT_FOR.map((role) => (
                     <span
                       key={role}
@@ -530,9 +522,8 @@ export default function HomePage() {
               </div>
 
               <div>
-                <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#6B7280]">Enterprise & agencies</p>
-                <h2 className="mt-3 text-3xl font-black tracking-tight sm:text-4xl">Why agencies choose Adigator</h2>
-                <ul className="mt-8 space-y-4">
+                <h2 className="text-3xl font-black tracking-tight sm:text-4xl">Why agencies choose Adigator</h2>
+                <ul className="mt-6 space-y-3">
                   {AGENCY_BENEFITS.map((benefit) => (
                     <li key={benefit} className="flex items-start gap-3 text-base font-semibold text-[#0D0D0D] sm:text-lg">
                       <span className="text-xl text-[#C8F04D]/80">↓</span>
@@ -546,12 +537,12 @@ export default function HomePage() {
         </section>
 
         {/* Final CTA */}
-        <section className="bg-[#0D0D0D] py-16 text-white sm:py-20 md:py-24">
+        <section className="bg-[#0D0D0D] py-10 text-white sm:py-12 md:py-14">
           <div className="mx-auto flex w-[min(1100px,92vw)] flex-col items-center text-center">
             <h2 className="text-[clamp(2.2rem,6vw,4.5rem)] font-black leading-tight tracking-tight">
               Launch with confidence.
             </h2>
-            <p className="mt-5 max-w-xl text-base text-white/60">
+            <p className="mt-4 max-w-xl text-base text-white/60">
               Validate every campaign before it reaches your audience.
             </p>
             <Link

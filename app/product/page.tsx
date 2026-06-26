@@ -214,7 +214,7 @@ export default function ProductPage() {
       <MarketingNav activePath="/product" />
 
       <main>
-        <section className="px-4 pb-[120px] pt-36 sm:px-6 lg:px-8">
+        <section className="px-4 pb-14 pt-28 sm:px-6 lg:px-8">
           <div className="mx-auto grid w-[min(1320px,92vw)] gap-14 lg:grid-cols-[1.02fr_0.98fr] lg:items-center">
             <div>
               <motion.span
@@ -306,7 +306,7 @@ export default function ProductPage() {
           </div>
         </section>
 
-        <section id="overview" className="bg-[#0D0D0D] px-4 py-[120px] text-white sm:px-6 lg:px-8">
+        <section id="overview" className="bg-[#0D0D0D] px-4 py-14 sm:py-16 text-white sm:px-6 lg:px-8">
           <div className="mx-auto w-[min(1320px,92vw)] text-center">
             <h2 className="text-[clamp(2.2rem,4vw,3rem)] font-black tracking-[-0.04em]">
               The complete, AI-powered advertising solution
@@ -338,7 +338,7 @@ export default function ProductPage() {
           </div>
         </section>
 
-        <section id="prism" className="px-4 py-[120px] sm:px-6 lg:px-8">
+        <section id="prism" className="px-4 py-14 sm:py-16 sm:px-6 lg:px-8">
           <div className="mx-auto grid w-[min(1320px,92vw)] gap-14 lg:grid-cols-2 lg:items-center">
             <motion.div
               initial={{ opacity: 0, x: -36 }}
@@ -377,10 +377,7 @@ export default function ProductPage() {
               viewport={{ once: true, amount: 0.25 }}
               transition={{ duration: 0.6 }}
             >
-              <span className="inline-flex rounded-full border border-[#D8D7CF] bg-white px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-[#51514A]">
-                Analyze Creative
-              </span>
-              <h2 className="mt-8 text-[clamp(2.5rem,4.8vw,4rem)] font-black leading-[1] tracking-[-0.05em]">
+              <h2 className="text-[clamp(2.5rem,4.8vw,4rem)] font-black leading-[1] tracking-[-0.05em]">
                 Your AI-powered command center for campaign performance
               </h2>
               <p className="mt-6 max-w-xl text-lg leading-relaxed text-[#66665F]">
@@ -408,7 +405,7 @@ export default function ProductPage() {
           </div>
         </section>
 
-        <section id="adroom" className="px-4 py-[120px] sm:px-6 lg:px-8">
+        <section id="adroom" className="px-4 py-14 sm:py-16 sm:px-6 lg:px-8">
           <div className="mx-auto grid w-[min(1320px,92vw)] gap-14 lg:grid-cols-2 lg:items-center">
             <motion.div
               initial={{ opacity: 0, x: -36 }}
@@ -417,10 +414,7 @@ export default function ProductPage() {
               transition={{ duration: 0.6 }}
               className="order-2 lg:order-1"
             >
-              <span className="inline-flex rounded-full border border-[#D8D7CF] bg-white px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-[#51514A]">
-                Preview Studio
-              </span>
-              <h2 className="mt-8 text-[clamp(2.5rem,4.8vw,4rem)] font-black leading-[1] tracking-[-0.05em]">
+              <h2 className="text-[clamp(2.5rem,4.8vw,4rem)] font-black leading-[1] tracking-[-0.05em]">
                 High-impact creativity at your fingertips
               </h2>
               <p className="mt-6 max-w-xl text-lg leading-relaxed text-[#66665F]">
@@ -471,7 +465,7 @@ export default function ProductPage() {
           </div>
         </section>
 
-        <section className="overflow-hidden px-4 py-[120px] sm:px-6 lg:px-8">
+        <section className="overflow-hidden px-4 py-14 sm:py-16 sm:px-6 lg:px-8">
           <div className="mx-auto w-[min(1320px,92vw)] text-center">
             <p className="text-2xl font-bold tracking-tight text-[#1E1E1B]">Better ads, happier teams</p>
             <div className="mt-10 overflow-hidden [mask-image:linear-gradient(to_right,transparent,black_10%,black_90%,transparent)]">
@@ -489,10 +483,10 @@ export default function ProductPage() {
           </div>
         </section>
 
-        <section id="testimonials" className="px-4 py-[120px] sm:px-6 lg:px-8">
+        <section id="testimonials" className="px-4 py-14 sm:py-16 sm:px-6 lg:px-8">
           <div className="mx-auto w-[min(980px,92vw)] text-center">
-            <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#73736D]">What our customers say</p>
-            <div className="mt-10 rounded-[36px] border border-[#DEDDD5] bg-white px-8 py-14 shadow-[0_18px_50px_rgba(15,15,15,0.04)] sm:px-14">
+            <h2 className="text-[clamp(2rem,4vw,2.75rem)] font-black tracking-[-0.04em]">What our customers say</h2>
+            <div className="mt-8 rounded-[36px] border border-[#DEDDD5] bg-white px-8 py-14 shadow-[0_18px_50px_rgba(15,15,15,0.04)] sm:px-14">
               <p className="text-7xl font-black leading-none text-[#C8F04D]">&quot;</p>
               <div className="relative min-h-[190px]">
                 <AnimatePresence mode="wait">
@@ -551,7 +545,7 @@ export default function ProductPage() {
           </div>
         </section>
 
-        <section className="px-4 py-[120px] sm:px-6 lg:px-8">
+        <section className="px-4 py-14 sm:py-16 sm:px-6 lg:px-8">
           <div className="mx-auto grid w-[min(1320px,92vw)] gap-6 lg:grid-cols-2">
             {[
               {
@@ -586,10 +580,10 @@ export default function ProductPage() {
           </div>
         </section>
 
-        <section id="blog" className="px-4 py-[120px] sm:px-6 lg:px-8">
+        <section id="blog" className="px-4 py-14 sm:py-16 sm:px-6 lg:px-8">
           <div className="mx-auto w-[min(1320px,92vw)]">
             <div className="flex items-center justify-between gap-4">
-              <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#73736D]">Blog</p>
+              <h2 className="text-2xl font-black tracking-tight sm:text-3xl">Blog</h2>
               <Link href="/about" className="inline-flex items-center gap-2 text-sm font-semibold text-[#0D0D0D]">
                 View all
                 <ArrowRight className="h-4 w-4" />
@@ -633,7 +627,7 @@ export default function ProductPage() {
           </div>
         </section>
 
-        <section className="bg-[#0D0D0D] px-4 py-[120px] text-center text-white sm:px-6 lg:px-8">
+        <section className="bg-[#0D0D0D] px-4 py-14 sm:py-16 text-center text-white sm:px-6 lg:px-8">
           <div className="mx-auto w-[min(900px,92vw)]">
             <h2 className="text-[clamp(2.6rem,5vw,4.4rem)] font-black leading-[1] tracking-[-0.05em]">
               Maximize your impact

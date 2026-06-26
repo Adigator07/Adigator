@@ -29,10 +29,9 @@ export default function DemoPage() {
     <div className="marketing-page min-h-screen bg-[#F5F5F0] text-[#0D0D0D]">
       <MarketingNav activePath="/demo" />
 
-      <main className="mx-auto w-[min(1100px,92vw)] pt-32 pb-20">
-        <section className="rounded-[28px] border border-[#DEDDD5] bg-white p-8 md:p-12 shadow-[0_25px_80px_rgba(15,23,42,0.08)]">
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#666]">Product Walkthrough</p>
-          <h1 className="mt-4 text-[clamp(2.2rem,5vw,3.8rem)] font-black leading-[0.95] tracking-[-0.04em]">
+      <main className="mx-auto w-[min(1100px,92vw)] pt-28 pb-12">
+        <section className="rounded-[28px] border border-[#DEDDD5] bg-white p-8 md:p-10 shadow-[0_25px_80px_rgba(15,23,42,0.08)]">
+          <h1 className="text-[clamp(2.2rem,5vw,3.8rem)] font-black leading-[0.95] tracking-[-0.04em]">
             See how Adigator works
           </h1>
           <p className="mt-4 max-w-3xl text-lg leading-relaxed text-[#5E5E58]">

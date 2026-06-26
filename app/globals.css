@@ -92,6 +92,67 @@ a {
 .marketing-page .marketing-section {
   scroll-margin-top: 5rem;
 }
+
+.marketing-page .marketing-section-compact {
+  padding-top: 2.5rem;
+  padding-bottom: 2.5rem;
+}
+
+@media (min-width: 640px) {
+  .marketing-page .marketing-section-compact {
+    padding-top: 3rem;
+    padding-bottom: 3rem;
+  }
+}
+
+@media (min-width: 768px) {
+  .marketing-page .marketing-section-compact {
+    padding-top: 3.5rem;
+    padding-bottom: 3.5rem;
+  }
+}
+
+.marketing-page .preview-gradient-loop {
+  background: linear-gradient(135deg, #0a0a0a 0%, #141420 25%, #1a1a28 50%, #12121c 75%, #0a0a0a 100%);
+  background-size: 300% 300%;
+  animation: preview-gradient-shift 10s ease infinite;
+}
+
+@keyframes preview-gradient-shift {
+  0%,
+  100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+.marketing-page .ticker-track-dark .ticker-pill {
+  border-color: rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.85);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+}
+
+.marketing-page .platform-card {
+  transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+}
+
+.marketing-page .platform-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.12);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .marketing-page .preview-gradient-loop {
+    animation: none;
+  }
+
+  .marketing-page .platform-card:hover {
+    transform: none;
+  }
+}
 .marketing-page .marketing-btn-dark,
 .marketing-page a.marketing-btn-dark {
   background-color: #0d0d0d;

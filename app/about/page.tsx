@@ -106,37 +106,21 @@ const VISION_ROADMAP = [
 ];
 
 function SectionHeader({
-  eyebrow,
   title,
-  description,
   dark = false,
   center = false,
 }: {
-  eyebrow: string;
   title: string;
-  description?: string;
   dark?: boolean;
   center?: boolean;
 }) {
   return (
-    <div className={`mb-10 max-w-3xl sm:mb-12 ${center ? "mx-auto text-center" : ""}`}>
-      <p
-        className={`text-sm font-semibold uppercase tracking-[0.18em] ${dark ? "text-[#9CA3AF]" : "text-[#6B7280]"}`}
-      >
-        {eyebrow}
-      </p>
+    <div className={`mb-6 max-w-3xl sm:mb-8 ${center ? "mx-auto text-center" : ""}`}>
       <h2
-        className={`mt-3 text-3xl font-black leading-tight tracking-tight sm:text-4xl lg:text-5xl ${dark ? "text-white" : ""}`}
+        className={`text-3xl font-black leading-tight tracking-tight sm:text-4xl lg:text-5xl ${dark ? "text-white" : ""}`}
       >
         {title}
       </h2>
-      {description ? (
-        <p
-          className={`mt-4 text-base leading-relaxed sm:text-lg ${dark ? "text-[#A3A3A3]" : "text-[#5A5A55]"} ${center ? "mx-auto" : ""}`}
-        >
-          {description}
-        </p>
-      ) : null}
     </div>
   );
 }
@@ -193,7 +177,7 @@ export default function AboutPage() {
 
       <main className="pt-28">
         {/* Hero */}
-        <section className="marketing-section mx-auto w-[min(980px,92vw)] py-16 sm:py-20 md:py-28">
+        <section className="marketing-section marketing-section-compact mx-auto w-[min(980px,92vw)]">
           <span className="inline-flex rounded-full border border-[#D4D3CC] bg-white px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-[#51514A]">
             About Adigator
           </span>
@@ -228,13 +212,9 @@ export default function AboutPage() {
         </section>
 
         {/* Why We Started Adigator */}
-        <section id="why-we-started" className="border-y border-[#DEDDD5] bg-[#FAFAF7] py-16 sm:py-20 md:py-24">
+        <section id="why-we-started" className="border-y border-[#DEDDD5] bg-[#FAFAF7] marketing-section-compact">
           <div className="mx-auto w-[min(1280px,92vw)]">
-            <SectionHeader
-              eyebrow="Why we started Adigator"
-              title="The creative wasn't always the problem"
-              description="Before Adigator, campaigns followed a familiar path. Problems showed up after launch, and teams pointed at the wrong layer."
-            />
+            <SectionHeader title="The creative wasn't always the problem" />
 
             <div className="grid gap-10 lg:grid-cols-2 lg:gap-16">
               <div>
@@ -307,22 +287,14 @@ export default function AboutPage() {
 
         {/* Campaign Validation Gap */}
         <ValidationLayerDiagram
-          eyebrow="The campaign validation gap"
           title="Traditional workflows launch campaigns. They don't validate them."
-          description="Small mismatches between brief, creative, landing page, and platform requirements slip through every handoff until media is live."
           gapLabel="No validation"
         />
 
         {/* Campaign Reality */}
-        <section id="reality" className="bg-[#0D0D0D] py-16 text-white sm:py-20 md:py-24">
+        <section id="reality" className="bg-[#0D0D0D] py-10 text-white sm:py-12 md:py-14">
           <div className="mx-auto w-[min(1280px,92vw)]">
-            <SectionHeader
-              dark
-              center
-              eyebrow="Campaign reality"
-              title="One campaign. Multiple teams. One opportunity to get it right."
-              description="Each team completes its task. Few validate the entire campaign together."
-            />
+            <SectionHeader dark center title="One campaign. Multiple teams. One opportunity to get it right." />
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {CAMPAIGN_TEAMS.map((team, i) => (
                 <motion.article
@@ -348,9 +320,8 @@ export default function AboutPage() {
         </section>
 
         {/* Our Mission */}
-        <section id="mission" className="marketing-section mx-auto w-[min(780px,92vw)] py-16 text-center sm:py-20 md:py-24">
-          <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#6B7280]">Our mission</p>
-          <h2 className="mt-4 text-3xl font-black leading-tight tracking-tight sm:text-4xl lg:text-5xl">
+        <section id="mission" className="marketing-section marketing-section-compact mx-auto w-[min(780px,92vw)] text-center">
+          <h2 className="text-3xl font-black leading-tight tracking-tight sm:text-4xl lg:text-5xl">
             To make campaign validation a standard part of every advertising workflow.
           </h2>
           <p className="mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-[#5A5A55]">
@@ -360,9 +331,9 @@ export default function AboutPage() {
         </section>
 
         {/* What We Believe */}
-        <section id="beliefs" className="border-y border-[#DEDDD5] bg-[#FAFAF7] py-16 sm:py-20 md:py-24">
+        <section id="beliefs" className="border-y border-[#DEDDD5] bg-[#FAFAF7] marketing-section-compact">
           <div className="mx-auto w-[min(1280px,92vw)]">
-            <SectionHeader eyebrow="What we believe" title="Principles that guide how we build" />
+            <SectionHeader title="Principles that guide how we build" />
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {BELIEFS.map((belief, i) => (
                 <motion.div
@@ -382,12 +353,8 @@ export default function AboutPage() {
         </section>
 
         {/* Timeline */}
-        <section id="timeline" className="marketing-section mx-auto w-[min(1280px,92vw)] py-16 sm:py-20 md:py-24">
-          <SectionHeader
-            eyebrow="Our story"
-            title="How Adigator came to be"
-            description="From observing recurring failures to building the validation layer campaigns were missing."
-          />
+        <section id="timeline" className="marketing-section marketing-section-compact mx-auto w-[min(1280px,92vw)]">
+          <SectionHeader title="How Adigator came to be" />
           <div className="mx-auto max-w-lg">
             <div className="mb-6 inline-flex rounded-full border border-[#DEDDD5] bg-white px-5 py-2 text-sm font-black tracking-tight">
               2025
@@ -414,14 +381,9 @@ export default function AboutPage() {
         </section>
 
         {/* Four Pillars */}
-        <section id="pillars" className="bg-[#0D0D0D] py-16 text-white sm:py-20 md:py-24">
+        <section id="pillars" className="bg-[#0D0D0D] py-10 text-white sm:py-12 md:py-14">
           <div className="mx-auto w-[min(1280px,92vw)]">
-            <SectionHeader
-              dark
-              eyebrow="Four pillars"
-              title="What Adigator validates at every stage"
-              description="Validation, quality, consistency, and readiness across the full campaign stack."
-            />
+            <SectionHeader dark title="What Adigator validates at every stage" />
             <div className="grid gap-5 sm:grid-cols-2">
               {FOUR_PILLARS.map((pillar, i) => (
                 <motion.article
@@ -444,12 +406,8 @@ export default function AboutPage() {
         </section>
 
         {/* What Makes Adigator Different */}
-        <section id="different" className="marketing-section mx-auto w-[min(1280px,92vw)] py-16 sm:py-20 md:py-24">
-          <SectionHeader
-            eyebrow="What makes Adigator different"
-            title="We validate campaigns, not just creatives"
-            description="Most tools stop at image analysis. Adigator focuses on operational quality across the full campaign path."
-          />
+        <section id="different" className="marketing-section marketing-section-compact mx-auto w-[min(1280px,92vw)]">
+          <SectionHeader title="We validate campaigns, not just creatives" />
           <div className="grid gap-5 sm:grid-cols-2">
             {DIFFERENTIATORS.map((item, i) => (
               <motion.article
@@ -480,14 +438,9 @@ export default function AboutPage() {
         </section>
 
         {/* Who We Build For */}
-        <section id="who" className="border-y border-[#DEDDD5] bg-[#FAFAF7] py-16 sm:py-20 md:py-24">
+        <section id="who" className="border-y border-[#DEDDD5] bg-[#FAFAF7] marketing-section-compact">
           <div className="mx-auto w-[min(1280px,92vw)] text-center">
-            <SectionHeader
-              center
-              eyebrow="Who we build for"
-              title="Built for teams who ship campaigns at scale"
-              description="If your workflow spans creative, campaign management, media buying, AdOps, or QA, Adigator was built for you."
-            />
+            <SectionHeader center title="Built for teams who ship campaigns at scale" />
             <div className="flex flex-wrap justify-center gap-3">
               {WHO_WE_BUILD_FOR.map((audience) => (
                 <span
@@ -502,12 +455,8 @@ export default function AboutPage() {
         </section>
 
         {/* Where We're Going */}
-        <section id="vision" className="marketing-section mx-auto w-[min(1280px,92vw)] py-16 sm:py-20 md:py-24">
-          <SectionHeader
-            eyebrow="Where we're going"
-            title="From creative validation to campaign operations quality"
-            description="Our roadmap reflects one direction: make validation standard across every stage of campaign operations."
-          />
+        <section id="vision" className="marketing-section marketing-section-compact mx-auto w-[min(1280px,92vw)]">
+          <SectionHeader title="From creative validation to campaign operations quality" />
           <div className="mx-auto flex max-w-md flex-col items-center gap-2">
             {VISION_ROADMAP.map((step, i) => (
               <div key={step.label} className="flex w-full flex-col items-center">
@@ -534,8 +483,8 @@ export default function AboutPage() {
         </section>
 
         {/* Final CTA */}
-        <section className="marketing-section mx-auto w-[min(980px,92vw)] py-16 sm:py-20 md:py-28">
-          <div className="saas-hover rounded-[32px] border border-[#DBDAD2] bg-white px-8 py-12 text-center shadow-[0_20px_50px_rgba(15,23,42,0.08)] sm:px-12 sm:py-16">
+        <section className="marketing-section marketing-section-compact mx-auto w-[min(980px,92vw)]">
+          <div className="saas-hover rounded-[32px] border border-[#DBDAD2] bg-white px-8 py-10 text-center shadow-[0_20px_50px_rgba(15,23,42,0.08)] sm:px-12 sm:py-12">
             <h2 className="mx-auto max-w-3xl text-[clamp(1.75rem,4vw,3rem)] font-black leading-tight tracking-tight">
               Every Campaign Deserves One Final Validation Before Launch.
             </h2>

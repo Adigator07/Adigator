@@ -77,9 +77,9 @@ function FlowColumn({
 
 export default function ValidationLayerDiagram({
   embedded = false,
-  eyebrow = "The missing validation layer",
+  eyebrow = "",
   title = "Campaigns break in the handoff, not in the ad platform.",
-  description = "Briefs, creatives, landing pages, and placements are checked in silos. Adigator validates everything together before media spend begins.",
+  description = "",
   gapLabel = "No one validates whether everything actually aligns.",
 }: {
   embedded?: boolean;
@@ -94,18 +94,22 @@ export default function ValidationLayerDiagram({
     <section
       className={
         embedded
-          ? "mt-14 sm:mt-16"
-          : "marketing-section mx-auto w-[min(1280px,92vw)] py-12 sm:py-16 md:py-20"
+          ? "mt-8 sm:mt-10"
+          : "marketing-section marketing-section-compact mx-auto w-[min(1280px,92vw)]"
       }
     >
-      <div className="mb-8 max-w-3xl sm:mb-10">
-        <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#6B7280]">{eyebrow}</p>
-        <h2 className="mt-3 text-3xl font-black leading-tight tracking-tight sm:text-4xl lg:text-5xl">
+      <div className="mb-6 max-w-3xl sm:mb-8">
+        {eyebrow ? (
+          <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#6B7280]">{eyebrow}</p>
+        ) : null}
+        <h2 className={`${eyebrow ? "mt-3" : ""} text-3xl font-black leading-tight tracking-tight sm:text-4xl lg:text-5xl`}>
           {title}
         </h2>
-        <p className="mt-4 text-base leading-relaxed text-[#5A5A55] sm:text-lg">
-          {description}
-        </p>
+        {description ? (
+          <p className="mt-4 text-base leading-relaxed text-[#5A5A55] sm:text-lg">
+            {description}
+          </p>
+        ) : null}
       </div>
 
       <div className="grid gap-8 rounded-3xl border border-[#DEDDD5] bg-[#FAFAF7] p-6 sm:gap-10 sm:p-8 md:grid-cols-2 lg:p-10">

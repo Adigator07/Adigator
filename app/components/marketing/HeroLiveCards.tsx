@@ -229,7 +229,7 @@ export default function HeroLiveCards() {
       initial={{ opacity: 0, y: 28 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.7, delay: 0.85 }}
-      className="mt-10 grid gap-4 sm:mt-12 sm:gap-5 md:grid-cols-3"
+      className="mt-8 grid gap-4 sm:gap-5 md:grid-cols-3"
     >
       <CampaignValidationCard reduceMotion={!!reduceMotion} />
       <TechnicalValidationCard reduceMotion={!!reduceMotion} />
