@@ -212,8 +212,15 @@ export default function AboutPage() {
         </section>
 
         {/* Why We Started Adigator */}
-        <section id="why-we-started" className="border-y border-[#DEDDD5] bg-[#FAFAF7] marketing-section-compact">
-          <div className="mx-auto w-[min(1280px,92vw)]">
+        <section id="why-we-started" className="relative overflow-hidden border-y border-[#DEDDD5] bg-[#FAFAF7] marketing-section-compact">
+          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_20%_20%,rgba(200,240,77,0.08),transparent_50%),radial-gradient(ellipse_at_80%_80%,rgba(15,23,42,0.04),transparent_45%)]" />
+          <motion.div
+            aria-hidden
+            className="pointer-events-none absolute -left-24 top-1/4 h-64 w-64 rounded-full bg-[#C8F04D]/10 blur-3xl"
+            animate={reduceMotion ? undefined : { x: [0, 30, 0], y: [0, -20, 0] }}
+            transition={{ duration: 12, repeat: Infinity, ease: "easeInOut" }}
+          />
+          <div className="relative mx-auto w-[min(1280px,92vw)]">
             <SectionHeader title="The creative wasn't always the problem" />
 
             <div className="grid gap-10 lg:grid-cols-2 lg:gap-16">
@@ -221,66 +228,133 @@ export default function AboutPage() {
                 <p className="mb-4 text-center text-xs font-bold uppercase tracking-[0.18em] text-[#6B7280] lg:text-left">
                   Before Adigator
                 </p>
-                <div className="mx-auto flex max-w-sm flex-col items-center gap-2 lg:mx-0 lg:max-w-none lg:items-stretch">
-                  {BEFORE_ADIGATOR_FLOW.map((step, i) => (
-                    <div key={step} className="flex w-full flex-col items-center lg:items-stretch">
-                      <motion.div
-                        initial={reduceMotion ? false : { opacity: 0, y: 8 }}
-                        whileInView={{ opacity: 1, y: 0 }}
-                        viewport={{ once: true }}
-                        transition={{ delay: i * 0.04 }}
-                        className={`w-full rounded-xl border px-5 py-3.5 text-center text-sm font-semibold sm:text-base ${
-                          step === "Everyone blames the creative"
-                            ? "border-red-200 bg-red-50 text-red-800"
-                            : "border-[#DEDDD5] bg-white text-[#0D0D0D]"
-                        }`}
-                      >
-                        {step}
-                      </motion.div>
-                      {i < BEFORE_ADIGATOR_FLOW.length - 1 ? (
-                        <ArrowDown size={18} className="my-1.5 text-[#9CA3AF]" aria-hidden />
-                      ) : null}
-                    </div>
-                  ))}
+                <div className="mx-auto flex max-w-sm flex-col items-center gap-0 lg:mx-0 lg:max-w-none lg:items-stretch">
+                  {BEFORE_ADIGATOR_FLOW.map((step, i) => {
+                    const isBlameStep = step === "Everyone blames the creative";
+                    return (
+                      <div key={step} className="flex w-full flex-col items-center lg:items-stretch">
+                        <motion.div
+                          initial={reduceMotion ? false : { opacity: 0, x: -24 }}
+                          whileInView={{ opacity: 1, x: 0 }}
+                          viewport={{ once: true, margin: "-40px" }}
+                          transition={{ delay: i * 0.07, duration: 0.45, ease: "easeOut" }}
+                          whileHover={reduceMotion ? undefined : { scale: 1.02, y: -2 }}
+                          className={`relative w-full overflow-hidden rounded-xl border px-5 py-3.5 text-center text-sm font-semibold shadow-sm sm:text-base ${
+                            isBlameStep
+                              ? "border-red-200 bg-red-50 text-red-800"
+                              : "border-[#DEDDD5] bg-white text-[#0D0D0D]"
+                          }`}
+                        >
+                          {!reduceMotion && !isBlameStep ? (
+                            <motion.span
+                              className="pointer-events-none absolute inset-y-0 left-0 w-1/3 bg-gradient-to-r from-transparent via-white/40 to-transparent"
+                              animate={{ x: ["-120%", "320%"] }}
+                              transition={{ duration: 2.8, repeat: Infinity, repeatDelay: 3 + i * 0.4, ease: "easeInOut" }}
+                            />
+                          ) : null}
+                          {isBlameStep && !reduceMotion ? (
+                            <motion.span
+                              className="pointer-events-none absolute inset-0 rounded-xl ring-2 ring-red-300/60"
+                              animate={{ opacity: [0.3, 0.85, 0.3] }}
+                              transition={{ duration: 2.2, repeat: Infinity, ease: "easeInOut" }}
+                            />
+                          ) : null}
+                          <span className="relative">{step}</span>
+                        </motion.div>
+                        {i < BEFORE_ADIGATOR_FLOW.length - 1 ? (
+                          <motion.div
+                            initial={reduceMotion ? false : { opacity: 0, scaleY: 0 }}
+                            whileInView={{ opacity: 1, scaleY: 1 }}
+                            viewport={{ once: true }}
+                            transition={{ delay: i * 0.07 + 0.15, duration: 0.35 }}
+                            className="flex flex-col items-center py-1.5"
+                          >
+                            <motion.span
+                              animate={reduceMotion ? undefined : { y: [0, 4, 0] }}
+                              transition={{ duration: 1.6, repeat: Infinity, delay: i * 0.15, ease: "easeInOut" }}
+                            >
+                              <ArrowDown size={18} className="text-[#9CA3AF]" aria-hidden />
+                            </motion.span>
+                          </motion.div>
+                        ) : null}
+                      </div>
+                    );
+                  })}
                 </div>
 
                 <motion.div
-                  initial={reduceMotion ? false : { opacity: 0, y: 10 }}
-                  whileInView={{ opacity: 1, y: 0 }}
+                  initial={reduceMotion ? false : { opacity: 0, y: 16, scale: 0.98 }}
+                  whileInView={{ opacity: 1, y: 0, scale: 1 }}
                   viewport={{ once: true }}
-                  className="mx-auto mt-6 max-w-sm rounded-2xl border border-amber-300/60 bg-amber-50 p-6 text-center lg:mx-0 lg:max-w-none lg:text-left"
+                  transition={{ duration: 0.5, delay: 0.2 }}
+                  className="relative mx-auto mt-8 max-w-sm overflow-hidden rounded-2xl border border-amber-300/60 bg-gradient-to-br from-amber-50 via-white to-amber-50/80 p-6 text-center shadow-[0_16px_40px_rgba(245,158,11,0.12)] lg:mx-0 lg:max-w-none lg:text-left"
                 >
-                  <p className="text-sm font-bold uppercase tracking-[0.14em] text-amber-800">But often</p>
-                  <p className="mt-3 text-lg font-black leading-snug text-[#0D0D0D]">
+                  {!reduceMotion ? (
+                    <motion.div
+                      className="pointer-events-none absolute -right-8 -top-8 h-24 w-24 rounded-full bg-amber-200/30 blur-2xl"
+                      animate={{ scale: [1, 1.15, 1], opacity: [0.4, 0.7, 0.4] }}
+                      transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+                    />
+                  ) : null}
+                  <p className="relative text-sm font-bold uppercase tracking-[0.14em] text-amber-800">But often</p>
+                  <p className="relative mt-3 text-lg font-black leading-snug text-[#0D0D0D]">
                     The creative wasn&apos;t the problem.
                   </p>
-                  <p className="mt-2 text-base font-semibold text-amber-900">
+                  <p className="relative mt-2 text-base font-semibold text-amber-900">
                     The campaign was never validated.
                   </p>
                 </motion.div>
               </div>
 
-              <div className="flex flex-col justify-center rounded-3xl border border-[#DEDDD5] bg-white p-8 sm:p-10">
-                <p className="text-sm font-bold uppercase tracking-[0.18em] text-[#6B7280]">
+              <motion.div
+                initial={reduceMotion ? false : { opacity: 0, x: 24 }}
+                whileInView={{ opacity: 1, x: 0 }}
+                viewport={{ once: true, margin: "-40px" }}
+                transition={{ duration: 0.55, ease: "easeOut" }}
+                className="relative flex flex-col justify-center overflow-hidden rounded-3xl border border-[#DEDDD5] bg-white p-8 shadow-[0_24px_60px_rgba(15,23,42,0.08)] sm:p-10"
+              >
+                {!reduceMotion ? (
+                  <motion.div
+                    className="pointer-events-none absolute inset-0 bg-[linear-gradient(120deg,transparent_0%,rgba(200,240,77,0.06)_45%,transparent_70%)]"
+                    animate={{ backgroundPosition: ["0% 0%", "100% 100%", "0% 0%"] }}
+                    transition={{ duration: 8, repeat: Infinity, ease: "linear" }}
+                    style={{ backgroundSize: "200% 200%" }}
+                  />
+                ) : null}
+                <p className="relative text-sm font-bold uppercase tracking-[0.18em] text-[#6B7280]">
                   That&apos;s why we built Adigator
                 </p>
-                <h3 className="mt-4 text-2xl font-black leading-tight tracking-tight sm:text-3xl">
+                <h3 className="relative mt-4 text-2xl font-black leading-tight tracking-tight sm:text-3xl">
                   The final validation layer before launch
                 </h3>
-                <ul className="mt-8 space-y-4">
+                <ul className="relative mt-8 space-y-4">
                   {[
                     "Adigator doesn't replace your creative team.",
                     "It doesn't replace campaign managers.",
                     "It doesn't replace AdOps.",
                     "It becomes the final validation layer before launch.",
-                  ].map((line) => (
-                    <li key={line} className="flex items-start gap-3 text-base leading-relaxed text-[#3D3D38]">
-                      <CheckCircle2 size={20} className="mt-0.5 shrink-0 text-emerald-600" />
+                  ].map((line, i) => (
+                    <motion.li
+                      key={line}
+                      initial={reduceMotion ? false : { opacity: 0, x: 12 }}
+                      whileInView={{ opacity: 1, x: 0 }}
+                      viewport={{ once: true }}
+                      transition={{ delay: 0.15 + i * 0.08, duration: 0.4 }}
+                      className="flex items-start gap-3 text-base leading-relaxed text-[#3D3D38]"
+                    >
+                      <motion.span
+                        initial={reduceMotion ? false : { scale: 0 }}
+                        whileInView={{ scale: 1 }}
+                        viewport={{ once: true }}
+                        transition={{ delay: 0.2 + i * 0.08, type: "spring", stiffness: 260, damping: 18 }}
+                      >
+                        <CheckCircle2 size={20} className="mt-0.5 shrink-0 text-emerald-600" />
+                      </motion.span>
                       {line}
-                    </li>
+                    </motion.li>
                   ))}
                 </ul>
-              </div>
+              </motion.div>
             </div>
           </div>
         </section>

@@ -2,10 +2,8 @@
 
 import { FormEvent, useState } from "react";
 import Link from "next/link";
-import { motion, useReducedMotion } from "framer-motion";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Eye, EyeOff, Lock, Mail, Loader2, Check } from "lucide-react";
-import ParticleCanvas from "@/app/components/ParticleCanvas";
+import { ArrowRight, Eye, EyeOff, Loader2, Check } from "lucide-react";
 import { MARKETING_CTA } from "@/app/lib/siteNavigation";
 import { supabase } from "@/app/lib/supabase";
 import {
@@ -21,25 +19,33 @@ import type { UserRole } from "@/app/lib/communications/types";
 type RegisterRole = Extract<UserRole, "usa_client" | "end_client">;
 
 type FieldErrors = {
-  username?: string;
-  email?: string;
-  password?: string;
-  confirmPassword?: string;
-  role?: string;
   form?: string;
 };
 
-const TICKERS = [
-  { label: "Impressions", value: "2.4M", delta: "+12%" },
-  { label: "CTR", value: "3.8%", delta: "+0.4%" },
-  { label: "Conversions", value: "18.2K", delta: "+9%" },
-  { label: "RoAS", value: "4.2x", delta: "+0.6" },
+const METRICS = [
+  { value: "↑ 69%", label: "ROAS", accent: "text-emerald-400/90" },
+  { value: "↓ 41%", label: "CPI", accent: "text-emerald-400/90" },
+  { value: "3.1x", label: "Launch speed", accent: "text-white" },
+  { value: "-27%", label: "Waste", accent: "text-amber-300/90" },
 ];
+
+const inputClassName =
+  "h-[3.25rem] w-full rounded-xl border border-[#E8E6DF] bg-white/90 px-4 text-[15px] text-[#0D0D0D] shadow-[inset_0_1px_2px_rgba(15,23,42,0.04)] outline-none transition placeholder:text-[#9CA3AF] focus:border-[#0D0D0D]/30 focus:bg-white focus:shadow-[0_0_0_3px_rgba(13,13,13,0.06)]";
+
+function GoogleIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5 shrink-0" fill="none">
+      <path d="M21.35 12.25c0-.78-.07-1.52-.2-2.24H12v4.24h5.23c-.22 1.2-.9 2.22-1.9 2.9v2.41h3.08c1.81-1.67 2.94-4.12 2.94-7.31Z" fill="#4285F4" />
+      <path d="M12 21.75c2.63 0 4.84-.87 6.45-2.36l-3.08-2.41c-.87.58-1.98.93-3.37.93-2.58 0-4.77-1.74-5.56-4.08H3.26v2.49A9.74 9.74 0 0 0 12 21.75Z" fill="#34A853" />
+      <path d="M6.44 13.83a5.86 5.86 0 0 1 0-3.66V7.68H3.26a9.74 9.74 0 0 0 0 8.64l3.18-2.49Z" fill="#FBBC05" />
+      <path d="M12 6.09c1.4 0 2.65.48 3.64 1.43l2.73-2.73C16.84 3.38 14.63 2.5 12 2.5 8.2 2.5 4.93 4.68 3.26 7.68l3.18 2.49C7.23 7.83 9.42 6.09 12 6.09Z" fill="#EA4335" />
+    </svg>
+  );
+}
 
 export default function LoginContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const reduceMotion = useReducedMotion();
   const isRegisterMode = searchParams.get("mode") === "register";
   const isResetMode = searchParams.get("reset") === "1";
   const [username, setUsername] = useState("");
@@ -53,12 +59,20 @@ export default function LoginContent() {
   const [success, setSuccess] = useState(false);
   const [resetEmail, setResetEmail] = useState("");
   const [resetMessage, setResetMessage] = useState<string | null>(null);
-  const [shakeField, setShakeField] = useState<string | null>(null);
 
-  const triggerShake = (field: string) => {
-    setShakeField(field);
-    setTimeout(() => setShakeField(null), 400);
-  };
+  const leftEyebrow = isResetMode ? "Password recovery" : isRegisterMode ? "Create account" : "Welcome back";
+  const leftTitle = isResetMode
+    ? "Reset your password"
+    : isRegisterMode
+      ? "Create your account"
+      : "Sign in to Adigator";
+  const leftSubtitle = isResetMode
+    ? "We will send a secure link to your inbox."
+    : isRegisterMode
+      ? "Register to access your Adigator workspace."
+      : "Continue to your campaign validation workspace.";
+  const formTitle = isResetMode ? "Reset password" : isRegisterMode ? "Register" : "Log in";
+  const submitLabel = isResetMode ? "Send reset link" : isRegisterMode ? "Register" : "Log in";
 
   const handlePasswordReset = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -97,7 +111,6 @@ export default function LoginContent() {
 
     if (Object.keys(nextErrors).length > 0) {
       setErrors(nextErrors);
-      triggerShake("form");
       return;
     }
 
@@ -130,7 +143,6 @@ export default function LoginContent() {
           ? (response.status === 400 ? (result.error || GENERIC_AUTH_VALIDATION_ERROR) : GENERIC_SIGNUP_RESPONSE_MESSAGE)
           : LOGIN_INCORRECT_CREDENTIALS_ERROR;
         setErrors({ form: message });
-        triggerShake("form");
         return;
       }
 
@@ -140,12 +152,7 @@ export default function LoginContent() {
       }
 
       if (!result.session?.access_token || !result.session?.refresh_token) {
-        if (isRegisterMode) {
-          setErrors({ form: result.message || GENERIC_SIGNUP_RESPONSE_MESSAGE });
-          return;
-        }
-        setErrors({ form: LOGIN_INCORRECT_CREDENTIALS_ERROR });
-        triggerShake("form");
+        setErrors({ form: isRegisterMode ? (result.message || GENERIC_SIGNUP_RESPONSE_MESSAGE) : LOGIN_INCORRECT_CREDENTIALS_ERROR });
         return;
       }
 
@@ -158,7 +165,6 @@ export default function LoginContent() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
         setErrors({ form: LOGIN_INCORRECT_CREDENTIALS_ERROR });
-        triggerShake("form");
         return;
       }
 
@@ -189,254 +195,243 @@ export default function LoginContent() {
       setErrors({
         form: isRegisterMode ? GENERIC_SIGNUP_RESPONSE_MESSAGE : LOGIN_INCORRECT_CREDENTIALS_ERROR,
       });
-      triggerShake("form");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="relative min-h-screen bg-[var(--agi-bg)] text-[var(--agi-text-primary)]">
-      {success ? (
-        <div className="pointer-events-none fixed inset-0 z-[90] bg-[rgba(59,123,255,0.25)] animate-pulse" aria-hidden="true" />
-      ) : null}
+    <div className="min-h-screen bg-[#F7F5EF] text-[#0D0D0D]">
+      <div className="grid min-h-screen lg:grid-cols-2">
+        {/* Left — brand panel */}
+        <section className="relative hidden flex-col justify-between overflow-hidden bg-[#080808] px-10 py-12 text-white lg:flex xl:px-14 xl:py-16">
+          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_20%_0%,rgba(200,168,107,0.12),transparent_55%),radial-gradient(ellipse_at_80%_100%,rgba(255,255,255,0.04),transparent_50%)]" />
+          <div className="pointer-events-none absolute inset-0 opacity-[0.35] [background-image:linear-gradient(rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.03)_1px,transparent_1px)] [background-size:64px_64px]" />
 
-      <div className="grid min-h-screen grid-cols-1 lg:grid-cols-[3fr_2fr]">
-        {/* Left panel */}
-        <section className="relative hidden min-h-screen flex-col justify-between overflow-hidden p-10 lg:flex">
-          <div className="absolute inset-0">
-            <div className="agi-particle-fallback h-full w-full" />
-            <div className="absolute inset-0">
-              <ParticleCanvas density="dense" interactive={false} fullScreen={false} />
-            </div>
-          </div>
           <div className="relative z-10">
-            <Link href="/" className="text-xl font-extrabold tracking-tight">
-              <span className="bg-gradient-to-r from-[#3B7BFF] to-[#00D4FF] bg-clip-text text-transparent">Adigator</span>
+            <Link href="/" className="text-[1.35rem] font-black tracking-[-0.03em] text-white">
+              Adigator
             </Link>
           </div>
-          <div className="relative z-10">
-            <p className="text-sm uppercase tracking-[0.2em] text-[#00d4ff]">Ad Intelligence Platform</p>
-            <h1 className="agi-hero-glow mt-4 max-w-lg text-4xl font-extrabold leading-tight tracking-[-0.03em] text-[#f0f2ff] xl:text-5xl">
-              Where Ad Intelligence Meets Action
+
+          <div className="relative z-10 max-w-lg">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-white/45">{leftEyebrow}</p>
+            <h1 className="mt-5 text-[clamp(2.25rem,4vw,3.25rem)] font-black leading-[1.02] tracking-[-0.04em] text-white">
+              {leftTitle}
             </h1>
-            <div className="mt-10 grid max-w-md grid-cols-2 gap-3">
-              {TICKERS.map((t, i) => (
-                <motion.div
-                  key={t.label}
-                  className="rounded-xl border border-[rgba(59,123,255,0.25)] bg-[rgba(14,16,22,0.92)] p-4 backdrop-blur-md"
-                  initial={{ opacity: 0, y: 12 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: i * 0.08 }}
+            <p className="mt-5 max-w-md text-base leading-relaxed text-white/55">{leftSubtitle}</p>
+
+            <div className="mt-12 grid grid-cols-2 gap-4">
+              {METRICS.map((metric) => (
+                <div
+                  key={metric.label}
+                  className="rounded-2xl border border-white/[0.08] bg-white/[0.04] px-5 py-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] backdrop-blur-sm"
                 >
-                  <p className="agi-stat-value text-xl text-[#f0f2ff]">{t.value}</p>
-                  <p className="mt-1 text-xs text-[#8890a8]">{t.label}</p>
-                  <p className="mt-1 text-xs font-medium text-[#00ff88]">{t.delta}</p>
-                </motion.div>
+                  <p className={`text-2xl font-black tracking-tight ${metric.accent}`}>{metric.value}</p>
+                  <p className="mt-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-white/40">{metric.label}</p>
+                </div>
               ))}
             </div>
           </div>
-          <p className="relative z-10 text-sm text-[#8890a8]">
-            Signal-rich validation · Contextual previews · Strategic export
+
+          <p className="relative z-10 text-sm text-white/45">
+            {isRegisterMode ? "Already have an account?" : "New to Adigator?"}{" "}
+            <Link
+              href={isRegisterMode ? "/login" : "/login?mode=register"}
+              className="font-semibold text-white/85 transition hover:text-white"
+            >
+              {isRegisterMode ? "Log in" : "Register"}
+            </Link>
+            {" or "}
+            <Link href={MARKETING_CTA.href} className="inline-flex items-center gap-1 font-semibold text-white/85 transition hover:text-white">
+              Book a demo
+              <ArrowRight size={14} aria-hidden />
+            </Link>
           </p>
         </section>
 
-        {/* Right panel — form */}
-        <section className="flex min-h-screen items-center justify-center px-6 py-12">
-          <motion.div
-            className="w-full max-w-md rounded-2xl border border-[rgba(59,123,255,0.3)] bg-[#111318] p-8 shadow-2xl"
-            initial={reduceMotion ? false : { opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-          >
-            <div className="mb-8 text-center">
-              <Link href="/" className="text-lg font-extrabold lg:hidden">
-                <span className="bg-gradient-to-r from-[#3B7BFF] to-[#00D4FF] bg-clip-text text-transparent">Adigator</span>
+        {/* Right — form panel */}
+        <section className="flex min-h-screen items-center justify-center px-6 py-12 sm:px-10 lg:px-14 xl:px-20">
+          <div className="w-full max-w-[420px]">
+            <div className="mb-10 lg:hidden">
+              <Link href="/" className="text-xl font-black tracking-tight text-[#0D0D0D]">
+                Adigator
               </Link>
-              <h2 className="mt-2 text-2xl font-bold text-[#f0f2ff]">
-                {isResetMode ? "Reset password" : isRegisterMode ? "Create account" : "Welcome back"}
-              </h2>
-              <p className="mt-1 text-sm text-[#8890a8]">
-                {isResetMode
-                  ? "We'll email you a link to choose a new password"
-                  : isRegisterMode
-                    ? "Register to access your workspace"
-                    : "Sign in to continue"}
-              </p>
             </div>
 
+            <h2 className="text-[clamp(2rem,5vw,2.75rem)] font-black tracking-[-0.04em] text-[#0D0D0D]">
+              {formTitle}
+            </h2>
+
             {isResetMode ? (
-              <form onSubmit={handlePasswordReset} noValidate className="space-y-4">
-                <div className={`agi-floating-field agi-floating-field--has-icon ${shakeField === "email" ? "agi-shake" : ""}`}>
-                  <input
-                    id="reset-email"
-                    type="email"
-                    placeholder=" "
-                    value={resetEmail}
-                    onChange={(e) => setResetEmail(e.target.value)}
-                    className="agi-input"
-                  />
-                  <label htmlFor="reset-email" className="agi-floating-label">Email</label>
-                  <Mail size={16} className="agi-field-icon" />
-                </div>
+              <form onSubmit={handlePasswordReset} noValidate className="mt-10 space-y-4">
+                <input
+                  id="reset-email"
+                  type="email"
+                  autoComplete="email"
+                  value={resetEmail}
+                  onChange={(e) => setResetEmail(e.target.value)}
+                  className={inputClassName}
+                  placeholder="Email"
+                />
 
                 {resetMessage ? (
-                  <p className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-300">
+                  <p className="rounded-xl border border-emerald-200/80 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
                     {resetMessage}
                   </p>
                 ) : null}
 
-                <button type="submit" disabled={loading} className="agi-btn-primary w-full">
-                  {loading ? <Loader2 size={20} className="animate-spin" /> : null}
-                  <span>{loading ? "Please wait…" : "Send reset link"}</span>
+                {errors.form ? (
+                  <p className="rounded-xl border border-red-200/80 bg-red-50 px-4 py-3 text-sm text-red-800">{errors.form}</p>
+                ) : null}
+
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="mt-2 flex h-[3.25rem] w-full items-center justify-center gap-2 rounded-full bg-[#0D0D0D] text-[15px] font-semibold text-white shadow-[0_12px_30px_rgba(13,13,13,0.18)] transition hover:bg-[#1a1a1a] disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {loading ? <Loader2 size={18} className="animate-spin" aria-hidden /> : null}
+                  {loading ? "Sending…" : submitLabel}
                 </button>
 
-                <p className="text-center text-sm text-[var(--agi-text-muted)]">
-                  <Link href="/login" className="font-semibold text-[var(--agi-accent-cyan)] hover:underline">
+                <p className="pt-4 text-center text-sm text-[#6B7280]">
+                  <Link href="/login" className="font-semibold text-[#0D0D0D] hover:underline">
                     Back to log in
                   </Link>
                 </p>
               </form>
             ) : (
               <>
-            <button
-              type="button"
-              className="agi-btn-ghost w-full !h-12 !text-sm"
-            >
-              <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5" fill="none">
-                <path d="M21.35 12.25c0-.78-.07-1.52-.2-2.24H12v4.24h5.23c-.22 1.2-.9 2.22-1.9 2.9v2.41h3.08c1.81-1.67 2.94-4.12 2.94-7.31Z" fill="#4285F4" />
-                <path d="M12 21.75c2.63 0 4.84-.87 6.45-2.36l-3.08-2.41c-.87.58-1.98.93-3.37.93-2.58 0-4.77-1.74-5.56-4.08H3.26v2.49A9.74 9.74 0 0 0 12 21.75Z" fill="#34A853" />
-                <path d="M6.44 13.83a5.86 5.86 0 0 1 0-3.66V7.68H3.26a9.74 9.74 0 0 0 0 8.64l3.18-2.49Z" fill="#FBBC05" />
-                <path d="M12 6.09c1.4 0 2.65.48 3.64 1.43l2.73-2.73C16.84 3.38 14.63 2.5 12 2.5 8.2 2.5 4.93 4.68 3.26 7.68l3.18 2.49C7.23 7.83 9.42 6.09 12 6.09Z" fill="#EA4335" />
-              </svg>
-              Continue with Google
-            </button>
-
-            <div className="my-6 flex items-center gap-3">
-              <span className="h-px flex-1 bg-[var(--agi-border-subtle)]" />
-              <span className="text-xs uppercase tracking-wider text-[var(--agi-text-muted)]">or continue with email</span>
-              <span className="h-px flex-1 bg-[var(--agi-border-subtle)]" />
-            </div>
-
-            <form onSubmit={handleSubmit} noValidate className="space-y-4">
-              {isRegisterMode ? (
-                <div>
-                  <p className="mb-3 text-xs font-medium uppercase tracking-wider text-[var(--agi-text-muted)]">I am a…</p>
-                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                    {REGISTRATION_ROLES.map((option) => {
-                      const active = selectedRole === option.value;
-                      return (
-                        <button
-                          key={option.value}
-                          type="button"
-                          onClick={() => {
-                            setSelectedRole(option.value as RegisterRole);
-                            if (errors.role) setErrors((prev) => ({ ...prev, role: undefined }));
-                          }}
-                          className={`rounded-xl border px-3 py-3 text-left text-sm transition ${
-                            active
-                              ? "border-[var(--agi-accent-blue)] bg-[rgba(59,123,255,0.15)]"
-                              : "border-[var(--agi-border-subtle)] hover:border-[var(--agi-border-active)]"
-                          }`}
-                        >
-                          <p className="font-semibold">{option.label}</p>
-                          <p className="mt-0.5 text-xs text-[var(--agi-text-secondary)]">{option.description}</p>
-                        </button>
-                      );
-                    })}
-                  </div>
-                  {errors.role ? <p className="mt-2 text-xs text-red-400">{errors.role}</p> : null}
-                </div>
-              ) : null}
-
-              {isRegisterMode ? (
-                <div className={`agi-floating-field ${shakeField === "username" ? "agi-shake" : ""}`}>
-                  <input
-                    id="username"
-                    type="text"
-                    placeholder=" "
-                    value={username}
-                    onChange={(e) => { setUsername(e.target.value); if (errors.username) setErrors((p) => ({ ...p, username: undefined })); }}
-                    className={`agi-input ${errors.username ? "agi-input-error" : ""}`}
-                  />
-                  <label htmlFor="username" className="agi-floating-label">Username</label>
-                  {errors.username ? <p className="mt-1 text-xs text-red-400">{errors.username}</p> : null}
-                </div>
-              ) : null}
-
-              <div className={`agi-floating-field agi-floating-field--has-icon ${shakeField === "email" ? "agi-shake" : ""}`}>
-                <input
-                  id="email"
-                  type="email"
-                  placeholder=" "
-                  value={email}
-                  onChange={(e) => { setEmail(e.target.value); if (errors.email) setErrors((p) => ({ ...p, email: undefined })); }}
-                  className={`agi-input ${errors.email ? "agi-input-error" : ""}`}
-                />
-                <label htmlFor="email" className="agi-floating-label">Email</label>
-                <Mail size={16} className="agi-field-icon" />
-                {errors.email ? <p className="mt-1 text-xs text-red-400">{errors.email}</p> : null}
-              </div>
-
-              <div className={`agi-floating-field agi-floating-field--has-icon ${shakeField === "password" ? "agi-shake" : ""}`}>
-                <input
-                  id="password"
-                  type={showPassword ? "text" : "password"}
-                  placeholder=" "
-                  value={password}
-                  onChange={(e) => { setPassword(e.target.value); if (errors.password) setErrors((p) => ({ ...p, password: undefined })); }}
-                  className={`agi-input pr-12 ${errors.password ? "agi-input-error" : ""}`}
-                />
-                <label htmlFor="password" className="agi-floating-label">Password</label>
-                <Lock size={16} className="agi-field-icon" />
-                <button type="button" onClick={() => setShowPassword((v) => !v)} className="absolute right-3 top-[28px] rounded p-1 text-[var(--agi-text-muted)] hover:text-[var(--agi-text-primary)]" aria-label={showPassword ? "Hide password" : "Show password"}>
-                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                <button
+                  type="button"
+                  className="mt-10 flex h-[3.25rem] w-full items-center justify-center gap-3 rounded-xl border border-[#E8E6DF] bg-white text-[15px] font-medium text-[#0D0D0D] shadow-[0_2px_12px_rgba(15,23,42,0.04)] transition hover:border-[#D5D2C8] hover:bg-[#FDFCFA]"
+                >
+                  <GoogleIcon />
+                  Continue with Google
                 </button>
-                {errors.password ? <p className="mt-1 text-xs text-red-400">{errors.password}</p> : null}
-              </div>
 
-              {isRegisterMode ? (
-                <div className={`agi-floating-field ${shakeField === "confirmPassword" ? "agi-shake" : ""}`}>
+                <div className="my-8 flex items-center gap-4">
+                  <span className="h-px flex-1 bg-[#E8E6DF]" />
+                  <span className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#9CA3AF]">
+                    or continue with email
+                  </span>
+                  <span className="h-px flex-1 bg-[#E8E6DF]" />
+                </div>
+
+                <form onSubmit={handleSubmit} noValidate className="space-y-4">
+                  {isRegisterMode ? (
+                    <div className="grid grid-cols-2 gap-2 rounded-xl border border-[#E8E6DF] bg-[#FAFAF7] p-1">
+                      {REGISTRATION_ROLES.map((option) => {
+                        const active = selectedRole === option.value;
+                        return (
+                          <button
+                            key={option.value}
+                            type="button"
+                            onClick={() => setSelectedRole(option.value as RegisterRole)}
+                            className={`rounded-lg px-3 py-2.5 text-left text-xs transition ${
+                              active
+                                ? "bg-white text-[#0D0D0D] shadow-sm"
+                                : "text-[#6B7280] hover:text-[#0D0D0D]"
+                            }`}
+                          >
+                            <span className="block font-semibold">{option.label}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  ) : null}
+
+                  {isRegisterMode ? (
+                    <input
+                      id="username"
+                      type="text"
+                      autoComplete="username"
+                      value={username}
+                      onChange={(e) => setUsername(e.target.value)}
+                      className={inputClassName}
+                      placeholder="Username"
+                    />
+                  ) : null}
+
                   <input
-                    id="confirm-password"
-                    type={showPassword ? "text" : "password"}
-                    placeholder=" "
-                    value={confirmPassword}
-                    onChange={(e) => { setConfirmPassword(e.target.value); if (errors.confirmPassword) setErrors((p) => ({ ...p, confirmPassword: undefined })); }}
-                    className={`agi-input ${errors.confirmPassword ? "agi-input-error" : ""}`}
+                    id="email"
+                    type="email"
+                    autoComplete="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className={inputClassName}
+                    placeholder="Email"
                   />
-                  <label htmlFor="confirm-password" className="agi-floating-label">Confirm password</label>
-                  {errors.confirmPassword ? <p className="mt-1 text-xs text-red-400">{errors.confirmPassword}</p> : null}
-                </div>
-              ) : null}
 
-              {!isRegisterMode ? (
-                <div className="flex justify-end">
-                  <Link href="/login?reset=1" className="text-xs text-[var(--agi-text-muted)] hover:text-[var(--agi-accent-cyan)]">Forgot password?</Link>
-                </div>
-              ) : null}
+                  <div className="relative">
+                    <input
+                      id="password"
+                      type={showPassword ? "text" : "password"}
+                      autoComplete={isRegisterMode ? "new-password" : "current-password"}
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      className={`${inputClassName} pr-16`}
+                      placeholder="Password"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword((v) => !v)}
+                      className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-semibold uppercase tracking-[0.12em] text-[#6B7280] transition hover:text-[#0D0D0D]"
+                    >
+                      {showPassword ? "Hide" : "Show"}
+                    </button>
+                  </div>
 
-              {errors.form ? (
-                <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-300">{errors.form}</p>
-              ) : null}
+                  {isRegisterMode ? (
+                    <input
+                      id="confirm-password"
+                      type={showPassword ? "text" : "password"}
+                      autoComplete="new-password"
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      className={inputClassName}
+                      placeholder="Confirm password"
+                    />
+                  ) : null}
 
-              <button type="submit" disabled={loading || success} className="agi-btn-primary w-full">
-                {success ? <Check size={20} /> : loading ? <Loader2 size={20} className="animate-spin" /> : null}
-                <span>{success ? "Success" : loading ? "Please wait…" : isRegisterMode ? "Register" : "Log in"}</span>
-              </button>
-            </form>
+                  {!isRegisterMode ? (
+                    <div className="flex justify-end pt-1">
+                      <Link href="/login?reset=1" className="text-xs font-medium text-[#6B7280] transition hover:text-[#0D0D0D]">
+                        Forgot password?
+                      </Link>
+                    </div>
+                  ) : null}
 
-            <p className="mt-6 text-center text-sm text-[var(--agi-text-muted)]">
-              {isRegisterMode ? "Already have an account?" : "New here?"}{" "}
-              <Link href={isRegisterMode ? "/login" : "/login?mode=register"} className="font-semibold text-[var(--agi-accent-cyan)] hover:underline">
-                {isRegisterMode ? "Log in" : "Register"}
-              </Link>
-              {" · "}
-              <Link href={MARKETING_CTA.href} className="font-semibold text-[var(--agi-accent-cyan)] hover:underline">Get a demo</Link>
-            </p>
+                  {errors.form ? (
+                    <p className="rounded-xl border border-red-200/80 bg-red-50 px-4 py-3 text-sm text-red-800">{errors.form}</p>
+                  ) : null}
+
+                  <button
+                    type="submit"
+                    disabled={loading || success}
+                    className="mt-2 flex h-[3.25rem] w-full items-center justify-center gap-2 rounded-full bg-[#0D0D0D] text-[15px] font-semibold text-white shadow-[0_12px_30px_rgba(13,13,13,0.18)] transition hover:bg-[#1a1a1a] disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {success ? <Check size={18} aria-hidden /> : loading ? <Loader2 size={18} className="animate-spin" aria-hidden /> : null}
+                    {success ? "Success" : loading ? "Please wait…" : submitLabel}
+                  </button>
+                </form>
+
+                <p className="mt-10 text-sm text-[#6B7280]">
+                  {isRegisterMode ? "Already have an account?" : "Don't have an account?"}{" "}
+                  <Link
+                    href={isRegisterMode ? "/login" : "/login?mode=register"}
+                    className="font-semibold text-[#0D0D0D] hover:underline"
+                  >
+                    {isRegisterMode ? "Log in" : "Register"}
+                  </Link>
+                  {" or "}
+                  <Link href={MARKETING_CTA.href} className="font-semibold text-[#0D0D0D] hover:underline">
+                    Get a demo
+                  </Link>
+                </p>
               </>
             )}
-          </motion.div>
+          </div>
         </section>
       </div>
     </div>

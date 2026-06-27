@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 import {
   BarChart3,
   Briefcase,
@@ -203,26 +203,27 @@ export default function HomePage() {
 
       <main className="pt-28">
         {/* Hero */}
-        <section className="marketing-section marketing-section-compact mx-auto w-[min(1280px,92vw)]">
-          <div className="max-w-5xl">
-            <h1 className="text-[clamp(2rem,5.5vw,4.25rem)] font-black leading-[1.05] tracking-[-0.04em]">
-              The Pre Launch Campaign Validation Platform That Helps You
+        <section className="marketing-section marketing-section-compact mx-auto w-[min(1280px,92vw)] overflow-visible">
+          <div className="max-w-5xl overflow-visible">
+            <h1 className="text-[clamp(2rem,5.5vw,4.25rem)] font-black leading-[1.08] tracking-[-0.04em]">
+              The Pre Launch Campaign Validation Platform That Helps You{" "}
+              <span className="relative inline-grid text-[#111827]">
+                {HERO_BENEFITS.map((benefit) => (
+                  <motion.span
+                    key={benefit}
+                    initial={false}
+                    animate={{
+                      opacity: benefit === HERO_BENEFITS[benefitIndex] ? 1 : 0,
+                    }}
+                    transition={{ duration: 0.35, ease: "easeOut" }}
+                    className="col-start-1 row-start-1"
+                    aria-hidden={benefit !== HERO_BENEFITS[benefitIndex]}
+                  >
+                    {benefit}
+                  </motion.span>
+                ))}
+              </span>
             </h1>
-
-            <div className="mt-4 min-h-[3.5rem] sm:min-h-[4rem]">
-              <AnimatePresence mode="wait">
-                <motion.p
-                  key={HERO_BENEFITS[benefitIndex]}
-                  initial={{ opacity: 0, y: 16 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -16 }}
-                  transition={{ duration: 0.35 }}
-                  className="text-[clamp(1.75rem,4.5vw,3.25rem)] font-black leading-tight tracking-[-0.03em] text-[#111827]"
-                >
-                  {HERO_BENEFITS[benefitIndex]}
-                </motion.p>
-              </AnimatePresence>
-            </div>
 
             <motion.p
               initial={{ opacity: 0, y: 20 }}

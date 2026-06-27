@@ -1,24 +1,17 @@
 "use client";
 
 import Link from "next/link";
-import { motion, useReducedMotion } from "framer-motion";
+import { motion } from "framer-motion";
 import {
-  ArrowDown,
-  BarChart3,
-  Briefcase,
   Check,
   CheckCircle2,
-  FileText,
   Globe,
   Image,
-  Link2,
   Monitor,
   Shield,
-  Smartphone,
   Target,
   Users,
   X,
-  Zap,
 } from "lucide-react";
 import {
   MARKETING_CTA,
@@ -27,6 +20,7 @@ import {
 } from "@/app/lib/siteNavigation";
 import MarketingNav from "@/app/components/MarketingNav";
 import ValidationLayerDiagram from "@/app/components/marketing/ValidationLayerDiagram";
+import CampaignJourneyFlow from "@/app/components/marketing/CampaignJourneyFlow";
 
 const PROBLEMS_WE_SOLVE = [
   {
@@ -65,15 +59,7 @@ const PROBLEMS_WE_SOLVE = [
   },
 ];
 
-const CAMPAIGN_JOURNEY = [
-  "Campaign starts",
-  "Creative created",
-  "Landing page built",
-  "Campaign configured",
-  "Platform selected",
-  "Adigator validates everything",
-  "Campaign launches confidently",
-];
+const CAMPAIGN_REALITY_TAGS = ["73 creatives", "1 campaign"];
 
 const OUTCOME_CARDS = [
   {
@@ -118,32 +104,6 @@ const TEAM_SOLUTIONS = [
   { title: "QA Teams", description: "Standardized checks across creatives, URLs, and platform requirements." },
   { title: "Brand Teams", description: "Consistent validation standards across regions and channels." },
   { title: "Agency Operations", description: "Unified workflow across clients, teams, and approval stages." },
-];
-
-const PLATFORM_SOLUTIONS = [
-  { title: "Meta Ads", description: "Feed, Story, Reels, and placement safe zones validated together." },
-  { title: "Google Ads", description: "Display, RDA, and Demand Gen size and format requirements covered." },
-  { title: "Programmatic", description: "RTB sizes, file weight, and inventory compatibility checked." },
-  { title: "Display", description: "IAB standard sizes and viewability friendly assets." },
-  { title: "Responsive Display", description: "Crop survival and asset group readiness for Google RDA." },
-  { title: "Native", description: "Publisher native formats and in feed creative fit." },
-];
-
-const VALIDATES_GRID = [
-  { label: "Campaign Brief", icon: Briefcase },
-  { label: "Campaign Goal", icon: Target },
-  { label: "Campaign Description", icon: FileText },
-  { label: "Creative", icon: Image },
-  { label: "Landing Page", icon: Globe },
-  { label: "URL", icon: Link2 },
-  { label: "UTM", icon: Zap },
-  { label: "File Size", icon: Shield },
-  { label: "Safe Zones", icon: Monitor },
-  { label: "Placement Compatibility", icon: BarChart3 },
-  { label: "Device Compatibility", icon: Smartphone },
-  { label: "Inventory Compatibility", icon: FileText },
-  { label: "Preview", icon: Monitor },
-  { label: "Launch Readiness", icon: CheckCircle2 },
 ];
 
 const INDUSTRY_SOLUTIONS = [
@@ -198,35 +158,6 @@ function SectionHeader({ title, dark = false }: { title: string; dark?: boolean 
   );
 }
 
-function SolutionGrid({
-  items,
-}: {
-  items: Array<{ title: string; description: string; icon?: string }>;
-}) {
-  return (
-    <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-      {items.map((item, i) => (
-        <motion.article
-          key={item.title}
-          initial={{ opacity: 0, y: 12 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ delay: i * 0.04 }}
-          className="saas-hover rounded-2xl border border-[#DEDDD5] bg-white p-6 shadow-[0_12px_24px_rgba(15,23,42,0.05)] sm:p-7"
-        >
-          {item.icon ? (
-            <div className="mb-4 inline-flex h-11 w-11 items-center justify-center rounded-full border border-[#D8D7CF] bg-[#F8F8F4] text-lg font-bold">
-              {item.icon}
-            </div>
-          ) : null}
-          <h3 className="text-xl font-black leading-tight tracking-tight">{item.title}</h3>
-          <p className="mt-3 text-sm leading-relaxed text-[#585852] sm:text-base">{item.description}</p>
-        </motion.article>
-      ))}
-    </div>
-  );
-}
-
 function Footer() {
   return (
     <footer className="border-t border-[#DDDCD4] bg-[#F5F5F0] py-20">
@@ -271,8 +202,6 @@ function Footer() {
 }
 
 export default function SolutionsPage() {
-  const reduceMotion = useReducedMotion();
-
   return (
     <div className="marketing-page min-h-screen bg-[#F5F5F0] text-[#0D0D0D]">
       <MarketingNav activePath="/solutions" />
@@ -280,10 +209,7 @@ export default function SolutionsPage() {
       <main className="pt-28">
         {/* 1. Hero */}
         <section className="marketing-section marketing-section-compact mx-auto w-[min(980px,92vw)] text-center">
-          <span className="inline-flex rounded-full border border-[#D4D3CC] bg-white px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-[#51514A]">
-            Solutions
-          </span>
-          <h1 className="mx-auto mt-6 max-w-5xl text-[clamp(2rem,6vw,4.5rem)] font-black leading-[0.98] tracking-[-0.04em] sm:mt-8">
+          <h1 className="mx-auto max-w-5xl text-[clamp(2rem,6vw,4.5rem)] font-black leading-[0.98] tracking-[-0.04em]">
             Solutions Built for Modern Campaign Operations
           </h1>
           <p className="mx-auto mt-7 max-w-2xl text-lg leading-relaxed text-[#5C5C56]">
@@ -328,28 +254,7 @@ export default function SolutionsPage() {
         <section id="journey" className="border-y border-[#DEDDD5] bg-[#FAFAF7] marketing-section-compact">
           <div className="mx-auto w-[min(1280px,92vw)]">
             <SectionHeader title="Where validation fits in your workflow" />
-            <div className="mx-auto flex max-w-md flex-col items-center gap-2">
-              {CAMPAIGN_JOURNEY.map((step, i) => (
-                <div key={step} className="flex w-full flex-col items-center">
-                  <motion.div
-                    initial={reduceMotion ? false : { opacity: 0, y: 8 }}
-                    whileInView={{ opacity: 1, y: 0 }}
-                    viewport={{ once: true }}
-                    transition={{ delay: i * 0.04 }}
-                    className={`w-full rounded-xl border px-5 py-3.5 text-center text-sm font-semibold sm:text-base ${
-                      step === "Adigator validates everything"
-                        ? "border-[#C8F04D]/50 bg-[#C8F04D]/15 text-[#0D0D0D] shadow-[0_0_24px_rgba(200,240,77,0.2)]"
-                        : "border-[#DEDDD5] bg-white text-[#0D0D0D]"
-                    }`}
-                  >
-                    {step}
-                  </motion.div>
-                  {i < CAMPAIGN_JOURNEY.length - 1 ? (
-                    <ArrowDown size={18} className="my-1.5 text-[#9CA3AF]" aria-hidden />
-                  ) : null}
-                </div>
-              ))}
-            </div>
+            <CampaignJourneyFlow />
           </div>
         </section>
 
@@ -398,17 +303,21 @@ export default function SolutionsPage() {
           </div>
         </section>
 
-        {/* Solutions by Team */}
+        {/* Solutions by Team — train loop */}
         <section id="team" className="marketing-section marketing-section-compact mx-auto w-[min(1280px,92vw)]">
           <SectionHeader title="Every role in the campaign chain, covered" />
-          <SolutionGrid items={TEAM_SOLUTIONS} />
-        </section>
-
-        {/* Solutions by Platform */}
-        <section id="platform" className="border-y border-[#DEDDD5] bg-[#FAFAF7] marketing-section-compact">
-          <div className="mx-auto w-[min(1280px,92vw)]">
-            <SectionHeader title="One campaign. Multiple platforms. One validation pass." />
-            <SolutionGrid items={PLATFORM_SOLUTIONS} />
+          <div className="overflow-hidden py-2">
+            <div className="ticker-track flex min-w-max gap-4">
+              {[...TEAM_SOLUTIONS, ...TEAM_SOLUTIONS].map((item, idx) => (
+                <article
+                  key={`${item.title}-${idx}`}
+                  className="saas-hover w-[280px] shrink-0 rounded-2xl border border-[#DEDDD5] bg-white p-6 shadow-[0_12px_24px_rgba(15,23,42,0.05)]"
+                >
+                  <h3 className="text-lg font-black leading-tight tracking-tight">{item.title}</h3>
+                  <p className="mt-3 text-sm leading-relaxed text-[#585852]">{item.description}</p>
+                </article>
+              ))}
+            </div>
           </div>
         </section>
 
@@ -418,21 +327,25 @@ export default function SolutionsPage() {
           gapLabel="No validation"
         />
 
-        {/* What Adigator Validates */}
-        <section id="validates" className="marketing-section marketing-section-compact mx-auto w-[min(1280px,92vw)]">
-          <SectionHeader title="What Adigator validates" />
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
-            {VALIDATES_GRID.map(({ label, icon: Icon }) => (
-              <div
-                key={label}
-                className="saas-hover flex flex-col items-center rounded-2xl border border-[#DEDDD5] bg-white p-5 text-center shadow-[0_8px_20px_rgba(15,23,42,0.04)]"
-              >
-                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#EEF0E7] text-[#0D0D0D]">
-                  <Icon size={20} />
-                </div>
-                <p className="mt-3 text-sm font-bold leading-snug">{label}</p>
-              </div>
-            ))}
+        {/* Validation layer story */}
+        <section id="validates" className="marketing-section marketing-section-compact mx-auto w-[min(980px,92vw)]">
+          <div className="mx-auto max-w-3xl text-center">
+            <h2 className="text-[clamp(1.75rem,4vw,2.75rem)] font-black leading-tight tracking-tight">
+              We Didn&apos;t Build Another AI Tool.
+              <br />
+              <span className="text-[#2D2D27]">We Built the Validation Layer Every Campaign Needs Before Setup.</span>
+            </h2>
+            <p className="mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-[#5A5A55]">
+              Campaigns move from client brief to campaign setup through multiple teams, platforms, and tools.
+              Adigator validates campaign intent, creatives, landing pages, URLs, platform requirements, and technical
+              readiness before setup, helping teams reduce errors, prevent budget waste, and launch with confidence.
+            </p>
+            <Link
+              href="/product"
+              className="marketing-btn-lime saas-hover mt-8 inline-flex rounded-full px-10 py-4 text-base font-bold"
+            >
+              Explore the Platform
+            </Link>
           </div>
         </section>
 
@@ -467,7 +380,7 @@ export default function SolutionsPage() {
           <div className="grid gap-8 lg:grid-cols-2">
             <div className="rounded-3xl border border-[#DEDDD5] bg-white p-8 sm:p-10">
               <div className="flex flex-wrap gap-3">
-                {["73 creatives", "4 platforms", "3 teams", "1 campaign"].map((tag) => (
+                {CAMPAIGN_REALITY_TAGS.map((tag) => (
                   <span
                     key={tag}
                     className="rounded-full border border-[#DEDDD5] bg-[#FAFAF7] px-4 py-2 text-sm font-bold"
@@ -492,7 +405,7 @@ export default function SolutionsPage() {
 
             <div className="rounded-3xl border border-[#C8F04D]/40 bg-[#C8F04D]/10 p-8 sm:p-10">
               <div className="flex flex-wrap gap-3">
-                {["73 creatives", "4 platforms", "3 teams", "1 campaign"].map((tag) => (
+                {CAMPAIGN_REALITY_TAGS.map((tag) => (
                   <span
                     key={`with-${tag}`}
                     className="rounded-full border border-[#C8F04D]/50 bg-white/80 px-4 py-2 text-sm font-bold"
@@ -526,8 +439,8 @@ export default function SolutionsPage() {
               Today&apos;s workflow focuses on launching campaigns. Not validating them.
             </h2>
             <p className="mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-[#5A5A55]">
-              Adigator introduces the missing validation layer between campaign setup and campaign launch. That is the
-              difference between shipping ads and shipping campaigns that actually work.
+              Most campaigns move straight from creative delivery to campaign setup. Adigator adds the missing
+              validation step before setup, helping teams catch issues before launch.
             </p>
           </div>
         </section>

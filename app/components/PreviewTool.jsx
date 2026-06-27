@@ -187,59 +187,45 @@ const PLATFORMS = [
   },
 ];
 
-const GOALS = [
-  {
-    id: "awareness", emoji: "📣", title: "Awareness", subtitle: "Introduce Brand",
-    color: "from-blue-600/30 to-blue-800/20", border: "border-blue-500/50",
-    desc: "Maximize reach, visual clarity, and brand recognition.",
-  },
-  {
-    id: "consideration", emoji: "🤔", title: "Consideration", subtitle: "Evaluate Product",
-    color: "from-purple-600/30 to-purple-800/20", border: "border-purple-500/50",
-    desc: "Balance information, value proposition, and moderate CTA.",
-  },
-  {
-    id: "conversion", emoji: "⚡", title: "Conversion", subtitle: "Drive Action",
-    color: "from-orange-600/30 to-orange-800/20", border: "border-orange-500/50",
-    desc: "Strong CTA, high contrast, urgent direct messaging.",
-  },
-  {
-    id: "traffic", emoji: "🧭", title: "Traffic", subtitle: "Drive Visits",
-    color: "from-sky-600/30 to-sky-800/20", border: "border-sky-500/50",
-    desc: "Prioritize click-through clarity with low-friction value communication.",
-  },
-  {
-    id: "app_installs", emoji: "📲", title: "App Installs", subtitle: "Acquire Users",
-    color: "from-indigo-600/30 to-indigo-800/20", border: "border-indigo-500/50",
-    desc: "Highlight app utility fast, reduce cognitive load, and drive install intent.",
-  },
-  {
-    id: "lead_generation", emoji: "🧾", title: "Leads", subtitle: "Capture Leads",
-    color: "from-emerald-600/30 to-emerald-800/20", border: "border-emerald-500/50",
-    desc: "Build trust with offer clarity, authority signals, and qualification framing.",
-  },
-  {
-    id: "engagement", emoji: "💬", title: "Engagement", subtitle: "Spark Interaction",
-    color: "from-teal-600/30 to-teal-800/20", border: "border-teal-500/50",
-    desc: "Create conversation-worthy hooks to increase social interactions.",
-  },
-  {
-    id: "video_views", emoji: "🎬", title: "Video Views", subtitle: "Maximize Watch Time",
-    color: "from-rose-600/30 to-rose-800/20", border: "border-rose-500/50",
-    desc: "Optimize first-frame curiosity and narrative pull for continued viewing.",
-  },
-  {
-    id: "retargeting", emoji: "🔁", title: "Retargeting", subtitle: "Recover Intent",
-    color: "from-amber-600/30 to-amber-800/20", border: "border-amber-500/50",
-    desc: "Reinforce relevance and urgency for users already familiar with your offer.",
-  },
+const GOOGLE_GOALS = [
+  { id: "google_sales", title: "Sales", subtitle: "Drive purchases", emoji: "🛒", apiGoal: "conversion", color: "from-orange-600/30 to-orange-800/20", border: "border-orange-500/50", desc: "Optimize for purchase intent, offer clarity, and conversion ready messaging." },
+  { id: "google_leads", title: "Leads", subtitle: "Capture leads", emoji: "🧾", apiGoal: "lead_generation", color: "from-emerald-600/30 to-emerald-800/20", border: "border-emerald-500/50", desc: "Build trust with offer clarity, authority signals, and qualification framing." },
+  { id: "google_website_traffic", title: "Website Traffic", subtitle: "Drive visits", emoji: "🧭", apiGoal: "traffic", color: "from-sky-600/30 to-sky-800/20", border: "border-sky-500/50", desc: "Prioritize click through clarity with low friction value communication." },
+  { id: "google_product_brand_consideration", title: "Product and Brand Consideration", subtitle: "Evaluate offer", emoji: "🤔", apiGoal: "consideration", color: "from-purple-600/30 to-purple-800/20", border: "border-purple-500/50", desc: "Balance information, value proposition, and moderate call to action pressure." },
+  { id: "google_brand_awareness", title: "Brand Awareness and Reach", subtitle: "Introduce brand", emoji: "📣", apiGoal: "awareness", color: "from-blue-600/30 to-blue-800/20", border: "border-blue-500/50", desc: "Maximize reach, visual clarity, and brand recognition." },
+  { id: "google_app_promotion", title: "App Promotion", subtitle: "Drive installs", emoji: "📲", apiGoal: "app_installs", color: "from-indigo-600/30 to-indigo-800/20", border: "border-indigo-500/50", desc: "Highlight app utility fast and reduce cognitive load for install intent." },
+  { id: "google_local_store", title: "Local Store Visits and Promotions", subtitle: "Drive foot traffic", emoji: "📍", apiGoal: "traffic", color: "from-teal-600/30 to-teal-800/20", border: "border-teal-500/50", desc: "Connect local relevance, location cues, and store visit motivation." },
+  { id: "google_no_goal", title: "Create a Campaign Without a Goal's Guidance", subtitle: "Flexible setup", emoji: "⚙️", apiGoal: "awareness", color: "from-slate-600/30 to-slate-800/20", border: "border-slate-500/50", desc: "Start with flexible validation when campaign direction is still being defined." },
 ];
 
-const PLATFORM_GOAL_IDS = {
-  google_ads: ["awareness", "traffic", "conversion", "lead_generation", "engagement", "app_installs", "retargeting"],
-  meta_ads: ["awareness", "traffic", "conversion", "lead_generation", "engagement", "app_installs", "retargeting"],
-  programmatic: ["awareness", "consideration", "conversion"],
+const META_GOALS = [
+  { id: "meta_awareness", title: "Awareness", subtitle: "Introduce brand", emoji: "📣", apiGoal: "awareness", color: "from-blue-600/30 to-blue-800/20", border: "border-blue-500/50", desc: "Maximize reach, visual clarity, and brand recognition in feed environments." },
+  { id: "meta_traffic", title: "Traffic", subtitle: "Drive visits", emoji: "🧭", apiGoal: "traffic", color: "from-sky-600/30 to-sky-800/20", border: "border-sky-500/50", desc: "Prioritize click through clarity with low friction value communication." },
+  { id: "meta_engagement", title: "Engagement", subtitle: "Spark interaction", emoji: "💬", apiGoal: "engagement", color: "from-teal-600/30 to-teal-800/20", border: "border-teal-500/50", desc: "Create conversation worthy hooks to increase social interactions." },
+  { id: "meta_leads", title: "Leads", subtitle: "Capture leads", emoji: "🧾", apiGoal: "lead_generation", color: "from-emerald-600/30 to-emerald-800/20", border: "border-emerald-500/50", desc: "Build trust with offer clarity, authority signals, and qualification framing." },
+  { id: "meta_app_promotion", title: "App Promotion", subtitle: "Drive installs", emoji: "📲", apiGoal: "app_installs", color: "from-indigo-600/30 to-indigo-800/20", border: "border-indigo-500/50", desc: "Highlight app utility fast and reduce cognitive load for install intent." },
+  { id: "meta_sales", title: "Sales", subtitle: "Drive purchases", emoji: "🛒", apiGoal: "conversion", color: "from-orange-600/30 to-orange-800/20", border: "border-orange-500/50", desc: "Strong call to action, high contrast, urgent direct messaging for sales." },
+];
+
+const PROGRAMMATIC_GOALS = [
+  { id: "awareness", title: "Awareness", subtitle: "Introduce Brand", emoji: "📣", apiGoal: "awareness", color: "from-blue-600/30 to-blue-800/20", border: "border-blue-500/50", desc: "Maximize reach, visual clarity, and brand recognition." },
+  { id: "consideration", title: "Consideration", subtitle: "Evaluate Product", emoji: "🤔", apiGoal: "consideration", color: "from-purple-600/30 to-purple-800/20", border: "border-purple-500/50", desc: "Balance information, value proposition, and moderate CTA." },
+  { id: "conversion", title: "Conversion", subtitle: "Drive Action", emoji: "⚡", apiGoal: "conversion", color: "from-orange-600/30 to-orange-800/20", border: "border-orange-500/50", desc: "Strong CTA, high contrast, urgent direct messaging." },
+];
+
+const PLATFORM_GOAL_SETS = {
+  google_ads: GOOGLE_GOALS,
+  meta_ads: META_GOALS,
+  programmatic: PROGRAMMATIC_GOALS,
 };
+
+const PLATFORM_GOAL_IDS = {
+  google_ads: GOOGLE_GOALS.map((g) => g.id),
+  meta_ads: META_GOALS.map((g) => g.id),
+  programmatic: PROGRAMMATIC_GOALS.map((g) => g.id),
+};
+
+const GOALS = [...GOOGLE_GOALS, ...META_GOALS, ...PROGRAMMATIC_GOALS];
 
 const AUDIENCE_STAGES = [
   {
@@ -260,9 +246,17 @@ const AUDIENCE_STAGES = [
 ];
 
 function getGoalTitle(goalId, platformId) {
-  if (goalId === "conversion" && platformId !== "programmatic") return "Conversions";
-  const found = GOALS.find((goal) => goal.id === goalId);
-  return found?.title || goalId;
+  const goals = PLATFORM_GOAL_SETS[platformId] || PROGRAMMATIC_GOALS;
+  const found = goals.find((goal) => goal.id === goalId);
+  if (found) return found.title;
+  const legacy = GOALS.find((goal) => goal.id === goalId);
+  return legacy?.title || goalId;
+}
+
+function resolveApiGoal(goalId, platformId) {
+  const goals = PLATFORM_GOAL_SETS[platformId] || PROGRAMMATIC_GOALS;
+  const found = goals.find((goal) => goal.id === goalId);
+  return found?.apiGoal || goalId;
 }
 
 const VERTICALS = [
@@ -327,7 +321,7 @@ const VALID_VERTICALS = new Set([
 
 // ── OpenAI-Only Analyzer ─────────────────────────────────────────────────────
 
-async function analyzeAllCreatives(creatives, goal, platform, vertical, audienceStage) {
+async function analyzeAllCreatives(creatives, goal, platform, vertical, audienceStage, campaignBrief = "") {
   const results = [];
   const verticalForApi = VALID_VERTICALS.has(vertical) ? vertical : "technology";
 
@@ -361,12 +355,16 @@ async function analyzeAllCreatives(creatives, goal, platform, vertical, audience
         throw new Error(`Could not load image bytes for ${creative.name || creative.id}. Re-upload the creative and try again.`);
       }
 
+      const apiGoal = resolveApiGoal(goal, platform || "programmatic");
       const formData = new FormData();
       formData.append("image", imageBlob, `${creative.name || "creative"}.jpg`);
-      formData.append("goal", goal);
+      formData.append("goal", apiGoal);
       formData.append("vertical", verticalForApi);
       formData.append("platform", platform || "programmatic");
       formData.append("audience_stage", audienceStage || "cold");
+      if (campaignBrief?.trim()) {
+        formData.append("campaign_brief", campaignBrief.trim());
+      }
 
       const analysisRes = await fetch("/api/analyze-creative", {
         method: "POST",
@@ -477,6 +475,7 @@ export default function PreviewTool() {
   const [campaignVertical, setCampaignVertical] = useState(null);
   const [campaignAudienceStage, setCampaignAudienceStage] = useState(null);
   const [campaignName, setCampaignName] = useState("");
+  const [campaignBrief, setCampaignBrief] = useState("");
   const [landingUrl, setLandingUrl] = useState("");
   const [urlValidation, setUrlValidation] = useState(() => {
     if (typeof window === "undefined") return null;
@@ -577,6 +576,11 @@ export default function PreviewTool() {
       setCampaignName(storedCampaignName);
     }
 
+    const storedCampaignBrief = localStorage.getItem("adigator_campaign_brief");
+    if (!campaignBrief && storedCampaignBrief) {
+      setCampaignBrief(storedCampaignBrief);
+    }
+
     const storedLandingUrl = localStorage.getItem("adigator_landing_url");
     if (!landingUrl && storedLandingUrl) {
       setLandingUrl(storedLandingUrl);
@@ -595,6 +599,7 @@ export default function PreviewTool() {
     campaignVertical,
     campaignAudienceStage,
     campaignName,
+    campaignBrief,
     landingUrl,
     urlValidation,
   ]);
@@ -741,9 +746,12 @@ export default function PreviewTool() {
     if (campaignName) localStorage.setItem("adigator_campaign_name", campaignName);
     else localStorage.removeItem("adigator_campaign_name");
 
+    if (campaignBrief) localStorage.setItem("adigator_campaign_brief", campaignBrief);
+    else localStorage.removeItem("adigator_campaign_brief");
+
     if (landingUrl) localStorage.setItem("adigator_landing_url", landingUrl);
     else localStorage.removeItem("adigator_landing_url");
-  }, [platform, campaignGoal, campaignVertical, campaignAudienceStage, campaignName, landingUrl]);
+  }, [platform, campaignGoal, campaignVertical, campaignAudienceStage, campaignName, campaignBrief, landingUrl]);
 
   useEffect(() => {
     if (workflowPersistTimerRef.current) {
@@ -1040,8 +1048,7 @@ export default function PreviewTool() {
   }, [ensureAnalysisSession, updateAnalysisSession, platform, campaignGoal, campaignAudienceStage]);
 
   const selectedPlatformConfig = PLATFORMS.find((p) => p.id === platform);
-  const availableGoalIds = PLATFORM_GOAL_IDS[platform] || PLATFORM_GOAL_IDS.programmatic;
-  const availableGoals = GOALS.filter((goal) => availableGoalIds.includes(goal.id));
+  const availableGoals = platform ? (PLATFORM_GOAL_SETS[platform] || PROGRAMMATIC_GOALS) : [];
   const allowedSizes = useMemo(() => (
     platform ? [...new Set(Object.values(PLATFORM_SIZES[platform] || {}).flat())] : []
   ), [platform]);
@@ -1193,6 +1200,7 @@ export default function PreviewTool() {
     setCampaignVertical(null);
     setCampaignAudienceStage(null);
     setCampaignName("");
+    setCampaignBrief("");
     setLandingUrl("");
     setUrlValidation(null);
     setUrlValidationRunning(false);
@@ -1221,6 +1229,7 @@ export default function PreviewTool() {
     localStorage.removeItem("adigator_vertical");
     localStorage.removeItem("adigator_audience_stage");
     localStorage.removeItem("adigator_campaign_name");
+    localStorage.removeItem("adigator_campaign_brief");
     localStorage.removeItem("adigator_landing_url");
     clearStoredUrlValidation();
     localStorage.removeItem(ANALYSIS_SESSION_STORAGE_KEY);
@@ -1963,7 +1972,7 @@ export default function PreviewTool() {
         },
       }, { dedupeKey: `analyzer-start-${platform}-${campaignGoal}-${validCreatives.length}` });
 
-      const results = await analyzeAllCreatives(validCreatives, campaignGoal, platform, campaignVertical, campaignAudienceStage);
+      const results = await analyzeAllCreatives(validCreatives, campaignGoal, platform, campaignVertical, campaignAudienceStage, campaignBrief);
       setAnalysisResult(results);
 
       const linkedCreatives = await Promise.all(
@@ -2371,7 +2380,7 @@ export default function PreviewTool() {
                     <SelectionCard key={g.id} selected={campaignGoal === g.id} onClick={() => handleGoalSelect(g.id)} activeClasses={`${g.color} ${g.border}`}>
                       <div className="text-5xl mb-4">{g.emoji}</div>
                       <p className="text-xs font-bold text-sky-600 uppercase tracking-widest mb-1">{g.subtitle}</p>
-                      <h3 className={`text-2xl font-extrabold mb-2 ${campaignGoal === g.id ? "text-sky-600" : "text-slate-800"}`}>{getGoalTitle(g.id, platform)}</h3>
+                      <h3 className={`text-xl font-extrabold mb-2 leading-snug ${campaignGoal === g.id ? "text-sky-600" : "text-slate-800"}`}>{g.title}</h3>
                       <p className="text-sm text-slate-700 leading-relaxed mb-6">{g.desc}</p>
                     </SelectionCard>
                   ))}
@@ -2395,6 +2404,21 @@ export default function PreviewTool() {
                     className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
                   />
                 </div>
+                <div className="mt-5 max-w-xl">
+                  <label className="block text-xs font-semibold uppercase tracking-wide text-slate-500 mb-2">
+                    Campaign Brief
+                  </label>
+                  <textarea
+                    value={campaignBrief}
+                    onChange={(e) => setCampaignBrief(e.target.value)}
+                    placeholder="Describe campaign goals, requirements, challenges, and any additional context for analysis."
+                    rows={4}
+                    className="w-full resize-y rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
+                  />
+                  <p className="mt-2 text-xs text-slate-500">
+                    Helps the analysis engine understand campaign intent and generate more relevant recommendations.
+                  </p>
+                </div>
               </motion.section>
 
               <motion.section variants={itemVariants} className="space-y-5">
@@ -2402,20 +2426,28 @@ export default function PreviewTool() {
                   <h3 className="text-2xl font-bold text-slate-900">Industry Vertical</h3>
                   <p className="mt-1 text-slate-600">Select the vertical for your campaign.</p>
                 </div>
-                <div className="flex flex-wrap gap-3">
-                  {VERTICALS.map((v) => (
-                    <button
-                      key={v.id}
-                      onClick={() => handleVerticalSelect(v.id)}
-                      className={`px-4 py-2 rounded-xl text-sm font-bold transition-all border shadow-sm ${
-                        campaignVertical === v.id
-                          ? "bg-gradient-to-r from-sky-500 to-cyan-500 border-sky-600 text-white shadow-lg shadow-sky-500/30"
-                          : "bg-slate-100 border-slate-300 text-slate-700 hover:bg-slate-200 hover:border-slate-400"
-                      }`}
-                    >
-                      {v.title}
-                    </button>
-                  ))}
+                <div className="max-w-xl">
+                  <label htmlFor="campaign-vertical" className="sr-only">
+                    Industry Vertical
+                  </label>
+                  <select
+                    id="campaign-vertical"
+                    value={campaignVertical || ""}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      if (value) handleVerticalSelect(value);
+                    }}
+                    className="w-full appearance-none rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
+                  >
+                    <option value="" disabled>
+                      Select an industry vertical
+                    </option>
+                    {VERTICALS.map((v) => (
+                      <option key={v.id} value={v.id}>
+                        {v.title}
+                      </option>
+                    ))}
+                  </select>
                 </div>
               </motion.section>
 
