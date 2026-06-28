@@ -292,7 +292,7 @@ export default function LoginContent() {
             </Link>
             {" or "}
             <Link href={MARKETING_CTA.href} className="inline-flex items-center gap-1 font-semibold text-white/85 transition hover:text-white">
-              Book a demo
+              {MARKETING_CTA.label}
               <ArrowRight size={14} aria-hidden />
             </Link>
           </p>
@@ -474,7 +474,7 @@ export default function LoginContent() {
                   </Link>
                   {" or "}
                   <Link href={MARKETING_CTA.href} className="font-semibold text-[#0D0D0D] hover:underline">
-                    Get a demo
+                    {MARKETING_CTA.label}
                   </Link>
                 </p>
               </>

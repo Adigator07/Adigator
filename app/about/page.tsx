@@ -42,13 +42,37 @@ const BEFORE_ADIGATOR_FLOW = [
   "Everyone blames the creative",
 ];
 
-const CAMPAIGN_TEAMS = [
-  { title: "Creative Team", icon: Palette },
-  { title: "Campaign Managers", icon: Target },
-  { title: "Media Buyers", icon: Megaphone },
-  { title: "Ad Operations", icon: Briefcase },
-  { title: "QA Teams", icon: Shield },
-  { title: "Clients", icon: Users },
+const CAMPAIGN_TEAM_PAIN_POINTS = [
+  {
+    title: "Creative Team",
+    description: "Designs the creative and assumes the specifications are correct.",
+    icon: Palette,
+  },
+  {
+    title: "Campaign Manager",
+    description: "Builds the campaign and assumes the creative is correct.",
+    icon: Target,
+  },
+  {
+    title: "Media Buyers",
+    description: "Approve spend and assume everything above is aligned.",
+    icon: Megaphone,
+  },
+  {
+    title: "Ad Operations",
+    description: "Launch the campaign and discover the problems.",
+    icon: Briefcase,
+  },
+  {
+    title: "QA Teams",
+    description: "Review issues after the fact, when it is already too late.",
+    icon: Shield,
+  },
+  {
+    title: "Clients",
+    description: "Notice performance problems and ask why nobody caught them earlier.",
+    icon: Users,
+  },
 ];
 
 const BELIEFS = [
@@ -57,14 +81,6 @@ const BELIEFS = [
   "Better validation creates better campaigns.",
   "Every campaign deserves one final review.",
   "Technology should reduce operational complexity, not add to it.",
-];
-
-const TIMELINE_2025 = [
-  "Observed recurring campaign failures across advertising operations.",
-  "Identified a missing validation layer.",
-  "Built internal validation workflows.",
-  "Created Adigator Creative Studio.",
-  "Expanding into Campaign Operations Quality Management.",
 ];
 
 const FOUR_PILLARS = [
@@ -98,17 +114,6 @@ const DIFFERENTIATORS = [
   { others: "Focus on AI", adigator: "Focuses on operational quality" },
 ];
 
-const WHO_WE_BUILD_FOR = [
-  "Agency Operations",
-  "Campaign Managers",
-  "Creative Teams",
-  "QA Teams",
-  "Media Buyers",
-  "Brands",
-  "Enterprise Marketing",
-  "Outsourcing Teams",
-];
-
 const VISION_ROADMAP = [
   { phase: "Today", label: "Creative Validation" },
   { phase: "Next", label: "Campaign Validation" },
@@ -139,7 +144,7 @@ function SectionHeader({
 function Footer() {
   return (
     <footer className="border-t border-[#DDDCD4] bg-[#F5F5F0] py-20">
-      <div className="mx-auto grid w-[min(1280px,92vw)] gap-12 md:grid-cols-5">
+      <div className="mx-auto grid w-[min(1280px,92vw)] gap-12 md:grid-cols-4">
         <div className="md:col-span-2">
           <p className="text-2xl font-black tracking-tight">Adigator</p>
           <p className="mt-3 max-w-sm text-sm leading-relaxed text-[#66665F]">
@@ -187,25 +192,41 @@ export default function AboutPage() {
       <MarketingNav activePath="/about" />
 
       <main className="pt-28">
-        {/* Hero */}
-        <section className="marketing-section marketing-section-compact mx-auto w-[min(980px,92vw)]">
-          <h1 className="mx-auto max-w-4xl text-center text-[clamp(2rem,5.5vw,4rem)] font-black leading-[1.02] tracking-[-0.04em]">
-            We Didn&apos;t Build Another AI Tool.
-            <br />
-            <span className="text-[#2D2D27]">We Built the Validation Layer Every Campaign Needs Before Setup.</span>
+        {/* Founder story */}
+        <section id="why-i-built-adigator" className="marketing-section marketing-section-compact mx-auto w-[min(780px,92vw)]">
+          <h1 className="text-[clamp(2rem,5vw,3.25rem)] font-black leading-tight tracking-[-0.035em]">
+            Why I Built Adigator
           </h1>
 
-          <p className="mx-auto mt-7 max-w-3xl text-center text-lg leading-relaxed text-[#5C5C56] sm:text-xl">
-            Campaigns move from client briefs to campaign setup through multiple teams, platforms, and tools.
-            Adigator validates campaign intent, creatives, landing pages, URLs, platform requirements, and technical
-            readiness before setup—helping teams reduce errors, prevent budget waste, and launch campaigns with
-            confidence.
-          </p>
-
-          <div className="mt-10 flex justify-center">
-            <Link href="/product" className="marketing-btn-lime saas-hover rounded-full px-8 py-4 text-base font-bold">
-              Explore the Platform
-            </Link>
+          <div className="mt-8 space-y-5 text-lg leading-relaxed text-[#5A5A55]">
+            <p>
+              I&apos;ve worked across AdOps, campaign management, and account management in digital advertising.
+            </p>
+            <p>The same problems appeared in every role:</p>
+            <ul className="space-y-2 pl-1">
+              <li className="flex items-start gap-3">
+                <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-[#0D0D0D]" />
+                Campaigns launched with the wrong creative.
+              </li>
+              <li className="flex items-start gap-3">
+                <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-[#0D0D0D]" />
+                Landing pages that didn&apos;t match the ad.
+              </li>
+              <li className="flex items-start gap-3">
+                <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-[#0D0D0D]" />
+                Budgets were spent before anyone caught the mismatch.
+              </li>
+              <li className="flex items-start gap-3">
+                <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-[#0D0D0D]" />
+                Escalations occurred that could have been avoided if someone had validated everything together before launch.
+              </li>
+            </ul>
+            <p>The frustrating part was never the complexity. These were preventable mistakes.</p>
+            <p>
+              Every time, the validation step was either skipped, split across too many people, or happened too late.
+            </p>
+            <p>Nobody owned it.</p>
+            <p className="text-xl font-black text-[#0D0D0D] sm:text-2xl">So I built the layer that does.</p>
           </div>
         </section>
 
@@ -368,7 +389,7 @@ export default function AboutPage() {
           <div className="mx-auto w-[min(1280px,92vw)]">
             <SectionHeader dark center title="One campaign. Multiple teams. One opportunity to get it right." />
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {CAMPAIGN_TEAMS.map((team, i) => (
+              {CAMPAIGN_TEAM_PAIN_POINTS.map((team, i) => (
                 <motion.article
                   key={team.title}
                   initial={{ opacity: 0, y: 12 }}
@@ -381,12 +402,12 @@ export default function AboutPage() {
                     <team.icon size={20} />
                   </div>
                   <h3 className="text-lg font-black tracking-tight">{team.title}</h3>
-                  <p className="mt-2 text-sm text-[#A3A3A3]">Completes its part of the workflow.</p>
+                  <p className="mt-2 text-sm leading-relaxed text-[#A3A3A3]">{team.description}</p>
                 </motion.article>
               ))}
             </div>
             <p className="mx-auto mt-10 max-w-2xl text-center text-lg font-semibold text-[#D4D4D4]">
-              Adigator is where those parts get validated together, before launch.
+              Adigator is where all of these parts are validated together — before launch.
             </p>
           </div>
         </section>
@@ -454,34 +475,6 @@ export default function AboutPage() {
           </div>
         </section>
 
-        {/* Timeline */}
-        <section id="timeline" className="marketing-section marketing-section-compact mx-auto w-[min(1280px,92vw)]">
-          <SectionHeader title="How Adigator came to be" />
-          <div className="mx-auto max-w-lg">
-            <div className="mb-6 inline-flex rounded-full border border-[#DEDDD5] bg-white px-5 py-2 text-sm font-black tracking-tight">
-              2025
-            </div>
-            <div className="flex flex-col gap-2">
-              {TIMELINE_2025.map((step, i) => (
-                <div key={step} className="flex flex-col items-center">
-                  <motion.div
-                    initial={reduceMotion ? false : { opacity: 0, y: 8 }}
-                    whileInView={{ opacity: 1, y: 0 }}
-                    viewport={{ once: true }}
-                    transition={{ delay: i * 0.05 }}
-                    className="w-full rounded-xl border border-[#DEDDD5] bg-white px-5 py-4 text-center text-sm font-semibold leading-relaxed sm:text-base"
-                  >
-                    {step}
-                  </motion.div>
-                  {i < TIMELINE_2025.length - 1 ? (
-                    <ArrowDown size={18} className="my-1.5 text-[#9CA3AF]" aria-hidden />
-                  ) : null}
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-
         {/* Four Pillars */}
         <section id="pillars" className="bg-[#0D0D0D] py-10 text-white sm:py-12 md:py-14">
           <div className="mx-auto w-[min(1280px,92vw)]">
@@ -539,23 +532,6 @@ export default function AboutPage() {
           </div>
         </section>
 
-        {/* Who We Build For */}
-        <section id="who" className="border-y border-[#DEDDD5] bg-[#FAFAF7] marketing-section-compact">
-          <div className="mx-auto w-[min(1280px,92vw)] text-center">
-            <SectionHeader center title="Built for teams who ship campaigns at scale" />
-            <div className="flex flex-wrap justify-center gap-3">
-              {WHO_WE_BUILD_FOR.map((audience) => (
-                <span
-                  key={audience}
-                  className="rounded-full border border-[#DEDDD5] bg-white px-5 py-2.5 text-sm font-bold text-[#0D0D0D]"
-                >
-                  {audience}
-                </span>
-              ))}
-            </div>
-          </div>
-        </section>
-
         {/* Where We're Going */}
         <section id="vision" className="marketing-section marketing-section-compact mx-auto w-[min(1280px,92vw)]">
           <SectionHeader title="From creative validation to campaign operations quality" />
@@ -598,7 +574,7 @@ export default function AboutPage() {
               href={MARKETING_CTA.href}
               className="marketing-btn-lime saas-hover mt-10 inline-flex rounded-full px-10 py-4 text-base font-bold"
             >
-              Book a Demo
+              {MARKETING_CTA.label}
             </Link>
           </div>
         </section>

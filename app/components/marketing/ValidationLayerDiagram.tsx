@@ -124,7 +124,7 @@ export default function ValidationLayerDiagram({
         className="mt-8 flex items-center justify-center gap-2 text-center text-base font-semibold text-[#0D0D0D] sm:text-lg"
       >
         <CheckCircle2 size={20} className="text-emerald-600" />
-        Adigator fixes misalignment before launch.
+        Adigator validates every layer before a single rupee of media is spent.
       </motion.p>
     </section>
   );

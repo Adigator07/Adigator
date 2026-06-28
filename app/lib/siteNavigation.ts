@@ -10,7 +10,7 @@ export const MARKETING_NAV_LINKS: MarketingNavLink[] = [
 ];
 
 export const MARKETING_CTA = {
-  label: "Book Demo",
+  label: "Try Free",
   href: "/preview-tool?demo=1&step=1",
 };
 
@@ -25,14 +25,6 @@ export const MARKETING_SIGN_IN = {
 };
 
 export const MARKETING_FOOTER_COLUMNS = [
-  {
-    title: "Products",
-    items: [
-      { label: "Campaign Validation", href: "/preview-tool" },
-      { label: "Creative Preview", href: "/preview" },
-      { label: "Dashboard", href: "/dashboard" },
-    ],
-  },
   {
     title: "Solutions",
     items: [

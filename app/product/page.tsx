@@ -149,7 +149,7 @@ const FOOTER_COLUMNS = [
     items: [
       { label: "About", href: "/about" },
       { label: "Login", href: "/login" },
-      { label: "Book Demo", href: "/preview-tool" },
+      { label: MARKETING_CTA.label, href: MARKETING_CTA.href },
     ],
   },
 ];
@@ -634,10 +634,10 @@ export default function ProductPage() {
             </h2>
             <p className="mt-5 text-lg text-white/70">See how true AI can transform your business</p>
             <Link
-              href="/preview-tool"
+              href={MARKETING_CTA.href}
               className="mt-9 inline-flex items-center rounded-full bg-[#C8F04D] px-8 py-4 text-base font-semibold text-[#0D0D0D] transition duration-200 hover:scale-[1.02] hover:shadow-[0_16px_34px_rgba(200,240,77,0.18)]"
             >
-              Book a Demo
+              {MARKETING_CTA.label}
             </Link>
           </div>
         </section>

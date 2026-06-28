@@ -8,6 +8,7 @@ import {
   CheckCircle2,
   Globe,
   Image,
+  Link2,
   Monitor,
   Shield,
   Target,
@@ -71,9 +72,15 @@ const PROBLEMS_WE_SOLVE = [
       "Campaign managers, creative teams, AdOps, and QA all assume someone else checked everything.",
     icon: Users,
   },
+  {
+    title: "URL and UTM Errors",
+    description:
+      "Broken URLs and missing UTM parameters are often only discovered after media spend begins. Adigator catches them before launch.",
+    icon: Link2,
+  },
 ];
 
-const CAMPAIGN_REALITY_TAGS = ["73 creatives", "1 campaign"];
+const CAMPAIGN_REALITY_TAGS = ["54 Creatives", "4 Campaigns", "6 URL/UTM Issues"];
 
 const OUTCOME_CARDS = [
   {
@@ -149,6 +156,7 @@ const WITHOUT_VALIDATION = [
   "Wrong objective",
   "Wrong landing page",
   "Wrong size",
+  "Wrong Vertical Selection",
 ];
 
 const METRICS = [
@@ -175,7 +183,7 @@ function SectionHeader({ title, dark = false }: { title: string; dark?: boolean 
 function Footer() {
   return (
     <footer className="border-t border-[#DDDCD4] bg-[#F5F5F0] py-20">
-      <div className="mx-auto grid w-[min(1280px,92vw)] gap-12 md:grid-cols-5">
+      <div className="mx-auto grid w-[min(1280px,92vw)] gap-12 md:grid-cols-4">
         <div className="md:col-span-2">
           <p className="text-2xl font-black tracking-tight">Adigator</p>
           <p className="mt-3 max-w-sm text-sm leading-relaxed text-[#66665F]">
@@ -224,12 +232,11 @@ export default function SolutionsPage() {
         {/* 1. Hero */}
         <section className="marketing-section marketing-section-compact mx-auto w-[min(980px,92vw)] text-center">
           <h1 className="mx-auto max-w-5xl text-[clamp(2rem,6vw,4.5rem)] font-black leading-[0.98] tracking-[-0.04em]">
-            Solutions Built for Modern Campaign Operations
+            Every Campaign Has the Same Problem. Nobody Validates Before Launch.
           </h1>
           <p className="mx-auto mt-7 max-w-2xl text-lg leading-relaxed text-[#5C5C56]">
-            Every campaign involves multiple teams, platforms, creatives, landing pages, and technical requirements.
-            Adigator helps agencies and brands validate every campaign before launch, reducing operational errors,
-            unnecessary rework, and wasted media spend.
+            Adigator gives agencies and AdOps teams one validation pass — campaign brief, creatives, landing page, URLs,
+            and platform requirements — before campaign setup begins.
           </p>
           <div className="mt-10 flex justify-center">
             <Link
@@ -266,44 +273,33 @@ export default function SolutionsPage() {
 
         {/* Intelligence illustrations */}
         <section className="border-y border-[#DEDDD5] bg-[#0D0D0D] marketing-section-compact">
-          <div className="mx-auto grid w-[min(1280px,92vw)] gap-10 md:grid-cols-2 lg:grid-cols-3 lg:gap-8">
+          <div className="mx-auto grid w-[min(1280px,92vw)] gap-10 md:grid-cols-2 lg:gap-12">
             <div>
-              <h2 className="text-2xl font-black tracking-tight text-white sm:text-3xl">Ad Intelligence</h2>
+              <h2 className="text-2xl font-black tracking-tight text-white sm:text-3xl">Campaign Risk Score</h2>
               <p className="mt-4 text-base leading-relaxed text-[#A3A3A3]">
-                Scan competitor creatives, validate campaign intent, and surface insights before setup begins.
+                Every mismatch between your creative, landing page, and campaign objective is surfaced before launch —
+                not after complaints.
               </p>
               <IllustrationWrapper
                 src={STORYSET_ILLUSTRATIONS.searchAmico}
-                alt="Search and competitive ad intelligence analysis"
+                alt="Campaign risk analysis and validation before launch"
                 className="mt-8"
                 animation="fade-up"
                 delay={0}
               />
             </div>
             <div>
-              <h2 className="text-2xl font-black tracking-tight text-white sm:text-3xl">Business Planning</h2>
+              <h2 className="text-2xl font-black tracking-tight text-white sm:text-3xl">Stop Escalations Before They Start</h2>
               <p className="mt-4 text-base leading-relaxed text-[#A3A3A3]">
-                Track growth signals, ROI momentum, and launch readiness across campaigns and platforms.
+                A validation report generated before launch becomes the paper trail that protects your team. Catch issues
+                now or explain them later.
               </p>
               <IllustrationWrapper
                 src={STORYSET_ILLUSTRATIONS.businessPlanBro}
-                alt="Business plan and market trend planning"
+                alt="Campaign validation workflow and team alignment before launch"
                 className="mt-8"
                 animation="fade-up"
                 delay={0.12}
-              />
-            </div>
-            <div className="md:col-span-2 lg:col-span-1">
-              <h2 className="text-2xl font-black tracking-tight text-white sm:text-3xl">Save Time</h2>
-              <p className="mt-4 text-base leading-relaxed text-[#A3A3A3]">
-                Replace manual QA loops with one validation pass before every campaign goes live.
-              </p>
-              <IllustrationWrapper
-                src={STORYSET_ILLUSTRATIONS.saveTimeAmico}
-                alt="Save time with automated campaign validation"
-                className="mt-8"
-                animation="fade-up"
-                delay={0.24}
               />
             </div>
           </div>
@@ -439,8 +435,8 @@ export default function SolutionsPage() {
           <div className="grid gap-8 lg:grid-cols-2">
             <div className="rounded-3xl border border-[#DEDDD5] bg-white p-8 sm:p-10">
               <IllustrationWrapper
-                src={STORYSET_ILLUSTRATIONS.stressAmico}
-                alt="Campaign stress and errors without pre-launch validation"
+                src={STORYSET_ILLUSTRATIONS.analysisAmico}
+                alt="Campaign team stress from launch pressure, deadlines, and operational overload"
                 className="mb-6"
                 animation="fade-down"
               />

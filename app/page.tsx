@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { motion, useReducedMotion } from "framer-motion";
@@ -8,13 +7,11 @@ import {
   BarChart3,
   Briefcase,
   Check,
-  FileText,
   Globe,
   Image,
   Link2,
   Megaphone,
   Monitor,
-  Radio,
   Shield,
   Smartphone,
   Target,
@@ -22,6 +19,7 @@ import {
   Zap,
 } from "lucide-react";
 import {
+  MARKETING_CTA,
   MARKETING_DEMO_VIDEO,
   MARKETING_FOOTER_COLUMNS,
   MARKETING_PARTNER_BADGES,
@@ -34,6 +32,10 @@ const IllustrationWrapper = dynamic(
   () => import("@/app/components/illustrations/IllustrationWrapper"),
   { loading: () => <IllustrationSkeleton /> },
 );
+const HeroPreviewShowcase = dynamic(() => import("@/app/components/marketing/HeroPreviewShowcase"), {
+  ssr: false,
+  loading: () => <div className="min-h-[420px] animate-pulse rounded-[28px] bg-[#111111]/80" aria-hidden />,
+});
 const ValidationLayerDiagram = dynamic(
   () => import("@/app/components/marketing/ValidationLayerDiagram"),
   { ssr: false },
@@ -52,20 +54,6 @@ const PipelineCoreEngine = dynamic(() => import("@/app/components/marketing/Pipe
   ssr: false,
   loading: () => <div className="min-h-[420px] animate-pulse rounded-3xl bg-[#111111]/80" aria-hidden />,
 });
-
-const HERO_BENEFITS = [
-  "Prevent Campaign Errors",
-  "Protect Media Budgets",
-  "Reduce Rework",
-  "Catch Issues Early",
-  "Improve Campaign Quality",
-  "Launch With Confidence",
-];
-
-const HERO_BENEFIT_SPACER = HERO_BENEFITS.reduce(
-  (longest, benefit) => (benefit.length > longest.length ? benefit : longest),
-  HERO_BENEFITS[0],
-);
 
 const TICKER_BENEFITS = [
   "Campaign Validation",
@@ -112,7 +100,7 @@ const HOW_IT_WORKS = [
   {
     step: "Step 3",
     title: "Campaign Intelligence",
-    items: ["Intent", "Landing Page Match", "Creative Match", "Placement Checks", "Inventory Compatibility"],
+    items: ["Intent", "Landing Page Match", "Creative Match", "Placement Checks", "Objective/Vertical Alignment"],
     tag: "Align",
   },
   {
@@ -133,40 +121,37 @@ const VALIDATES_ITEMS = [
   { label: "Safe Zones", icon: Monitor },
   { label: "Platform Specs", icon: BarChart3 },
   { label: "Placements", icon: Zap },
-  { label: "Inventory", icon: FileText },
   { label: "Device", icon: Smartphone },
   { label: "Preview", icon: Monitor },
-  { label: "Launch Report", icon: FileText },
 ];
 
 const PLATFORMS = [
   { name: "Meta Ads", desc: "Feed, Story, Reels, and safe zone validation.", icon: Megaphone },
   { name: "Google Ads", desc: "Display, RDA, and Demand Gen requirements.", icon: Target },
-  { name: "Programmatic Display", desc: "RTB sizes, file weight, and inventory fit.", icon: BarChart3 },
-  { name: "Native Advertising", desc: "In feed and publisher native formats.", icon: Radio },
-  { name: "Responsive Display", desc: "Crop survival and asset group readiness.", icon: Monitor },
-  { name: "Premium Publisher Inventory", desc: "High impact and viewability safe layouts.", icon: Globe },
+  { name: "Programmatic Display", desc: "RTB sizes, file weight, and placement fit.", icon: BarChart3 },
+  {
+    name: "Responsive Display",
+    desc: "Landscape and square ratio checks for Google Responsive Display Ads.",
+    icon: Monitor,
+  },
   { name: "Cross device placements", desc: "Desktop, mobile, and tablet compatibility.", icon: Smartphone },
 ];
 
 const FEATURES = [
   {
-    title: "Executive Reports",
+    title: "Campaign Risk Score",
     description:
-      "Generate launch ready reports for clients, QA teams, and stakeholders in one click with no manual deck assembly.",
-    icon: "📊",
+      "Know your campaign's health before a single impression is served. Adigator surfaces every mismatch — creative, landing page, platform, and objective — in one report before launch.",
   },
   {
-    title: "Automated Campaign Validation",
+    title: "Stop Escalations Before They Start",
     description:
-      "No more manual checking across creatives, landing pages, and placements. One workflow catches issues before spend.",
-    icon: "✓",
+      "A misaligned creative or broken URL caught before launch is an escalation that never happens. Your validation report becomes your paper trail.",
   },
   {
-    title: "Multi Layer Validation",
+    title: "Small Errors. Big Losses.",
     description:
-      "Technical, platform, campaign, creative, landing page, placement, URL, inventory, device, and launch readiness, validated together.",
-    icon: "◎",
+      "A wrong placement. A mismatched landing page. An oversized file. Individually minor, but collectively they drain media budgets, delay campaigns, and damage client relationships. Adigator catches them all before the spend begins.",
   },
 ];
 
@@ -191,112 +176,80 @@ const AGENCY_BENEFITS = [
   "Standardize campaign validation",
 ];
 
-const PREVIEW_ENVIRONMENTS = [
-  "Preview Meta",
-  "Preview Google",
-  "Preview Programmatic",
-  "Preview publisher environments",
-  "Desktop",
-  "Mobile",
-  "Story",
-  "Reels",
-  "Messenger",
-  "Feed",
-];
-
 const WORKFLOW_STEPS = [
-  { step: "01", text: "Capture campaign intent, vertical, and landing page" },
-  { step: "02", text: "Validate creatives, URLs, and technical requirements" },
-  { step: "03", text: "Align brief, creative, landing page, and placements" },
-  { step: "04", text: "Preview in context and export launch ready reports" },
+  "Understand the campaign brief, vertical, and objective.",
+  "Validate display creatives against platform specifications.",
+  "Check landing page alignment with creatives and messaging.",
+  "Validate URLs and UTM parameters.",
+  "Catch every mismatch before campaign setup begins.",
 ];
 
 export default function HomePage() {
   const reduceMotion = useReducedMotion();
-  const [benefitIndex, setBenefitIndex] = useState(0);
   const howItWorksCards = [...HOW_IT_WORKS, ...HOW_IT_WORKS];
-
-  useEffect(() => {
-    if (reduceMotion) return;
-    const id = window.setInterval(() => {
-      setBenefitIndex((prev) => (prev + 1) % HERO_BENEFITS.length);
-    }, 2800);
-    return () => window.clearInterval(id);
-  }, [reduceMotion]);
 
   return (
     <div className="marketing-page min-h-screen scroll-smooth bg-[#F5F5F0] text-[#0D0D0D]">
-      <MarketingNav activePath="/" showCta={false} />
+      <MarketingNav activePath="/" />
 
       <main className="pt-28">
         {/* Hero */}
         <section className="marketing-section marketing-section-compact mx-auto w-[min(1280px,92vw)]">
-          <div className="grid min-w-0 items-center gap-10 lg:grid-cols-2 lg:gap-12">
-          <div className="min-w-0">
-            <h1 className="text-[clamp(2rem,4.5vw,3.5rem)] font-black leading-[1.18] tracking-[-0.035em]">
-              <span className="block">The Pre Launch Campaign Validation Platform</span>
-              <span className="mt-2 block text-[#2D2D27]">That Helps You</span>
-              <span className="relative mt-2 block min-h-[1.2em] text-[#111827]">
-                <span className="invisible block" aria-hidden>
-                  {HERO_BENEFIT_SPACER}
-                </span>
-                {HERO_BENEFITS.map((benefit) => (
-                  <motion.span
-                    key={benefit}
-                    initial={false}
-                    animate={{
-                      opacity: benefit === HERO_BENEFITS[benefitIndex] ? 1 : 0,
-                    }}
-                    transition={{ duration: 0.35, ease: "easeOut" }}
-                    className="absolute left-0 top-0 block"
-                    aria-hidden={benefit !== HERO_BENEFITS[benefitIndex]}
-                  >
-                    {benefit}
-                  </motion.span>
-                ))}
-                <span className="sr-only">{HERO_BENEFITS[benefitIndex]}</span>
-              </span>
-            </h1>
+          <div className="grid grid-cols-1 items-center gap-8 md:grid-cols-2 md:gap-10 lg:gap-12">
+            <div className="min-w-0">
+              <h1 className="text-[clamp(2rem,4.5vw,3.25rem)] font-black leading-[1.12] tracking-[-0.035em]">
+                Catch Campaign Mistakes Before Media Spend Begins
+              </h1>
 
-            <motion.p
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.4 }}
-              className="mt-6 max-w-2xl text-lg leading-relaxed text-[#5A5A55] sm:text-xl"
-            >
-              Validate campaign intent, creatives, landing pages, URLs, platform compatibility, and technical
-              requirements before media spend begins.
-            </motion.p>
-
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.55 }}
-              className="mt-8 flex flex-wrap gap-4"
-            >
-              <Link
-                href={MARKETING_DEMO_VIDEO.href}
-                className="marketing-btn-outline saas-hover rounded-full px-8 py-4 text-base font-semibold"
+              <motion.p
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, delay: 0.25 }}
+                className="mt-6 max-w-2xl text-lg leading-relaxed text-[#5A5A55] sm:text-xl"
               >
-                {MARKETING_DEMO_VIDEO.label}
-              </Link>
-            </motion.div>
+                Adigator validates your campaign brief, display creatives, landing page, URLs, and platform requirements —
+                and tells you exactly what&apos;s misaligned before your campaign goes live.
+              </motion.p>
+
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, delay: 0.4 }}
+                className="mt-8 flex flex-wrap gap-4"
+              >
+                <Link
+                  href={MARKETING_CTA.href}
+                  className="marketing-btn-lime saas-hover rounded-full px-8 py-4 text-base font-bold"
+                >
+                  {MARKETING_CTA.label}
+                </Link>
+                <Link
+                  href={MARKETING_DEMO_VIDEO.href}
+                  className="marketing-btn-outline saas-hover rounded-full px-8 py-4 text-base font-semibold"
+                >
+                  {MARKETING_DEMO_VIDEO.label}
+                </Link>
+              </motion.div>
+            </div>
+
+            <div className="relative flex min-w-0 items-center justify-center py-4 lg:py-0">
+              <div
+                className="pointer-events-none absolute left-1/2 top-1/2 h-[min(100%,420px)] w-[min(92%,480px)] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(circle,rgba(200,240,77,0.22)_0%,rgba(200,240,77,0.06)_45%,transparent_72%)]"
+                aria-hidden
+              />
+              <IllustrationWrapper
+                src={STORYSET_ILLUSTRATIONS.digitalTransformationBro}
+                alt="Digital transformation and campaign intelligence platform"
+                className="relative z-10 mx-auto w-full max-w-[min(100%,440px)] sm:max-w-[480px] lg:max-w-[520px] xl:max-w-[560px]"
+                animation="fade-up"
+                delay={0.15}
+                priority
+              />
+            </div>
           </div>
 
-          <div className="relative flex min-w-0 items-center justify-center py-4 lg:py-0">
-            <div
-              className="pointer-events-none absolute left-1/2 top-1/2 h-[min(100%,420px)] w-[min(92%,480px)] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(circle,rgba(200,240,77,0.22)_0%,rgba(200,240,77,0.06)_45%,transparent_72%)]"
-              aria-hidden
-            />
-            <IllustrationWrapper
-              src={STORYSET_ILLUSTRATIONS.digitalTransformationBro}
-              alt="Digital transformation and campaign intelligence platform"
-              className="relative z-10 mx-auto w-full max-w-[min(100%,440px)] sm:max-w-[480px] lg:max-w-[520px] xl:max-w-[560px]"
-              animation="fade-up"
-              delay={0.15}
-              priority
-            />
-          </div>
+          <div className="mt-8 lg:mt-10">
+            <HeroPreviewShowcase className="mx-auto max-w-2xl" />
           </div>
 
           <ValidationLayerDiagram embedded />
@@ -349,7 +302,7 @@ export default function HomePage() {
           </div>
 
           <p className="mt-8 text-center text-xl font-black tracking-tight sm:text-2xl">
-            Adigator fixes this before launch.
+            Adigator validates every layer before a single rupee of media is spent.
           </p>
         </section>
 
@@ -468,15 +421,12 @@ export default function HomePage() {
             </h2>
           </div>
 
-          <div className="grid gap-5 sm:gap-6 md:grid-cols-2 lg:grid-cols-1">
+          <div className="grid gap-5 sm:gap-6">
             {FEATURES.map((feature) => (
               <article
                 key={feature.title}
                 className="saas-hover rounded-2xl border border-[#DEDDD5] bg-white p-6 shadow-[0_12px_24px_rgba(15,23,42,0.05)] sm:rounded-3xl sm:p-8"
               >
-                <div className="mb-6 inline-flex h-12 w-12 items-center justify-center rounded-full bg-[#EEF0E7] text-xl font-bold">
-                  {feature.icon}
-                </div>
                 <h3 className="text-xl font-black tracking-tight sm:text-2xl">{feature.title}</h3>
                 <p className="mt-4 text-base leading-relaxed text-[#5B5B55]">{feature.description}</p>
               </article>
@@ -494,11 +444,11 @@ export default function HomePage() {
             </h2>
             <ul className="mt-6 space-y-3 text-base text-[#4B4B45] sm:mt-8 sm:space-y-4 sm:text-lg">
               {WORKFLOW_STEPS.map((item) => (
-                <li key={item.step} className="flex items-start gap-3">
-                  <span className="mt-1 inline-flex h-6 w-6 items-center justify-center rounded-full bg-[#DDE7B7] text-sm font-bold text-[#0D0D0D]">
+                <li key={item} className="flex items-start gap-3">
+                  <span className="mt-1 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#DDE7B7] text-sm font-bold text-[#0D0D0D]">
                     ✓
                   </span>
-                  <span>{item.text}</span>
+                  <span>{item}</span>
                 </li>
               ))}
             </ul>
@@ -506,47 +456,10 @@ export default function HomePage() {
 
           <div className="saas-hover relative overflow-hidden rounded-2xl border border-[#DEDDD5] bg-[#0D0D0D] p-6 shadow-[0_25px_70px_rgba(15,23,42,0.12)] sm:rounded-[32px] sm:p-8">
             <div className="relative space-y-6">
-              <p className="text-xs font-semibold uppercase tracking-wider text-[#C8F04D]/80">
-                Validate before spend, not after complaints.
-              </p>
               <p className="text-2xl font-black leading-tight text-white sm:text-3xl">
-                Fewer escalations. Less rework. Faster approvals.
+                One validation pass. Before spend. Not after complaints.
               </p>
             </div>
-          </div>
-        </section>
-
-        {/* Preview */}
-        <section className="relative overflow-hidden marketing-section-compact">
-          <div className="preview-gradient-loop absolute inset-0" aria-hidden />
-          <div className="relative mx-auto w-[min(1280px,92vw)] py-10 sm:py-12">
-            <div className="mb-6 max-w-3xl">
-              <h2 className="text-3xl font-black leading-tight tracking-tight text-white sm:text-4xl lg:text-5xl">
-                See your creative before it goes live
-              </h2>
-            </div>
-
-            <div className="flex flex-wrap gap-2.5">
-              {PREVIEW_ENVIRONMENTS.map((env, i) => (
-                <motion.span
-                  key={env}
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  whileInView={{ opacity: 1, scale: 1 }}
-                  viewport={{ once: true }}
-                  transition={{ delay: i * 0.03 }}
-                  className="rounded-full border border-white/15 bg-white/10 px-4 py-2 text-sm font-semibold text-white/90 backdrop-blur-sm"
-                >
-                  {env}
-                </motion.span>
-              ))}
-            </div>
-
-            <Link
-              href="/preview-tool?demo=1&step=1"
-              className="saas-hover mt-6 inline-flex rounded-full border border-white/20 bg-white px-8 py-3.5 text-base font-bold text-[#0D0D0D] shadow-[0_8px_24px_rgba(0,0,0,0.35)]"
-            >
-              Try the preview workflow →
-            </Link>
           </div>
         </section>
 
@@ -593,12 +506,18 @@ export default function HomePage() {
             <p className="mt-4 max-w-xl text-base text-white/60">
               Validate every campaign before it reaches your audience.
             </p>
+            <Link
+              href={MARKETING_CTA.href}
+              className="saas-hover mt-8 rounded-full bg-[#C8F04D] px-9 py-4 text-base font-bold text-[#0D0D0D]"
+            >
+              {MARKETING_CTA.label}
+            </Link>
           </div>
         </section>
       </main>
 
       <footer className="border-t border-[#DDDCD4] bg-[#F5F5F0] py-20">
-        <div className="mx-auto grid w-[min(1280px,92vw)] gap-12 md:grid-cols-5">
+        <div className="mx-auto grid w-[min(1280px,92vw)] gap-12 md:grid-cols-4">
           <div className="md:col-span-2">
             <p className="text-2xl font-black tracking-tight">Adigator</p>
             <p className="mt-3 max-w-sm text-sm leading-relaxed text-[#66665F]">
