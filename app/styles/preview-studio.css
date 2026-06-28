@@ -65,26 +65,9 @@
   color: var(--studio-text-muted);
 }
 
-.preview-tool .text-studio-text,
-.preview-tool .tool-text-primary,
-.preview-tool h3 {
-  color: var(--studio-text) !important;
-}
-
-.preview-tool .text-studio-muted,
-.preview-tool .tool-text-secondary {
-  color: var(--studio-text-muted) !important;
-}
-
-.preview-tool .text-studio-tertiary,
-.preview-tool .tool-text-tertiary {
-  color: var(--studio-text-tertiary) !important;
-}
-
-.preview-tool .text-studio-accent,
-.preview-tool .tool-neon-accent {
-  color: var(--studio-neon-cyan) !important;
-  text-shadow: 0 0 20px rgba(34, 211, 238, 0.35);
+.preview-tool .preview-environment-root,
+.preview-tool .preview-environment-root * {
+  color: inherit;
 }
 
 .tool-glass-header {
@@ -116,61 +99,25 @@
   position: relative;
 }
 
-/* ── Analysis panel remaps (keep child components readable) ── */
-
-.preview-tool .analysis-panel-dark,
-.preview-tool .analysis-panel-light {
-  border-radius: 1rem;
-}
-
-.preview-tool .border-slate-200,
-.preview-tool .border-slate-300,
-.preview-tool .border-slate-100 {
-  border-color: rgba(255, 255, 255, 0.12) !important;
-}
-
-.preview-tool .bg-white,
-.preview-tool .from-slate-50,
-.preview-tool .to-white,
-.preview-tool .bg-slate-50,
-.preview-tool .bg-slate-100 {
-  background-color: var(--studio-surface) !important;
-}
-
-.preview-tool .text-slate-900,
-.preview-tool .text-slate-800 {
+.preview-tool .text-studio-text,
+.preview-tool .tool-text-primary {
   color: var(--studio-text) !important;
 }
 
-.preview-tool .text-slate-700,
-.preview-tool .text-slate-600 {
+.preview-tool .text-studio-muted,
+.preview-tool .tool-text-secondary {
   color: var(--studio-text-muted) !important;
 }
 
-.preview-tool .text-slate-500 {
+.preview-tool .text-studio-tertiary,
+.preview-tool .tool-text-tertiary {
   color: var(--studio-text-tertiary) !important;
 }
 
-.preview-tool .bg-slate-200 {
-  background-color: rgba(255, 255, 255, 0.1) !important;
-}
-
-.preview-tool .bg-sky-500 {
-  background-color: var(--studio-accent) !important;
-}
-
-.preview-tool .border-sky-500,
-.preview-tool .border-sky-600 {
-  border-color: rgba(129, 140, 248, 0.5) !important;
-}
-
-.preview-tool .bg-sky-100 {
-  background-color: rgba(129, 140, 248, 0.15) !important;
-}
-
-.preview-tool .text-sky-900,
-.preview-tool .text-sky-700 {
-  color: var(--studio-accent-bright) !important;
+.preview-tool .text-studio-accent,
+.preview-tool .tool-neon-accent {
+  color: var(--studio-neon-cyan) !important;
+  text-shadow: 0 0 20px rgba(34, 211, 238, 0.35);
 }
 
 .preview-tool select option {

@@ -8,6 +8,7 @@ import {
 import { StudioTabBar } from "../PreviewShared";
 import {
   AnalysisPanelShell,
+  CropPreviewCardShell,
   CropStatusBadge,
   getCropVerdict,
   VerdictBanner,
@@ -29,43 +30,20 @@ const FILTER_TABS = [
 
 function CropPreviewCard({ simulation, imageUrl, imageW, imageH }) {
   const verdict = getCropVerdict(simulation);
-  const previewW = 168;
-  const targetH = Math.round(previewW / simulation.aspectRatio);
-  const scale = imageW && imageH ? previewW / simulation.cropRect.width : 1;
-  const imgW = imageW * scale;
-  const imgH = imageH * scale;
-  const offsetX = -simulation.cropRect.x * scale;
-  const offsetY = -simulation.cropRect.y * scale;
 
   return (
-    <article className="flex-shrink-0 w-[180px] rounded-xl border border-slate-200 bg-white overflow-hidden shadow-sm">
-      <div className="px-3 pt-3 pb-2">
-        <div className="flex items-start justify-between gap-2">
-          <div className="min-w-0">
-            <p className="text-xs font-semibold text-slate-900 truncate">{simulation.label}</p>
-            <p className="text-[10px] text-slate-500">{simulation.sizeLabel}</p>
-          </div>
-          <CropStatusBadge tone={verdict.tone} label={verdict.short} />
-        </div>
-      </div>
-
-      <div className="px-3 pb-3">
-        <div
-          className="relative overflow-hidden rounded-lg bg-slate-100 border border-slate-200"
-          style={{ width: previewW, height: targetH }}
-        >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={imageUrl}
-            alt={`${simulation.label} crop`}
-            className="absolute max-w-none"
-            style={{ width: imgW, height: imgH, left: offsetX, top: offsetY }}
-            draggable={false}
-          />
-        </div>
-        <p className="mt-2 text-[11px] text-slate-600 leading-snug line-clamp-2">{verdict.message}</p>
-      </div>
-    </article>
+    <CropPreviewCardShell
+      title={simulation.label}
+      subtitle={simulation.sizeLabel}
+      badge={<CropStatusBadge tone={verdict.tone} label={verdict.short} />}
+      imageUrl={imageUrl}
+      imageW={imageW}
+      imageH={imageH}
+      cropRect={simulation.cropRect}
+      aspectRatio={simulation.aspectRatio}
+      message={verdict.message}
+      label={`${simulation.label} crop`}
+    />
   );
 }
 
@@ -105,7 +83,7 @@ export default function GoogleCropSimulation({ imageUrl, imageSize, elements }) 
     >
       <VerdictBanner tone={summaryTone} title={summaryTitle} message={summaryMessage} />
 
-      <StudioTabBar tabs={FILTER_TABS} activeTab={filter} onChange={setFilter} variant="light" />
+      <StudioTabBar tabs={FILTER_TABS} activeTab={filter} onChange={setFilter} />
 
       <div className="flex gap-3 overflow-x-auto pb-2 -mx-1 px-1">
         {visibleSimulations.map((simulation) => (
@@ -120,8 +98,8 @@ export default function GoogleCropSimulation({ imageUrl, imageSize, elements }) 
       </div>
 
       {filter === "key" ? (
-        <p className="text-xs text-slate-500">
-          Showing 6 common formats. Switch to <strong>All formats</strong> for the full {allSimulations.length}-format check
+        <p className="text-xs text-[#9a9aad]">
+          Showing 6 common formats. Switch to <strong className="text-[#f4f4f8]">All formats</strong> for the full {allSimulations.length}-format check
           ({Object.keys(GOOGLE_CROP_SPECS).length} total).
         </p>
       ) : null}

@@ -2,6 +2,7 @@
 @import "./styles/login.css";
 @import "./styles/premium-ui.css";
 @import "./styles/preview-studio.css";
+@import "./styles/analysis-panel.css";
 
 :root {
   --bg: #02030a;

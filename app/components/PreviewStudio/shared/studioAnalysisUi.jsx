@@ -30,7 +30,7 @@ export function AnalysisImageCanvas({ imageUrl, imageW, imageH, children, maxWid
   const { width, height } = getDisplayDimensions(imageW, imageH, maxWidth);
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 shadow-sm">
+    <div className="rounded-xl border border-white/12 bg-white/[0.04] p-3 shadow-[0_0_24px_-8px_rgba(129,140,248,0.25)]">
       <div className="relative mx-auto overflow-hidden rounded-lg bg-slate-900" style={{ width, height }}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
@@ -44,7 +44,7 @@ export function AnalysisImageCanvas({ imageUrl, imageW, imageH, children, maxWid
         />
         <div className="absolute inset-0 pointer-events-none">{children}</div>
       </div>
-      <p className="mt-2 text-center text-[11px] text-slate-500">
+      <p className="mt-2 text-center text-[11px] text-[#9a9aad]">
         Green = safe area · Amber = platform UI · Red = element to move
       </p>
     </div>
@@ -53,21 +53,21 @@ export function AnalysisImageCanvas({ imageUrl, imageW, imageH, children, maxWid
 
 const VERDICT_STYLES = {
   good: {
-    wrap: "border-emerald-200 bg-emerald-50",
-    title: "text-emerald-900",
-    body: "text-emerald-800",
+    wrap: "border-emerald-400/35 bg-emerald-500/12",
+    title: "text-emerald-100",
+    body: "text-emerald-200/90",
     icon: "✓",
   },
   warn: {
-    wrap: "border-amber-200 bg-amber-50",
-    title: "text-amber-900",
-    body: "text-amber-800",
+    wrap: "border-amber-400/35 bg-amber-500/12",
+    title: "text-amber-100",
+    body: "text-amber-200/90",
     icon: "⚠",
   },
   bad: {
-    wrap: "border-red-200 bg-red-50",
-    title: "text-red-900",
-    body: "text-red-800",
+    wrap: "border-rose-400/35 bg-rose-500/12",
+    title: "text-rose-100",
+    body: "text-rose-200/90",
     icon: "✗",
   },
 };
@@ -87,12 +87,12 @@ export function VerdictBanner({ tone = "good", title, message }) {
 export function SimpleTips({ tips = [], emptyMessage }) {
   if (!tips.length) {
     return emptyMessage ? (
-      <p className="text-sm text-slate-600 leading-relaxed">{emptyMessage}</p>
+      <p className="text-sm text-[#c8c8d4] leading-relaxed">{emptyMessage}</p>
     ) : null;
   }
 
   return (
-    <ul className="space-y-2 text-sm text-slate-700 leading-relaxed list-disc pl-5">
+    <ul className="space-y-2 text-sm text-[#d4d4de] leading-relaxed list-disc pl-5 marker:text-cyan-400/70">
       {tips.slice(0, 3).map((tip, index) => {
         const text = typeof tip === "string" ? tip : tip?.message || tip?.detail;
         if (!text) return null;
@@ -107,11 +107,11 @@ export function ElementChecklist({ atRisk = [], safe = [] }) {
     <div className="space-y-3 text-sm">
       {atRisk.length ? (
         <div>
-          <p className="font-semibold text-red-800 mb-1">Move these</p>
-          <ul className="space-y-1 text-red-700">
+          <p className="font-semibold text-rose-200 mb-1">Move these</p>
+          <ul className="space-y-1 text-rose-100/90">
             {atRisk.map((el) => (
               <li key={el.id} className="flex items-center gap-2">
-                <span className="h-2 w-2 rounded-full bg-red-500 shrink-0" />
+                <span className="h-2 w-2 rounded-full bg-rose-400 shrink-0" />
                 {el.label}
               </li>
             ))}
@@ -120,11 +120,11 @@ export function ElementChecklist({ atRisk = [], safe = [] }) {
       ) : null}
       {safe.length ? (
         <div>
-          <p className="font-semibold text-emerald-800 mb-1">Already safe</p>
-          <ul className="space-y-1 text-emerald-700">
+          <p className="font-semibold text-emerald-200 mb-1">Already safe</p>
+          <ul className="space-y-1 text-emerald-100/90">
             {safe.slice(0, 5).map((el) => (
               <li key={el.id} className="flex items-center gap-2">
-                <span className="h-2 w-2 rounded-full bg-emerald-500 shrink-0" />
+                <span className="h-2 w-2 rounded-full bg-emerald-400 shrink-0" />
                 {el.label}
               </li>
             ))}
@@ -138,14 +138,14 @@ export function ElementChecklist({ atRisk = [], safe = [] }) {
 export function PlacementSelect({ label, options, value, onChange }) {
   return (
     <label className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:gap-3">
-      {label ? <span className="text-xs font-semibold text-slate-600 shrink-0">{label}</span> : null}
+      {label ? <span className="text-xs font-semibold text-[#9a9aad] shrink-0">{label}</span> : null}
       <select
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 shadow-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-200"
+        className="rounded-lg border border-white/15 bg-white/[0.06] px-3 py-2 text-sm text-[#f4f4f8] shadow-sm focus:border-cyan-400/50 focus:outline-none focus:ring-2 focus:ring-cyan-400/20"
       >
         {options.map((option) => (
-          <option key={option.id} value={option.id}>
+          <option key={option.id} value={option.id} className="bg-[#1a1a28] text-[#f4f4f8]">
             {option.label}
           </option>
         ))}
@@ -210,9 +210,9 @@ export function getCropVerdict(simulation) {
 }
 
 const CROP_BADGE = {
-  good: "text-emerald-700 bg-emerald-100 border-emerald-200",
-  warn: "text-amber-800 bg-amber-100 border-amber-200",
-  bad: "text-red-700 bg-red-100 border-red-200",
+  good: "text-emerald-200 bg-emerald-500/15 border-emerald-400/35",
+  warn: "text-amber-200 bg-amber-500/15 border-amber-400/35",
+  bad: "text-rose-200 bg-rose-500/15 border-rose-400/35",
 };
 
 export function CropStatusBadge({ tone, label }) {
@@ -223,12 +223,55 @@ export function CropStatusBadge({ tone, label }) {
   );
 }
 
+export function CropPreviewCardShell({ title, subtitle, badge, imageUrl, imageW, imageH, cropRect, aspectRatio, message, label }) {
+  const previewW = 168;
+  const targetH = Math.round(previewW / aspectRatio);
+  const scale = imageW && imageH ? previewW / cropRect.width : 1;
+  const imgW = imageW * scale;
+  const imgH = imageH * scale;
+  const offsetX = -cropRect.x * scale;
+  const offsetY = -cropRect.y * scale;
+
+  return (
+    <article className="flex-shrink-0 w-[180px] rounded-xl border border-white/12 bg-white/[0.04] overflow-hidden shadow-[0_0_20px_-8px_rgba(129,140,248,0.2)]">
+      <div className="px-3 pt-3 pb-2">
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0">
+            <p className="text-xs font-semibold text-[#f4f4f8] truncate">{title}</p>
+            {subtitle ? <p className="text-[10px] text-[#9a9aad]">{subtitle}</p> : null}
+          </div>
+          {badge}
+        </div>
+      </div>
+
+      <div className="px-3 pb-3">
+        <div
+          className="relative overflow-hidden rounded-lg bg-black/40 border border-white/10"
+          style={{ width: previewW, height: targetH }}
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={imageUrl}
+            alt={label || title}
+            className="absolute max-w-none"
+            style={{ width: imgW, height: imgH, left: offsetX, top: offsetY }}
+            draggable={false}
+          />
+        </div>
+        {message ? (
+          <p className="mt-2 text-[11px] text-[#c8c8d4] leading-snug line-clamp-2">{message}</p>
+        ) : null}
+      </div>
+    </article>
+  );
+}
+
 export function AnalysisPanelShell({ title, description, children }) {
   return (
-    <div className="space-y-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+    <div className="space-y-4 rounded-2xl border border-white/12 bg-white/[0.04] p-5 shadow-[0_0_32px_-12px_rgba(129,140,248,0.3)]">
       <div>
-        <h3 className="text-base font-semibold text-slate-900">{title}</h3>
-        {description ? <p className="mt-1 text-sm text-slate-600 max-w-2xl">{description}</p> : null}
+        <h3 className="text-base font-semibold text-[#f4f4f8]">{title}</h3>
+        {description ? <p className="mt-1 text-sm text-[#c8c8d4] max-w-2xl">{description}</p> : null}
       </div>
       {children}
     </div>

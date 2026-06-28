@@ -3,32 +3,12 @@
 import { motion } from "framer-motion";
 import { Activity, AlertTriangle, BarChart3, CheckCircle, ExternalLink, FileText, Layers, Link2, Shield, Target, Wrench, Brain } from "lucide-react";
 import { qaItemIcon } from "@/app/lib/analyzerInsights";
+import { INSIGHT_TONES, RISK_TONES } from "@/app/components/analyzer/analyzerTheme";
 
 const PLATFORM_LABELS = {
   google_ads: "Google Ads",
   meta_ads: "Meta Ads",
   programmatic: "Programmatic Ads",
-};
-
-const RISK_TONES = {
-  emerald: {
-    border: "border-emerald-200",
-    bg: "bg-emerald-50",
-    text: "text-emerald-900",
-    badge: "text-emerald-700 bg-emerald-100 border-emerald-200",
-  },
-  amber: {
-    border: "border-amber-200",
-    bg: "bg-amber-50",
-    text: "text-amber-950",
-    badge: "text-amber-800 bg-amber-100 border-amber-200",
-  },
-  red: {
-    border: "border-red-200",
-    bg: "bg-red-50",
-    text: "text-red-950",
-    badge: "text-red-800 bg-red-100 border-red-200",
-  },
 };
 
 export default function AnalyzerOverview({
@@ -54,17 +34,17 @@ export default function AnalyzerOverview({
   return (
     <div className="space-y-5">
       {/* 1. Overview Briefing */}
-      <section className="rounded-2xl border border-slate-200 bg-gradient-to-br from-slate-50 to-white p-5">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-sky-700">Overview Briefing</p>
-        <h3 className="mt-2 text-xl font-black text-slate-900">Welcome back, {greetingName}.</h3>
-        <p className="mt-1 text-sm font-semibold text-slate-800">{briefing?.headline || `${platformLabel} campaign intelligence`}</p>
-        <p className="mt-2 max-w-3xl text-sm leading-relaxed text-slate-700">
+      <section className="neon-card rounded-2xl p-5">
+        <p className="tool-neon-accent text-[11px] font-semibold uppercase tracking-[0.22em]">Overview Briefing</p>
+        <h3 className="mt-2 text-xl font-black text-[#f4f4f8]">Welcome back, {greetingName}.</h3>
+        <p className="mt-1 text-sm font-semibold text-[#e8e8f0]">{briefing?.headline || `${platformLabel} campaign intelligence`}</p>
+        <p className="mt-2 max-w-3xl text-sm leading-relaxed text-[#c8c8d4]">
           {briefing?.narrative || `Risk-based launch analysis for ${platformLabel}: ${goalText} goal in ${verticalText}.`}
         </p>
         {briefing?.focusAreas?.length ? (
           <div className="mt-3 flex flex-wrap gap-2">
             {briefing.focusAreas.map((area) => (
-              <span key={area} className="rounded-full border border-sky-200 bg-sky-50 px-2.5 py-0.5 text-[10px] font-semibold text-sky-800">
+              <span key={area} className="rounded-full border border-cyan-400/35 bg-cyan-500/10 px-2.5 py-0.5 text-[10px] font-semibold text-cyan-200">
                 {area}
               </span>
             ))}
@@ -82,11 +62,11 @@ export default function AnalyzerOverview({
       <UrlValidationSection urlValidation={urlValidation} />
 
       {!campaignBrief?.trim() ? (
-        <section className="rounded-2xl border border-sky-200 bg-sky-50 p-4">
-          <p className="text-sm font-semibold text-sky-900">Improve analysis accuracy</p>
-          <p className="mt-1 text-sm text-sky-800 leading-relaxed">
-            Add a <strong>Client Brief / Campaign Description</strong> in Step 1 for tighter alignment between your creative, objective, vertical, and landing page.
-            Update the brief and click <strong>Reanalyze</strong> to refresh results.
+        <section className="neon-card rounded-2xl border border-cyan-400/30 p-4">
+          <p className="text-sm font-semibold text-cyan-200">Improve analysis accuracy</p>
+          <p className="mt-1 text-sm leading-relaxed text-[#d4d4de]">
+            Add a <strong className="text-[#f4f4f8]">Client Brief / Campaign Description</strong> in Step 1 for tighter alignment between your creative, objective, vertical, and landing page.
+            Update the brief and click <strong className="text-[#f4f4f8]">Reanalyze</strong> to refresh results.
           </p>
         </section>
       ) : (
@@ -107,15 +87,15 @@ export default function AnalyzerOverview({
 
       {/* 2. Campaign Health Summary */}
       {health ? (
-        <section className="rounded-2xl border border-slate-200 bg-white p-5">
-          <SectionHeader icon={Activity} label="Campaign Health Summary" accent="text-violet-600" />
+        <section className="neon-card rounded-2xl p-5">
+          <SectionHeader icon={Activity} label="Campaign Health Summary" accent="text-violet-400" />
           <div className="mt-4 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div className="flex flex-wrap gap-3">
               <HealthScoreCard label="Health Score" value={health.healthScore} tone={health.riskLevel?.tone} />
               <HealthScoreCard label="Compatibility" value={health.compatibilityScore} tone="violet" subtitle="Placement fit" />
-              <div className={`rounded-xl border px-4 py-3 ${RISK_TONES[health.riskLevel?.tone]?.border || "border-slate-200"} ${RISK_TONES[health.riskLevel?.tone]?.bg || "bg-slate-50"}`}>
-                <p className="text-[10px] uppercase tracking-wider text-slate-600">Risk Level</p>
-                <p className={`mt-1 text-lg font-bold ${RISK_TONES[health.riskLevel?.tone]?.text || "text-slate-900"}`}>
+              <div className={`rounded-xl border px-4 py-3 ${RISK_TONES[health.riskLevel?.tone]?.border || "border-white/12"} ${RISK_TONES[health.riskLevel?.tone]?.bg || "bg-white/[0.05]"}`}>
+                <p className="text-[10px] uppercase tracking-wider text-[#9a9aad]">Risk Level</p>
+                <p className={`mt-1 text-lg font-bold ${RISK_TONES[health.riskLevel?.tone]?.text || "text-[#f4f4f8]"}`}>
                   {health.riskLevel?.label}
                 </p>
               </div>
@@ -125,12 +105,12 @@ export default function AnalyzerOverview({
           {health.dimensions?.length ? (
             <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
               {health.dimensions.map((dim) => (
-                <div key={dim.label} className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5">
+                <div key={dim.label} className="rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2.5">
                   <div className="flex items-center justify-between gap-2">
-                    <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-600">{dim.label}</p>
-                    <p className="text-sm font-black text-slate-900 tabular-nums">{dim.score}</p>
+                    <p className="text-[10px] font-semibold uppercase tracking-wider text-[#9a9aad]">{dim.label}</p>
+                    <p className="text-sm font-black text-[#f4f4f8] tabular-nums">{dim.score}</p>
                   </div>
-                  <p className="mt-1 text-[10px] text-slate-500 leading-snug">{dim.note}</p>
+                  <p className="mt-1 text-[10px] text-[#9a9aad] leading-snug">{dim.note}</p>
                   <div className="mt-2 h-1.5 rounded-full bg-slate-200 overflow-hidden">
                     <div
                       className={`h-full rounded-full ${dim.score >= 80 ? "bg-emerald-500" : dim.score >= 60 ? "bg-amber-500" : "bg-red-500"}`}
@@ -144,10 +124,10 @@ export default function AnalyzerOverview({
 
           {health.inventoryCoverage?.length ? (
             <div className="mt-4">
-              <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 mb-2">Inventory coverage</p>
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-[#9a9aad] mb-2">Inventory coverage</p>
               <div className="flex flex-wrap gap-2">
                 {health.inventoryCoverage.map((row) => (
-                  <span key={row.label} className="rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-[11px] text-slate-800">
+                  <span key={row.label} className="rounded-lg border border-white/12 bg-white/[0.05] px-2.5 py-1 text-[11px] text-[#d4d4de]">
                     <span className="font-semibold">{row.label}:</span>{" "}
                     {row.ready}/{row.total} ready
                   </span>
@@ -166,7 +146,7 @@ export default function AnalyzerOverview({
 
       {/* 3. Creative Analysis */}
       {creativeAnalysis ? (
-        <section className="rounded-xl border border-slate-200 bg-white p-4">
+        <section className="neon-card rounded-xl p-4">
           <SectionHeader icon={BarChart3} label="Creative Analysis" accent="text-blue-600" />
           <p className="mt-2 text-sm text-slate-800 leading-relaxed">{creativeAnalysis.summary}</p>
           {creativeAnalysis.highlights?.length ? (
@@ -212,7 +192,7 @@ export default function AnalyzerOverview({
 
       {/* 4. Technical QA */}
       {technicalQa ? (
-        <section className="rounded-xl border border-slate-200 bg-white p-4">
+        <section className="neon-card rounded-xl p-4">
           <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
             <SectionHeader icon={Wrench} label={`Technical QA · ${platformLabel}`} accent="text-sky-600" inline />
             <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">
@@ -226,7 +206,7 @@ export default function AnalyzerOverview({
 
       {/* 5. Placement QA */}
       {placementQa ? (
-        <section className="rounded-xl border border-slate-200 bg-white p-4 space-y-4">
+        <section className="neon-card rounded-xl p-4 space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <SectionHeader icon={Target} label={`Placement QA ${platformLabel}`} accent="text-violet-600" inline />
             <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">
@@ -259,14 +239,14 @@ export default function AnalyzerOverview({
       {/* 6. Creative Risk Summary */}
       {riskSummary ? (
         <section className="space-y-4">
-          <div className="rounded-xl border border-slate-200 bg-white p-4">
-            <SectionHeader icon={Layers} label="Creative Risk Summary" accent="text-amber-600" />
+          <div className="neon-card rounded-xl p-4">
+            <SectionHeader icon={Layers} label="Creative Risk Summary" accent="text-amber-400" />
             {riskSummary.hasNoRisk ? (
-              <div className="mt-3 flex items-start gap-3 rounded-lg border border-emerald-200 bg-emerald-50 p-4">
-                <Shield size={18} className="text-emerald-600 shrink-0 mt-0.5" />
+              <div className={`mt-3 flex items-start gap-3 rounded-lg border p-4 ${INSIGHT_TONES.emerald}`}>
+                <Shield size={18} className="text-emerald-300 shrink-0 mt-0.5" />
                 <div>
-                  <p className="text-sm font-semibold text-emerald-900">No critical launch risks</p>
-                  <p className="mt-1 text-sm text-emerald-800">
+                  <p className="text-sm font-semibold text-emerald-100">No critical launch risks</p>
+                  <p className="mt-1 text-sm text-emerald-200/90">
                     Campaign set passes {platformLabel} checks with no blocking issues detected across creatives.
                   </p>
                 </div>
@@ -274,8 +254,8 @@ export default function AnalyzerOverview({
             ) : (
               <ul className="mt-3 space-y-2">
                 {riskSummary.launchRisks.map((risk) => (
-                  <li key={risk} className="text-sm text-slate-900 leading-relaxed rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 flex items-start gap-2">
-                    <AlertTriangle size={14} className="text-amber-600 shrink-0 mt-0.5" />
+                  <li key={risk} className={`text-sm leading-relaxed rounded-lg border px-3 py-2 flex items-start gap-2 ${INSIGHT_TONES.amber} text-amber-50`}>
+                    <AlertTriangle size={14} className="text-amber-300 shrink-0 mt-0.5" />
                     {risk}
                   </li>
                 ))}
@@ -284,20 +264,20 @@ export default function AnalyzerOverview({
 
             {riskSummary.perCreativeRisks?.length ? (
               <div className="mt-4 space-y-2">
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Per-creative risks</p>
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-[#9a9aad]">Per-creative risks</p>
                 {riskSummary.perCreativeRisks.map((row) => (
-                  <div key={row.id} className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5">
+                  <div key={row.id} className="rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2.5">
                     <div className="flex flex-wrap items-center justify-between gap-2">
-                      <p className="text-sm font-semibold text-slate-900">{row.name}</p>
-                      <span className="text-xs text-slate-700">{row.status?.emoji} {row.status?.label}</span>
+                      <p className="text-sm font-semibold text-[#f4f4f8]">{row.name}</p>
+                      <span className="text-xs text-[#c8c8d4]">{row.status?.emoji} {row.status?.label}</span>
                     </div>
                     {row.mainRisk ? (
-                      <p className="mt-1.5 text-xs text-amber-900 leading-relaxed"><span className="font-semibold">Risk:</span> {row.mainRisk}</p>
+                      <p className="mt-1.5 text-xs text-amber-200 leading-relaxed"><span className="font-semibold">Risk:</span> {row.mainRisk}</p>
                     ) : row.statusKey === "ready" ? (
-                      <p className="mt-1.5 text-xs text-emerald-800">No blocking issues. Launch ready.</p>
+                      <p className="mt-1.5 text-xs text-emerald-200">No blocking issues. Launch ready.</p>
                     ) : null}
                     {row.recommendedFix ? (
-                      <p className="mt-1 text-xs text-slate-700 leading-relaxed"><span className="font-semibold">Fix:</span> {row.recommendedFix}</p>
+                      <p className="mt-1 text-xs text-[#c8c8d4] leading-relaxed"><span className="font-semibold">Fix:</span> {row.recommendedFix}</p>
                     ) : null}
                   </div>
                 ))}
@@ -308,30 +288,30 @@ export default function AnalyzerOverview({
           <motion.section
             className={`rounded-xl border p-4 ${
               riskSummary.campaignLaunchStatus?.tone === "emerald"
-                ? "border-emerald-200 bg-emerald-50"
+                ? INSIGHT_TONES.emerald
                 : riskSummary.campaignLaunchStatus?.tone === "amber"
-                  ? "border-amber-200 bg-amber-50"
-                  : "border-red-200 bg-red-50"
+                  ? INSIGHT_TONES.amber
+                  : "border-rose-400/30 bg-rose-500/8"
             }`}
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
           >
-            <h4 className="text-sm font-semibold text-slate-900 mb-2">Launch Recommendation</h4>
-            <p className="text-base font-bold text-slate-900 flex items-center gap-2">
+            <h4 className="text-sm font-semibold text-[#f4f4f8] mb-2">Launch Recommendation</h4>
+            <p className="text-base font-bold text-[#f4f4f8] flex items-center gap-2">
               <span>{riskSummary.campaignLaunchStatus?.emoji}</span>
               {riskSummary.campaignLaunchStatus?.label}
             </p>
             <ul className="mt-3 space-y-1.5">
               {riskSummary.recommendationBullets.map((bullet) => (
-                <li key={bullet} className="text-sm text-slate-800 leading-relaxed">• {bullet}</li>
+                <li key={bullet} className="text-sm text-[#d4d4de] leading-relaxed">• {bullet}</li>
               ))}
             </ul>
           </motion.section>
         </section>
       ) : null}
 
-      <p className="text-sm text-slate-600 rounded-xl border border-slate-200 bg-slate-50 p-3">
-        Open <span className="font-semibold text-slate-900">Creative Analysis</span> for per-creative goal alignment, extraction signals, and detailed fixes.
+      <p className="text-sm text-[#c8c8d4] rounded-xl border border-white/12 bg-white/[0.04] p-3">
+        Open <span className="font-semibold text-[#f4f4f8]">Creative Analysis</span> for per-creative goal alignment, extraction signals, and detailed fixes.
       </p>
     </div>
   );
@@ -341,7 +321,7 @@ function SectionHeader({ icon: Icon, label, accent, inline = false }) {
   return (
     <div className={`flex items-center gap-2 ${inline ? "" : "mb-0"}`}>
       <Icon size={15} className={accent} />
-      <h4 className="text-sm font-semibold text-slate-900">{label}</h4>
+      <h4 className="text-sm font-semibold text-[#f4f4f8]">{label}</h4>
     </div>
   );
 }
@@ -350,34 +330,34 @@ function HealthScoreCard({ label, value, tone, subtitle }) {
   const isViolet = tone === "violet";
   const riskTone = RISK_TONES[tone] || RISK_TONES.emerald;
   return (
-    <div className={`rounded-xl border px-4 py-3 min-w-[120px] ${isViolet ? "border-violet-200 bg-violet-50" : `${riskTone.border} ${riskTone.bg}`}`}>
-      <p className="text-[10px] uppercase tracking-wider opacity-80 text-slate-600">{label}</p>
-      <p className={`text-3xl font-bold tabular-nums ${isViolet ? "text-violet-900" : riskTone.text}`}>{value}</p>
-      {subtitle ? <p className="text-[10px] text-slate-500 mt-0.5">{subtitle}</p> : null}
+    <div className={`rounded-xl border px-4 py-3 min-w-[120px] ${isViolet ? "border-violet-400/35 bg-violet-500/12" : `${riskTone.border} ${riskTone.bg}`}`}>
+      <p className="text-[10px] uppercase tracking-wider text-[#9a9aad]">{label}</p>
+      <p className={`text-3xl font-bold tabular-nums ${isViolet ? "text-violet-200" : riskTone.text}`}>{value}</p>
+      {subtitle ? <p className="mt-0.5 text-[10px] text-[#9a9aad]">{subtitle}</p> : null}
     </div>
   );
 }
 
 function InsightList({ title, items, tone }) {
   const tones = {
-    emerald: "border-emerald-200 bg-emerald-50/50",
-    amber: "border-amber-200 bg-amber-50/50",
-    sky: "border-sky-200 bg-sky-50/50",
+    emerald: INSIGHT_TONES.emerald,
+    amber: INSIGHT_TONES.amber,
+    sky: INSIGHT_TONES.sky,
   };
   if (!items?.length) {
     return (
       <div className={`rounded-lg border p-3 ${tones[tone] || tones.sky}`}>
-        <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-600 mb-1">{title}</p>
-        <p className="text-xs text-slate-500">None flagged.</p>
+        <p className="text-[10px] font-semibold uppercase tracking-wider text-[#9a9aad] mb-1">{title}</p>
+        <p className="text-xs text-[#9a9aad]">None flagged.</p>
       </div>
     );
   }
   return (
     <div className={`rounded-lg border p-3 ${tones[tone] || tones.sky}`}>
-      <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-600 mb-2">{title}</p>
+      <p className="text-[10px] font-semibold uppercase tracking-wider text-[#9a9aad] mb-2">{title}</p>
       <ul className="space-y-1.5">
         {items.map((item) => (
-          <li key={item} className="text-xs text-slate-800 leading-relaxed">• {item}</li>
+          <li key={item} className="text-xs text-[#d4d4de] leading-relaxed">• {item}</li>
         ))}
       </ul>
     </div>
@@ -454,15 +434,15 @@ function PlacementMatrixSection({ title, columns, matrix, legend }) {
 
 function StatCard({ label, value, accent = "slate" }) {
   const tones = {
-    slate: "border-slate-200 bg-white",
-    emerald: "border-emerald-200 bg-emerald-50",
-    amber: "border-amber-200 bg-amber-50",
-    red: "border-red-200 bg-red-50",
+    slate: "border-white/12 bg-white/[0.05]",
+    emerald: "border-emerald-400/35 bg-emerald-500/12 shadow-[0_0_20px_-6px_rgba(74,222,128,0.25)]",
+    amber: "border-amber-400/35 bg-amber-500/12 shadow-[0_0_20px_-6px_rgba(251,191,36,0.25)]",
+    red: "border-rose-400/35 bg-rose-500/12 shadow-[0_0_20px_-6px_rgba(251,113,133,0.25)]",
   };
   return (
     <div className={`rounded-xl border p-3.5 ${tones[accent] || tones.slate}`}>
-      <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-600">{label}</p>
-      <p className="mt-1 text-3xl font-black leading-none text-slate-900">{value}</p>
+      <p className="text-[10px] font-semibold uppercase tracking-wider text-[#9a9aad]">{label}</p>
+      <p className="mt-1 text-3xl font-black leading-none text-[#f4f4f8] tabular-nums">{value}</p>
     </div>
   );
 }
@@ -619,12 +599,12 @@ function VerticalCategoryMismatchSection({ report = [], selectedVerticalLabel, t
 function UrlValidationSection({ urlValidation }) {
   if (!urlValidation) {
     return (
-      <section className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-5">
+      <section className="neon-card rounded-2xl border border-dashed border-white/20 p-5">
         <div className="flex items-start gap-3">
-          <Link2 size={18} className="text-slate-500 shrink-0 mt-0.5" />
+          <Link2 size={18} className="text-[#9a9aad] shrink-0 mt-0.5" />
           <div>
-            <p className="text-sm font-semibold text-slate-900">URL Validation</p>
-            <p className="mt-1 text-sm text-slate-600 leading-relaxed">
+            <p className="text-sm font-semibold text-[#f4f4f8]">URL Validation</p>
+            <p className="mt-1 text-sm text-[#c8c8d4] leading-relaxed">
               No URL validated yet. In Step 2, enter a landing page URL and run Validate URL.
             </p>
           </div>
@@ -635,9 +615,9 @@ function UrlValidationSection({ urlValidation }) {
 
   if (urlValidation.status === "skipped") {
     return (
-      <section className="rounded-2xl border border-slate-200 bg-white p-5">
-        <SectionHeader icon={Link2} label="URL Validation" accent="text-slate-600" />
-        <p className="mt-2 text-sm text-slate-600">Skipped. No URL was submitted.</p>
+      <section className="neon-card rounded-2xl p-5">
+        <SectionHeader icon={Link2} label="URL Validation" accent="text-[#9a9aad]" />
+        <p className="mt-2 text-sm text-[#c8c8d4]">Skipped. No URL was submitted.</p>
       </section>
     );
   }

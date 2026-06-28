@@ -2919,7 +2919,7 @@ export default function PreviewTool() {
                   <p className="text-sm text-studio-error">{readinessError}</p>
                 ) : null}
                 {readinessReport ? (
-                  <div className="studio-card overflow-hidden rounded-2xl border-studio-border bg-studio-surface-elevated">
+                  <div className="validation-report-dark studio-card overflow-hidden rounded-2xl border-studio-border bg-studio-surface-elevated">
                     <ValidationReport
                       report={readinessReport}
                       onCopy={() => addToast("Readiness report copied to clipboard.", "success")}

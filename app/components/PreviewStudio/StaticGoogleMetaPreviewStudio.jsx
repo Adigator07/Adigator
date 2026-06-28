@@ -156,7 +156,7 @@ export default function StaticGoogleMetaPreviewStudio({
               />
             ) : primaryTemplate ? (
               <div className="mx-auto w-full max-w-5xl">
-                <div className="studio-card overflow-hidden rounded-2xl bg-white shadow-studio [&_img]:h-auto [&_img]:max-w-none [&_img]:object-contain [&_img]:image-rendering-auto">
+                <div className="preview-environment-root studio-card overflow-hidden rounded-2xl shadow-studio [&_img]:h-auto [&_img]:max-w-none [&_img]:object-contain [&_img]:image-rendering-auto">
                   {renderEnvironmentCreative(primaryTemplate, handlers, device)}
                 </div>
               </div>

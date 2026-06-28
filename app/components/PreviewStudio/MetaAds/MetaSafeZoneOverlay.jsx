@@ -102,7 +102,7 @@ export default function MetaSafeZoneOverlay({
 
           {tipMessages.length ? (
             <div>
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-2">
+              <p className="text-xs font-semibold uppercase tracking-wide text-[#9a9aad] mb-2">
                 Quick fixes
               </p>
               <SimpleTips tips={tipMessages} />
@@ -110,7 +110,7 @@ export default function MetaSafeZoneOverlay({
           ) : null}
 
           {detectionSource !== "none" ? (
-            <p className="text-[11px] text-slate-400">
+            <p className="text-[11px] text-[#9a9aad]">
               Element detection: {detectionSource.replace(/\+/g, " + ")}
             </p>
           ) : null}

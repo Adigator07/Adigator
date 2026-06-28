@@ -186,6 +186,7 @@ export default function ProgrammaticPreviewStudio({
             onSwitchDevice={setDevice}
           />
         ) : (
+          <div className="preview-environment-root">
           <ContextualPreviewEngine
             key={`${selectedSourceId}-${activeTemplate}-${device}-${regenerateToken}`}
             creatives={[selectedCreativeWithAnalysis]}
@@ -202,8 +203,9 @@ export default function ProgrammaticPreviewStudio({
             previewPlacement={PROGRAMMATIC_PREVIEW_PLACEMENT}
             onCopyCreative={onCopyCreative}
             onEditCreative={onEditCreative}
-            getSupportedDevicesForCreative={getSupportedDevices}
-          />
+          getSupportedDevicesForCreative={getSupportedDevices}
+        />
+          </div>
         )}
       </StudioContentPanel>
     </div>

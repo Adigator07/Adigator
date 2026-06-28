@@ -1,0 +1,240 @@
+/* Step 3 analysis — dark neon surfaces with readable text (scoped to analysis panel only) */
+
+.preview-tool .analysis-panel-dark {
+  color: var(--studio-text);
+}
+
+/* Replace pale section backgrounds */
+.preview-tool .analysis-panel-dark .bg-white,
+.preview-tool .analysis-panel-dark .from-slate-50,
+.preview-tool .analysis-panel-dark .to-white,
+.preview-tool .analysis-panel-dark .bg-slate-50,
+.preview-tool .analysis-panel-dark .bg-slate-100,
+.preview-tool .analysis-panel-dark .bg-gradient-to-br {
+  background: linear-gradient(
+    155deg,
+    rgba(36, 36, 54, 0.96) 0%,
+    rgba(24, 24, 38, 0.98) 100%
+  ) !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+}
+
+.preview-tool .analysis-panel-dark .border-slate-200,
+.preview-tool .analysis-panel-dark .border-slate-300,
+.preview-tool .analysis-panel-dark .border-slate-100,
+.preview-tool .analysis-panel-dark .border-dashed {
+  border-color: rgba(255, 255, 255, 0.12) !important;
+}
+
+/* Primary text */
+.preview-tool .analysis-panel-dark .text-slate-900,
+.preview-tool .analysis-panel-dark .text-slate-800,
+.preview-tool .analysis-panel-dark h3,
+.preview-tool .analysis-panel-dark h4,
+.preview-tool .analysis-panel-dark h5 {
+  color: #f4f4f8 !important;
+}
+
+.preview-tool .analysis-panel-dark .text-slate-700,
+.preview-tool .analysis-panel-dark .text-slate-600 {
+  color: #d4d4de !important;
+}
+
+.preview-tool .analysis-panel-dark .text-slate-500 {
+  color: #9a9aad !important;
+}
+
+/* Emerald semantic */
+.preview-tool .analysis-panel-dark [class*="bg-emerald-50"],
+.preview-tool .analysis-panel-dark [class*="bg-emerald-100"] {
+  background-color: rgba(16, 185, 129, 0.12) !important;
+  border-color: rgba(52, 211, 153, 0.35) !important;
+}
+
+.preview-tool .analysis-panel-dark [class*="text-emerald-9"],
+.preview-tool .analysis-panel-dark [class*="text-emerald-8"],
+.preview-tool .analysis-panel-dark [class*="text-emerald-7"],
+.preview-tool .analysis-panel-dark .text-emerald-600 {
+  color: #a7f3d0 !important;
+}
+
+/* Amber semantic */
+.preview-tool .analysis-panel-dark [class*="bg-amber-50"],
+.preview-tool .analysis-panel-dark [class*="bg-amber-100"] {
+  background-color: rgba(245, 158, 11, 0.12) !important;
+  border-color: rgba(251, 191, 36, 0.35) !important;
+}
+
+.preview-tool .analysis-panel-dark [class*="text-amber-9"],
+.preview-tool .analysis-panel-dark [class*="text-amber-8"],
+.preview-tool .analysis-panel-dark [class*="text-amber-7"],
+.preview-tool .analysis-panel-dark .text-amber-600 {
+  color: #fde68a !important;
+}
+
+/* Red / rose semantic */
+.preview-tool .analysis-panel-dark [class*="bg-red-50"],
+.preview-tool .analysis-panel-dark [class*="bg-red-100"],
+.preview-tool .analysis-panel-dark [class*="bg-rose-"] {
+  background-color: rgba(244, 63, 94, 0.12) !important;
+  border-color: rgba(251, 113, 133, 0.35) !important;
+}
+
+.preview-tool .analysis-panel-dark [class*="text-red-9"],
+.preview-tool .analysis-panel-dark [class*="text-red-8"],
+.preview-tool .analysis-panel-dark [class*="text-red-7"],
+.preview-tool .analysis-panel-dark .text-red-600 {
+  color: #fecdd3 !important;
+}
+
+/* Sky / cyan semantic */
+.preview-tool .analysis-panel-dark [class*="bg-sky-50"],
+.preview-tool .analysis-panel-dark [class*="bg-sky-100"] {
+  background-color: rgba(14, 165, 233, 0.12) !important;
+  border-color: rgba(34, 211, 238, 0.35) !important;
+}
+
+.preview-tool .analysis-panel-dark [class*="text-sky-9"],
+.preview-tool .analysis-panel-dark [class*="text-sky-8"],
+.preview-tool .analysis-panel-dark [class*="text-sky-7"],
+.preview-tool .analysis-panel-dark .text-sky-600 {
+  color: #a5f3fc !important;
+}
+
+/* Violet / blue semantic */
+.preview-tool .analysis-panel-dark [class*="bg-violet-50"],
+.preview-tool .analysis-panel-dark [class*="bg-blue-50"] {
+  background-color: rgba(139, 92, 246, 0.12) !important;
+  border-color: rgba(167, 139, 250, 0.35) !important;
+}
+
+.preview-tool .analysis-panel-dark [class*="text-violet-9"],
+.preview-tool .analysis-panel-dark [class*="text-violet-8"],
+.preview-tool .analysis-panel-dark [class*="text-violet-7"],
+.preview-tool .analysis-panel-dark [class*="text-violet-6"],
+.preview-tool .analysis-panel-dark [class*="text-blue-7"],
+.preview-tool .analysis-panel-dark [class*="text-blue-9"] {
+  color: #ddd6fe !important;
+}
+
+/* Accent header labels */
+.preview-tool .analysis-panel-dark .text-violet-600,
+.preview-tool .analysis-panel-dark .text-blue-600,
+.preview-tool .analysis-panel-dark .text-amber-600 {
+  color: #c4b5fd !important;
+}
+
+/* Progress tracks */
+.preview-tool .analysis-panel-dark .bg-slate-200 {
+  background-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+/* Selected creative card */
+.preview-tool .analysis-panel-dark .border-sky-400,
+.preview-tool .analysis-panel-dark .ring-sky-200 {
+  border-color: rgba(34, 211, 238, 0.5) !important;
+  box-shadow: 0 0 24px -6px rgba(34, 211, 238, 0.3) !important;
+}
+
+.preview-tool .analysis-panel-dark .bg-sky-50\/80 {
+  background-color: rgba(34, 211, 238, 0.1) !important;
+}
+
+/* Tables */
+.preview-tool .analysis-panel-dark thead {
+  border-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+.preview-tool .analysis-panel-dark tr {
+  border-color: rgba(255, 255, 255, 0.06) !important;
+}
+
+/* ── Step 4: publisher preview simulations stay realistic ── */
+
+.preview-tool .preview-environment-root {
+  border-radius: 1rem;
+  overflow: hidden;
+  border: 1px solid rgba(129, 140, 248, 0.3);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.06) inset,
+    0 12px 40px -12px rgba(0, 0, 0, 0.55);
+}
+
+.preview-tool .preview-environment-root .bg-white,
+.preview-tool .preview-environment-root [class*="bg-white"] {
+  background-color: #ffffff !important;
+}
+
+.preview-tool .preview-environment-root,
+.preview-tool .preview-environment-root * {
+  color: inherit;
+}
+
+/* Reset global preview-tool typography inside publisher simulations */
+.preview-tool .preview-environment-root p,
+.preview-tool .preview-environment-root li,
+.preview-tool .preview-environment-root span,
+.preview-tool .preview-environment-root h1,
+.preview-tool .preview-environment-root h2,
+.preview-tool .preview-environment-root h3,
+.preview-tool .preview-environment-root h4 {
+  color: inherit;
+}
+
+.preview-tool .preview-environment-root .text-gray-900,
+.preview-tool .preview-environment-root .text-gray-800,
+.preview-tool .preview-environment-root .text-gray-700,
+.preview-tool .preview-environment-root .text-slate-900,
+.preview-tool .preview-environment-root .text-slate-800,
+.preview-tool .preview-environment-root .text-slate-700 {
+  color: #374151 !important;
+}
+
+.preview-tool .preview-environment-root .text-gray-500,
+.preview-tool .preview-environment-root .text-gray-600,
+.preview-tool .preview-environment-root .text-slate-500,
+.preview-tool .preview-environment-root .text-slate-600 {
+  color: #4b5563 !important;
+}
+
+.preview-tool .preview-environment-root .text-gray-400 {
+  color: #6b7280 !important;
+}
+
+.preview-tool .preview-environment-root .border-gray-200,
+.preview-tool .preview-environment-root .border-slate-200,
+.preview-tool .preview-environment-root [class*="border-gray"] {
+  border-color: #e5e7eb !important;
+}
+
+/* Validation report inside step 2 */
+.preview-tool .validation-report-dark {
+  color: var(--studio-text);
+}
+
+.preview-tool .validation-report-dark .bg-white,
+.preview-tool .validation-report-dark .bg-slate-50 {
+  background: rgba(28, 28, 42, 0.98) !important;
+}
+
+.preview-tool .validation-report-dark .text-slate-900,
+.preview-tool .validation-report-dark .text-slate-800 {
+  color: #f4f4f8 !important;
+}
+
+.preview-tool .validation-report-dark .text-slate-600,
+.preview-tool .validation-report-dark .text-slate-700 {
+  color: #c8c8d4 !important;
+}
+
+.preview-tool .validation-report-dark [class*="bg-red-50"],
+.preview-tool .validation-report-dark [class*="bg-amber-50"],
+.preview-tool .validation-report-dark [class*="bg-emerald-50"] {
+  background-color: rgba(255, 255, 255, 0.04) !important;
+}
+
+.preview-tool .validation-report-dark [class*="text-red-8"],
+.preview-tool .validation-report-dark [class*="text-amber-9"],
+.preview-tool .validation-report-dark [class*="text-emerald-8"] {
+  color: #f4f4f8 !important;
+}
