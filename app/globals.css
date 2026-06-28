@@ -117,6 +117,15 @@ a {
   will-change: transform;
 }
 
+.illustration-wrapper.is-paused svg *,
+svg.is-paused * {
+  animation-play-state: paused !important;
+}
+
+.illustration-wrapper svg {
+  transform: translateZ(0);
+}
+
 @keyframes marketing-marquee {
   0% {
     transform: translateX(0);

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { motion } from "framer-motion";
 import {
   Check,
@@ -21,6 +22,12 @@ import {
 import MarketingNav from "@/app/components/MarketingNav";
 import ValidationLayerDiagram from "@/app/components/marketing/ValidationLayerDiagram";
 import CampaignJourneyFlow from "@/app/components/marketing/CampaignJourneyFlow";
+import { IllustrationSkeleton } from "@/app/components/illustrations/IllustrationWrapper";
+
+const IllustrationWrapper = dynamic(
+  () => import("@/app/components/illustrations/IllustrationWrapper"),
+  { loading: () => <IllustrationSkeleton /> },
+);
 
 const PROBLEMS_WE_SOLVE = [
   {
@@ -247,6 +254,34 @@ export default function SolutionsPage() {
                 <p className="mt-3 text-sm leading-relaxed text-[#585852] sm:text-base">{problem.description}</p>
               </motion.article>
             ))}
+          </div>
+        </section>
+
+        {/* Intelligence illustrations */}
+        <section className="border-y border-[#DEDDD5] bg-[#0D0D0D] marketing-section-compact">
+          <div className="mx-auto grid w-[min(1280px,92vw)] gap-10 lg:grid-cols-2 lg:gap-14">
+            <div>
+              <h2 className="text-2xl font-black tracking-tight text-white sm:text-3xl">Ad Intelligence</h2>
+              <p className="mt-4 text-base leading-relaxed text-[#A3A3A3]">
+                Scan competitor creatives, validate campaign intent, and surface insights before setup begins.
+              </p>
+              <IllustrationWrapper
+                src="/assets/illustrations/solutions-ad-intelligence.svg"
+                alt="Ad competitive intelligence scanner with magnifying glass over competitor ad grid"
+                className="mt-8"
+              />
+            </div>
+            <div>
+              <h2 className="text-2xl font-black tracking-tight text-white sm:text-3xl">Market Trends</h2>
+              <p className="mt-4 text-base leading-relaxed text-[#A3A3A3]">
+                Track growth signals, ROI momentum, and launch readiness across campaigns and platforms.
+              </p>
+              <IllustrationWrapper
+                src="/assets/illustrations/solutions-trends.svg"
+                alt="Market trends and growth analytics with upward trend line and data bubbles"
+                className="mt-8"
+              />
+            </div>
           </div>
         </section>
 

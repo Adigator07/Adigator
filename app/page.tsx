@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { motion, useReducedMotion } from "framer-motion";
 import {
@@ -27,9 +28,15 @@ import {
   MARKETING_PARTNER_BADGES,
 } from "@/app/lib/siteNavigation";
 import MarketingNav from "@/app/components/MarketingNav";
-import HeroLiveCards from "@/app/components/marketing/HeroLiveCards";
-import PipelineCoreEngine from "@/app/components/marketing/PipelineCoreEngine";
 import ValidationLayerDiagram from "@/app/components/marketing/ValidationLayerDiagram";
+import { IllustrationSkeleton } from "@/app/components/illustrations/IllustrationWrapper";
+
+const IllustrationWrapper = dynamic(
+  () => import("@/app/components/illustrations/IllustrationWrapper"),
+  { loading: () => <IllustrationSkeleton /> },
+);
+const HeroLiveCards = dynamic(() => import("@/app/components/marketing/HeroLiveCards"));
+const PipelineCoreEngine = dynamic(() => import("@/app/components/marketing/PipelineCoreEngine"));
 
 const HERO_BENEFITS = [
   "Prevent Campaign Errors",
@@ -204,6 +211,7 @@ export default function HomePage() {
       <main className="pt-28">
         {/* Hero */}
         <section className="marketing-section marketing-section-compact mx-auto w-[min(1280px,92vw)] overflow-visible">
+          <div className="grid items-center gap-10 overflow-visible lg:grid-cols-2 lg:gap-14">
           <div className="max-w-5xl overflow-visible">
             <h1 className="text-[clamp(2rem,5.5vw,4.25rem)] font-black leading-[1.08] tracking-[-0.04em]">
               The Pre Launch Campaign Validation Platform That Helps You{" "}
@@ -254,6 +262,14 @@ export default function HomePage() {
                 {MARKETING_DEMO_VIDEO.label}
               </Link>
             </motion.div>
+          </div>
+
+          <IllustrationWrapper
+            src="/assets/illustrations/hero-intelligence.svg"
+            alt="Advertising intelligence hub with brain-circuit core and data streams to ad cards"
+            className="mx-auto w-full max-w-xl lg:max-w-none"
+            priority
+          />
           </div>
 
           <ValidationLayerDiagram embedded />
@@ -411,13 +427,20 @@ export default function HomePage() {
 
         {/* Features */}
         <section className="marketing-section marketing-section-compact mx-auto w-[min(1280px,92vw)]">
+          <div className="grid items-center gap-10 lg:grid-cols-2 lg:gap-14">
+            <IllustrationWrapper
+              src="/assets/illustrations/hero-analytics.svg"
+              alt="Analytics dashboard with data insights and campaign performance metrics"
+              className="order-2 w-full lg:order-1"
+            />
+            <div className="order-1 lg:order-2">
           <div className="mb-6">
             <h2 className="text-3xl font-black tracking-tight sm:text-4xl lg:text-5xl">
               Built for operational teams, not tool collectors
             </h2>
           </div>
 
-          <div className="grid gap-5 sm:gap-6 md:grid-cols-3">
+          <div className="grid gap-5 sm:gap-6 md:grid-cols-2 lg:grid-cols-1">
             {FEATURES.map((feature) => (
               <article
                 key={feature.title}
@@ -430,6 +453,8 @@ export default function HomePage() {
                 <p className="mt-4 text-base leading-relaxed text-[#5B5B55]">{feature.description}</p>
               </article>
             ))}
+          </div>
+            </div>
           </div>
         </section>
 

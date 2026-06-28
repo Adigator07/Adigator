@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { motion, useReducedMotion } from "framer-motion";
 import {
   ArrowDown,
@@ -21,6 +22,12 @@ import {
 } from "@/app/lib/siteNavigation";
 import MarketingNav from "@/app/components/MarketingNav";
 import ValidationLayerDiagram from "@/app/components/marketing/ValidationLayerDiagram";
+import { IllustrationSkeleton } from "@/app/components/illustrations/IllustrationWrapper";
+
+const IllustrationWrapper = dynamic(
+  () => import("@/app/components/illustrations/IllustrationWrapper"),
+  { loading: () => <IllustrationSkeleton /> },
+);
 
 const BEFORE_ADIGATOR_FLOW = [
   "Client sends brief",
@@ -394,14 +401,42 @@ export default function AboutPage() {
         </section>
 
         {/* Our Mission */}
-        <section id="mission" className="marketing-section marketing-section-compact mx-auto w-[min(780px,92vw)] text-center">
-          <h2 className="text-3xl font-black leading-tight tracking-tight sm:text-4xl lg:text-5xl">
-            To make campaign validation a standard part of every advertising workflow.
-          </h2>
-          <p className="mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-[#5A5A55]">
-            Just as developers don&apos;t deploy code without testing, campaigns shouldn&apos;t launch without
-            validation.
-          </p>
+        <section id="mission" className="marketing-section marketing-section-compact mx-auto w-[min(1280px,92vw)]">
+          <div className="grid items-center gap-10 lg:grid-cols-2 lg:gap-14">
+            <div className="text-center lg:text-left">
+              <h2 className="text-3xl font-black leading-tight tracking-tight sm:text-4xl lg:text-5xl">
+                To make campaign validation a standard part of every advertising workflow.
+              </h2>
+              <p className="mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-[#5A5A55] lg:mx-0">
+                Just as developers don&apos;t deploy code without testing, campaigns shouldn&apos;t launch without
+                validation.
+              </p>
+            </div>
+            <IllustrationWrapper
+              src="/assets/illustrations/about-mission.svg"
+              alt="Our team united around a shared mission to validate campaigns before launch"
+            />
+          </div>
+        </section>
+
+        {/* Our Technology */}
+        <section id="technology" className="border-y border-[#DEDDD5] bg-[#0D0D0D] marketing-section-compact">
+          <div className="mx-auto grid w-[min(1280px,92vw)] items-center gap-10 lg:grid-cols-2 lg:gap-14">
+            <IllustrationWrapper
+              src="/assets/illustrations/about-technology.svg"
+              alt="Adigator AI technology infrastructure with interconnected validation nodes"
+              className="order-2 lg:order-1"
+            />
+            <div className="order-1 text-center lg:order-2 lg:text-left">
+              <h2 className="text-3xl font-black leading-tight tracking-tight text-white sm:text-4xl lg:text-5xl">
+                Technology built for campaign validation at scale
+              </h2>
+              <p className="mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-[#A3A3A3] lg:mx-0">
+                An AI powered pipeline that connects creative analysis, platform requirements, URL validation, and
+                launch readiness into one operational layer.
+              </p>
+            </div>
+          </div>
         </section>
 
         {/* What We Believe */}

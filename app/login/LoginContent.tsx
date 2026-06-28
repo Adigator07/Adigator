@@ -22,11 +22,31 @@ type FieldErrors = {
   form?: string;
 };
 
-const METRICS = [
-  { value: "↑ 69%", label: "ROAS", accent: "text-emerald-400/90" },
-  { value: "↓ 41%", label: "CPI", accent: "text-emerald-400/90" },
-  { value: "3.1x", label: "Launch speed", accent: "text-white" },
-  { value: "-27%", label: "Waste", accent: "text-amber-300/90" },
+const VALIDATION_STATS = [
+  {
+    title: "Campaign Validation",
+    value: "48 Campaigns Validated",
+    accent: "text-emerald-400",
+    check: true,
+  },
+  {
+    title: "Launch Ready",
+    value: "96% Average Readiness Score",
+    accent: "text-[#00D4FF]",
+    check: false,
+  },
+  {
+    title: "Budget Risk",
+    value: "-$14,800 Potential Waste Prevented",
+    accent: "text-amber-300",
+    check: false,
+  },
+  {
+    title: "Issues Prevented",
+    value: "127 Critical Issues Fixed",
+    accent: "text-violet-300",
+    check: false,
+  },
 ];
 
 const inputClassName =
@@ -221,14 +241,27 @@ export default function LoginContent() {
             </h1>
             <p className="mt-5 max-w-md text-base leading-relaxed text-white/55">{leftSubtitle}</p>
 
-            <div className="mt-12 grid grid-cols-2 gap-4">
-              {METRICS.map((metric) => (
+            <p className="mt-10 text-lg font-bold leading-snug tracking-tight text-white sm:text-xl">
+              Launch With Confidence. Not Assumptions.
+            </p>
+
+            <div className="mt-8 grid grid-cols-2 gap-4">
+              {VALIDATION_STATS.map((stat) => (
                 <div
-                  key={metric.label}
-                  className="rounded-2xl border border-white/[0.08] bg-white/[0.04] px-5 py-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] backdrop-blur-sm"
+                  key={stat.title}
+                  className="rounded-2xl border border-white/[0.08] bg-white/[0.04] px-5 py-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] backdrop-blur-sm transition hover:border-white/[0.14] hover:bg-white/[0.06]"
                 >
-                  <p className={`text-2xl font-black tracking-tight ${metric.accent}`}>{metric.value}</p>
-                  <p className="mt-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-white/40">{metric.label}</p>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-white/45">{stat.title}</p>
+                  <p className={`mt-2 text-[15px] font-bold leading-snug ${stat.accent}`}>
+                    {stat.check ? (
+                      <span className="inline-flex items-start gap-1.5">
+                        <Check size={16} className="mt-0.5 shrink-0" aria-hidden />
+                        {stat.value}
+                      </span>
+                    ) : (
+                      stat.value
+                    )}
+                  </p>
                 </div>
               ))}
             </div>
