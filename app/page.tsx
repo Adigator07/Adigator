@@ -21,10 +21,9 @@ import {
 import {
   MARKETING_CTA,
   MARKETING_DEMO_VIDEO,
-  MARKETING_FOOTER_COLUMNS,
-  MARKETING_PARTNER_BADGES,
 } from "@/app/lib/siteNavigation";
 import MarketingNav from "@/app/components/MarketingNav";
+import MarketingFooter from "@/app/components/MarketingFooter";
 import { IllustrationSkeleton } from "@/app/components/illustrations/IllustrationWrapper";
 import { STORYSET_ILLUSTRATIONS } from "@/app/lib/storysetIllustrations";
 
@@ -516,44 +515,9 @@ export default function HomePage() {
         </section>
       </main>
 
-      <footer className="border-t border-[#DDDCD4] bg-[#F5F5F0] py-20">
-        <div className="mx-auto grid w-[min(1280px,92vw)] gap-12 md:grid-cols-4">
-          <div className="md:col-span-2">
-            <p className="text-2xl font-black tracking-tight">Adigator</p>
-            <p className="mt-3 max-w-sm text-sm leading-relaxed text-[#66665F]">
-              The pre launch campaign validation platform for agencies, brands, and AdOps teams who validate before
-              spend, not after complaints.
-            </p>
-            <p className="mt-6 text-sm text-[#66665F]">© 2026 Adigator. All rights reserved.</p>
-          </div>
-
-          {MARKETING_FOOTER_COLUMNS.map((col) => (
-            <div key={col.title}>
-              <p className="text-sm font-bold uppercase tracking-[0.14em] text-[#55554F]">{col.title}</p>
-              <ul className="mt-4 space-y-3 text-sm text-[#4D4D47]">
-                {col.items.map((item) => (
-                  <li key={`${col.title}-${item.label}-${item.href}`}>
-                    <Link href={item.href} className="cursor-pointer hover:text-[#0D0D0D]">
-                      {item.label}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))}
-        </div>
-
-        <div className="mx-auto mt-12 flex w-[min(1280px,92vw)] flex-wrap items-center justify-end gap-3">
-          {MARKETING_PARTNER_BADGES.map((badge) => (
-            <span
-              key={badge}
-              className="inline-flex rounded-full border border-[#D5D4CB] bg-white px-3 py-1 text-xs font-semibold text-[#4B4B47]"
-            >
-              {badge}
-            </span>
-          ))}
-        </div>
-      </footer>
+      <MarketingFooter
+        description="The pre launch campaign validation platform for agencies, brands, and AdOps teams who validate before spend, not after complaints."
+      />
 
       <style jsx global>{`
         html {

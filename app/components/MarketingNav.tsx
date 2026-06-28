@@ -45,7 +45,7 @@ export default function MarketingNav({ activePath, showCta = true }: MarketingNa
           Adigator
         </Link>
 
-        <div className="hidden items-center gap-6 md:flex md:gap-8">
+        <div className="hidden items-center gap-4 md:flex md:gap-5 lg:gap-6">
           {MARKETING_NAV_LINKS.map((item) => {
             const active = currentPath === item.href;
             return (
@@ -59,15 +59,12 @@ export default function MarketingNav({ activePath, showCta = true }: MarketingNa
                   {item.label}
                   <span className="text-xs text-[#4D4D4D]">▾</span>
                 </Link>
-                <div className="pointer-events-none absolute left-1/2 top-8 hidden w-44 -translate-x-1/2 rounded-xl border border-[#D9D9D1] bg-white p-3 text-xs text-[#525252] shadow-lg group-hover:block">
+                <div className="pointer-events-none absolute right-0 top-8 hidden w-44 rounded-xl border border-[#D9D9D1] bg-white p-3 text-xs text-[#525252] shadow-lg group-hover:block">
                   {item.hint}
                 </div>
               </div>
             );
           })}
-        </div>
-
-        <div className="hidden items-center gap-2 md:flex md:gap-3">
           <Link href={MARKETING_SIGN_IN.href} className="marketing-btn-outline rounded-full px-4 py-2 text-xs font-semibold sm:px-5 sm:py-2.5 sm:text-sm">
             {MARKETING_SIGN_IN.label}
           </Link>

@@ -17,10 +17,9 @@ import {
 } from "lucide-react";
 import {
   MARKETING_CTA,
-  MARKETING_FOOTER_COLUMNS,
-  MARKETING_PARTNER_BADGES,
 } from "@/app/lib/siteNavigation";
 import MarketingNav from "@/app/components/MarketingNav";
+import MarketingFooter from "@/app/components/MarketingFooter";
 import { IllustrationSkeleton } from "@/app/components/illustrations/IllustrationWrapper";
 import { STORYSET_ILLUSTRATIONS } from "@/app/lib/storysetIllustrations";
 
@@ -180,49 +179,6 @@ function SectionHeader({ title, dark = false }: { title: string; dark?: boolean 
   );
 }
 
-function Footer() {
-  return (
-    <footer className="border-t border-[#DDDCD4] bg-[#F5F5F0] py-20">
-      <div className="mx-auto grid w-[min(1280px,92vw)] gap-12 md:grid-cols-4">
-        <div className="md:col-span-2">
-          <p className="text-2xl font-black tracking-tight">Adigator</p>
-          <p className="mt-3 max-w-sm text-sm leading-relaxed text-[#66665F]">
-            The pre launch campaign validation layer for agencies and brands who refuse to waste media spend on
-            preventable errors.
-          </p>
-          <p className="mt-6 text-sm text-[#66665F]">© 2026 Adigator. All rights reserved.</p>
-        </div>
-
-        {MARKETING_FOOTER_COLUMNS.map((col) => (
-          <div key={col.title}>
-            <p className="text-sm font-bold uppercase tracking-[0.14em] text-[#55554F]">{col.title}</p>
-            <ul className="mt-4 space-y-3 text-sm text-[#4D4D47]">
-              {col.items.map((item) => (
-                <li key={`${col.title}-${item.label}-${item.href}`}>
-                  <Link href={item.href} className="cursor-pointer hover:text-[#0D0D0D]">
-                    {item.label}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </div>
-        ))}
-      </div>
-
-      <div className="mx-auto mt-12 flex w-[min(1280px,92vw)] items-center justify-end gap-3">
-        {MARKETING_PARTNER_BADGES.map((badge) => (
-          <span
-            key={badge}
-            className="inline-flex rounded-full border border-[#D5D4CB] bg-white px-3 py-1 text-xs font-semibold text-[#4B4B47]"
-          >
-            {badge}
-          </span>
-        ))}
-      </div>
-    </footer>
-  );
-}
-
 export default function SolutionsPage() {
   return (
     <div className="marketing-page min-h-screen bg-[#F5F5F0] text-[#0D0D0D]">
@@ -273,7 +229,7 @@ export default function SolutionsPage() {
 
         {/* Intelligence illustrations */}
         <section className="border-y border-[#DEDDD5] bg-[#0D0D0D] marketing-section-compact">
-          <div className="mx-auto grid w-[min(1280px,92vw)] gap-10 md:grid-cols-2 lg:gap-12">
+          <div className="mx-auto grid w-[min(1280px,92vw)] gap-10 md:grid-cols-2 lg:grid-cols-3 lg:gap-8">
             <div>
               <h2 className="text-2xl font-black tracking-tight text-white sm:text-3xl">Campaign Risk Score</h2>
               <p className="mt-4 text-base leading-relaxed text-[#A3A3A3]">
@@ -300,6 +256,19 @@ export default function SolutionsPage() {
                 className="mt-8"
                 animation="fade-up"
                 delay={0.12}
+              />
+            </div>
+            <div className="md:col-span-2 lg:col-span-1">
+              <h2 className="text-2xl font-black tracking-tight text-white sm:text-3xl">Save Time</h2>
+              <p className="mt-4 text-base leading-relaxed text-[#A3A3A3]">
+                Replace manual QA loops with one validation pass before every campaign goes live.
+              </p>
+              <IllustrationWrapper
+                src={STORYSET_ILLUSTRATIONS.saveTimeAmico}
+                alt="Save time with automated campaign validation"
+                className="mt-8"
+                animation="fade-up"
+                delay={0.24}
               />
             </div>
           </div>
@@ -382,28 +351,6 @@ export default function SolutionsPage() {
           gapLabel="No validation"
         />
 
-        {/* Validation layer story */}
-        <section id="validates" className="marketing-section marketing-section-compact mx-auto w-[min(980px,92vw)]">
-          <div className="mx-auto max-w-3xl text-center">
-            <h2 className="text-[clamp(1.75rem,4vw,2.75rem)] font-black leading-tight tracking-tight">
-              We Didn&apos;t Build Another AI Tool.
-              <br />
-              <span className="text-[#2D2D27]">We Built the Validation Layer Every Campaign Needs Before Setup.</span>
-            </h2>
-            <p className="mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-[#5A5A55]">
-              Campaigns move from client brief to campaign setup through multiple teams, platforms, and tools.
-              Adigator validates campaign intent, creatives, landing pages, URLs, platform requirements, and technical
-              readiness before setup, helping teams reduce errors, prevent budget waste, and launch with confidence.
-            </p>
-            <Link
-              href="/product"
-              className="marketing-btn-lime saas-hover mt-8 inline-flex rounded-full px-10 py-4 text-base font-bold"
-            >
-              Explore the Platform
-            </Link>
-          </div>
-        </section>
-
         {/* Industry / Who it's for */}
         <section id="industry" className="bg-[#0D0D0D] py-10 text-white sm:py-12 md:py-14">
           <div className="mx-auto w-[min(1280px,92vw)]">
@@ -435,10 +382,11 @@ export default function SolutionsPage() {
           <div className="grid gap-8 lg:grid-cols-2">
             <div className="rounded-3xl border border-[#DEDDD5] bg-white p-8 sm:p-10">
               <IllustrationWrapper
-                src={STORYSET_ILLUSTRATIONS.analysisAmico}
-                alt="Campaign team stress from launch pressure, deadlines, and operational overload"
+                src={STORYSET_ILLUSTRATIONS.stressAmicoOverwhelmed}
+                alt="Overwhelmed campaign manager facing launch pressure without pre-launch validation"
                 className="mb-6"
                 animation="fade-down"
+                interactive={false}
               />
               <div className="flex flex-wrap gap-3">
                 {CAMPAIGN_REALITY_TAGS.map((tag) => (
@@ -500,19 +448,6 @@ export default function SolutionsPage() {
           </div>
         </section>
 
-        {/* Why Adigator Exists */}
-        <section id="why-exists" className="border-y border-[#DEDDD5] bg-[#FAFAF7] marketing-section-compact">
-          <div className="mx-auto w-[min(780px,92vw)] text-center">
-            <h2 className="text-3xl font-black leading-tight tracking-tight sm:text-4xl lg:text-5xl">
-              Today&apos;s workflow focuses on launching campaigns. Not validating them.
-            </h2>
-            <p className="mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-[#5A5A55]">
-              Most campaigns move straight from creative delivery to campaign setup. Adigator adds the missing
-              validation step before setup, helping teams catch issues before launch.
-            </p>
-          </div>
-        </section>
-
         {/* Metrics */}
         <section id="metrics" className="bg-[#0D0D0D] py-10 text-white sm:py-12 md:py-14">
           <div className="mx-auto w-[min(1280px,92vw)]">
@@ -564,7 +499,7 @@ export default function SolutionsPage() {
         </section>
       </main>
 
-      <Footer />
+      <MarketingFooter />
 
       <style jsx global>{`
         .saas-hover {

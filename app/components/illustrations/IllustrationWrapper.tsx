@@ -85,6 +85,12 @@ export default function IllustrationWrapper({
   useEffect(() => {
     if (!shouldLoad) return;
 
+    const isRaster = /\.(png|jpe?g|webp|gif)(\?|$)/i.test(src);
+    if (isRaster) {
+      setUseFallbackImage(true);
+      return;
+    }
+
     let cancelled = false;
 
     loadInteractiveSvg(src, interactive)

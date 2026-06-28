@@ -17,10 +17,9 @@ import {
 } from "lucide-react";
 import {
   MARKETING_CTA,
-  MARKETING_FOOTER_COLUMNS,
-  MARKETING_PARTNER_BADGES,
 } from "@/app/lib/siteNavigation";
 import MarketingNav from "@/app/components/MarketingNav";
+import MarketingFooter from "@/app/components/MarketingFooter";
 import { IllustrationSkeleton } from "@/app/components/illustrations/IllustrationWrapper";
 import { STORYSET_ILLUSTRATIONS } from "@/app/lib/storysetIllustrations";
 
@@ -114,13 +113,6 @@ const DIFFERENTIATORS = [
   { others: "Focus on AI", adigator: "Focuses on operational quality" },
 ];
 
-const VISION_ROADMAP = [
-  { phase: "Today", label: "Creative Validation" },
-  { phase: "Next", label: "Campaign Validation" },
-  { phase: "Next", label: "Operational Quality Management" },
-  { phase: "Future", label: "Campaign Intelligence Platform" },
-];
-
 function SectionHeader({
   title,
   dark = false,
@@ -141,49 +133,6 @@ function SectionHeader({
   );
 }
 
-function Footer() {
-  return (
-    <footer className="border-t border-[#DDDCD4] bg-[#F5F5F0] py-20">
-      <div className="mx-auto grid w-[min(1280px,92vw)] gap-12 md:grid-cols-4">
-        <div className="md:col-span-2">
-          <p className="text-2xl font-black tracking-tight">Adigator</p>
-          <p className="mt-3 max-w-sm text-sm leading-relaxed text-[#66665F]">
-            The pre launch campaign validation layer for agencies and brands who refuse to waste media spend on
-            preventable errors.
-          </p>
-          <p className="mt-6 text-sm text-[#66665F]">© 2026 Adigator. All rights reserved.</p>
-        </div>
-
-        {MARKETING_FOOTER_COLUMNS.map((col) => (
-          <div key={col.title}>
-            <p className="text-sm font-bold uppercase tracking-[0.14em] text-[#55554F]">{col.title}</p>
-            <ul className="mt-4 space-y-3 text-sm text-[#4D4D47]">
-              {col.items.map((item) => (
-                <li key={`${col.title}-${item.label}-${item.href}`}>
-                  <Link href={item.href} className="cursor-pointer hover:text-[#0D0D0D]">
-                    {item.label}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </div>
-        ))}
-      </div>
-
-      <div className="mx-auto mt-12 flex w-[min(1280px,92vw)] items-center justify-end gap-3">
-        {MARKETING_PARTNER_BADGES.map((badge) => (
-          <span
-            key={badge}
-            className="inline-flex rounded-full border border-[#D5D4CB] bg-white px-3 py-1 text-xs font-semibold text-[#4B4B47]"
-          >
-            {badge}
-          </span>
-        ))}
-      </div>
-    </footer>
-  );
-}
-
 export default function AboutPage() {
   const reduceMotion = useReducedMotion();
 
@@ -192,6 +141,28 @@ export default function AboutPage() {
       <MarketingNav activePath="/about" />
 
       <main className="pt-28">
+        {/* Hero */}
+        <section className="marketing-section marketing-section-compact mx-auto w-[min(980px,92vw)]">
+          <h1 className="mx-auto max-w-4xl text-center text-[clamp(2rem,5.5vw,4rem)] font-black leading-[1.02] tracking-[-0.04em]">
+            We Didn&apos;t Build Another AI Tool.
+            <br />
+            <span className="text-[#2D2D27]">We Built the Validation Layer Every Campaign Needs Before Setup.</span>
+          </h1>
+
+          <p className="mx-auto mt-7 max-w-3xl text-center text-lg leading-relaxed text-[#5C5C56] sm:text-xl">
+            Campaigns move from client briefs to campaign setup through multiple teams, platforms, and tools.
+            Adigator validates campaign intent, creatives, landing pages, URLs, platform requirements, and technical
+            readiness before setup—helping teams reduce errors, prevent budget waste, and launch campaigns with
+            confidence.
+          </p>
+
+          <div className="mt-10 flex justify-center">
+            <Link href="/product" className="marketing-btn-lime saas-hover rounded-full px-8 py-4 text-base font-bold">
+              Explore the Platform
+            </Link>
+          </div>
+        </section>
+
         {/* Founder story */}
         <section id="why-i-built-adigator" className="marketing-section marketing-section-compact mx-auto w-[min(780px,92vw)]">
           <h1 className="text-[clamp(2rem,5vw,3.25rem)] font-black leading-tight tracking-[-0.035em]">
@@ -532,34 +503,6 @@ export default function AboutPage() {
           </div>
         </section>
 
-        {/* Where We're Going */}
-        <section id="vision" className="marketing-section marketing-section-compact mx-auto w-[min(1280px,92vw)]">
-          <SectionHeader title="From creative validation to campaign operations quality" />
-          <div className="mx-auto flex max-w-md flex-col items-center gap-2">
-            {VISION_ROADMAP.map((step, i) => (
-              <div key={step.label} className="flex w-full flex-col items-center">
-                <motion.div
-                  initial={reduceMotion ? false : { opacity: 0, y: 8 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ delay: i * 0.05 }}
-                  className={`w-full rounded-xl border px-5 py-4 text-center ${
-                    i === VISION_ROADMAP.length - 1
-                      ? "border-[#C8F04D]/50 bg-[#C8F04D]/10"
-                      : "border-[#DEDDD5] bg-white"
-                  }`}
-                >
-                  <p className="text-xs font-bold uppercase tracking-[0.16em] text-[#6B7280]">{step.phase}</p>
-                  <p className="mt-1 text-base font-black tracking-tight sm:text-lg">{step.label}</p>
-                </motion.div>
-                {i < VISION_ROADMAP.length - 1 ? (
-                  <ArrowDown size={18} className="my-1.5 text-[#9CA3AF]" aria-hidden />
-                ) : null}
-              </div>
-            ))}
-          </div>
-        </section>
-
         {/* Final CTA */}
         <section className="marketing-section marketing-section-compact mx-auto w-[min(980px,92vw)]">
           <div className="saas-hover rounded-[32px] border border-[#DBDAD2] bg-white px-8 py-10 text-center shadow-[0_20px_50px_rgba(15,23,42,0.08)] sm:px-12 sm:py-12">
@@ -580,7 +523,7 @@ export default function AboutPage() {
         </section>
       </main>
 
-      <Footer />
+      <MarketingFooter />
 
       <style jsx global>{`
         .saas-hover {
