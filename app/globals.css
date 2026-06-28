@@ -98,6 +98,104 @@ a {
   padding-bottom: 4rem;
 }
 
+.illustration-wrapper {
+  position: relative;
+  isolation: isolate;
+}
+
+.illustration-inline {
+  display: block;
+  width: 100%;
+}
+
+.illustration-wrapper--interactive .illustration-svg {
+  display: block;
+  overflow: visible;
+}
+
+.illustration-wrapper--interactive .illustration-hotspot {
+  cursor: pointer;
+  transform-box: fill-box;
+  transform-origin: center;
+  transition:
+    transform 0.4s cubic-bezier(0.22, 1, 0.36, 1),
+    filter 0.4s ease;
+}
+
+.illustration-wrapper--interactive .illustration-hotspot--character {
+  animation: illustration-character-idle 4.5s ease-in-out infinite;
+}
+
+.illustration-wrapper--interactive .illustration-hotspot--object {
+  animation: illustration-object-idle 6s ease-in-out infinite;
+}
+
+.illustration-wrapper--interactive .illustration-hotspot--character:hover {
+  animation: none;
+  transform: scale(1.05) translateY(-4px);
+  filter:
+    drop-shadow(0 0 10px rgba(200, 240, 77, 0.75))
+    drop-shadow(0 0 22px rgba(0, 212, 255, 0.35))
+    brightness(1.06)
+    saturate(1.12);
+}
+
+.illustration-wrapper--interactive .illustration-hotspot--object:hover {
+  animation: none;
+  transform: scale(1.06) rotate(-1.5deg);
+  filter:
+    drop-shadow(0 0 12px rgba(0, 212, 255, 0.7))
+    drop-shadow(0 0 20px rgba(200, 240, 77, 0.35))
+    brightness(1.08);
+}
+
+.illustration-wrapper--interactive .illustration-hotspot--accent:hover {
+  transform: scale(1.04);
+  filter:
+    drop-shadow(0 0 8px rgba(200, 240, 77, 0.55))
+    brightness(1.05);
+}
+
+.illustration-wrapper--interactive .illustration-hotspot:hover path,
+.illustration-wrapper--interactive .illustration-hotspot:hover rect,
+.illustration-wrapper--interactive .illustration-hotspot:hover circle,
+.illustration-wrapper--interactive .illustration-hotspot:hover polygon {
+  transition: fill 0.35s ease, stroke 0.35s ease;
+}
+
+@keyframes illustration-character-idle {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-5px);
+  }
+}
+
+@keyframes illustration-object-idle {
+  0%,
+  100% {
+    transform: translateY(0) scale(1);
+  }
+  50% {
+    transform: translateY(-2px) scale(1.01);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .illustration-wrapper--interactive .illustration-hotspot,
+  .illustration-wrapper--interactive .illustration-hotspot--character,
+  .illustration-wrapper--interactive .illustration-hotspot--object {
+    animation: none;
+    transition: filter 0.2s ease;
+  }
+
+  .illustration-wrapper--interactive .illustration-hotspot:hover {
+    transform: none;
+  }
+}
+
 @media (min-width: 640px) {
   .marketing-page .marketing-section-compact {
     padding-top: 5rem;
@@ -115,15 +213,6 @@ a {
 .marketing-page .ticker-track {
   animation: marketing-marquee 32s linear infinite;
   will-change: transform;
-}
-
-.illustration-wrapper.is-paused svg *,
-svg.is-paused * {
-  animation-play-state: paused !important;
-}
-
-.illustration-wrapper svg {
-  transform: translateZ(0);
 }
 
 @keyframes marketing-marquee {

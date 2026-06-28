@@ -28,15 +28,31 @@ import {
   MARKETING_PARTNER_BADGES,
 } from "@/app/lib/siteNavigation";
 import MarketingNav from "@/app/components/MarketingNav";
-import ValidationLayerDiagram from "@/app/components/marketing/ValidationLayerDiagram";
 import { IllustrationSkeleton } from "@/app/components/illustrations/IllustrationWrapper";
+import { STORYSET_ILLUSTRATIONS } from "@/app/lib/storysetIllustrations";
 
 const IllustrationWrapper = dynamic(
   () => import("@/app/components/illustrations/IllustrationWrapper"),
   { loading: () => <IllustrationSkeleton /> },
 );
-const HeroLiveCards = dynamic(() => import("@/app/components/marketing/HeroLiveCards"));
-const PipelineCoreEngine = dynamic(() => import("@/app/components/marketing/PipelineCoreEngine"));
+const ValidationLayerDiagram = dynamic(
+  () => import("@/app/components/marketing/ValidationLayerDiagram"),
+  { ssr: false },
+);
+const HeroLiveCards = dynamic(() => import("@/app/components/marketing/HeroLiveCards"), {
+  ssr: false,
+  loading: () => (
+    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4" aria-hidden>
+      {Array.from({ length: 4 }).map((_, index) => (
+        <div key={index} className="min-h-[260px] animate-pulse rounded-[20px] bg-[#111111]" />
+      ))}
+    </div>
+  ),
+});
+const PipelineCoreEngine = dynamic(() => import("@/app/components/marketing/PipelineCoreEngine"), {
+  ssr: false,
+  loading: () => <div className="min-h-[420px] animate-pulse rounded-3xl bg-[#111111]/80" aria-hidden />,
+});
 
 const HERO_BENEFITS = [
   "Prevent Campaign Errors",
@@ -265,8 +281,8 @@ export default function HomePage() {
           </div>
 
           <IllustrationWrapper
-            src="/assets/illustrations/hero-intelligence.svg"
-            alt="Advertising intelligence hub with brain-circuit core and data streams to ad cards"
+            src={STORYSET_ILLUSTRATIONS.digitalTransformationBro}
+            alt="Digital transformation and campaign intelligence platform"
             className="mx-auto w-full max-w-xl lg:max-w-none"
             priority
           />
@@ -429,8 +445,8 @@ export default function HomePage() {
         <section className="marketing-section marketing-section-compact mx-auto w-[min(1280px,92vw)]">
           <div className="grid items-center gap-10 lg:grid-cols-2 lg:gap-14">
             <IllustrationWrapper
-              src="/assets/illustrations/hero-analytics.svg"
-              alt="Analytics dashboard with data insights and campaign performance metrics"
+              src={STORYSET_ILLUSTRATIONS.analysisAmico}
+              alt="Campaign analysis and analytics dashboard insights"
               className="order-2 w-full lg:order-1"
             />
             <div className="order-1 lg:order-2">

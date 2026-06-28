@@ -21,12 +21,16 @@ import {
   MARKETING_PARTNER_BADGES,
 } from "@/app/lib/siteNavigation";
 import MarketingNav from "@/app/components/MarketingNav";
-import ValidationLayerDiagram from "@/app/components/marketing/ValidationLayerDiagram";
 import { IllustrationSkeleton } from "@/app/components/illustrations/IllustrationWrapper";
+import { STORYSET_ILLUSTRATIONS } from "@/app/lib/storysetIllustrations";
 
 const IllustrationWrapper = dynamic(
   () => import("@/app/components/illustrations/IllustrationWrapper"),
   { loading: () => <IllustrationSkeleton /> },
+);
+const ValidationLayerDiagram = dynamic(
+  () => import("@/app/components/marketing/ValidationLayerDiagram"),
+  { ssr: false },
 );
 
 const BEFORE_ADIGATOR_FLOW = [
@@ -185,11 +189,7 @@ export default function AboutPage() {
       <main className="pt-28">
         {/* Hero */}
         <section className="marketing-section marketing-section-compact mx-auto w-[min(980px,92vw)]">
-          <span className="inline-flex rounded-full border border-[#D4D3CC] bg-white px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-[#51514A]">
-            About Adigator
-          </span>
-
-          <p className="mx-auto mt-8 max-w-3xl text-lg leading-relaxed text-[#5C5C56] sm:text-xl">
+          <p className="mx-auto max-w-3xl text-lg leading-relaxed text-[#5C5C56] sm:text-xl">
             Advertising has become faster than its quality control. Campaigns move from client brief to launch through
             multiple teams, platforms, and tools. Along the way, small mismatches between campaign intent, creatives,
             landing pages, platform requirements, and technical setup often go unnoticed until budgets are already being
@@ -413,8 +413,8 @@ export default function AboutPage() {
               </p>
             </div>
             <IllustrationWrapper
-              src="/assets/illustrations/about-mission.svg"
-              alt="Our team united around a shared mission to validate campaigns before launch"
+              src={STORYSET_ILLUSTRATIONS.teamGoalsRafiki}
+              alt="Team united around shared campaign validation goals"
             />
           </div>
         </section>
@@ -423,8 +423,8 @@ export default function AboutPage() {
         <section id="technology" className="border-y border-[#DEDDD5] bg-[#0D0D0D] marketing-section-compact">
           <div className="mx-auto grid w-[min(1280px,92vw)] items-center gap-10 lg:grid-cols-2 lg:gap-14">
             <IllustrationWrapper
-              src="/assets/illustrations/about-technology.svg"
-              alt="Adigator AI technology infrastructure with interconnected validation nodes"
+              src={STORYSET_ILLUSTRATIONS.nextStepsBro}
+              alt="Next steps in Adigator AI validation technology infrastructure"
               className="order-2 lg:order-1"
             />
             <div className="order-1 text-center lg:order-2 lg:text-left">

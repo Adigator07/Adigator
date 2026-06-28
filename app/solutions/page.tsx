@@ -20,13 +20,20 @@ import {
   MARKETING_PARTNER_BADGES,
 } from "@/app/lib/siteNavigation";
 import MarketingNav from "@/app/components/MarketingNav";
-import ValidationLayerDiagram from "@/app/components/marketing/ValidationLayerDiagram";
-import CampaignJourneyFlow from "@/app/components/marketing/CampaignJourneyFlow";
 import { IllustrationSkeleton } from "@/app/components/illustrations/IllustrationWrapper";
+import { STORYSET_ILLUSTRATIONS } from "@/app/lib/storysetIllustrations";
 
 const IllustrationWrapper = dynamic(
   () => import("@/app/components/illustrations/IllustrationWrapper"),
   { loading: () => <IllustrationSkeleton /> },
+);
+const ValidationLayerDiagram = dynamic(
+  () => import("@/app/components/marketing/ValidationLayerDiagram"),
+  { ssr: false },
+);
+const CampaignJourneyFlow = dynamic(
+  () => import("@/app/components/marketing/CampaignJourneyFlow"),
+  { ssr: false },
 );
 
 const PROBLEMS_WE_SOLVE = [
@@ -259,26 +266,37 @@ export default function SolutionsPage() {
 
         {/* Intelligence illustrations */}
         <section className="border-y border-[#DEDDD5] bg-[#0D0D0D] marketing-section-compact">
-          <div className="mx-auto grid w-[min(1280px,92vw)] gap-10 lg:grid-cols-2 lg:gap-14">
+          <div className="mx-auto grid w-[min(1280px,92vw)] gap-10 md:grid-cols-2 lg:grid-cols-3 lg:gap-8">
             <div>
               <h2 className="text-2xl font-black tracking-tight text-white sm:text-3xl">Ad Intelligence</h2>
               <p className="mt-4 text-base leading-relaxed text-[#A3A3A3]">
                 Scan competitor creatives, validate campaign intent, and surface insights before setup begins.
               </p>
               <IllustrationWrapper
-                src="/assets/illustrations/solutions-ad-intelligence.svg"
-                alt="Ad competitive intelligence scanner with magnifying glass over competitor ad grid"
+                src={STORYSET_ILLUSTRATIONS.searchAmico}
+                alt="Search and competitive ad intelligence analysis"
                 className="mt-8"
               />
             </div>
             <div>
-              <h2 className="text-2xl font-black tracking-tight text-white sm:text-3xl">Market Trends</h2>
+              <h2 className="text-2xl font-black tracking-tight text-white sm:text-3xl">Business Planning</h2>
               <p className="mt-4 text-base leading-relaxed text-[#A3A3A3]">
                 Track growth signals, ROI momentum, and launch readiness across campaigns and platforms.
               </p>
               <IllustrationWrapper
-                src="/assets/illustrations/solutions-trends.svg"
-                alt="Market trends and growth analytics with upward trend line and data bubbles"
+                src={STORYSET_ILLUSTRATIONS.businessPlanBro}
+                alt="Business plan and market trend planning"
+                className="mt-8"
+              />
+            </div>
+            <div className="md:col-span-2 lg:col-span-1">
+              <h2 className="text-2xl font-black tracking-tight text-white sm:text-3xl">Save Time</h2>
+              <p className="mt-4 text-base leading-relaxed text-[#A3A3A3]">
+                Replace manual QA loops with one validation pass before every campaign goes live.
+              </p>
+              <IllustrationWrapper
+                src={STORYSET_ILLUSTRATIONS.saveTimeAmico}
+                alt="Save time with automated campaign validation"
                 className="mt-8"
               />
             </div>
@@ -414,6 +432,11 @@ export default function SolutionsPage() {
           <SectionHeader title="What happens when nobody validates before launch" />
           <div className="grid gap-8 lg:grid-cols-2">
             <div className="rounded-3xl border border-[#DEDDD5] bg-white p-8 sm:p-10">
+              <IllustrationWrapper
+                src={STORYSET_ILLUSTRATIONS.stressAmico}
+                alt="Campaign stress and errors without pre-launch validation"
+                className="mb-6"
+              />
               <div className="flex flex-wrap gap-3">
                 {CAMPAIGN_REALITY_TAGS.map((tag) => (
                   <span
@@ -439,6 +462,11 @@ export default function SolutionsPage() {
             </div>
 
             <div className="rounded-3xl border border-[#C8F04D]/40 bg-[#C8F04D]/10 p-8 sm:p-10">
+              <IllustrationWrapper
+                src={STORYSET_ILLUSTRATIONS.confirmedBro}
+                alt="Campaign confirmed and ready to launch with Adigator validation"
+                className="mb-6"
+              />
               <div className="flex flex-wrap gap-3">
                 {CAMPAIGN_REALITY_TAGS.map((tag) => (
                   <span
