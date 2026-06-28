@@ -179,6 +179,8 @@ export default function AnalyzerCreativeSection({
   labelVertical,
   campaignGoal,
   campaignVertical,
+  campaignBrief = "",
+  campaignProductFocus = "",
   platform,
 }) {
   const insight = selectedInsight;
@@ -295,6 +297,36 @@ export default function AnalyzerCreativeSection({
           </div>
         </div>
 
+        {insight.briefAlignment?.expected_focus ? (
+          <div className={`rounded-xl border p-4 ${
+            insight.briefAlignment.is_aligned === false
+              ? "border-red-200 bg-red-50/40"
+              : insight.briefAlignment.is_aligned === null
+                ? "border-amber-200 bg-amber-50/40"
+                : "border-emerald-200 bg-emerald-50/40"
+          }`}>
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <Target size={15} className="text-sky-600" />
+                <h4 className="text-sm font-semibold text-slate-900">Brief & Product Match</h4>
+              </div>
+              <AlignmentBadge status={
+                insight.briefAlignment.is_aligned === false
+                  ? { emoji: "🔴", label: "Mismatch", tone: "red" }
+                  : insight.briefAlignment.is_aligned === null
+                    ? { emoji: "🟡", label: "Needs Review", tone: "amber" }
+                    : { emoji: "🟢", label: "Aligned", tone: "emerald" }
+              } />
+            </div>
+            <p className="text-sm text-slate-800 leading-relaxed">{insight.briefAlignment.reason}</p>
+            {insight.briefAlignment.is_aligned === false ? (
+              <p className="mt-2 text-xs text-slate-700">
+                Update the brief, change product focus in Step 1, or upload a creative that matches your campaign product.
+              </p>
+            ) : null}
+          </div>
+        ) : null}
+
         {extractionSignals ? (
           <div className="rounded-xl border border-slate-200 bg-white p-4">
             <div className="flex items-center gap-2 mb-1">
@@ -346,7 +378,7 @@ export default function AnalyzerCreativeSection({
         ) : null}
 
         <QaList title={platformLabel ? `Technical QA · ${platformLabel}` : "Technical QA"} icon={Wrench} items={insight.technicalQa} accent="cyan" />
-        <QaList title={platformLabel ? `Placement QA · ${platformLabel}` : "Placement QA"} icon={Target} items={insight.placementQa} accent="purple" />
+        <QaList title={platformLabel ? `Placement QA ${platformLabel}` : "Placement QA"} icon={Target} items={insight.placementQa} accent="purple" />
 
         {insight.mainRisk ? (
           <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">

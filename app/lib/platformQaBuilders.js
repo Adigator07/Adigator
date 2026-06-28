@@ -60,18 +60,19 @@ export function validationIssuesToQa(creative, platform, limit = 4) {
 
 function scoreMessage(platform, columnId, label, score, size, textHigh) {
   const sizeLabel = formatSize(size);
+  const shortLabel = String(label || "").replace(/\s+/g, " ").trim();
   if (score === "good") {
-    return `${label}: ${sizeLabel} is supported for this inventory.`;
+    return `${shortLabel}: ${sizeLabel} supported`;
   }
   if (score === "warning") {
-    const hint = textHigh && /feed|story|reel|mobile|banner|leaderboard/i.test(label)
-      ? " Heavy copy may reduce effectiveness on this surface."
+    const hint = textHigh && /feed|story|reel|mobile|banner|leaderboard/i.test(shortLabel)
+      ? " Heavy copy may hurt delivery."
       : "";
-    return `${label}: ${sizeLabel} may need crop or resize for optimal delivery.${hint}`;
+    return `${shortLabel}: ${sizeLabel} may need crop or resize.${hint}`;
   }
   const compatible = getCompatibleSizesForPlacement(platform, mapColumnToRegistryId(platform, columnId));
-  const suggestion = compatible?.slice(0, 3).join(", ") || "a core platform size";
-  return `${label}: ${sizeLabel} is not recommended — use ${suggestion}.`;
+  const suggestion = compatible?.slice(0, 2).join(", ") || "a core platform size";
+  return `${shortLabel}: ${sizeLabel} not recommended. Use ${suggestion}.`;
 }
 
 function mapColumnToRegistryId(platform, columnId) {

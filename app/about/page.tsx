@@ -189,31 +189,22 @@ export default function AboutPage() {
       <main className="pt-28">
         {/* Hero */}
         <section className="marketing-section marketing-section-compact mx-auto w-[min(980px,92vw)]">
-          <p className="mx-auto max-w-3xl text-lg leading-relaxed text-[#5C5C56] sm:text-xl">
-            Advertising has become faster than its quality control. Campaigns move from client brief to launch through
-            multiple teams, platforms, and tools. Along the way, small mismatches between campaign intent, creatives,
-            landing pages, platform requirements, and technical setup often go unnoticed until budgets are already being
-            spent. Adigator was built to close that gap.
-          </p>
-
-          <h1 className="mx-auto mt-10 max-w-4xl text-center text-[clamp(2rem,5.5vw,4rem)] font-black leading-[1.02] tracking-[-0.04em]">
+          <h1 className="mx-auto max-w-4xl text-center text-[clamp(2rem,5.5vw,4rem)] font-black leading-[1.02] tracking-[-0.04em]">
             We Didn&apos;t Build Another AI Tool.
             <br />
-            <span className="text-[#2D2D27]">We Built the Validation Layer Campaigns Were Missing.</span>
+            <span className="text-[#2D2D27]">We Built the Validation Layer Every Campaign Needs Before Setup.</span>
           </h1>
 
-          <p className="mx-auto mt-7 max-w-2xl text-center text-lg leading-relaxed text-[#5C5C56]">
-            Every campaign passes through multiple teams before launch. Yet no one validates whether campaign intent,
-            creatives, landing pages, platform requirements, and technical setup actually align. Adigator was built to
-            solve that gap.
+          <p className="mx-auto mt-7 max-w-3xl text-center text-lg leading-relaxed text-[#5C5C56] sm:text-xl">
+            Campaigns move from client briefs to campaign setup through multiple teams, platforms, and tools.
+            Adigator validates campaign intent, creatives, landing pages, URLs, platform requirements, and technical
+            readiness before setup—helping teams reduce errors, prevent budget waste, and launch campaigns with
+            confidence.
           </p>
 
-          <div className="mt-10 flex flex-wrap justify-center gap-4">
-            <Link href="/product" className="marketing-btn-outline saas-hover rounded-full px-8 py-4 text-base font-semibold">
-              See Product
-            </Link>
-            <Link href={MARKETING_CTA.href} className="marketing-btn-lime saas-hover rounded-full px-8 py-4 text-base font-bold">
-              {MARKETING_CTA.label}
+          <div className="mt-10 flex justify-center">
+            <Link href="/product" className="marketing-btn-lime saas-hover rounded-full px-8 py-4 text-base font-bold">
+              Explore the Platform
             </Link>
           </div>
         </section>

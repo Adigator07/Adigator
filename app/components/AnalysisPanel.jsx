@@ -63,6 +63,8 @@ export default function AnalysisPanel({
   viewerName,
   creatives = [],
   urlValidation = null,
+  campaignBrief = "",
+  campaignProductFocus = "",
   onDownloadReport,
 }) {
   const strategicEntries = useMemo(() => {
@@ -90,8 +92,16 @@ export default function AnalysisPanel({
 
   const overview = useMemo(() => {
     if (!sorted.length) return null;
-    return computeCampaignOverview(sorted, activePlatform, campaignGoal, campaignVertical, labelVertical, labelGoal);
-  }, [sorted, activePlatform, campaignGoal, campaignVertical]);
+    return computeCampaignOverview(
+      sorted,
+      activePlatform,
+      campaignGoal,
+      campaignVertical,
+      labelVertical,
+      labelGoal,
+      { campaignBrief, campaignProductFocus },
+    );
+  }, [sorted, activePlatform, campaignGoal, campaignVertical, campaignBrief, campaignProductFocus]);
 
   const insights = overview?.insights || [];
 
@@ -144,6 +154,7 @@ export default function AnalysisPanel({
           verticalText={verticalText}
           platform={activePlatform}
           urlValidation={urlValidation}
+          campaignBrief={campaignBrief}
         />
       ) : (
         <AnalyzerCreativeSection
@@ -155,6 +166,8 @@ export default function AnalysisPanel({
           labelVertical={labelVertical}
           campaignGoal={campaignGoal}
           campaignVertical={campaignVertical}
+          campaignBrief={campaignBrief}
+          campaignProductFocus={campaignProductFocus}
           platform={activePlatform}
         />
       )}

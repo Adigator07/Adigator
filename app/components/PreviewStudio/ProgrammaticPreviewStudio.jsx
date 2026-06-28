@@ -124,7 +124,7 @@ export default function ProgrammaticPreviewStudio({
       />
 
       <p className="text-xs text-gray-500 -mt-2">
-        Choose a publisher template. Previews are generated with OpenAI to match your campaign vertical and creative.
+        Choose a publisher template. Previews are generated to match your campaign vertical and creative.
       </p>
 
       <CompatibleCreativePicker

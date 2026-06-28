@@ -63,6 +63,11 @@ const HERO_BENEFITS = [
   "Launch With Confidence",
 ];
 
+const HERO_BENEFIT_SPACER = HERO_BENEFITS.reduce(
+  (longest, benefit) => (benefit.length > longest.length ? benefit : longest),
+  HERO_BENEFITS[0],
+);
+
 const TICKER_BENEFITS = [
   "Campaign Validation",
   "Creative Validation",
@@ -226,12 +231,16 @@ export default function HomePage() {
 
       <main className="pt-28">
         {/* Hero */}
-        <section className="marketing-section marketing-section-compact mx-auto w-[min(1280px,92vw)] overflow-visible">
-          <div className="grid items-center gap-10 overflow-visible lg:grid-cols-2 lg:gap-14">
-          <div className="max-w-5xl overflow-visible">
-            <h1 className="text-[clamp(2rem,5.5vw,4.25rem)] font-black leading-[1.08] tracking-[-0.04em]">
-              The Pre Launch Campaign Validation Platform That Helps You{" "}
-              <span className="relative inline-grid text-[#111827]">
+        <section className="marketing-section marketing-section-compact mx-auto w-[min(1280px,92vw)]">
+          <div className="grid min-w-0 items-center gap-10 lg:grid-cols-2 lg:gap-12">
+          <div className="min-w-0">
+            <h1 className="text-[clamp(2rem,4.5vw,3.5rem)] font-black leading-[1.18] tracking-[-0.035em]">
+              <span className="block">The Pre Launch Campaign Validation Platform</span>
+              <span className="mt-2 block text-[#2D2D27]">That Helps You</span>
+              <span className="relative mt-2 block min-h-[1.2em] text-[#111827]">
+                <span className="invisible block" aria-hidden>
+                  {HERO_BENEFIT_SPACER}
+                </span>
                 {HERO_BENEFITS.map((benefit) => (
                   <motion.span
                     key={benefit}
@@ -240,12 +249,13 @@ export default function HomePage() {
                       opacity: benefit === HERO_BENEFITS[benefitIndex] ? 1 : 0,
                     }}
                     transition={{ duration: 0.35, ease: "easeOut" }}
-                    className="col-start-1 row-start-1"
+                    className="absolute left-0 top-0 block"
                     aria-hidden={benefit !== HERO_BENEFITS[benefitIndex]}
                   >
                     {benefit}
                   </motion.span>
                 ))}
+                <span className="sr-only">{HERO_BENEFITS[benefitIndex]}</span>
               </span>
             </h1>
 
@@ -253,7 +263,7 @@ export default function HomePage() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.4 }}
-              className="mt-5 max-w-2xl text-base leading-relaxed text-[#5A5A55] sm:text-lg"
+              className="mt-6 max-w-2xl text-lg leading-relaxed text-[#5A5A55] sm:text-xl"
             >
               Validate campaign intent, creatives, landing pages, URLs, platform compatibility, and technical
               requirements before media spend begins.
@@ -280,12 +290,18 @@ export default function HomePage() {
             </motion.div>
           </div>
 
-          <IllustrationWrapper
-            src={STORYSET_ILLUSTRATIONS.digitalTransformationBro}
-            alt="Digital transformation and campaign intelligence platform"
-            className="mx-auto w-full max-w-xl lg:max-w-none"
-            priority
-          />
+          <div className="relative flex min-w-0 items-center justify-center py-4 lg:py-0">
+            <div
+              className="pointer-events-none absolute left-1/2 top-1/2 h-[min(100%,420px)] w-[min(92%,480px)] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(circle,rgba(200,240,77,0.22)_0%,rgba(200,240,77,0.06)_45%,transparent_72%)]"
+              aria-hidden
+            />
+            <IllustrationWrapper
+              src={STORYSET_ILLUSTRATIONS.digitalTransformationBro}
+              alt="Digital transformation and campaign intelligence platform"
+              className="relative z-10 mx-auto w-full max-w-[min(100%,440px)] sm:max-w-[480px] lg:max-w-[520px] xl:max-w-[560px]"
+              priority
+            />
+          </div>
           </div>
 
           <ValidationLayerDiagram embedded />

@@ -214,7 +214,7 @@ export default function AnalyzerOverview({
       {placementQa ? (
         <section className="rounded-xl border border-slate-200 bg-white p-4 space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <SectionHeader icon={Target} label={`Placement QA · ${platformLabel}`} accent="text-violet-600" inline />
+            <SectionHeader icon={Target} label={`Placement QA ${platformLabel}`} accent="text-violet-600" inline />
             <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">
               Pass rate {placementQa.passRate}%
             </span>

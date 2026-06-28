@@ -226,12 +226,19 @@ function withinTolerance(a, b, tolerance = SIZE_TOLERANCE_PX) {
   return Math.abs(a - b) <= tolerance;
 }
 
+export const NEAR_MATCH_TOLERANCE_PX = 32;
+const META_MIN_SHORT_SIDE_PX = 600;
+
+function getPlatformSupportedSizes(platform) {
+  const platformGroups = PLATFORM_SUPPORTED_SIZE_GROUPS[platform] || PLATFORM_SUPPORTED_SIZE_GROUPS.programmatic;
+  return [...new Set(Object.values(platformGroups).flat())];
+}
+
 /** Match raw pixel dimensions to a platform-supported canonical size (with tolerance). */
 export function matchPlatformSupportedSize(rawWidth, rawHeight, platform) {
   const rawW = Math.max(1, Math.round(Number(rawWidth) || 0));
   const rawH = Math.max(1, Math.round(Number(rawHeight) || 0));
-  const platformGroups = PLATFORM_SUPPORTED_SIZE_GROUPS[platform] || PLATFORM_SUPPORTED_SIZE_GROUPS.programmatic;
-  const supportedSizes = [...new Set(Object.values(platformGroups).flat())];
+  const supportedSizes = getPlatformSupportedSizes(platform);
 
   let best = null;
   let bestDistance = Infinity;
@@ -240,7 +247,10 @@ export function matchPlatformSupportedSize(rawWidth, rawHeight, platform) {
     const dims = parseSize(candidate);
     if (!dims) continue;
 
-    const orientations = [{ w: dims.width, h: dims.height, swapped: false }];
+    const orientations = [
+      { w: dims.width, h: dims.height, swapped: false },
+      { w: dims.height, h: dims.width, swapped: true },
+    ];
 
     for (const orientation of orientations) {
       if (!withinTolerance(rawW, orientation.w) || !withinTolerance(rawH, orientation.h)) continue;
@@ -249,9 +259,9 @@ export function matchPlatformSupportedSize(rawWidth, rawHeight, platform) {
       if (distance >= bestDistance) continue;
 
       let matchType = "tolerance";
-      if (rawW === dims.width && rawH === dims.height) {
-        matchType = "exact";
-      } else if (orientation.swapped && (rawW !== dims.width || rawH !== dims.height)) {
+      if (rawW === orientation.w && rawH === orientation.h) {
+        matchType = orientation.swapped ? "orientation" : "exact";
+      } else if (orientation.swapped) {
         matchType = "orientation";
       } else if (distance === 0) {
         matchType = "exact";
@@ -262,11 +272,63 @@ export function matchPlatformSupportedSize(rawWidth, rawHeight, platform) {
         match: candidate,
         type: matchType,
         detectedSize: `${rawW}x${rawH}`,
+        swapped: orientation.swapped,
       };
     }
   }
 
   return best;
+}
+
+/** Dimensions close to a supported size but outside exact tolerance — Needs Review, not Critical. */
+export function findNearPlatformSize(rawWidth, rawHeight, platform) {
+  const rawW = Math.max(1, Math.round(Number(rawWidth) || 0));
+  const rawH = Math.max(1, Math.round(Number(rawHeight) || 0));
+  const supportedSizes = getPlatformSupportedSizes(platform);
+
+  let best = null;
+  let bestDistance = Infinity;
+
+  for (const candidate of supportedSizes) {
+    const dims = parseSize(candidate);
+    if (!dims) continue;
+
+    const orientations = [
+      { w: dims.width, h: dims.height },
+      { w: dims.height, h: dims.width },
+    ];
+
+    for (const orientation of orientations) {
+      const distance = Math.abs(rawW - orientation.w) + Math.abs(rawH - orientation.h);
+      if (distance <= SIZE_TOLERANCE_PX || distance > NEAR_MATCH_TOLERANCE_PX) continue;
+      if (distance >= bestDistance) continue;
+
+      bestDistance = distance;
+      best = {
+        match: candidate,
+        detectedSize: `${rawW}x${rawH}`,
+        distance,
+      };
+    }
+  }
+
+  return best;
+}
+
+function hasSupportedAspectRatio(rawWidth, rawHeight, platform) {
+  const rawW = Math.max(1, Math.round(Number(rawWidth) || 0));
+  const rawH = Math.max(1, Math.round(Number(rawHeight) || 0));
+  const ratio = rawW / rawH;
+  const supportedSizes = getPlatformSupportedSizes(platform);
+
+  return supportedSizes.some((candidate) => {
+    const dims = parseSize(candidate);
+    if (!dims) return false;
+    const supportedRatio = dims.width / dims.height;
+    const inverseRatio = dims.height / dims.width;
+    const tolerance = 0.06;
+    return Math.abs(ratio - supportedRatio) <= tolerance || Math.abs(ratio - inverseRatio) <= tolerance;
+  });
 }
 
 function isSizeSupportedForPlatform(size, platform, intelligence) {
@@ -440,9 +502,10 @@ export async function validateCreativeAsset({ file, image, platform }) {
       ? "Meta Ads"
       : "Programmatic";
   const platformGroups = PLATFORM_SUPPORTED_SIZE_GROUPS[normalizedPlatform] || PLATFORM_SUPPORTED_SIZE_GROUPS.programmatic;
-  const supportedSizes = [...new Set(Object.values(platformGroups).flat())];
+  const supportedSizes = getPlatformSupportedSizes(normalizedPlatform);
   const sizeMatch = matchPlatformSupportedSize(rawW, rawH, normalizedPlatform);
-  const canonicalSize = sizeMatch?.match || actualSize;
+  const nearSizeMatch = !sizeMatch ? findNearPlatformSize(rawW, rawH, normalizedPlatform) : null;
+  const canonicalSize = sizeMatch?.match || nearSizeMatch?.match || actualSize;
   const size = actualSize;
   const issues = [];
   const intelligence = normalizedPlatform === "programmatic"
@@ -454,30 +517,71 @@ export async function validateCreativeAsset({ file, image, platform }) {
   const metaPlacement = normalizedPlatform === "meta_ads" ? classifyMetaPlacement(canonicalSize) : null;
   const metaSafeZone = normalizedPlatform === "meta_ads" ? evaluateMetaSafeZoneRisk(canonicalSize) : null;
 
-  if (!sizeMatch) {
-    issues.push(buildUnsupportedSizeIssue(actualSize, platformLabel));
+  if (rawW < 50 || rawH < 50) {
+    issues.push({
+      type: "corrupt",
+      severity: "high",
+      message: "Image appears corrupted or unreadable — dimensions could not be validated.",
+      recommendation: "Re-export the creative from your design tool and upload again.",
+      scorePenalty: 40,
+    });
+  }
+
+  if (!sizeMatch && !nearSizeMatch) {
+    if (normalizedPlatform === "meta_ads" && Math.min(rawW, rawH) < META_MIN_SHORT_SIDE_PX) {
+      issues.push({
+        type: "dimensions_small",
+        severity: "high",
+        message: `Image dimensions (${actualSize}) are below Meta's minimum (${META_MIN_SHORT_SIDE_PX}px on the shortest side).`,
+        recommendation: "Export at least 1080×1080, 1080×1350, or 1080×1920 for Meta feed and story placements.",
+        scorePenalty: 35,
+      });
+    } else if (!hasSupportedAspectRatio(rawW, rawH, normalizedPlatform)) {
+      issues.push({
+        type: "aspect_ratio",
+        severity: "high",
+        message: `${actualSize} uses an unsupported aspect ratio with no compatible ${platformLabel} placement.`,
+        recommendation: `Use a supported size from the ${platformLabel} size matrix.`,
+        scorePenalty: 38,
+      });
+    } else {
+      issues.push(buildUnsupportedSizeIssue(actualSize, platformLabel));
+    }
+  } else if (nearSizeMatch && !sizeMatch) {
+    issues.push({
+      type: "size_near_match",
+      severity: "medium",
+      message: `Detected ${nearSizeMatch.detectedSize} — close to supported ${nearSizeMatch.match} (Needs Review).`,
+      recommendation: `Resize to exactly ${nearSizeMatch.match} for best delivery, or acknowledge the warning to continue.`,
+      scorePenalty: 5,
+      needsReview: true,
+    });
   } else if (normalizedPlatform === "programmatic" && !intelligence) {
     issues.push(buildUnsupportedSizeIssue(actualSize, platformLabel));
   }
 
   issues.push(...buildFileWeightIssues(file, normalizedPlatform, canonicalSize, intelligence));
 
-  if (sizeMatch && sizeMatch.type === "orientation" && sizeMatch.detectedSize !== canonicalSize) {
-    issues.push({
-      type: "dimension_normalization",
-      severity: "medium",
-      message: `Detected ${sizeMatch.detectedSize} — orientation matches supported ${canonicalSize}.`,
-      recommendation: "Dimensions are accepted for this platform.",
-      scorePenalty: 0,
-    });
-  } else if (sizeMatch && sizeMatch.type === "tolerance" && sizeMatch.detectedSize !== canonicalSize) {
-    issues.push({
-      type: "dimension_normalization",
-      severity: "medium",
-      message: `Detected ${sizeMatch.detectedSize} — within tolerance of supported ${canonicalSize}.`,
-      recommendation: "No resize required — your creative matches an accepted size.",
-      scorePenalty: 0,
-    });
+  if (sizeMatch && sizeMatch.type !== "exact" && sizeMatch.detectedSize !== canonicalSize) {
+    if (sizeMatch.type === "orientation") {
+      issues.push({
+        type: "dimension_normalization",
+        severity: "medium",
+        message: `Detected ${sizeMatch.detectedSize} — orientation matches supported ${canonicalSize} (Needs Review).`,
+        recommendation: "Confirm this orientation is intended for your placement, or re-export to the exact supported size.",
+        scorePenalty: 0,
+        needsReview: true,
+      });
+    } else {
+      issues.push({
+        type: "dimension_normalization",
+        severity: "medium",
+        message: `Detected ${sizeMatch.detectedSize} — within tolerance of supported ${canonicalSize} (Needs Review).`,
+        recommendation: "Resize to the exact supported size when possible, or continue after review.",
+        scorePenalty: 0,
+        needsReview: true,
+      });
+    }
   }
 
   if (normalizedPlatform === "google_ads") {
@@ -518,9 +622,21 @@ export async function validateCreativeAsset({ file, image, platform }) {
       issues.push({
         type: "format",
         severity: "high",
-        message: `${fileMime} is not supported — display/image creatives only (JPG, PNG, GIF).`,
-        recommendation: "Upload a static image creative in JPG, PNG, or GIF format.",
+        message: `${fileMime || "This file type"} is not supported — Meta image creatives must be JPG, PNG, or GIF.`,
+        recommendation: "Upload a JPG, PNG, or GIF static image creative.",
         scorePenalty: 35,
+      });
+    }
+
+    const isAnimatedGif = fileMime === "image/gif";
+    const staticPreferredSizes = new Set(["1080x1350", "1080x1920", "1200x628"]);
+    if (isAnimatedGif && staticPreferredSizes.has(canonicalSize)) {
+      issues.push({
+        type: "animated_asset",
+        severity: "high",
+        message: "Animated GIF uploaded where a static image is required for this placement size.",
+        recommendation: "Export a static JPG or PNG at the target size, or choose a GIF-supported placement.",
+        scorePenalty: 28,
       });
     }
 
@@ -601,7 +717,7 @@ export async function validateCreativeAsset({ file, image, platform }) {
           supported: !fileMime || META_ALLOWED_MIME_TYPES.has(fileMime),
           acceptedFormats: ["image/jpeg", "image/png", "image/gif"],
         },
-        sizeTier: META_TIER1_SIZES.has(size) ? "tier1" : META_TIER2_SIZES.has(size) ? "tier2" : "non_core",
+        sizeTier: META_TIER1_SIZES.has(canonicalSize) ? "tier1" : META_TIER2_SIZES.has(canonicalSize) ? "tier2" : "non_core",
         placementProfile: metaPlacement,
         safeZone: metaSafeZone,
       }

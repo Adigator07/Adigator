@@ -77,6 +77,8 @@ export default function StaticGoogleMetaPreviewStudio({
   const showAnalysisTools = Boolean(selectedSource?.url || selectedSource?.fullUrl);
   const analysisReady = creativeAnalysis.status === "ready" && creativeAnalysis.imageUrl;
 
+  const primaryTemplate = templates[0] || null;
+
   return (
     <div className="space-y-5">
       <StudioTabBar tabs={STUDIO_MODES} activeTab={studioMode} onChange={setStudioMode} />
@@ -133,14 +135,17 @@ export default function StaticGoogleMetaPreviewStudio({
               alternateDevice={alternateDevice}
               onSwitchDevice={alternateDevice ? setDevice : undefined}
             />
-          ) : (
-            <div className="grid grid-cols-1 gap-8">
-              {templates.map((creative) => (
-                <div key={creative.id}>
-                  {renderEnvironmentCreative(creative, handlers, device)}
-                </div>
-              ))}
+          ) : primaryTemplate ? (
+            <div className="mx-auto w-full max-w-5xl">
+              <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm [&_img]:max-w-none [&_img]:h-auto [&_img]:object-contain [&_img]:image-rendering-auto">
+                {renderEnvironmentCreative(primaryTemplate, handlers, device)}
+              </div>
             </div>
+          ) : (
+            <PreviewEmptyState
+              title="Preview unavailable"
+              description="No preview template is available for this placement."
+            />
           )}
         </>
       ) : null}

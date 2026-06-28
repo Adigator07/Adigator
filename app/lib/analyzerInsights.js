@@ -24,6 +24,10 @@ import {
   buildEnrichedVerticalReasonForInsight,
 } from "./analyzer/alignmentReasons.js";
 import {
+  evaluateBriefProductAlignment,
+  getProductFocusLabel,
+} from "./campaignProductFocus.js";
+import {
   getEntryPayload,
   getExtractionSignals,
   getGoalAlignment,
@@ -542,11 +546,17 @@ function deriveLaunchStatus(creative, payload, platform) {
   return "review";
 }
 
-export function computeCreativeInsight(entry, platform, campaignGoal, campaignVertical) {
+export function computeCreativeInsight(
+  entry,
+  platform,
+  campaignGoal,
+  campaignVertical,
+  context = {},
+) {
   const creative = entry?.creative || {};
   const payload = getEntryPayload(entry) || {};
   const goalAlignment = getGoalAlignment(payload);
-  const verticalAlignment = getVerticalAlignment(payload);
+  let verticalAlignment = getVerticalAlignment(payload);
   const launchStatusKey = deriveLaunchStatus(creative, payload, platform);
   const placementScores = computePlacementCompatibility(creative, platform, payload);
   const extractionSignals = enrichExtractionSignals(
@@ -557,6 +567,30 @@ export function computeCreativeInsight(entry, platform, campaignGoal, campaignVe
     campaignGoal,
     placementScores,
   );
+
+  const briefAlignment = evaluateBriefProductAlignment({
+    campaignBrief: context.campaignBrief,
+    productFocus: context.campaignProductFocus,
+    signals: extractionSignals,
+    payload,
+  });
+
+  if (briefAlignment.expected_focus && briefAlignment.is_aligned === false) {
+    verticalAlignment = {
+      ...verticalAlignment,
+      is_aligned: false,
+      reason: briefAlignment.reason,
+      product_category: getProductFocusLabel(briefAlignment.detected_product),
+      brief_override: true,
+    };
+  } else if (briefAlignment.expected_focus && briefAlignment.is_aligned === null) {
+    verticalAlignment = {
+      ...verticalAlignment,
+      is_aligned: undefined,
+      reason: briefAlignment.reason,
+      brief_override: true,
+    };
+  }
   let mainRisk = deriveMainRisk(creative, payload, platform, campaignVertical);
   let recommendedFix = deriveRecommendedFix(creative, payload, platform);
   const strategicallyAligned = isStrategicallyAligned(goalAlignment, verticalAlignment);
@@ -590,8 +624,9 @@ export function computeCreativeInsight(entry, platform, campaignGoal, campaignVe
     },
     verticalAlignment: {
       ...verticalAlignment,
-      enrichedReason: buildEnrichedVerticalReasonForInsight(verticalAlignment, extractionSignals),
+      enrichedReason: briefAlignment.reason || buildEnrichedVerticalReasonForInsight(verticalAlignment, extractionSignals),
     },
+    briefAlignment,
     extractionSignals,
     technicalQa: deriveTechnicalQa(creative, payload, platform),
     placementQa: derivePlacementQa(creative, payload, platform),
@@ -609,8 +644,16 @@ function countVisualFragmentation(entries) {
   return cues.size;
 }
 
-export function computeCampaignOverview(entries, platform, campaignGoal, campaignVertical, verticalLabelFn, goalLabelFn) {
-  const insights = entries.map((e) => computeCreativeInsight(e, platform, campaignGoal, campaignVertical));
+export function computeCampaignOverview(
+  entries,
+  platform,
+  campaignGoal,
+  campaignVertical,
+  verticalLabelFn,
+  goalLabelFn,
+  context = {},
+) {
+  const insights = entries.map((e) => computeCreativeInsight(e, platform, campaignGoal, campaignVertical, context));
   const launchRisks = [];
   const qaSummary = [];
   const goalText = goalLabelFn?.(campaignGoal || "awareness") || campaignGoal || "awareness";

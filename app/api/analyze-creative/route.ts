@@ -4577,6 +4577,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const vertical = normalizeVertical((formData.get("vertical") as string) || "technology");
     const platform = normalizePlatform((formData.get("platform") as string) || "programmatic");
     const campaignBrief = String(formData.get("campaign_brief") || "").trim().slice(0, 2000);
+    const campaignProductFocus = String(formData.get("campaign_product_focus") || "").trim().slice(0, 64);
+    const landingUrl = String(formData.get("landing_url") || "").trim().slice(0, 2048);
     const platformProfile = PLATFORM_BMI_PROFILE[platform];
 
     if (!file) {
@@ -4601,6 +4603,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       vertical,
       PRODUCT_CATEGORY_GROUNDING_RULES,
       campaignBrief || undefined,
+      campaignProductFocus || undefined,
+      landingUrl || undefined,
     );
 
     const extractionSystemPrompt = buildExtractionSystemPrompt(platform, goal, vertical);

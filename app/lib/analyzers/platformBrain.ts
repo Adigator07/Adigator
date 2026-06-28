@@ -247,17 +247,25 @@ export function buildExtractionUserPromptLock(
   vertical: string,
   groundingRules: string,
   campaignBrief?: string,
+  campaignProductFocus?: string,
+  landingUrl?: string,
 ): string {
   const reminder = getCrossPlatformForbiddenReminder(platform);
   const briefBlock = campaignBrief?.trim()
-    ? `\n- Client Brief / Campaign Description: ${campaignBrief.trim()}\n\nTreat the campaign objective and client brief as primary context for alignment. Prefer brief-grounded reasoning over generic assumptions.`
+    ? `\n- Client Brief / Campaign Description: ${campaignBrief.trim()}\n\nTreat the campaign objective and client brief as primary context for alignment. Prefer brief-grounded reasoning over generic assumptions. Do NOT mark the creative aligned if the brief specifies a product (e.g. bike) but the visual shows a different product (e.g. car).`
+    : "";
+  const productFocusBlock = campaignProductFocus?.trim()
+    ? `\n- Campaign Product Focus: ${campaignProductFocus.replace(/_/g, " ")}\n\nWhen product focus is specified, compare detected product/subject in the creative against this focus. Flag misalignment explicitly.`
+    : "";
+  const landingBlock = landingUrl?.trim()
+    ? `\n- Landing Page URL (for message match context): ${landingUrl.trim()}`
     : "";
   return `Analyze this advertising creative.
 
 ## ACTIVE ANALYSIS LOCK (mandatory)
 - Platform: ${platformLabel} — ${reminder}
 - Campaign Goal: ${goal.replace(/_/g, " ")} (${goalStage} stage)
-- Industry Vertical: ${vertical.replace(/_/g, " ")}${briefBlock}
+- Industry Vertical: ${vertical.replace(/_/g, " ")}${briefBlock}${productFocusBlock}${landingBlock}
 
 Use ONLY the ${platformLabel} analyzer brain from system instructions. Do not apply other platforms' logic.
 

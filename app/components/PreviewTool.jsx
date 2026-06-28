@@ -71,6 +71,7 @@ import {
   runUrlValidationRequest,
   writeStoredUrlValidation,
 } from "../lib/urlValidationClient";
+import { PRODUCT_FOCUS_OPTIONS } from "../lib/campaignProductFocus";
 
 // Platform size matrix — sourced from creativeSizeRegistry via creativeValidation
 const PLATFORM_SIZES = PLATFORM_SUPPORTED_SIZE_GROUPS;
@@ -319,9 +320,18 @@ const VALID_VERTICALS = new Set([
   "news_media", "real_estate", "sports", "technology", "travel",
 ]);
 
-// ── OpenAI-Only Analyzer ─────────────────────────────────────────────────────
+// ── Creative analysis ──────────────────────────────────────────────────────────
 
-async function analyzeAllCreatives(creatives, goal, platform, vertical, audienceStage, campaignBrief = "") {
+async function analyzeAllCreatives(
+  creatives,
+  goal,
+  platform,
+  vertical,
+  audienceStage,
+  campaignBrief = "",
+  campaignProductFocus = "",
+  landingUrl = "",
+) {
   const results = [];
   const verticalForApi = VALID_VERTICALS.has(vertical) ? vertical : "technology";
 
@@ -364,6 +374,12 @@ async function analyzeAllCreatives(creatives, goal, platform, vertical, audience
       formData.append("audience_stage", audienceStage || "cold");
       if (campaignBrief?.trim()) {
         formData.append("campaign_brief", campaignBrief.trim());
+      }
+      if (campaignProductFocus?.trim()) {
+        formData.append("campaign_product_focus", campaignProductFocus.trim());
+      }
+      if (landingUrl?.trim()) {
+        formData.append("landing_url", landingUrl.trim());
       }
 
       const analysisRes = await fetch("/api/analyze-creative", {
@@ -476,7 +492,9 @@ export default function PreviewTool() {
   const [campaignAudienceStage, setCampaignAudienceStage] = useState(null);
   const [campaignName, setCampaignName] = useState("");
   const [campaignBrief, setCampaignBrief] = useState("");
+  const [campaignProductFocus, setCampaignProductFocus] = useState("");
   const [landingUrl, setLandingUrl] = useState("");
+  const [sizeReviewAcknowledged, setSizeReviewAcknowledged] = useState(false);
   const [urlValidation, setUrlValidation] = useState(() => {
     if (typeof window === "undefined") return null;
     return readStoredUrlValidation();
@@ -581,6 +599,11 @@ export default function PreviewTool() {
       setCampaignBrief(storedCampaignBrief);
     }
 
+    const storedProductFocus = localStorage.getItem("adigator_product_focus");
+    if (!campaignProductFocus && storedProductFocus) {
+      setCampaignProductFocus(storedProductFocus);
+    }
+
     const storedLandingUrl = localStorage.getItem("adigator_landing_url");
     if (!landingUrl && storedLandingUrl) {
       setLandingUrl(storedLandingUrl);
@@ -600,6 +623,7 @@ export default function PreviewTool() {
     campaignAudienceStage,
     campaignName,
     campaignBrief,
+    campaignProductFocus,
     landingUrl,
     urlValidation,
   ]);
@@ -627,24 +651,47 @@ export default function PreviewTool() {
       return skipped;
     }
 
+    if (!platform || !campaignGoal) {
+      addToast("Complete campaign setup before validating.", "error");
+      return null;
+    }
+
     setUrlValidationRunning(true);
     try {
       const validForUrlCheck = creatives.filter((c) => c?.valid && (c.url || c.image || c.title));
-      const result = await runUrlValidationRequest({
-        url: trimmedUrl,
-        platform,
-        objective: campaignGoal,
-        vertical: campaignVertical,
-        campaignName: campaignName.trim() || "Campaign",
-        creatives: validForUrlCheck.length ? validForUrlCheck : creatives,
-        getCreativeBlob: getCreativeFullBlob,
-      });
+      const [result] = await Promise.all([
+        runUrlValidationRequest({
+          url: trimmedUrl,
+          platform,
+          objective: campaignGoal,
+          vertical: campaignVertical,
+          campaignName: campaignName.trim() || "Campaign",
+          creatives: validForUrlCheck.length ? validForUrlCheck : creatives,
+          getCreativeBlob: getCreativeFullBlob,
+        }),
+        runReadinessValidation({
+          platform,
+          url: trimmedUrl,
+          objective: campaignGoal,
+          campaignName: campaignName.trim() || "Campaign",
+          vertical: campaignVertical || undefined,
+          creatives: creatives.map((c) => ({
+            id: c.id,
+            name: c.name,
+            size: c.size,
+            fileSize: c.fileSizeBytes,
+            mimeType: c.mimeType,
+            contentHash: c.contentHash,
+            validation: c.validation,
+          })),
+        }),
+      ]);
       setUrlValidation(result);
       writeStoredUrlValidation(result);
       return result;
     } catch (error) {
       console.error("URL validation failed", error);
-      addToast(error?.message || "URL validation failed.", "error");
+      addToast(error?.message || "Validation failed.", "error");
       return null;
     } finally {
       setUrlValidationRunning(false);
@@ -657,6 +704,7 @@ export default function PreviewTool() {
     campaignName,
     creatives,
     addToast,
+    runReadinessValidation,
   ]);
 
   useEffect(() => {
@@ -748,6 +796,9 @@ export default function PreviewTool() {
 
     if (campaignBrief) localStorage.setItem("adigator_campaign_brief", campaignBrief);
     else localStorage.removeItem("adigator_campaign_brief");
+
+    if (campaignProductFocus) localStorage.setItem("adigator_product_focus", campaignProductFocus);
+    else localStorage.removeItem("adigator_product_focus");
 
     if (landingUrl) localStorage.setItem("adigator_landing_url", landingUrl);
     else localStorage.removeItem("adigator_landing_url");
@@ -1057,7 +1108,17 @@ export default function PreviewTool() {
   const invalidCreatives = useMemo(() => creatives.filter((c) => c && (!c.valid || !(c.url || c.text || c.image || c.title))), [creatives]);
   const uploadedCreatives = validCreatives;
   const primaryCreativeUrl = getPersistableCreativeUrl(uploadedCreatives[0]);
-  const canAdvanceToAnalysis = uploadedCreatives.length > 0;
+  const needsReviewCreatives = useMemo(
+    () => creatives.filter((c) =>
+      c?.validation?.issues?.some((issue) => issue.needsReview || issue.type === "size_near_match" || issue.type === "dimension_normalization"),
+    ),
+    [creatives],
+  );
+  useEffect(() => {
+    setSizeReviewAcknowledged(false);
+  }, [needsReviewCreatives.map((c) => c.id).join(",")]);
+  const canAdvanceToAnalysis = uploadedCreatives.length > 0
+    && (needsReviewCreatives.length === 0 || sizeReviewAcknowledged);
 
   useEffect(() => {
     lastSessionPayloadRef.current = null;
@@ -1201,7 +1262,9 @@ export default function PreviewTool() {
     setCampaignAudienceStage(null);
     setCampaignName("");
     setCampaignBrief("");
+    setCampaignProductFocus("");
     setLandingUrl("");
+    setSizeReviewAcknowledged(false);
     setUrlValidation(null);
     setUrlValidationRunning(false);
     clearStoredUrlValidation();
@@ -1230,6 +1293,7 @@ export default function PreviewTool() {
     localStorage.removeItem("adigator_audience_stage");
     localStorage.removeItem("adigator_campaign_name");
     localStorage.removeItem("adigator_campaign_brief");
+    localStorage.removeItem("adigator_product_focus");
     localStorage.removeItem("adigator_landing_url");
     clearStoredUrlValidation();
     localStorage.removeItem(ANALYSIS_SESSION_STORAGE_KEY);
@@ -1972,7 +2036,16 @@ export default function PreviewTool() {
         },
       }, { dedupeKey: `analyzer-start-${platform}-${campaignGoal}-${validCreatives.length}` });
 
-      const results = await analyzeAllCreatives(validCreatives, campaignGoal, platform, campaignVertical, campaignAudienceStage, campaignBrief);
+      const results = await analyzeAllCreatives(
+        validCreatives,
+        campaignGoal,
+        platform,
+        campaignVertical,
+        campaignAudienceStage,
+        campaignBrief,
+        campaignProductFocus,
+        landingUrl,
+      );
       setAnalysisResult(results);
 
       const linkedCreatives = await Promise.all(
@@ -2027,7 +2100,7 @@ export default function PreviewTool() {
     } finally {
       setAnalysisLoading(false);
     }
-  }, [validCreatives, campaignGoal, platform, campaignVertical, campaignAudienceStage, addToast, persistCreative]);
+  }, [validCreatives, campaignGoal, platform, campaignVertical, campaignAudienceStage, campaignBrief, campaignProductFocus, landingUrl, addToast, persistCreative]);
 
   useEffect(() => {
     if (step !== 3) return;
@@ -2243,57 +2316,6 @@ export default function PreviewTool() {
     }
   }, [addToast]);
 
-  const handleRunReadinessCheck = useCallback(async () => {
-    if (!platform || !campaignGoal) {
-      addToast("Complete campaign setup before running readiness check.", "error");
-      return;
-    }
-    if (creatives.length === 0) {
-      addToast("Upload at least one creative first.", "error");
-      return;
-    }
-    if (platform !== "meta_ads" && !landingUrl.trim()) {
-      addToast("Landing page URL is required for Programmatic and Google Ads validation.", "error");
-      return;
-    }
-
-    const [result] = await Promise.all([
-      runReadinessValidation({
-        platform,
-        url: landingUrl.trim() || undefined,
-        objective: campaignGoal,
-        campaignName: campaignName.trim() || "Campaign",
-        vertical: campaignVertical || undefined,
-        creatives: creatives.map((c) => ({
-          id: c.id,
-          name: c.name,
-          size: c.size,
-          fileSize: c.fileSizeBytes,
-          mimeType: c.mimeType,
-          contentHash: c.contentHash,
-          validation: c.validation,
-        })),
-      }),
-      landingUrl.trim() ? runUrlValidation() : Promise.resolve(null),
-    ]);
-
-    if (result) {
-      addToast(`Readiness score: ${result.overall_score}/100. ${result.readiness_level.replace("_", " ")}`, result.readiness_level === "ready" ? "success" : "info");
-    } else {
-      addToast("Readiness check failed.", "error");
-    }
-  }, [
-    platform,
-    campaignGoal,
-    creatives,
-    landingUrl,
-    campaignName,
-    campaignVertical,
-    runReadinessValidation,
-    runUrlValidation,
-    addToast,
-  ]);
-
 
   return (
     <div className="preview-tool-white min-h-screen bg-gradient-to-b from-white to-slate-50 text-[#1C1C1E]">
@@ -2411,12 +2433,32 @@ export default function PreviewTool() {
                   <textarea
                     value={campaignBrief}
                     onChange={(e) => setCampaignBrief(e.target.value)}
-                    placeholder="Describe campaign goals, requirements, challenges, and any additional context for analysis."
+                    placeholder="Describe campaign goals, product, requirements, and context (e.g. bike launch campaign for urban riders)."
                     rows={4}
                     className="w-full resize-y rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
                   />
                   <p className="mt-2 text-xs text-slate-500">
-                    Helps the analysis engine understand campaign intent and generate more relevant recommendations.
+                    Used in analysis to check whether creatives match your stated product and campaign intent.
+                  </p>
+                </div>
+                <div className="mt-5 max-w-xl">
+                  <label htmlFor="campaign-product-focus" className="block text-xs font-semibold uppercase tracking-wide text-slate-500 mb-2">
+                    Product Focus (optional)
+                  </label>
+                  <select
+                    id="campaign-product-focus"
+                    value={campaignProductFocus}
+                    onChange={(e) => setCampaignProductFocus(e.target.value)}
+                    className="w-full appearance-none rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
+                  >
+                    {PRODUCT_FOCUS_OPTIONS.map((option) => (
+                      <option key={option.id || "auto"} value={option.id}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="mt-2 text-xs text-slate-500">
+                    Narrow automotive campaigns to bike, car, or truck so analysis does not mark mismatched creatives as aligned.
                   </p>
                 </div>
               </motion.section>
@@ -2798,11 +2840,10 @@ export default function PreviewTool() {
 
               <div className="rounded-2xl border border-slate-300 bg-white p-6 shadow-sm space-y-4">
                 <div>
-                  <h3 className="text-lg font-bold text-slate-900">URL Validation</h3>
+                  <h3 className="text-lg font-bold text-slate-900">URL & Campaign Readiness</h3>
                   <p className="text-sm text-slate-600 mt-1">
-                    Enter the destination URL for this campaign. We compare it against your uploaded creatives using AI and show
-                    whether it is <span className="font-semibold">Aligned</span> or <span className="font-semibold">Misaligned</span> in the Step 3 Overview tab only.
-                    {platform === "meta_ads" ? " URL is optional for Meta." : " URL is required for Programmatic and Google Ads."}
+                    Validate your landing page and run readiness checks together. Results appear below and in Step 3 Overview.
+                    {platform === "meta_ads" ? " URL is optional for Meta." : " URL is required for Google Ads and Programmatic."}
                   </p>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -2822,42 +2863,18 @@ export default function PreviewTool() {
                     <button
                       type="button"
                       onClick={runUrlValidation}
-                      disabled={urlValidationRunning || !landingUrl.trim() || creatives.length === 0}
+                      disabled={urlValidationRunning || !landingUrl.trim() || creatives.length === 0 || !platform || !campaignGoal}
                       className="w-full rounded-xl bg-sky-600 border border-sky-700 px-4 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-sky-700 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      {urlValidationRunning ? "Validating URL…" : "Validate URL"}
+                      {urlValidationRunning || readinessLoading ? "Validating…" : "Validate URL & Readiness"}
                     </button>
                   </div>
                 </div>
-                {urlValidationRunning ? (
-                  <p className="text-xs text-sky-700 font-medium">Checking URL against your creatives with OpenAI…</p>
-                ) : urlValidation?.submitted_url && urlValidation.submitted_url === landingUrl.trim() ? (
-                  <p className="text-xs text-slate-500">
-                    URL check complete. Open Step 3 Overview to see alignment status and suggestions.
-                  </p>
-                ) : null}
-              </div>
-
-              <div className="rounded-2xl border border-slate-300 bg-white p-6 shadow-sm space-y-4">
-                <div>
-                  <h3 className="text-lg font-bold text-slate-900">Campaign Readiness Report</h3>
-                  <p className="text-sm text-slate-600 mt-1">
-                    Rule-based checks for creative specs, URL health, UTM tags, duplicates, and objective alignment.
-                  </p>
-                </div>
-                <div className="flex items-end">
-                  <button
-                    type="button"
-                    onClick={handleRunReadinessCheck}
-                    disabled={readinessLoading || urlValidationRunning || creatives.length === 0}
-                    className="w-full md:w-auto rounded-xl bg-emerald-600 border border-emerald-700 px-6 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {readinessLoading || urlValidationRunning ? "Validating…" : "Run Campaign Readiness Check"}
-                  </button>
-                </div>
-                {readinessLoading ? (
+                {urlValidationRunning || readinessLoading ? (
                   <div className="rounded-xl border border-sky-200 bg-sky-50 px-4 py-3">
-                    <p className="text-sm font-semibold text-sky-800">{readinessProgress}</p>
+                    <p className="text-sm font-semibold text-sky-800">
+                      {readinessProgress || "Checking URL against your campaign setup…"}
+                    </p>
                     <div className="mt-2 h-1.5 w-full rounded-full bg-sky-200 overflow-hidden">
                       <div className="h-full w-2/3 rounded-full bg-sky-500 animate-pulse" />
                     </div>
@@ -2872,11 +2889,36 @@ export default function PreviewTool() {
                     onCopy={() => addToast("Readiness report copied to clipboard.", "success")}
                   />
                 ) : null}
+                {urlValidation?.submitted_url && urlValidation.submitted_url === landingUrl.trim() && !urlValidationRunning ? (
+                  <p className="text-xs text-slate-500">
+                    URL check complete. Open Step 3 Overview for alignment details.
+                  </p>
+                ) : null}
               </div>
+
+              {needsReviewCreatives.length > 0 ? (
+                <div className="rounded-2xl border border-amber-400/40 bg-amber-50 px-4 py-4 space-y-3">
+                  <p className="text-sm font-semibold text-amber-900">
+                    {needsReviewCreatives.length} creative{needsReviewCreatives.length > 1 ? "s need" : " needs"} review (non-exact size match)
+                  </p>
+                  <p className="text-sm text-amber-950/90">
+                    These files are close to supported sizes but not exact. You may continue after acknowledging the warning.
+                  </p>
+                  <label className="flex items-start gap-2 text-sm text-amber-950 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={sizeReviewAcknowledged}
+                      onChange={(e) => setSizeReviewAcknowledged(e.target.checked)}
+                      className="mt-1 rounded border-amber-400 text-amber-600 focus:ring-amber-500"
+                    />
+                    <span>I reviewed the size warnings and want to continue to analysis.</span>
+                  </label>
+                </div>
+              ) : null}
 
               <div className="flex gap-4 pt-4">
                 <NavBtn variant="back" onClick={goBack}>← Back</NavBtn>
-                <NavBtn onClick={goNext} disabled={uploadedCreatives.length === 0}>Next: AI Analysis →</NavBtn>
+                <NavBtn onClick={goNext} disabled={!canAdvanceToAnalysis}>Next: Analysis →</NavBtn>
               </div>
             </motion.div>
           )}
@@ -2885,10 +2927,11 @@ export default function PreviewTool() {
           {step === 3 && (
             <motion.div key="step-3" variants={stepPanelVariants} initial="hidden" animate="visible" exit="exit" className="space-y-6">
               <div>
-                <h2 className="text-4xl font-bold text-white mb-2">Step 3: AI Analysis</h2>
+                <h2 className="text-4xl font-bold text-white mb-2">Step 3: Analysis</h2>
                 <p className="text-gray-400">Analyze your creatives against {PLATFORMS.find(p => p.id === platform)?.title} standards.</p>
                 <p className="text-gray-500 text-sm mt-2">
-                  Selected goal: <span className="text-white font-semibold capitalize">{campaignGoal}</span> · Audience stage: <span className="text-white font-semibold">{AUDIENCE_STAGES.find((stage) => stage.id === campaignAudienceStage)?.title || "Cold Audience"}</span> · Selected vertical: <span className="text-white font-semibold">{VERTICAL_TITLE_MAP[campaignVertical] || campaignVertical}</span>
+                  Selected goal: <span className="text-white font-semibold capitalize">{campaignGoal}</span> · Selected vertical: <span className="text-white font-semibold">{VERTICAL_TITLE_MAP[campaignVertical] || campaignVertical}</span>
+                  {campaignBrief?.trim() ? <> · Brief provided</> : null}
                 </p>
               </div>
 
@@ -2907,7 +2950,7 @@ export default function PreviewTool() {
 
               {analysisLoading && (
                 <div className="py-10 space-y-4">
-                  <p className="text-gray-300 text-sm">Analyzing {validCreatives.length} creatives with deterministic engine...</p>
+                  <p className="text-gray-300 text-sm">Analyzing {validCreatives.length} creatives…</p>
                   <div className="rounded-2xl border border-white/10 bg-white/5 p-4 animate-pulse">
                     <div className="h-5 w-40 bg-white/10 rounded mb-4" />
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
@@ -2936,6 +2979,8 @@ export default function PreviewTool() {
                     viewerName={viewerName}
                     creatives={validCreatives}
                     urlValidation={urlValidation}
+                    campaignBrief={campaignBrief}
+                    campaignProductFocus={campaignProductFocus}
                     onDownloadReport={handleDownloadReport}
                   />
                 </>
