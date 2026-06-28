@@ -276,6 +276,8 @@ export default function SolutionsPage() {
                 src={STORYSET_ILLUSTRATIONS.searchAmico}
                 alt="Search and competitive ad intelligence analysis"
                 className="mt-8"
+                animation="fade-up"
+                delay={0}
               />
             </div>
             <div>
@@ -287,6 +289,8 @@ export default function SolutionsPage() {
                 src={STORYSET_ILLUSTRATIONS.businessPlanBro}
                 alt="Business plan and market trend planning"
                 className="mt-8"
+                animation="fade-up"
+                delay={0.12}
               />
             </div>
             <div className="md:col-span-2 lg:col-span-1">
@@ -298,6 +302,8 @@ export default function SolutionsPage() {
                 src={STORYSET_ILLUSTRATIONS.saveTimeAmico}
                 alt="Save time with automated campaign validation"
                 className="mt-8"
+                animation="fade-up"
+                delay={0.24}
               />
             </div>
           </div>
@@ -436,6 +442,7 @@ export default function SolutionsPage() {
                 src={STORYSET_ILLUSTRATIONS.stressAmico}
                 alt="Campaign stress and errors without pre-launch validation"
                 className="mb-6"
+                animation="fade-down"
               />
               <div className="flex flex-wrap gap-3">
                 {CAMPAIGN_REALITY_TAGS.map((tag) => (
@@ -466,6 +473,8 @@ export default function SolutionsPage() {
                 src={STORYSET_ILLUSTRATIONS.confirmedBro}
                 alt="Campaign confirmed and ready to launch with Adigator validation"
                 className="mb-6"
+                animation="fade-up"
+                delay={0.1}
               />
               <div className="flex flex-wrap gap-3">
                 {CAMPAIGN_REALITY_TAGS.map((tag) => (

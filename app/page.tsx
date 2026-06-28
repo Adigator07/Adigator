@@ -299,6 +299,8 @@ export default function HomePage() {
               src={STORYSET_ILLUSTRATIONS.digitalTransformationBro}
               alt="Digital transformation and campaign intelligence platform"
               className="relative z-10 mx-auto w-full max-w-[min(100%,440px)] sm:max-w-[480px] lg:max-w-[520px] xl:max-w-[560px]"
+              animation="fade-up"
+              delay={0.15}
               priority
             />
           </div>
@@ -464,6 +466,7 @@ export default function HomePage() {
               src={STORYSET_ILLUSTRATIONS.analysisAmico}
               alt="Campaign analysis and analytics dashboard insights"
               className="order-2 w-full lg:order-1"
+              animation="fade-right"
             />
             <div className="order-1 lg:order-2">
           <div className="mb-6">

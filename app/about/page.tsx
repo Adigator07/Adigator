@@ -406,6 +406,7 @@ export default function AboutPage() {
             <IllustrationWrapper
               src={STORYSET_ILLUSTRATIONS.teamGoalsRafiki}
               alt="Team united around shared campaign validation goals"
+              animation="fade-left"
             />
           </div>
         </section>
@@ -417,6 +418,7 @@ export default function AboutPage() {
               src={STORYSET_ILLUSTRATIONS.nextStepsBro}
               alt="Next steps in Adigator AI validation technology infrastructure"
               className="order-2 lg:order-1"
+              animation="fade-right"
             />
             <div className="order-1 text-center lg:order-2 lg:text-left">
               <h2 className="text-3xl font-black leading-tight tracking-tight text-white sm:text-4xl lg:text-5xl">

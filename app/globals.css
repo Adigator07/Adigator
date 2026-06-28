@@ -108,6 +108,21 @@ a {
   width: 100%;
 }
 
+.illustration-wrapper--revealed .illustration-inline,
+.illustration-wrapper--revealed .illustration-motion-inner > img {
+  animation: illustration-gentle-float 5.5s ease-in-out infinite;
+}
+
+@keyframes illustration-gentle-float {
+  0%,
+  100% {
+    translate: 0 0;
+  }
+  50% {
+    translate: 0 -8px;
+  }
+}
+
 .illustration-wrapper--interactive .illustration-svg {
   display: block;
   overflow: visible;
@@ -184,6 +199,11 @@ a {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .illustration-wrapper--revealed .illustration-inline,
+  .illustration-wrapper--revealed .illustration-motion-inner > img {
+    animation: none;
+  }
+
   .illustration-wrapper--interactive .illustration-hotspot,
   .illustration-wrapper--interactive .illustration-hotspot--character,
   .illustration-wrapper--interactive .illustration-hotspot--object {
