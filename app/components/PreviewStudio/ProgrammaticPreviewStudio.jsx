@@ -1,15 +1,16 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import ContextualPreviewEngine from "../ContextualPreviewEngine";
-import { CompatibleCreativePicker } from "./CompatibleCreativePicker";
 import {
   DeviceToggle,
   PreviewDeviceIncompatibleState,
   PreviewEmptyState,
+  StudioContentPanel,
   StudioTabBar,
 } from "./PreviewShared";
+import { CompatibleCreativePicker } from "./CompatibleCreativePicker";
 import { StudioToolbar } from "./shared/envShared";
+import ContextualPreviewEngine from "../ContextualPreviewEngine";
 import {
   PROGRAMMATIC_DISPLAY_WEBSITE_ENVIRONMENTS,
   PROGRAMMATIC_ENVIRONMENT_LABELS,
@@ -116,90 +117,95 @@ export default function ProgrammaticPreviewStudio({
     : null;
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
       <StudioTabBar
         tabs={TEMPLATE_TABS}
         activeTab={activeTemplate}
         onChange={setActiveTemplate}
+        layoutIdPrefix="programmatic-templates"
+        compact
       />
 
-      <p className="text-xs text-gray-500 -mt-2">
-        Choose a publisher template. Previews are generated to match your campaign vertical and creative.
-      </p>
-
-      <CompatibleCreativePicker
-        sourceCreatives={sourceCreatives}
-        compatibleCreatives={sourceCreatives}
-        selectedSourceId={selectedSourceId}
-        onSelect={setSelectedSourceId}
-        activePlacementLabel={PROGRAMMATIC_ENVIRONMENT_LABELS[activeTemplate] || "template"}
-        selectedSource={selectedSource}
-        getSupportedDevicesForCreative={getSupportedDevices}
-        activeDevice={device}
-      />
-
-      <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
-        <DeviceToggle
-          options={DEVICE_OPTIONS}
-          activeDevice={device}
-          onChange={setDevice}
-        />
-        <StudioToolbar
-          count={canPreview ? 1 : 0}
-          device={device}
-          onRegenerate={handleRegenerate}
-          isRegenerating={isRegenerating}
-        />
-      </div>
-
-      {isRegenerating ? (
-        <p className="text-xs text-cyan-300/80">
-          Refreshing {PROGRAMMATIC_ENVIRONMENT_LABELS[activeTemplate]} preview…
+      <StudioContentPanel panelKey={activeTemplate} className="space-y-5">
+        <p className="-mt-2 text-xs text-studio-muted">
+          Choose a publisher template. Previews are generated to match your campaign vertical and creative.
         </p>
-      ) : null}
 
-      {!sourceCreatives.length ? (
-        <PreviewEmptyState
-          title="No creatives to preview"
-          description="Upload and validate creatives in Step 2 to preview them here."
-        />
-      ) : mobileUnsupported ? (
-        <PreviewDeviceIncompatibleState
-          title={mobileUnsupportedTitle}
-          message={mobileUnsupportedMessage}
-          device={device}
-          creativeSize={creativeSize}
-          alternateDevice={alternateDevice}
-          onSwitchDevice={setDevice}
-        />
-      ) : !canPreview ? (
-        <PreviewDeviceIncompatibleState
-          message={selectedSourceDeviceValidation.message}
-          device={device}
-          creativeSize={creativeSize}
-          alternateDevice={alternateDevice}
-          onSwitchDevice={setDevice}
-        />
-      ) : (
-        <ContextualPreviewEngine
-          key={`${selectedSourceId}-${activeTemplate}-${device}-${regenerateToken}`}
-          creatives={[selectedCreativeWithAnalysis]}
-          vertical={vertical}
-          goal={goal}
-          controlledDevice={device}
-          hideDeviceToggle
-          hideCreativeSidebar
-          hideEnvironmentSelector
-          studioMode
-          fixedEnvironment={activeTemplate}
-          placementLabel={PROGRAMMATIC_ENVIRONMENT_LABELS[activeTemplate]}
-          previewPlatform="programmatic"
-          previewPlacement={PROGRAMMATIC_PREVIEW_PLACEMENT}
-          onCopyCreative={onCopyCreative}
-          onEditCreative={onEditCreative}
+        <CompatibleCreativePicker
+          sourceCreatives={sourceCreatives}
+          compatibleCreatives={sourceCreatives}
+          selectedSourceId={selectedSourceId}
+          onSelect={setSelectedSourceId}
+          activePlacementLabel={PROGRAMMATIC_ENVIRONMENT_LABELS[activeTemplate] || "template"}
+          selectedSource={selectedSource}
           getSupportedDevicesForCreative={getSupportedDevices}
+          activeDevice={device}
         />
-      )}
+
+        <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+          <DeviceToggle
+            options={DEVICE_OPTIONS}
+            activeDevice={device}
+            onChange={setDevice}
+            layoutIdPrefix="programmatic-device"
+          />
+          <StudioToolbar
+            count={canPreview ? 1 : 0}
+            device={device}
+            onRegenerate={handleRegenerate}
+            isRegenerating={isRegenerating}
+          />
+        </div>
+
+        {isRegenerating ? (
+          <p className="text-xs text-studio-accent">
+            Refreshing {PROGRAMMATIC_ENVIRONMENT_LABELS[activeTemplate]} preview…
+          </p>
+        ) : null}
+
+        {!sourceCreatives.length ? (
+          <PreviewEmptyState
+            title="No creatives to preview"
+            description="Upload and validate creatives in Step 2 to preview them here."
+          />
+        ) : mobileUnsupported ? (
+          <PreviewDeviceIncompatibleState
+            title={mobileUnsupportedTitle}
+            message={mobileUnsupportedMessage}
+            device={device}
+            creativeSize={creativeSize}
+            alternateDevice={alternateDevice}
+            onSwitchDevice={setDevice}
+          />
+        ) : !canPreview ? (
+          <PreviewDeviceIncompatibleState
+            message={selectedSourceDeviceValidation.message}
+            device={device}
+            creativeSize={creativeSize}
+            alternateDevice={alternateDevice}
+            onSwitchDevice={setDevice}
+          />
+        ) : (
+          <ContextualPreviewEngine
+            key={`${selectedSourceId}-${activeTemplate}-${device}-${regenerateToken}`}
+            creatives={[selectedCreativeWithAnalysis]}
+            vertical={vertical}
+            goal={goal}
+            controlledDevice={device}
+            hideDeviceToggle
+            hideCreativeSidebar
+            hideEnvironmentSelector
+            studioMode
+            fixedEnvironment={activeTemplate}
+            placementLabel={PROGRAMMATIC_ENVIRONMENT_LABELS[activeTemplate]}
+            previewPlatform="programmatic"
+            previewPlacement={PROGRAMMATIC_PREVIEW_PLACEMENT}
+            onCopyCreative={onCopyCreative}
+            onEditCreative={onEditCreative}
+            getSupportedDevicesForCreative={getSupportedDevices}
+          />
+        )}
+      </StudioContentPanel>
     </div>
   );
 }

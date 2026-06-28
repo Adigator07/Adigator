@@ -13,6 +13,28 @@ const config: Config = {
           indigo: "#4f46e5",
           cyan: "#06b6d4",
         },
+        studio: {
+          bg: "var(--studio-bg)",
+          "bg-soft": "var(--studio-bg-soft)",
+          surface: "var(--studio-surface)",
+          "surface-elevated": "var(--studio-surface-elevated)",
+          border: "var(--studio-border)",
+          accent: "var(--studio-accent)",
+          "accent-secondary": "var(--studio-accent-secondary)",
+          text: "var(--studio-text)",
+          muted: "var(--studio-text-muted)",
+          tertiary: "var(--studio-text-tertiary)",
+          success: "var(--studio-success)",
+          warning: "var(--studio-warning)",
+          error: "var(--studio-error)",
+        },
+      },
+      boxShadow: {
+        studio: "var(--studio-shadow)",
+        "studio-glow": "var(--studio-shadow-glow)",
+      },
+      transitionTimingFunction: {
+        "expo-out": "cubic-bezier(0.16, 1, 0.3, 1)",
       },
       animation: {
         "fade-in": "fadeIn 0.5s ease-out forwards",

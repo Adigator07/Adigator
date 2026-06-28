@@ -120,15 +120,15 @@ export default function AnalysisPanel({
   }
 
   return (
-    <div className="analysis-panel-light space-y-5">
-      <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-slate-300 bg-slate-100 p-2">
+    <div className="analysis-panel-dark space-y-5">
+      <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-studio-border bg-studio-surface p-1.5">
         <button
           type="button"
           onClick={() => setAnalysisTab("overview")}
-          className={`rounded-lg px-3 py-2 text-sm font-semibold transition ${
+          className={`studio-focus-ring rounded-lg px-3 py-2 text-sm font-semibold transition-all duration-200 ${
             analysisTab === "overview"
-              ? "bg-sky-500 text-white border border-sky-600 shadow-sm"
-              : "text-slate-700 hover:bg-slate-200 hover:text-slate-900 border border-transparent"
+              ? "bg-studio-accent text-white shadow-studio-glow"
+              : "border border-transparent text-studio-muted hover:bg-white/[0.05] hover:text-studio-text"
           }`}
         >
           Overview
@@ -136,10 +136,10 @@ export default function AnalysisPanel({
         <button
           type="button"
           onClick={() => setAnalysisTab("creative-analysis")}
-          className={`rounded-lg px-3 py-2 text-sm font-semibold transition ${
+          className={`studio-focus-ring rounded-lg px-3 py-2 text-sm font-semibold transition-all duration-200 ${
             analysisTab === "creative-analysis"
-              ? "bg-sky-500 text-white border border-sky-600 shadow-sm"
-              : "text-slate-700 hover:bg-slate-200 hover:text-slate-900 border border-transparent"
+              ? "bg-studio-accent text-white shadow-studio-glow"
+              : "border border-transparent text-studio-muted hover:bg-white/[0.05] hover:text-studio-text"
           }`}
         >
           Creative Analysis
@@ -176,7 +176,7 @@ export default function AnalysisPanel({
         whileHover={{ scale: 1.01 }}
         whileTap={{ scale: 0.99 }}
         onClick={onDownloadReport}
-        className="flex w-full items-center justify-center gap-2 rounded-xl border border-sky-500 bg-sky-100 py-3 text-sm font-semibold text-sky-900 transition hover:bg-sky-200"
+        className="studio-btn-primary studio-focus-ring flex w-full items-center justify-center gap-2 rounded-xl py-3 text-sm font-semibold"
       >
         <Download size={16} /> Download Strategic Report
       </motion.button>

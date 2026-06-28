@@ -5,6 +5,7 @@ import {
   DeviceToggle,
   PreviewDeviceIncompatibleState,
   PreviewEmptyState,
+  StudioContentPanel,
   StudioTabBar,
 } from "./PreviewShared";
 import { CompatibleCreativePicker } from "./CompatibleCreativePicker";
@@ -80,117 +81,136 @@ export default function StaticGoogleMetaPreviewStudio({
   const primaryTemplate = templates[0] || null;
 
   return (
-    <div className="space-y-5">
-      <StudioTabBar tabs={STUDIO_MODES} activeTab={studioMode} onChange={setStudioMode} />
-
-      {studioMode === "previews" ? (
-        <>
-          <StudioTabBar tabs={placementTabs} activeTab={activePlacement} onChange={setActivePlacement} />
-          {activePlacementConfig?.description ? (
-            <p className="text-xs text-gray-500 -mt-2">{activePlacementConfig.description}</p>
-          ) : null}
-        </>
-      ) : (
-        <p className="text-xs text-gray-500 -mt-2">
-          {studioMode === "safe_zone"
-            ? "Analyze safe zones against predefined placement layouts."
-            : "Preview how your creative crops across common ad formats."}
-        </p>
-      )}
-
-      <CompatibleCreativePicker
-        sourceCreatives={sourceCreatives}
-        compatibleCreatives={compatibleSourceCreatives}
-        selectedSourceId={selectedSourceId}
-        onSelect={setSelectedSourceId}
-        activePlacementLabel={activePlacementConfig?.label || "Placements"}
-        selectedSource={selectedSource}
-        getSupportedDevicesForCreative={getSupportedDevicesForCreative}
-        activeDevice={device}
+    <div className="space-y-6">
+      <StudioTabBar
+        tabs={STUDIO_MODES}
+        activeTab={studioMode}
+        onChange={setStudioMode}
+        layoutIdPrefix="google-meta-modes"
       />
 
-      {studioMode === "previews" ? (
-        <>
-          <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
-            {showDeviceToggle ? (
-              <DeviceToggle options={deviceOptions} activeDevice={device} onChange={setDevice} />
-            ) : (
-              <div />
-            )}
-            <p className="text-xs text-gray-500">
-              {device === "desktop" ? "Desktop" : "Mobile"} view · predefined {isGoogle ? "Google Ads" : "Meta Ads"} layout
-            </p>
-          </div>
+      <StudioContentPanel panelKey={studioMode} className="space-y-5">
+        {studioMode === "previews" ? (
+          <>
+            <StudioTabBar
+              tabs={placementTabs}
+              activeTab={activePlacement}
+              onChange={setActivePlacement}
+              layoutIdPrefix="placement-tabs"
+              compact
+            />
+            {activePlacementConfig?.description ? (
+              <p className="-mt-2 text-xs text-studio-muted">{activePlacementConfig.description}</p>
+            ) : null}
+          </>
+        ) : (
+          <p className="-mt-2 text-xs text-studio-muted">
+            {studioMode === "safe_zone"
+              ? "Analyze safe zones against predefined placement layouts."
+              : "Preview how your creative crops across common ad formats."}
+          </p>
+        )}
 
-          {!compatibleSourceCreatives.length ? (
-            <PreviewEmptyState
-              title="No compatible creatives"
-              description={`Upload a size supported by ${activePlacementConfig?.label || "this placement"}.`}
-            />
-          ) : !canPreview ? (
-            <PreviewDeviceIncompatibleState
-              message={selectedSourceDeviceValidation.message}
-              device={device}
-              creativeSize={selectedSource?.size}
-              alternateDevice={alternateDevice}
-              onSwitchDevice={alternateDevice ? setDevice : undefined}
-            />
-          ) : primaryTemplate ? (
-            <div className="mx-auto w-full max-w-5xl">
-              <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm [&_img]:max-w-none [&_img]:h-auto [&_img]:object-contain [&_img]:image-rendering-auto">
-                {renderEnvironmentCreative(primaryTemplate, handlers, device)}
-              </div>
+        <CompatibleCreativePicker
+          sourceCreatives={sourceCreatives}
+          compatibleCreatives={compatibleSourceCreatives}
+          selectedSourceId={selectedSourceId}
+          onSelect={setSelectedSourceId}
+          activePlacementLabel={activePlacementConfig?.label || "Placements"}
+          selectedSource={selectedSource}
+          getSupportedDevicesForCreative={getSupportedDevicesForCreative}
+          activeDevice={device}
+        />
+
+        {studioMode === "previews" ? (
+          <>
+            <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+              {showDeviceToggle ? (
+                <DeviceToggle
+                  options={deviceOptions}
+                  activeDevice={device}
+                  onChange={setDevice}
+                  layoutIdPrefix="google-meta-device"
+                />
+              ) : (
+                <div />
+              )}
+              <p className="text-xs text-studio-tertiary">
+                {device === "desktop" ? "Desktop" : "Mobile"} view · predefined{" "}
+                {isGoogle ? "Google Ads" : "Meta Ads"} layout
+              </p>
             </div>
-          ) : (
-            <PreviewEmptyState
-              title="Preview unavailable"
-              description="No preview template is available for this placement."
-            />
-          )}
-        </>
-      ) : null}
 
-      {studioMode !== "previews" && !showAnalysisTools ? (
-        <PreviewEmptyState title="Select a creative" description="Choose an uploaded creative to analyze." />
-      ) : null}
+            {!compatibleSourceCreatives.length ? (
+              <PreviewEmptyState
+                title="No compatible creatives"
+                description={`Upload a size supported by ${activePlacementConfig?.label || "this placement"}.`}
+              />
+            ) : !canPreview ? (
+              <PreviewDeviceIncompatibleState
+                message={selectedSourceDeviceValidation.message}
+                device={device}
+                creativeSize={selectedSource?.size}
+                alternateDevice={alternateDevice}
+                onSwitchDevice={alternateDevice ? setDevice : undefined}
+              />
+            ) : primaryTemplate ? (
+              <div className="mx-auto w-full max-w-5xl">
+                <div className="studio-card overflow-hidden rounded-2xl bg-white shadow-studio [&_img]:h-auto [&_img]:max-w-none [&_img]:object-contain [&_img]:image-rendering-auto">
+                  {renderEnvironmentCreative(primaryTemplate, handlers, device)}
+                </div>
+              </div>
+            ) : (
+              <PreviewEmptyState
+                title="Preview unavailable"
+                description="No preview template is available for this placement."
+              />
+            )}
+          </>
+        ) : null}
 
-      {studioMode !== "previews" && showAnalysisTools && creativeAnalysis.status === "loading" ? (
-        <p className="text-sm text-gray-500">Analyzing creative elements…</p>
-      ) : null}
+        {studioMode !== "previews" && !showAnalysisTools ? (
+          <PreviewEmptyState title="Select a creative" description="Choose an uploaded creative to analyze." />
+        ) : null}
 
-      {studioMode === "safe_zone" && analysisReady && isGoogle ? (
-        <GoogleSafeZoneOverlay
-          imageUrl={creativeAnalysis.imageUrl}
-          imageSize={creativeAnalysis.imageSize}
-          elements={creativeAnalysis.elements}
-          detectionSource={creativeAnalysis.detectionSource}
-        />
-      ) : null}
+        {studioMode !== "previews" && showAnalysisTools && creativeAnalysis.status === "loading" ? (
+          <p className="text-sm text-studio-muted">Analyzing creative elements…</p>
+        ) : null}
 
-      {studioMode === "safe_zone" && analysisReady && !isGoogle ? (
-        <MetaSafeZoneOverlay
-          imageUrl={creativeAnalysis.imageUrl}
-          imageSize={creativeAnalysis.imageSize}
-          elements={creativeAnalysis.elements}
-          detectionSource={creativeAnalysis.detectionSource}
-        />
-      ) : null}
+        {studioMode === "safe_zone" && analysisReady && isGoogle ? (
+          <GoogleSafeZoneOverlay
+            imageUrl={creativeAnalysis.imageUrl}
+            imageSize={creativeAnalysis.imageSize}
+            elements={creativeAnalysis.elements}
+            detectionSource={creativeAnalysis.detectionSource}
+          />
+        ) : null}
 
-      {studioMode === "crop_simulation" && analysisReady && isGoogle ? (
-        <GoogleCropSimulation
-          imageUrl={creativeAnalysis.imageUrl}
-          imageSize={creativeAnalysis.imageSize}
-          elements={creativeAnalysis.elements}
-        />
-      ) : null}
+        {studioMode === "safe_zone" && analysisReady && !isGoogle ? (
+          <MetaSafeZoneOverlay
+            imageUrl={creativeAnalysis.imageUrl}
+            imageSize={creativeAnalysis.imageSize}
+            elements={creativeAnalysis.elements}
+            detectionSource={creativeAnalysis.detectionSource}
+          />
+        ) : null}
 
-      {studioMode === "crop_simulation" && analysisReady && !isGoogle ? (
-        <MetaCropSimulation
-          imageUrl={creativeAnalysis.imageUrl}
-          imageSize={creativeAnalysis.imageSize}
-          elements={creativeAnalysis.elements}
-        />
-      ) : null}
+        {studioMode === "crop_simulation" && analysisReady && isGoogle ? (
+          <GoogleCropSimulation
+            imageUrl={creativeAnalysis.imageUrl}
+            imageSize={creativeAnalysis.imageSize}
+            elements={creativeAnalysis.elements}
+          />
+        ) : null}
+
+        {studioMode === "crop_simulation" && analysisReady && !isGoogle ? (
+          <MetaCropSimulation
+            imageUrl={creativeAnalysis.imageUrl}
+            imageSize={creativeAnalysis.imageSize}
+            elements={creativeAnalysis.elements}
+          />
+        ) : null}
+      </StudioContentPanel>
     </div>
   );
 }

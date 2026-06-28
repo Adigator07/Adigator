@@ -4,7 +4,7 @@ import { useState, useRef, useEffect, useCallback, useMemo, startTransition } fr
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import dynamic from "next/dynamic";
-const PreviewStudio = dynamic(() => import("./PreviewStudio"), { ssr: false, loading: () => <div className="py-20 text-center text-gray-500 text-sm">Loading preview studio…</div> });
+const PreviewStudio = dynamic(() => import("./PreviewStudio"), { ssr: false, loading: () => <div className="py-20 text-center text-[#c8c8d4] text-sm">Loading preview studio…</div> });
 import EditCreativeModal from "./EditCreativeModal";
 import CreativeCard from "./CreativeCard";
 import AnalysisPanel from "./AnalysisPanel";
@@ -76,6 +76,20 @@ import {
   writeStoredUrlValidation,
 } from "../lib/urlValidationClient";
 import { PRODUCT_FOCUS_OPTIONS } from "../lib/campaignProductFocus";
+import {
+  WizardStepNav,
+  ToolNavBtn,
+  ToolSelectionCard,
+  ToolStatCard,
+  ToolSectionHeader,
+  ToolSummaryChip,
+  ToolInput,
+  ToolTextarea,
+  ToolSelect,
+  ToolSurface,
+  ToolFooterBar,
+  ToolDropzone,
+} from "./preview-tool/PreviewToolUi";
 
 // Platform size matrix — sourced from creativeSizeRegistry via creativeValidation
 const PLATFORM_SIZES = PLATFORM_SUPPORTED_SIZE_GROUPS;
@@ -109,9 +123,13 @@ function Toast({ toasts }) {
       <AnimatePresence>
         {toasts.map((t) => (
           <motion.div key={t.id} initial={{ opacity: 0, y: 20, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 10, scale: 0.95 }}
-            className={`flex items-center gap-3 px-4 py-3 rounded-xl border backdrop-blur-xl shadow-2xl text-sm font-medium text-white ${t.type === "success" ? "bg-green-900/80 border-green-500/40" :
-                t.type === "error" ? "bg-red-900/80 border-red-500/40" : "bg-slate-900/80 border-white/20"
-              }`}
+            className={`flex items-center gap-3 rounded-xl border px-4 py-3 text-sm font-medium text-white backdrop-blur-xl shadow-2xl ${
+              t.type === "success"
+                ? "border-studio-success/40 bg-studio-success/20"
+                : t.type === "error"
+                  ? "border-studio-error/40 bg-studio-error/20"
+                  : "border-studio-border bg-studio-surface/90"
+            }`}
           >
             <span>{t.type === "success" ? "✅" : t.type === "error" ? "❌" : "⏳"}</span>
             {t.message}
@@ -119,46 +137,6 @@ function Toast({ toasts }) {
         ))}
       </AnimatePresence>
     </div>
-  );
-}
-
-function NavBtn({ onClick, children, variant = "primary", disabled = false, className = "" }) {
-  const base = "preview-tool-interactive flex-1 py-3 px-6 rounded-xl font-bold transition disabled:opacity-40 disabled:cursor-not-allowed border shadow-md";
-  const bg = variant === "primary"
-    ? "bg-sky-500 border-sky-600 text-white hover:bg-sky-600 hover:shadow-lg"
-    : variant === "back"
-      ? "bg-white border-sky-500 text-sky-700 hover:bg-sky-50 hover:border-sky-600 hover:shadow-md"
-      : variant === "secondary"
-        ? "bg-white border-gray-300 text-black hover:bg-gray-50 hover:shadow-md"
-        : "bg-emerald-500 border-emerald-600 text-white hover:bg-emerald-600 hover:shadow-lg";
-
-  return (
-    <motion.button
-      type="button"
-      whileHover={{ scale: 1.02 }}
-      whileTap={{ scale: 0.98 }}
-      onClick={onClick}
-      disabled={disabled}
-      className={`${base} ${bg} ${className}`.trim()}
-    >
-      {children}
-    </motion.button>
-  );
-}
-
-function SelectionCard({ selected, onClick, children, activeClasses }) {
-  return (
-    <motion.div
-      whileHover={{ scale: 1.02, y: -2 }}
-      whileTap={{ scale: 0.98 }}
-      animate={selected ? { boxShadow: "0 0 28px rgba(14,165,233,0.35), 0 8px 24px -8px rgba(99,102,241,0.25)" } : { boxShadow: "0 1px 3px rgba(15,23,42,0.08)" }}
-      transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
-      onClick={onClick}
-      className={`preview-tool-interactive preview-selection-card premium-surface premium-surface-light cursor-pointer rounded-2xl p-8 border-2 transition-all duration-300 ${selected ? "is-selected border-sky-500 bg-sky-50 shadow-lg" : "border-slate-300 bg-white hover:border-sky-400 hover:bg-sky-50"
-        }`}
-    >
-      {children}
-    </motion.div>
   );
 }
 
@@ -288,33 +266,25 @@ const VERTICALS = [
 const VERTICAL_TITLE_MAP = Object.fromEntries(VERTICALS.map((v) => [v.id, v.title]));
 
 
-const containerVariants = {
-  hidden: { opacity: 0 },
-  visible: { opacity: 1, transition: { staggerChildren: 0.09, delayChildren: 0.04 } },
-  exit: { opacity: 0, transition: { duration: 0.2 } },
-};
 const itemVariants = {
-  hidden: { opacity: 0, y: 18, filter: "blur(4px)" },
+  hidden: { opacity: 0, y: 18 },
   visible: {
     opacity: 1,
     y: 0,
-    filter: "blur(0px)",
-    transition: { duration: 0.4, ease: [0.22, 1, 0.36, 1] },
+    transition: { duration: 0.4, ease: [0.16, 1, 0.3, 1] },
   },
 };
 const stepPanelVariants = {
-  hidden: { opacity: 0, x: 28, filter: "blur(6px)" },
+  hidden: { opacity: 0, x: 20 },
   visible: {
     opacity: 1,
     x: 0,
-    filter: "blur(0px)",
-    transition: { duration: 0.45, ease: [0.22, 1, 0.36, 1], staggerChildren: 0.08 },
+    transition: { duration: 0.38, ease: [0.16, 1, 0.3, 1], staggerChildren: 0.07 },
   },
   exit: {
     opacity: 0,
-    x: -24,
-    filter: "blur(6px)",
-    transition: { duration: 0.28, ease: [0.4, 0, 1, 1] },
+    x: -16,
+    transition: { duration: 0.22, ease: [0.4, 0, 1, 1] },
   },
 };
 
@@ -2379,170 +2349,193 @@ export default function PreviewTool() {
     }
   }, [addToast]);
 
+  const wizardSteps = useMemo(
+    () => STEP_LABELS.map((label, index) => ({
+      id: String(index + 1),
+      label,
+      lockReason:
+        index === 1
+          ? "Complete platform, goal, and vertical first."
+          : index >= 2
+            ? "Upload and validate at least one creative first."
+            : undefined,
+    })),
+    [],
+  );
+
+  const lockedWizardSteps = useMemo(() => {
+    const locked = [];
+    if (!isConfigComplete) locked.push("2", "3", "4");
+    else if (!canAdvanceToAnalysis) locked.push("3", "4");
+    return locked;
+  }, [isConfigComplete, canAdvanceToAnalysis]);
+
+  const goToStep = useCallback(
+    (targetId) => {
+      const targetStep = Number(targetId);
+      if (!Number.isFinite(targetStep) || targetStep < 1 || targetStep > TOTAL_STEPS) return;
+      if (targetStep === step) return;
+      if (targetStep > 1 && !isConfigComplete) return;
+      if (targetStep > 2 && !canAdvanceToAnalysis) return;
+      if (targetStep >= 3 && uploadedCreatives.length === 0) return;
+      router.push(`${pathname}?step=${targetStep}`, { scroll: true });
+    },
+    [step, isConfigComplete, canAdvanceToAnalysis, uploadedCreatives.length, pathname, router],
+  );
+
 
   return (
-    <div className="preview-tool-white min-h-screen bg-gradient-to-b from-white to-slate-50 text-[#1C1C1E]">
-      {/* HEADER */}
-      <header className="sticky top-0 z-50 backdrop-blur-xl bg-gradient-to-r from-sky-500 to-cyan-500 border-b border-sky-600 px-6 py-3 shadow-lg">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <h1 className="text-2xl font-black text-white drop-shadow-md">
-            Adigator Creative Studio
-          </h1>
-          <div className="hidden">
-            {STEP_LABELS.map((label, idx) => (
-              <div key={idx} className="flex items-center">
-                <div className={`flex items-center gap-1 px-3 py-2 rounded-lg font-bold transition-all ${step === idx + 1 ? "bg-white/25 text-white shadow-md" : step > idx + 1 ? "bg-emerald-400/20 text-emerald-700 font-bold" : "text-white/70"
-                  }`}>
-                  {step > idx + 1 ? "✓" : `${idx + 1}.`} {label}
-                </div>
-                {idx < STEP_LABELS.length - 1 && <span className="text-white/25 mx-1">›</span>}
-              </div>
-            ))}
+    <div className="preview-tool relative min-h-screen overflow-x-hidden text-[#f4f4f8]">
+      <div className="neon-orb -left-24 top-32 h-64 w-64 bg-indigo-500/20" aria-hidden />
+      <div className="neon-orb right-0 top-1/3 h-48 w-48 bg-cyan-400/15" aria-hidden style={{ animationDelay: "2s" }} />
+      <div className="neon-orb bottom-20 left-1/3 h-56 w-56 bg-violet-500/15" aria-hidden style={{ animationDelay: "4s" }} />
+
+      <header className="tool-glass-header sticky top-0 z-50 px-6 py-4">
+        <div className="relative mx-auto flex max-w-7xl flex-col gap-4">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <p className="tool-neon-accent text-[10px] font-bold uppercase tracking-[0.22em]">
+                Adigator
+              </p>
+              <h1 className="studio-heading text-xl font-bold tracking-tight text-[#f4f4f8] md:text-2xl">
+                Creative Studio
+              </h1>
+            </div>
+            <p className="hidden text-xs text-[#c8c8d4] sm:block">
+              Step {step} of {TOTAL_STEPS}
+            </p>
           </div>
+          <WizardStepNav
+            steps={wizardSteps}
+            currentStep={step}
+            onStepChange={goToStep}
+            lockedStepIds={lockedWizardSteps}
+            layoutIdPrefix="preview-wizard"
+          />
         </div>
       </header>
 
-      {/* PROGRESS */}
-      <div className="h-1 bg-slate-300">
-        <motion.div
-          className="h-full bg-gradient-to-r from-sky-500 via-cyan-500 to-emerald-500 origin-left"
-          initial={{ scaleX: 0 }}
-          animate={{ scaleX: step / TOTAL_STEPS }}
-          transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
-        />
-      </div>
-
-      <main className="max-w-7xl mx-auto px-6 md:px-10 py-12">
+      <main className="relative z-10 mx-auto max-w-7xl px-6 py-10 md:px-10 md:py-12">
         <AnimatePresence mode="wait">
 
           {/* STEP 1: SETUP CAMPAIGN */}
           {step === 1 && (
-            <motion.div key="step-1" variants={stepPanelVariants} initial="hidden" animate="visible" exit="exit" className="space-y-8 pb-24">
+            <motion.div key="step-1" variants={stepPanelVariants} initial="hidden" animate="visible" exit="exit" className="space-y-8 pb-28">
               <motion.section variants={itemVariants} className="space-y-5">
-                <div>
-                  <h2 className="text-4xl font-bold text-slate-900">Step 1: Campaign Setup</h2>
-                  <p className="mt-2 text-slate-700 text-lg">Configure platform, goal, and vertical before uploading creatives.</p>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="rounded-xl border border-slate-300 bg-white p-4 shadow-sm premium-surface premium-surface-light">
-                    <p className="text-xs uppercase tracking-wide text-slate-500">Platform</p>
-                    <p className="text-sm font-semibold text-slate-800 mt-1">{selectedPlatformConfig?.title || "Not selected"}</p>
-                  </div>
-                  <div className="rounded-xl border border-slate-300 bg-white p-4 shadow-sm premium-surface premium-surface-light">
-                    <p className="text-xs uppercase tracking-wide text-slate-500">Campaign Goal</p>
-                    <p className="text-sm font-semibold text-slate-800 mt-1">{campaignGoal ? getGoalTitle(campaignGoal, platform) : "Not selected"}</p>
-                  </div>
-                  <div className="rounded-xl border border-slate-300 bg-white p-4 shadow-sm premium-surface premium-surface-light">
-                    <p className="text-xs uppercase tracking-wide text-slate-500">Industry Vertical</p>
-                    <p className="text-sm font-semibold text-slate-800 mt-1">{campaignVertical ? (VERTICAL_TITLE_MAP[campaignVertical] || campaignVertical) : "Not selected"}</p>
-                  </div>
+                <ToolSectionHeader
+                  step={1}
+                  title="Campaign Setup"
+                  description="Configure platform, goal, and vertical before uploading creatives."
+                />
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                  <ToolSummaryChip label="Platform" value={selectedPlatformConfig?.title || "Not selected"} />
+                  <ToolSummaryChip label="Campaign Goal" value={campaignGoal ? getGoalTitle(campaignGoal, platform) : "Not selected"} />
+                  <ToolSummaryChip label="Industry Vertical" value={campaignVertical ? (VERTICAL_TITLE_MAP[campaignVertical] || campaignVertical) : "Not selected"} />
                 </div>
               </motion.section>
 
               <motion.section variants={itemVariants} className="space-y-5">
                 <div>
-                  <h3 className="text-2xl font-bold text-slate-900">Choose Advertising Platform</h3>
-                  <p className="mt-1 text-slate-600">Select where this campaign will run.</p>
+                  <h3 className="studio-heading text-2xl font-bold tracking-tight text-studio-text">Choose Advertising Platform</h3>
+                  <p className="mt-1 text-studio-muted">Select where this campaign will run.</p>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
                   {PLATFORMS.map((p) => (
-                    <SelectionCard key={p.id} selected={platform === p.id} onClick={() => handlePlatformSelect(p.id)} activeClasses={`${p.color} ${p.border}`}>
-                      <div className="text-5xl mb-4">{p.icon}</div>
-                      <h3 className={`text-2xl font-extrabold mb-2 ${platform === p.id ? "text-sky-600" : "text-slate-800"}`}>{p.title}</h3>
-                      <p className="text-sm text-slate-700 leading-relaxed">{p.desc}</p>
-                    </SelectionCard>
+                    <ToolSelectionCard key={p.id} selected={platform === p.id} onClick={() => handlePlatformSelect(p.id)}>
+                      <div className="mb-4 text-5xl">{p.icon}</div>
+                      <h3 className={`studio-heading mb-2 text-2xl font-extrabold ${platform === p.id ? "text-studio-accent" : "text-studio-text"}`}>{p.title}</h3>
+                      <p className="text-sm leading-relaxed text-studio-muted">{p.desc}</p>
+                    </ToolSelectionCard>
                   ))}
                 </div>
               </motion.section>
 
               <motion.section ref={goalSectionRef} variants={itemVariants} className="space-y-5">
                 <div>
-                  <h3 className="text-2xl font-bold text-slate-900">What is the campaign objective?</h3>
-                  <p className="mt-1 text-slate-600">Select the marketing intent. This directly changes analysis priorities and scoring behavior.</p>
+                  <h3 className="studio-heading text-2xl font-bold tracking-tight text-studio-text">What is the campaign objective?</h3>
+                  <p className="mt-1 text-studio-muted">Select the marketing intent. This directly changes analysis priorities and scoring behavior.</p>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
                   {availableGoals.map((g) => (
-                    <SelectionCard key={g.id} selected={campaignGoal === g.id} onClick={() => handleGoalSelect(g.id)} activeClasses={`${g.color} ${g.border}`}>
-                      <div className="text-5xl mb-4">{g.emoji}</div>
-                      <p className="text-xs font-bold text-sky-600 uppercase tracking-widest mb-1">{g.subtitle}</p>
-                      <h3 className={`text-xl font-extrabold mb-2 leading-snug ${campaignGoal === g.id ? "text-sky-600" : "text-slate-800"}`}>{g.title}</h3>
-                      <p className="text-sm text-slate-700 leading-relaxed mb-6">{g.desc}</p>
-                    </SelectionCard>
+                    <ToolSelectionCard key={g.id} selected={campaignGoal === g.id} onClick={() => handleGoalSelect(g.id)}>
+                      <div className="mb-4 text-5xl">{g.emoji}</div>
+                      <p className="mb-1 text-xs font-bold uppercase tracking-widest text-studio-accent">{g.subtitle}</p>
+                      <h3 className={`studio-heading mb-2 text-xl font-extrabold leading-snug ${campaignGoal === g.id ? "text-studio-accent" : "text-studio-text"}`}>{g.title}</h3>
+                      <p className="mb-6 text-sm leading-relaxed text-studio-muted">{g.desc}</p>
+                    </ToolSelectionCard>
                   ))}
                 </div>
               </motion.section>
 
               <motion.section variants={itemVariants} className="space-y-5">
                 <div>
-                  <h3 className="text-2xl font-bold text-slate-900">Campaign Details</h3>
-                  <p className="mt-1 text-slate-600">Used for readiness scoring, mismatch detection, and report export.</p>
+                  <h3 className="studio-heading text-2xl font-bold tracking-tight text-studio-text">Campaign Details</h3>
+                  <p className="mt-1 text-studio-muted">Used for readiness scoring, mismatch detection, and report export.</p>
                 </div>
-                <div className="max-w-xl">
-                  <label className="block text-xs font-semibold uppercase tracking-wide text-slate-500 mb-2">
-                    Campaign Name
-                  </label>
-                  <input
-                    type="text"
-                    value={campaignName}
-                    onChange={(e) => setCampaignName(e.target.value)}
-                    placeholder="e.g. Q2 Running Shoes Awareness"
-                    className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
-                  />
-                </div>
-                <div className="mt-5 max-w-xl">
-                  <label className="block text-xs font-semibold uppercase tracking-wide text-slate-500 mb-2">
-                    Campaign Brief
-                  </label>
-                  <textarea
-                    value={campaignBrief}
-                    onChange={(e) => setCampaignBrief(e.target.value)}
-                    placeholder="Describe campaign goals, product, requirements, and context (e.g. bike launch campaign for urban riders)."
-                    rows={4}
-                    className="w-full resize-y rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
-                  />
-                  <p className="mt-2 text-xs text-slate-500">
-                    Used in analysis to check whether creatives match your stated product and campaign intent.
-                  </p>
-                </div>
-                <div className="mt-5 max-w-xl">
-                  <label htmlFor="campaign-product-focus" className="block text-xs font-semibold uppercase tracking-wide text-slate-500 mb-2">
-                    Product Focus (optional)
-                  </label>
-                  <select
-                    id="campaign-product-focus"
-                    value={campaignProductFocus}
-                    onChange={(e) => setCampaignProductFocus(e.target.value)}
-                    className="w-full appearance-none rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
-                  >
-                    {PRODUCT_FOCUS_OPTIONS.map((option) => (
-                      <option key={option.id || "auto"} value={option.id}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                  <p className="mt-2 text-xs text-slate-500">
-                    Narrow automotive campaigns to bike, car, or truck so analysis does not mark mismatched creatives as aligned.
-                  </p>
+                <div className="max-w-xl space-y-5">
+                  <div>
+                    <label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-[#9a9aad]">
+                      Campaign Name
+                    </label>
+                    <ToolInput
+                      type="text"
+                      value={campaignName}
+                      onChange={(e) => setCampaignName(e.target.value)}
+                      placeholder="e.g. Q2 Running Shoes Awareness"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-[#9a9aad]">
+                      Campaign Brief
+                    </label>
+                    <ToolTextarea
+                      value={campaignBrief}
+                      onChange={(e) => setCampaignBrief(e.target.value)}
+                      placeholder="Describe campaign goals, product, requirements, and context (e.g. bike launch campaign for urban riders)."
+                      rows={4}
+                    />
+                    <p className="mt-2 text-xs text-[#9a9aad]">
+                      Used in analysis to check whether creatives match your stated product and campaign intent.
+                    </p>
+                  </div>
+                  <div>
+                    <label htmlFor="campaign-product-focus" className="mb-2 block text-xs font-semibold uppercase tracking-wide text-studio-tertiary">
+                      Product Focus (optional)
+                    </label>
+                    <ToolSelect
+                      id="campaign-product-focus"
+                      value={campaignProductFocus}
+                      onChange={(e) => setCampaignProductFocus(e.target.value)}
+                    >
+                      {PRODUCT_FOCUS_OPTIONS.map((option) => (
+                        <option key={option.id || "auto"} value={option.id}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </ToolSelect>
+                    <p className="mt-2 text-xs text-[#9a9aad]">
+                      Narrow automotive campaigns to bike, car, or truck so analysis does not mark mismatched creatives as aligned.
+                    </p>
+                  </div>
                 </div>
               </motion.section>
 
               <motion.section variants={itemVariants} className="space-y-5">
                 <div>
-                  <h3 className="text-2xl font-bold text-slate-900">Industry Vertical</h3>
-                  <p className="mt-1 text-slate-600">Select the vertical for your campaign.</p>
+                  <h3 className="studio-heading text-2xl font-bold tracking-tight text-studio-text">Industry Vertical</h3>
+                  <p className="mt-1 text-studio-muted">Select the vertical for your campaign.</p>
                 </div>
                 <div className="max-w-xl">
                   <label htmlFor="campaign-vertical" className="sr-only">
                     Industry Vertical
                   </label>
-                  <select
+                  <ToolSelect
                     id="campaign-vertical"
                     value={campaignVertical || ""}
                     onChange={(e) => {
                       const value = e.target.value;
                       if (value) handleVerticalSelect(value);
                     }}
-                    className="w-full appearance-none rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
                   >
                     <option value="" disabled>
                       Select an industry vertical
@@ -2552,40 +2545,37 @@ export default function PreviewTool() {
                         {v.title}
                       </option>
                     ))}
-                  </select>
+                  </ToolSelect>
                 </div>
               </motion.section>
 
-              <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-slate-300 bg-white/95 backdrop-blur-xl shadow-2xl">
-                <div className="mx-auto flex w-full max-w-7xl gap-4 px-6 py-4 md:px-10">
-                  <NavBtn variant="back" onClick={goBack}>
-                    ← Back
-                  </NavBtn>
-                  <NavBtn
-                    onClick={goNext}
-                    disabled={!platform || !campaignGoal || !campaignVertical}
-                  >
-                    Upload Creatives →
-                  </NavBtn>
-                </div>
-              </div>
+              <ToolFooterBar>
+                <ToolNavBtn variant="back" onClick={goBack}>
+                  ← Back
+                </ToolNavBtn>
+                <ToolNavBtn
+                  onClick={goNext}
+                  disabled={!platform || !campaignGoal || !campaignVertical}
+                >
+                  Upload Creatives →
+                </ToolNavBtn>
+              </ToolFooterBar>
             </motion.div>
           )}
 
           {/* STEP 2: UPLOAD & VALIDATE */}
           {step === 2 && (
-            <motion.div key="step-2" variants={stepPanelVariants} initial="hidden" animate="visible" exit="exit" className="space-y-8">
-              <div>
-                <h2 className="text-4xl font-bold text-slate-900 mb-2">Step 2: Upload & Validate</h2>
-                <p className="text-slate-700 text-lg">
-                  {selectedPlatformConfig?.title} {PLATFORM_INTELLIGENCE_LABEL[platform]} active: {allowedSizes.length} supported formats across intelligent inventory clusters.
-                </p>
-              </div>
+            <motion.div key="step-2" variants={stepPanelVariants} initial="hidden" animate="visible" exit="exit" className="space-y-8 pb-8">
+              <ToolSectionHeader
+                step={2}
+                title="Upload & Validate"
+                description={`${selectedPlatformConfig?.title} ${PLATFORM_INTELLIGENCE_LABEL[platform]} active: ${allowedSizes.length} supported formats across intelligent inventory clusters.`}
+              />
 
-              <div className="rounded-3xl border border-slate-300 bg-slate-50 p-6 shadow-md">
-                <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-                  <h3 className="text-xl font-bold text-slate-900">{PLATFORM_INTELLIGENCE_LABEL[platform]}</h3>
-                  <p className="text-xs text-sky-700 bg-sky-100 border border-sky-300 rounded-full px-3 py-1 font-semibold">
+              <ToolSurface className="space-y-4">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <h3 className="studio-heading text-xl font-bold text-studio-text">{PLATFORM_INTELLIGENCE_LABEL[platform]}</h3>
+                  <p className="rounded-full border border-studio-accent/30 bg-studio-accent/10 px-3 py-1 text-xs font-semibold text-studio-accent">
                     {selectedPlatformConfig?.title || "Platform"} • Creative Compatibility Matrix
                   </p>
                 </div>
@@ -2614,8 +2604,8 @@ export default function PreviewTool() {
                   })}
                 </div>
 
-                <div className="mt-4 rounded-xl border border-white/10 bg-black/20 p-3">
-                  <p className="text-xs font-semibold text-gray-300 uppercase tracking-wider mb-2">Platform Distribution Intelligence</p>
+                <div className="mt-4 rounded-xl border border-studio-border bg-black/20 p-3">
+                  <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-studio-muted">Platform Distribution Intelligence</p>
                   <div className="flex flex-wrap gap-2">
                     {(platform === "programmatic"
                       ? DSP_PARTNERS
@@ -2623,33 +2613,31 @@ export default function PreviewTool() {
                         ? ["Google Display Network", "Responsive Display", "YouTube Companion"]
                         : ["Meta Feed", "Meta Stories", "Meta Reels", "Meta Carousel"]
                     ).map((channel) => (
-                      <span key={channel} className="px-2 py-1 rounded-md bg-emerald-500/10 border border-emerald-500/30 text-[11px] text-emerald-200">
+                      <span key={channel} className="rounded-md border border-studio-success/30 bg-studio-success/10 px-2 py-1 text-[11px] text-studio-success">
                         {channel}
                       </span>
                     ))}
                   </div>
                 </div>
-              </div>
+              </ToolSurface>
 
-              {/* Upload Dropzone */}
-              <div
-                className={`relative rounded-3xl border-2 border-dashed transition-all p-12 text-center cursor-pointer ${drag ? "border-purple-500 bg-purple-500/10" : "border-white/20 bg-white/5 hover:border-purple-400"
-                  }`}
+              <ToolDropzone
+                active={drag}
+                onClick={() => fileRef.current?.click()}
                 onDragOver={(e) => { e.preventDefault(); setDrag(true); }}
                 onDragLeave={() => setDrag(false)}
                 onDrop={(e) => { e.preventDefault(); setDrag(false); handleFiles(e.dataTransfer.files); }}
-                onClick={() => fileRef.current?.click()}
               >
-                <UploadCloud size={48} className="mx-auto mb-4 text-purple-400" />
-                <h3 className="text-2xl font-bold text-white mb-2">{drag ? "Drop files here" : "Upload Creatives"}</h3>
-                <p className="text-gray-400 mb-6 text-sm">or click to browse your computer</p>
+                <UploadCloud size={48} className="mx-auto mb-4 text-studio-accent" />
+                <h3 className="studio-heading mb-2 text-2xl font-bold text-studio-text">{drag ? "Drop files here" : "Upload Creatives"}</h3>
+                <p className="mb-6 text-sm text-studio-muted">or click to browse your computer</p>
                 <input ref={fileRef} type="file" multiple hidden accept="image/*" onChange={(e) => { handleFiles(e.target.files); e.target.value = ""; }} />
-              </div>
+              </ToolDropzone>
 
               {(isLoading || isHydratingCreatives) && (
-                <div className="text-center py-4">
-                  <div className="inline-block w-6 h-6 border-4 border-purple-500 border-t-transparent rounded-full animate-spin" />
-                  <p className="mt-2 text-xs text-gray-400">
+                <div className="py-4 text-center">
+                  <div className="inline-block h-6 w-6 animate-spin rounded-full border-4 border-studio-accent border-t-transparent" />
+                  <p className="mt-2 text-xs text-studio-muted">
                     {isHydratingCreatives ? "Restoring creatives…" : "Validating uploads…"}
                   </p>
                 </div>
@@ -2657,48 +2645,33 @@ export default function PreviewTool() {
 
               {/* Validation Summary Stats */}
               {creatives.length > 0 && (
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <div className="bg-linear-to-br from-blue-500/20 to-blue-600/20 border border-blue-500/30 rounded-xl p-4 text-center">
-                    <p className="text-3xl font-bold text-blue-400">{creatives.length}</p>
-                    <p className="text-sm text-gray-400 mt-1">Total</p>
-                  </div>
-                  <div className="bg-linear-to-br from-green-500/20 to-green-600/20 border border-green-500/30 rounded-xl p-4 text-center">
-                    <p className="text-3xl font-bold text-green-400">{validCreatives.length}</p>
-                    <p className="text-sm text-gray-400 mt-1">Ready</p>
-                  </div>
-                  <div className="bg-linear-to-br from-amber-500/20 to-amber-600/20 border border-amber-500/30 rounded-xl p-4 text-center">
-                    <p className="text-3xl font-bold text-amber-400">{validationSummary.warningCount}</p>
-                    <p className="text-sm text-gray-400 mt-1">Warnings</p>
-                  </div>
-                  <div className="bg-linear-to-br from-red-500/20 to-red-600/20 border border-red-500/30 rounded-xl p-4 text-center">
-                    <p className="text-3xl font-bold text-red-400">{validationSummary.criticalCount}</p>
-                    <p className="text-sm text-gray-400 mt-1">Critical</p>
-                  </div>
+                <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+                  <ToolStatCard value={creatives.length} label="Total" tone="accent" />
+                  <ToolStatCard value={validCreatives.length} label="Ready" tone="success" />
+                  <ToolStatCard value={validationSummary.warningCount} label="Warnings" tone="warning" />
+                  <ToolStatCard value={validationSummary.criticalCount} label="Critical" tone="error" />
                 </div>
               )}
 
               {validationResults.length > 0 && (
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <div className="bg-white/5 border border-white/10 rounded-xl p-4 text-center">
-                    <p className="text-2xl font-bold text-white">{validationSummary.totalIssues}</p>
-                    <p className="text-sm text-gray-400 mt-1">Total Issues</p>
-                  </div>
-                  <div className="bg-white/5 border border-white/10 rounded-xl p-4 text-center md:col-span-3">
-                    <p className="text-2xl font-bold text-cyan-300">{validationSummary.inventoryImpactScore}/100</p>
-                    <p className="text-sm text-gray-400 mt-1">Inventory Impact Score</p>
+                <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+                  <ToolStatCard value={validationSummary.totalIssues} label="Total Issues" />
+                  <div className="studio-card rounded-xl p-4 text-center md:col-span-3">
+                    <p className="studio-tabular text-2xl font-bold text-studio-accent">{validationSummary.inventoryImpactScore}/100</p>
+                    <p className="mt-1 text-sm text-studio-muted">Inventory Impact Score</p>
                   </div>
                 </div>
               )}
 
               {creatives.length > 0 && (
-                <div className="rounded-xl border border-slate-300 bg-white p-4 shadow-sm">
+                <ToolSurface>
                   <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                     <div>
-                      <p className="text-sm font-semibold text-slate-900">Bulk Compression</p>
-                      <p className="text-xs text-slate-600">Set one target size and apply compression to all creatives at once.</p>
+                      <p className="text-sm font-semibold text-studio-text">Bulk Compression</p>
+                      <p className="text-xs text-studio-muted">Set one target size and apply compression to all creatives at once.</p>
                     </div>
                     <div className="flex items-center gap-2">
-                      <input
+                      <ToolInput
                         type="number"
                         min={1}
                         step={1}
@@ -2706,13 +2679,13 @@ export default function PreviewTool() {
                         value={bulkTargetSizeKB}
                         onChange={(e) => handleBulkTargetSizeChange(e.target.value)}
                         placeholder="Target KB"
-                        className="w-28 rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-xs text-slate-700 outline-none focus:border-sky-500"
+                        className="w-28 px-2 py-1.5 text-xs"
                       />
-                      <span className="text-[10px] text-slate-500 font-semibold">KB</span>
+                      <span className="text-[10px] font-semibold text-studio-tertiary">KB</span>
                       <button
                         onClick={handleBulkCompressAll}
                         disabled={isBulkCompressing || compressingCreativeIds.length > 0}
-                        className="rounded-lg border border-sky-300 bg-sky-100 px-3 py-1.5 text-xs font-semibold text-sky-700 hover:bg-sky-200 disabled:opacity-60 disabled:cursor-not-allowed"
+                        className="studio-btn-primary studio-focus-ring rounded-lg px-3 py-1.5 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-60"
                       >
                         {isBulkCompressing
                           ? bulkCompressProgress.total > 0
@@ -2724,26 +2697,26 @@ export default function PreviewTool() {
                   </div>
                   {isBulkCompressing && bulkCompressProgress.total > 0 && (
                     <div className="mt-3">
-                      <div className="h-1.5 w-full rounded-full bg-slate-200 overflow-hidden">
+                      <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/[0.06]">
                         <div
-                          className="h-full rounded-full bg-sky-500 transition-[width] duration-200"
+                          className="h-full rounded-full bg-studio-accent transition-[width] duration-200"
                           style={{
                             width: `${Math.round((bulkCompressProgress.current / bulkCompressProgress.total) * 100)}%`,
                           }}
                         />
                       </div>
-                      <p className="mt-1 text-[10px] text-slate-500">
+                      <p className="mt-1 text-[10px] text-studio-tertiary">
                         Processing one creative at a time to keep the UI responsive.
                       </p>
                     </div>
                   )}
-                </div>
+                </ToolSurface>
               )}
 
               {/* Valid List */}
               {validCreatives.length > 0 && (
                 <div className="space-y-4">
-                  <h3 className="text-xl font-semibold text-white flex items-center gap-2"><CheckCircle2 className="text-green-500" /> Valid Creatives</h3>
+                  <h3 className="flex items-center gap-2 text-xl font-semibold text-studio-text"><CheckCircle2 className="text-studio-success" /> Valid Creatives</h3>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     {validCreatives.map((creative) => (
                       <div key={creative.id} className="flex flex-col gap-1">
@@ -2758,15 +2731,15 @@ export default function PreviewTool() {
                               onKeyDown={(e) => { if (e.key === "Enter") saveEdit(creative.id); if (e.key === "Escape") setEditingId(null); }}
                               className="flex-1 min-w-0 bg-white/10 border border-purple-500 rounded-lg px-2 py-1 text-xs text-white outline-none" />
                             <button onClick={() => saveEdit(creative.id)} className="px-2 py-1 bg-sky-600 rounded-lg text-xs text-white font-semibold hover:bg-sky-700">✓</button>
-                            <button onClick={() => setEditingId(null)} className="px-2 py-1 bg-slate-200 border border-slate-300 rounded-lg text-xs text-slate-800 font-semibold hover:bg-slate-300">✕</button>
+                            <button onClick={() => setEditingId(null)} className="studio-btn-ghost rounded-lg px-2 py-1 text-xs font-semibold">✕</button>
                           </div>
                         ) : (
                           <button onClick={() => startEdit(creative.id, creative.name)} className="text-left flex items-center gap-1 mt-1 group/rn">
-                            <span className="text-xs text-slate-700 truncate group-hover/rn:text-sky-700">{creative.name}</span>
-                            <span className="text-[10px] text-slate-500 group-hover/rn:text-sky-600">✏️</span>
+                            <span className="truncate text-xs text-[#c8c8d4] group-hover/rn:text-cyan-300">{creative.name}</span>
+                            <span className="text-[10px] text-[#9a9aad] group-hover/rn:text-cyan-400">✏️</span>
                           </button>
                         )}
-                        <button onClick={() => downloadCreative(creative)} className="flex items-center gap-1.5 text-xs text-slate-700 hover:text-emerald-700 transition bg-slate-100 hover:bg-slate-200 border border-slate-300 rounded-lg px-2 py-1.5 mt-1 font-medium">
+                        <button onClick={() => downloadCreative(creative)} className="studio-btn-ghost mt-1 flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs font-medium">
                           <Download size={12} /> Download
                         </button>
                         <div className="mt-1 flex items-center gap-2">
@@ -2830,7 +2803,7 @@ export default function PreviewTool() {
               {/* Invalid List */}
               {invalidCreatives.length > 0 && (
                 <div className="space-y-4">
-                  <h3 className="text-xl font-semibold text-white flex items-center gap-2"><XCircle className="text-red-500" /> Critical Creatives (Fix Before Analysis)</h3>
+                  <h3 className="flex items-center gap-2 text-xl font-semibold text-studio-text"><XCircle className="text-studio-error" /> Critical Creatives (Fix Before Analysis)</h3>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     {invalidCreatives.map((creative) => {
                       return (
@@ -2901,25 +2874,24 @@ export default function PreviewTool() {
                 </div>
               )}
 
-              <div className="rounded-2xl border border-slate-300 bg-white p-6 shadow-sm space-y-4">
+              <ToolSurface className="space-y-4">
                 <div>
-                  <h3 className="text-lg font-bold text-slate-900">URL & Campaign Readiness</h3>
-                  <p className="text-sm text-slate-600 mt-1">
+                  <h3 className="studio-heading text-lg font-bold text-studio-text">URL & Campaign Readiness</h3>
+                  <p className="mt-1 text-sm text-studio-muted">
                     Validate your landing page and run readiness checks together. Results appear below and in Step 3 Overview.
                     {platform === "meta_ads" ? " URL is optional for Meta." : " URL is required for Google Ads and Programmatic."}
                   </p>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                   <div>
-                    <label className="block text-xs font-semibold uppercase tracking-wide text-slate-500 mb-2">
+                    <label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-[#9a9aad]">
                       Landing Page URL {platform !== "meta_ads" ? "(required)" : "(optional)"}
                     </label>
-                    <input
+                    <ToolInput
                       type="url"
                       value={landingUrl}
                       onChange={(e) => setLandingUrl(e.target.value)}
                       placeholder="https://www.example.com/landing"
-                      className="w-full rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm text-slate-900 outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
                     />
                   </div>
                   <div className="flex items-end">
@@ -2927,37 +2899,39 @@ export default function PreviewTool() {
                       type="button"
                       onClick={runUrlValidation}
                       disabled={urlValidationRunning || !landingUrl.trim() || creatives.length === 0 || !platform || !campaignGoal}
-                      className="w-full rounded-xl bg-sky-600 border border-sky-700 px-4 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-sky-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="studio-btn-primary studio-focus-ring w-full rounded-xl px-4 py-2.5 text-sm font-bold disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       {urlValidationRunning || readinessLoading ? "Validating…" : "Validate URL & Readiness"}
                     </button>
                   </div>
                 </div>
                 {urlValidationRunning || readinessLoading ? (
-                  <div className="rounded-xl border border-sky-200 bg-sky-50 px-4 py-3">
-                    <p className="text-sm font-semibold text-sky-800">
+                  <div className="rounded-xl border border-studio-accent/25 bg-studio-accent/10 px-4 py-3">
+                    <p className="text-sm font-semibold text-studio-text">
                       {readinessProgress || "Checking URL against your campaign setup…"}
                     </p>
-                    <div className="mt-2 h-1.5 w-full rounded-full bg-sky-200 overflow-hidden">
-                      <div className="h-full w-2/3 rounded-full bg-sky-500 animate-pulse" />
+                    <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-white/[0.08]">
+                      <div className="h-full w-2/3 animate-pulse rounded-full bg-studio-accent" />
                     </div>
                   </div>
                 ) : null}
                 {readinessError && !readinessReport ? (
-                  <p className="text-sm text-red-600">{readinessError}</p>
+                  <p className="text-sm text-studio-error">{readinessError}</p>
                 ) : null}
                 {readinessReport ? (
-                  <ValidationReport
-                    report={readinessReport}
-                    onCopy={() => addToast("Readiness report copied to clipboard.", "success")}
-                  />
+                  <div className="studio-card overflow-hidden rounded-2xl border-studio-border bg-studio-surface-elevated">
+                    <ValidationReport
+                      report={readinessReport}
+                      onCopy={() => addToast("Readiness report copied to clipboard.", "success")}
+                    />
+                  </div>
                 ) : null}
                 {activeUrlValidation?.submitted_url && activeUrlValidation.submitted_url === landingUrl.trim() && !urlValidationRunning ? (
-                  <p className="text-xs text-slate-500">
+                  <p className="text-xs text-studio-tertiary">
                     URL check complete. Open Step 3 Overview for alignment details.
                   </p>
                 ) : null}
-              </div>
+              </ToolSurface>
 
               {needsReviewCreatives.length > 0 ? (
                 <div className="rounded-2xl border border-amber-400/40 bg-amber-50 px-4 py-4 space-y-3">
@@ -2980,8 +2954,8 @@ export default function PreviewTool() {
               ) : null}
 
               <div className="flex gap-4 pt-4">
-                <NavBtn variant="back" onClick={goBack}>← Back</NavBtn>
-                <NavBtn onClick={goNext} disabled={!canAdvanceToAnalysis}>Next: Analysis →</NavBtn>
+                <ToolNavBtn variant="back" onClick={goBack}>← Back</ToolNavBtn>
+                <ToolNavBtn onClick={goNext} disabled={!canAdvanceToAnalysis}>Next: Analysis →</ToolNavBtn>
               </div>
             </motion.div>
           )}
@@ -2989,51 +2963,52 @@ export default function PreviewTool() {
           {/* STEP 3: AI ANALYSIS */}
           {step === 3 && (
             <motion.div key="step-3" variants={stepPanelVariants} initial="hidden" animate="visible" exit="exit" className="space-y-6">
-              <div>
-                <h2 className="text-4xl font-bold text-white mb-2">Step 3: Analysis</h2>
-                <p className="text-gray-400">Analyze your creatives against {PLATFORMS.find(p => p.id === platform)?.title} standards.</p>
-                <p className="text-gray-500 text-sm mt-2">
-                  Selected goal: <span className="text-white font-semibold capitalize">{campaignGoal}</span> · Selected vertical: <span className="text-white font-semibold">{VERTICAL_TITLE_MAP[campaignVertical] || campaignVertical}</span>
-                  {campaignBrief?.trim() ? <> · Brief provided</> : null}
-                </p>
-              </div>
+              <ToolSectionHeader
+                step={3}
+                title="Analysis"
+                description={`Analyze your creatives against ${PLATFORMS.find(p => p.id === platform)?.title} standards.`}
+              />
+              <p className="-mt-4 text-sm text-studio-muted">
+                Selected goal: <span className="font-semibold capitalize text-studio-text">{campaignGoal}</span> · Selected vertical: <span className="font-semibold text-studio-text">{VERTICAL_TITLE_MAP[campaignVertical] || campaignVertical}</span>
+                {campaignBrief?.trim() ? <> · Brief provided</> : null}
+              </p>
 
               {!analysisResult && !analysisLoading && (
-                <div className="flex flex-col items-center justify-center p-12 bg-white/5 rounded-3xl border border-white/10 text-center">
-                  <div className="w-20 h-20 mb-6 bg-linear-to-br from-fuchsia-500/20 to-purple-600/20 rounded-full flex items-center justify-center border border-fuchsia-500/30">
+                <ToolSurface className="flex flex-col items-center justify-center p-12 text-center">
+                  <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-full border border-studio-accent/30 bg-studio-accent/10">
                     <span className="text-4xl">🧠</span>
                   </div>
-                  <h3 className="text-xl font-bold text-white mb-3">Ready to Analyze</h3>
-                  <p className="text-sm text-gray-400 mb-8 max-w-md">
-                    Run analysis for <strong>{validCreatives.length} valid creative(s)</strong> when you are ready.
+                  <h3 className="studio-heading mb-3 text-xl font-bold text-studio-text">Ready to Analyze</h3>
+                  <p className="mb-8 max-w-md text-sm text-studio-muted">
+                    Run analysis for <strong className="text-studio-text">{validCreatives.length} valid creative(s)</strong> when you are ready.
                   </p>
-                  <NavBtn onClick={runAnalysis} className="px-8 shadow-lg shadow-purple-500/30">Start Analysis</NavBtn>
-                </div>
+                  <ToolNavBtn onClick={runAnalysis} className="max-w-xs shadow-studio-glow">Start Analysis</ToolNavBtn>
+                </ToolSurface>
               )}
 
               {analysisLoading && (
-                <div className="py-10 space-y-4">
-                  <p className="text-gray-300 text-sm">Analyzing {validCreatives.length} creatives…</p>
-                  <div className="rounded-2xl border border-white/10 bg-white/5 p-4 animate-pulse">
-                    <div className="h-5 w-40 bg-white/10 rounded mb-4" />
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
-                      <div className="h-20 bg-white/10 rounded-xl" />
-                      <div className="h-20 bg-white/10 rounded-xl" />
-                      <div className="h-20 bg-white/10 rounded-xl" />
-                      <div className="h-20 bg-white/10 rounded-xl" />
+                <div className="space-y-4 py-10">
+                  <p className="text-sm text-studio-muted">Analyzing {validCreatives.length} creatives…</p>
+                  <div className="studio-card animate-pulse rounded-2xl p-4">
+                    <div className="mb-4 h-5 w-40 rounded bg-white/10" />
+                    <div className="mb-4 grid grid-cols-2 gap-3 md:grid-cols-4">
+                      <div className="h-20 rounded-xl bg-white/10" />
+                      <div className="h-20 rounded-xl bg-white/10" />
+                      <div className="h-20 rounded-xl bg-white/10" />
+                      <div className="h-20 rounded-xl bg-white/10" />
                     </div>
-                    <div className="h-32 bg-white/10 rounded-xl mb-3" />
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                      <div className="h-28 bg-white/10 rounded-xl" />
-                      <div className="h-28 bg-white/10 rounded-xl" />
-                      <div className="h-28 bg-white/10 rounded-xl" />
+                    <div className="mb-3 h-32 rounded-xl bg-white/10" />
+                    <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+                      <div className="h-28 rounded-xl bg-white/10" />
+                      <div className="h-28 rounded-xl bg-white/10" />
+                      <div className="h-28 rounded-xl bg-white/10" />
                     </div>
                   </div>
                 </div>
               )}
 
               {analysisResult && !analysisLoading && (
-                <>
+                <div className="studio-shell rounded-3xl p-4 shadow-studio md:p-6">
                   <AnalysisPanel
                     analysisResult={analysisResult}
                     campaignGoal={campaignGoal}
@@ -3046,12 +3021,12 @@ export default function PreviewTool() {
                     campaignProductFocus={campaignProductFocus}
                     onDownloadReport={handleDownloadReport}
                   />
-                </>
+                </div>
               )}
 
               <div className="flex gap-4 pt-6">
-                <NavBtn variant="back" onClick={goBack}>← Back</NavBtn>
-                <NavBtn onClick={goNext}>Next: Preview Studio →</NavBtn>
+                <ToolNavBtn variant="back" onClick={goBack}>← Back</ToolNavBtn>
+                <ToolNavBtn onClick={goNext}>Next: Preview Studio →</ToolNavBtn>
               </div>
             </motion.div>
           )}
@@ -3059,31 +3034,31 @@ export default function PreviewTool() {
           {/* STEP 4: PREVIEW STUDIO */}
           {step === 4 && (
             <motion.div key="step-4" variants={stepPanelVariants} initial="hidden" animate="visible" exit="exit" className="space-y-8">
-              <div className="flex items-center justify-between flex-wrap gap-4">
-                <div>
-                  <h2 className="text-4xl font-bold text-white mb-2">Step 4: Preview Studio</h2>
-                  <p className="text-gray-400">
-                    {platform === "google_ads"
+              <div className="flex flex-wrap items-center justify-between gap-4">
+                <ToolSectionHeader
+                  step={4}
+                  title="Preview Studio"
+                  description={
+                    platform === "google_ads"
                       ? "Preview Google Search, Display, Shopping, and App Install templates."
                       : platform === "meta_ads"
                         ? "Preview Facebook, Instagram, Stories, Reels, Carousel, and Messenger templates."
-                        : "See your creatives in realistic interactive website contexts."}
-                  </p>
-                </div>
+                        : "See your creatives in realistic interactive website contexts."
+                  }
+                />
                 <div className="flex flex-wrap items-center gap-3">
-                <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} onClick={handleStartNewAnalysis}
-                  className="px-6 py-3 bg-white border border-gray-200 text-black rounded-xl font-semibold flex items-center gap-2 hover:bg-gray-50 shadow-md">
-                  <RotateCcw size={18} className="text-black" /> Start New Analysis
-                </motion.button>
-                <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} onClick={handleExportPptx} disabled={isExporting}
-                  className="px-8 py-3 bg-linear-to-r from-green-600 to-emerald-600 text-white rounded-xl font-semibold flex items-center gap-2 disabled:opacity-60">
+                <ToolNavBtn variant="secondary" onClick={handleStartNewAnalysis} className="flex max-w-none flex-none items-center gap-2 px-6">
+                  <RotateCcw size={18} /> Start New Analysis
+                </ToolNavBtn>
+                <ToolNavBtn variant="success" onClick={handleExportPptx} disabled={isExporting} className="flex max-w-none flex-none items-center gap-2 px-8">
                   <Download size={20} /> {isExporting ? "Exporting..." : "Export PPTX"}
-                </motion.button>
+                </ToolNavBtn>
               </div>
               </div>
 
               {(platform === "programmatic" ? validCreatives.length > 0 : Boolean(platform)) && (
-                <PreviewStudio
+                <div className="studio-shell rounded-3xl p-6 md:p-8 shadow-studio">
+                  <PreviewStudio
                   platform={platform}
                   creatives={previewEngineCreatives}
                   sourceCreatives={validCreatives.map((c) => ({
@@ -3102,24 +3077,25 @@ export default function PreviewTool() {
                   imageUrls={previewTemplateContext.imageUrls}
                   onCopyCreative={handleCopyPreviewCreative}
                 />
-              )}
-
-              {platform === "programmatic" && validCreatives.length === 0 && (
-                <div className="flex flex-col items-center justify-center py-16 text-center bg-white/3 border border-white/10 rounded-2xl">
-                  <span className="text-4xl mb-4">🌐</span>
-                  <p className="text-white font-semibold">No valid creatives to preview</p>
-                  <p className="text-gray-400 text-sm mt-1">Upload and validate a creative in step 2 first.</p>
                 </div>
               )}
 
+              {platform === "programmatic" && validCreatives.length === 0 && (
+                <ToolSurface className="flex flex-col items-center justify-center py-16 text-center">
+                  <span className="mb-4 text-4xl">🌐</span>
+                  <p className="font-semibold text-studio-text">No valid creatives to preview</p>
+                  <p className="mt-1 text-sm text-studio-muted">Upload and validate a creative in step 2 first.</p>
+                </ToolSurface>
+              )}
+
               <div className="flex gap-4 pt-4 flex-wrap">
-                <NavBtn variant="back" onClick={goBack}>← Back</NavBtn>
-                <NavBtn variant="secondary" onClick={handleStartNewAnalysis} className="flex items-center gap-2">
+                <ToolNavBtn variant="back" onClick={goBack}>← Back</ToolNavBtn>
+                <ToolNavBtn variant="secondary" onClick={handleStartNewAnalysis} className="flex items-center gap-2">
                   <RotateCcw size={16} /> Start New Analysis
-                </NavBtn>
-                <NavBtn variant="success" onClick={handleExportPptx} disabled={isExporting} className="flex justify-center items-center gap-2">
+                </ToolNavBtn>
+                <ToolNavBtn variant="success" onClick={handleExportPptx} disabled={isExporting} className="flex justify-center items-center gap-2">
                   <Download size={20} /> {isExporting ? "Generating..." : "Download PPTX"}
-                </NavBtn>
+                </ToolNavBtn>
               </div>
             </motion.div>
           )}
