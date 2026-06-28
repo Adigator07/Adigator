@@ -1,6 +1,14 @@
 /** Login failure — wrong email OR wrong password OR lockout OR rate limit (never distinguish). */
 export const LOGIN_INCORRECT_CREDENTIALS_ERROR = "Incorrect email or password";
 
+/** Auth API unreachable (dev server stale, missing route, or network). */
+export const LOGIN_SERVICE_UNAVAILABLE_ERROR =
+  "Sign-in is temporarily unavailable. Refresh the page or restart the app server, then try again.";
+
+/** Unexpected server error during login. */
+export const LOGIN_SERVER_ERROR =
+  "Something went wrong on our end. Please try again in a moment.";
+
 /** @deprecated Use LOGIN_INCORRECT_CREDENTIALS_ERROR */
 export const GENERIC_AUTH_FAILURE_ERROR = LOGIN_INCORRECT_CREDENTIALS_ERROR;
 

@@ -43,11 +43,24 @@ import {
   type AnalyzerPlatform,
 } from "@/app/lib/analyzers/platformBrain";
 import {
+  buildCampaignBriefSystemPromptSection,
+  buildBriefAlignmentPayload,
+  parseAIBriefAlignment,
+} from "@/app/lib/campaignBriefValidation";
+import {
   buildGoalAlignmentReason,
   buildVerticalAlignmentReason,
   keywordMatchesInCorpus,
   scoreCategoryKeywords,
 } from "@/app/lib/analyzer/alignmentReasons.js";
+import {
+  evaluateCreativeVerticalAlignment,
+  parseAICreativeCategory,
+} from "@/app/lib/creativeVerticalValidation";
+import {
+  evaluateBriefProductAlignment,
+  getProductFocusLabel,
+} from "@/app/lib/campaignProductFocus.js";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -372,6 +385,7 @@ interface AIAnalysisOutput {
   vertical_feedback: string;
   goal_feedback: string;
   expert_insight: string;
+  brief_alignment_raw?: Record<string, unknown> | null;
   google_ads_dynamic_eval?: {
     campaign_goal_focus: string;
     purpose: string;
@@ -1045,6 +1059,9 @@ function normalizeAIAnalysis(raw: Record<string, unknown>): AIAnalysisOutput | n
     vertical_feedback: typeof raw.verticalFeedback === "string" ? raw.verticalFeedback : "",
     goal_feedback: typeof raw.goalFeedback === "string" ? raw.goalFeedback : "",
     expert_insight: typeof raw.expertInsight === "string" ? raw.expertInsight : "",
+    brief_alignment_raw: (raw.briefAlignment || raw.brief_alignment) && typeof (raw.briefAlignment || raw.brief_alignment) === "object"
+      ? (raw.briefAlignment || raw.brief_alignment) as Record<string, unknown>
+      : null,
     ...(raw.google_ads_dynamic_eval && typeof raw.google_ads_dynamic_eval === "object" ? {
       google_ads_dynamic_eval: (() => {
         const d = raw.google_ads_dynamic_eval as any;
@@ -1183,16 +1200,25 @@ function buildGoalPromptSection(platform: PlatformContext, goal: CampaignGoal, v
   return buildGoogleGoalPromptSection(goal, vertical);
 }
 
-function buildExtractionSystemPrompt(platform: PlatformContext, goal: CampaignGoal, vertical: string): string {
+function buildExtractionSystemPrompt(
+  platform: PlatformContext,
+  goal: CampaignGoal,
+  vertical: string,
+  campaignBrief?: string,
+): string {
   const analyzerPlatform = platform as AnalyzerPlatform;
+  const briefSection = campaignBrief?.trim()
+    ? buildCampaignBriefSystemPromptSection(analyzerPlatform, goal, vertical, campaignBrief)
+    : "";
   return [
     ADIGATOR_ANALYZER_IDENTITY,
     STRICT_ANALYZER_RULES,
     EXTRACTION_SYSTEM_PROMPT,
     buildActivePlatformBrainPrompt(analyzerPlatform),
     buildGoalPromptSection(platform, goal, vertical),
-    buildFinalValidationChecklist(analyzerPlatform, goal, vertical),
-  ].join("\n\n");
+    briefSection,
+    buildFinalValidationChecklist(analyzerPlatform, goal, vertical, Boolean(campaignBrief?.trim())),
+  ].filter(Boolean).join("\n\n");
 }
 
 function applyPlatformToneGuard(
@@ -1306,7 +1332,7 @@ async function extractSignalsWithRetry(params: {
       const completion = await withTimeout(
         openai.chat.completions.create({
           model: process.env.OPENAI_MODEL || "gpt-4o",
-          max_tokens: 2000,
+          max_tokens: 2800,
           response_format: { type: "json_object" },
           messages: [
             { role: "system", content: systemPrompt },
@@ -1482,7 +1508,7 @@ function detectProductCategoryFromSignals(selectedVertical: string, extraction: 
     }
   }
 
-  if (selectedScore >= 3 && selectedScore >= bestScore - 1) {
+  if (selectedScore >= 3 && selectedScore >= bestScore - 1 && bestVertical === selectedVertical) {
     bestVertical = selectedVertical;
     bestScore = Math.max(bestScore, selectedScore);
   }
@@ -1588,15 +1614,10 @@ function resolveVerticalIsAligned(
   }
 
   if (detected !== selectedVertical) {
-    if (areRelatedVerticals(detected, selectedVertical) && fitScore >= 50) return true;
-    if (
-      aiAnalysis?.vertical_match === true
-      && aiAnalysis?.explicit_vertical_match !== false
-      && fitScore >= 45
-    ) {
-      return true;
+    if (areRelatedVerticals(detected, selectedVertical) && fitScore >= 70) {
+      return null;
     }
-    if (aiAnalysis?.explicit_vertical_match === false && aiAnalysis?.vertical_match === false) {
+    if (aiAnalysis?.explicit_vertical_match === false || aiAnalysis?.vertical_match === false) {
       return false;
     }
     return false;
@@ -4607,7 +4628,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       landingUrl || undefined,
     );
 
-    const extractionSystemPrompt = buildExtractionSystemPrompt(platform, goal, vertical);
+    const extractionSystemPrompt = buildExtractionSystemPrompt(platform, goal, vertical, campaignBrief);
 
     const extractionResult = await extractSignalsWithRetry({
       openai,
@@ -4904,53 +4925,148 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       normalized,
       file,
     });
+    const productFocusEval = campaignBrief
+      ? evaluateBriefProductAlignment({
+          campaignBrief,
+          productFocus: campaignProductFocus,
+          signals: {
+            headline: extraction.headline,
+            primary_message: extraction.primary_message,
+            dominant_visual_cue: extraction.visual_elements[0] || "",
+            visual_elements: extraction.visual_elements,
+            detected_objects: extraction.visual_elements,
+            offer_type: extraction.primary_message,
+          },
+          payload: {
+            vertical_alignment: { product_category: verticalIntelligence.productCategory.label },
+          },
+        })
+      : null;
+
+    const briefAlignment = buildBriefAlignmentPayload({
+      brief: campaignBrief,
+      selectedGoal: goal,
+      selectedVertical: vertical,
+      platform: platform as AnalyzerPlatform,
+      aiBrief: parseAIBriefAlignment(extractionResult.parsed) || parseAIBriefAlignment(
+        aiAnalysis?.brief_alignment_raw ? { briefAlignment: aiAnalysis.brief_alignment_raw } : {},
+      ),
+      productFocusBlock: productFocusEval?.expected_focus
+        ? {
+            expected_focus: productFocusEval.expected_focus,
+            detected_product: getProductFocusLabel(productFocusEval.detected_product),
+            is_aligned: productFocusEval.is_aligned,
+            reason: productFocusEval.reason,
+          }
+        : undefined,
+    });
+
+    let goalAlignedResolved = goalAligned;
+    if (briefAlignment.brief_provided && briefAlignment.goal_settings_check.is_aligned === false) {
+      goalAlignedResolved = false;
+    }
+    if (briefAlignment.brief_provided && briefAlignment.creative_matches_brief === false) {
+      goalAlignedResolved = false;
+    }
+
+    let verticalAlignedResolved = verticalIsAlignedResolved;
+    if (briefAlignment.brief_provided && briefAlignment.vertical_settings_check.is_aligned === false) {
+      verticalAlignedResolved = false;
+    }
+    if (briefAlignment.brief_provided && briefAlignment.creative_matches_brief === false) {
+      verticalAlignedResolved = verticalAlignedResolved === true ? false : verticalAlignedResolved;
+    }
+
     const goalAlignment = {
       selected_goal: goal,
       selected_stage: goalProfile.stage,
       selected_audience_stage: audienceStage,
       detected_goal_stage: detectedGoal,
       detected_goal: resolveDetectedGoalForDisplay(detectedGoal, goal),
-      is_aligned: goalAligned,
-      reason: buildGoalAlignmentReason({
-        aligned: goalAligned,
-        selectedGoal: goal,
-        detectedStage: detectedGoal,
-        extraction,
-        aiFeedback: aiAnalysis?.goal_feedback ?? null,
-      }),
+      is_aligned: goalAlignedResolved,
+      reason: briefAlignment.brief_provided && briefAlignment.goal_settings_check.is_aligned === false
+        ? briefAlignment.goal_settings_check.explanation
+        : buildGoalAlignmentReason({
+            aligned: goalAlignedResolved,
+            selectedGoal: goal,
+            detectedStage: detectedGoal,
+            extraction,
+            aiFeedback: aiAnalysis?.goal_feedback ?? null,
+          }),
       ai_goal_feedback: aiAnalysis?.goal_feedback ?? null,
       objective_priorities: goalProfile.aiPriorities,
       objective_behavior: goalProfile.creativeBehavior,
+      brief_goal_conflict: briefAlignment.goal_settings_check.is_aligned === false,
+      brief_implied_goal: briefAlignment.goal_settings_check.brief_implied_goal,
     };
+    if (briefAlignment.brief_provided && briefAlignment.creative_matches_brief === false) {
+      verticalAlignedResolved = verticalAlignedResolved === true ? false : verticalAlignedResolved;
+    }
+
+    const aiCategoryMeta = parseAICreativeCategory(extractionResult.parsed);
+    const creativeVerticalAlignment = evaluateCreativeVerticalAlignment({
+      selectedVertical: vertical,
+      extraction,
+      aiInferredVertical: extraction.inferred_vertical ?? aiCategoryMeta.suggestedVertical ?? null,
+      aiCreativeCategory: aiCategoryMeta.creativeCategory ?? null,
+      aiVerticalFeedback: aiAnalysis?.vertical_feedback ?? null,
+      aiVerticalMatch: aiAnalysis?.vertical_match ?? null,
+      aiExplicitVerticalMatch: aiAnalysis?.explicit_vertical_match ?? null,
+    });
+
+    if (creativeVerticalAlignment.alignment_status === "misaligned") {
+      verticalAlignedResolved = false;
+    } else if (creativeVerticalAlignment.is_aligned) {
+      verticalAlignedResolved = true;
+    } else if (creativeVerticalAlignment.alignment_status === "partially_aligned") {
+      verticalAlignedResolved = verticalAlignedResolved === true ? null : verticalAlignedResolved;
+    }
+
     const verticalAlignment = {
       selected_vertical: vertical,
-      detected_vertical: verticalIntelligence.productCategory.id,
-      is_aligned: verticalIsAlignedResolved,
-      reason: buildVerticalAlignmentReason({
-        aligned: verticalIsAlignedResolved === true,
-        selectedVertical: vertical,
-        detectedVertical: verticalIntelligence.productCategory.id,
-        productLabel: verticalIntelligence.productCategory.label,
-        evidence: [
-          ...verticalIntelligence.productCategory.evidence,
-          ...verticalIntelligence.advertisingBehavior.evidence,
-        ],
-        aiFeedback: aiAnalysis?.vertical_feedback ?? null,
-      }),
+      detected_vertical: creativeVerticalAlignment.detected_category_id !== "unknown"
+        ? creativeVerticalAlignment.suggested_vertical
+        : verticalIntelligence.productCategory.id,
+      detected_category_id: creativeVerticalAlignment.detected_category_id,
+      detected_category_label: creativeVerticalAlignment.detected_category_label,
+      suggested_vertical: creativeVerticalAlignment.suggested_vertical,
+      suggested_vertical_label: creativeVerticalAlignment.suggested_vertical_label,
+      is_aligned: verticalAlignedResolved,
+      reason: briefAlignment.brief_provided && briefAlignment.vertical_settings_check.is_aligned === false
+        ? briefAlignment.vertical_settings_check.explanation
+        : creativeVerticalAlignment.mismatch_reason || buildVerticalAlignmentReason({
+            aligned: verticalAlignedResolved === true,
+            selectedVertical: vertical,
+            detectedVertical: creativeVerticalAlignment.detected_category_id !== "unknown"
+              ? creativeVerticalAlignment.suggested_vertical
+              : verticalIntelligence.productCategory.id,
+            productLabel: creativeVerticalAlignment.detected_category_label,
+            evidence: [
+              ...creativeVerticalAlignment.evidence,
+              ...verticalIntelligence.productCategory.evidence,
+              ...verticalIntelligence.advertisingBehavior.evidence,
+            ],
+            aiFeedback: aiAnalysis?.vertical_feedback ?? null,
+          }),
       ai_vertical_feedback: aiAnalysis?.vertical_feedback ?? null,
       evidence: [
+        ...creativeVerticalAlignment.evidence,
         ...verticalIntelligence.productCategory.evidence,
         ...verticalIntelligence.advertisingBehavior.evidence,
       ].filter(Boolean).slice(0, 6),
-      fit_score: verticalIntelligence.productCategory.fitScore,
-      product_category: verticalIntelligence.productCategory.label,
+      fit_score: creativeVerticalAlignment.fit_score,
+      product_category: creativeVerticalAlignment.detected_category_label,
       advertising_behavior: verticalIntelligence.advertisingBehavior.label,
       strategic_interpretation: verticalIntelligence.strategicInterpretation,
       behavior_goal_alignment: {
         is_aligned: verticalIntelligence.behaviorAlignedToGoal,
         reason: verticalIntelligence.behaviorAlignmentReason,
       },
-      vertical_intelligence_block: `PRODUCT CATEGORY:\n${verticalIntelligence.productCategory.label}\n\nADVERTISING BEHAVIOR:\n${verticalIntelligence.advertisingBehavior.label}\n\nSTRATEGIC INTERPRETATION:\n${verticalIntelligence.strategicInterpretation}`,
+      vertical_intelligence_block: `PRODUCT CATEGORY:\n${creativeVerticalAlignment.detected_category_label}\n\nADVERTISING BEHAVIOR:\n${verticalIntelligence.advertisingBehavior.label}\n\nSTRATEGIC INTERPRETATION:\n${verticalIntelligence.strategicInterpretation}`,
+      brief_vertical_conflict: briefAlignment.vertical_settings_check.is_aligned === false,
+      brief_implied_vertical: briefAlignment.vertical_settings_check.brief_implied_vertical,
+      creative_vertical_alignment: creativeVerticalAlignment,
+      vertical_recommendation: creativeVerticalAlignment.recommendation,
     };
 
     return NextResponse.json({
@@ -4964,6 +5080,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       platform_alignment: platformAlignment,
       goal_alignment: goalAlignment,
       vertical_alignment: verticalAlignment,
+      creative_vertical_alignment: creativeVerticalAlignment,
+      brief_alignment: briefAlignment,
       business_impact: businessImpact,
       adigator_analysis: adigatorAnalysis,
       enterprise_qa: enterpriseQa,
@@ -5065,6 +5183,21 @@ Apply heavy penalties:
 - If verticalMatch = false → subtract 25 points from overallScore
 - If goalMatch = false → subtract 20 points from overallScore
 - If platformFit = false → subtract 15 points from overallScore
+- If briefAlignment.creativeMatchesBrief = false → subtract 30 points from overallScore
+- If briefAlignment.goalSettingsMismatch = true → subtract 15 points from overallScore
+
+## CAMPAIGN BRIEF VALIDATION (when Client Brief is provided in user message)
+
+The brief is the **primary validation authority**. Evaluate creative and settings against it before generic goal/vertical heuristics.
+
+Brief validation steps:
+1. Parse brief for: product/subject, audience, offer, tone, mandatory elements, implied objective, implied industry.
+2. Compare creative visuals and copy to each brief requirement.
+3. Compare selected Campaign Goal to brief objective — flag goalSettingsMismatch if they conflict.
+4. Compare selected Industry Vertical to brief context — flag verticalSettingsMismatch if they conflict.
+5. Assess ACTIVE platform delivery fit for brief requirements (Google=intent/clarity, Meta=thumb-stop/emotion, Programmatic=banner scan/viewability).
+
+When brief is absent, set briefAlignment fields to null/false flags and briefSummary explaining brief was not provided.
 
 Status Thresholds:
 - Approved → overallScore ≥ 75
@@ -5073,7 +5206,12 @@ Status Thresholds:
 
 ## MISMATCH DETECTION RULES
 
-Vertical Mismatch: If the creative does not visually belong to the selected industry vertical, set verticalMatch: false and state what the creative actually appears to represent.
+Vertical Mismatch: If the creative does not visually belong to the selected industry vertical, set verticalMatch: false and state what the creative actually appears to represent. Name the detected category explicitly (e.g. "Consumer Products", "Fashion Apparel", "Technology SaaS") — never soften a clear mismatch.
+
+Creative Category Detection (mandatory):
+- Identify the literal product/service category shown (creativeCategory) independent of the selected vertical.
+- If the creative shows consumer packaged goods, household products, appliances, or generic retail products while vertical is Fashion, set verticalMatch: false and creativeCategory: "Consumer Products".
+- Provide suggestedVertical as the campaign vertical this creative actually belongs to (e.g. ecommerce, fashion, technology).
 Goal Mismatch: If the creative lacks the key elements required for the selected campaign goal, set goalMatch: false and state what is missing.
 Platform Mismatch: If the creative format, style, or structure does not suit the selected platform, set platformFit: false.
 
@@ -5118,6 +5256,8 @@ Return a single valid JSON object with EXACTLY this structure — no markdown, n
 {
   "overallScore": <integer 0-100>,
   "verticalMatch": <true|false>,
+  "creativeCategory": "<granular category label e.g. Consumer Products, Fashion Apparel, Technology SaaS>",
+  "suggestedVertical": "<healthcare|technology|automotive|fashion|ecommerce|food|...|unknown>",
   "goalMatch": <true|false>,
   "platformFit": <true|false>,
   "status": "<Approved|Needs Improvement|Rejected>",
@@ -5133,7 +5273,33 @@ Return a single valid JSON object with EXACTLY this structure — no markdown, n
   ],
   "verticalFeedback": "<one specific sentence: vertical match for ACTIVE platform only — name industry signals seen>",
   "goalFeedback": "<one specific sentence: goal optimization for ACTIVE platform only — cite CTA/offer/hook evidence>",
-  "expertInsight": "<2-3 sentences: human strategist tone, ACTIVE platform vocabulary only, references goal + vertical, predicts performance — never generic>",
+  "expertInsight": "<2-3 sentences: human strategist tone, ACTIVE platform vocabulary only, references goal + vertical + brief when provided, predicts performance — never generic>",
+  "briefAlignment": {
+    "creativeMatchesBrief": <true|false|null — null if no brief provided>,
+    "briefMatchScore": <integer 0-100|null>,
+    "briefSummary": "<2-3 sentences: holistic brief compliance verdict>",
+    "alignedElements": ["<brief requirement visibly met — be specific>"],
+    "misalignedElements": [
+      {
+        "element": "<headline|visual|CTA|offer|audience|tone|product|brand>",
+        "briefExpectation": "<what the brief requires>",
+        "creativeReality": "<what the creative actually shows>",
+        "severity": "<critical|moderate|minor>"
+      }
+    ],
+    "missingFromCreative": ["<required brief element absent>"],
+    "unexpectedInCreative": ["<creative element that contradicts brief>"],
+    "goalSettingsMismatch": <true|false|null>,
+    "briefImpliedGoal": "<awareness|consideration|conversion|traffic|lead_generation|engagement|app_installs|retargeting|null>",
+    "goalConflictExplanation": "<if selected goal conflicts with brief, explain what is wrong and why — else empty string>",
+    "verticalSettingsMismatch": <true|false|null>,
+    "briefImpliedVertical": "<healthcare|technology|automotive|fashion|ecommerce|finance|banking|travel|hotels|food|luxury|real_estate|education|gaming|entertainment|sports|fitness|news_media|null>",
+    "verticalConflictExplanation": "<if vertical setting conflicts with brief, explain — else empty string>",
+    "platformRequirementsStatus": "<aligned|partially_aligned|misaligned>",
+    "platformFindings": ["<ACTIVE platform-specific brief compliance finding>"],
+    "briefFeedback": "<detailed paragraph: brief-grounded analysis with evidence from creative>",
+    "recommendations": ["<specific actionable fix tied to a brief mismatch — max 5>"]
+  },
   "signals": {
     "creative_type_hint": "<product_hero|lifestyle|ugc|corporate|offer_promotional|testimonial|animated|minimalist|text_heavy|hybrid>",
     "composition_notes": "<string>",

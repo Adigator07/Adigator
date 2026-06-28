@@ -167,13 +167,22 @@ function applyExifOrientation(width, height, orientation) {
   return { width, height };
 }
 
+function isJpegSofMarker(marker) {
+  return (
+    (marker >= 0xC0 && marker <= 0xC3)
+    || (marker >= 0xC5 && marker <= 0xC7)
+    || (marker >= 0xC9 && marker <= 0xCB)
+    || (marker >= 0xCD && marker <= 0xCF)
+  );
+}
+
 function readJpegDimensions(bytes) {
   if (!isJpeg(bytes)) return null;
 
   let offset = 2;
   let orientation = 1;
-  let width = 0;
-  let height = 0;
+  /** @type {Array<{ width: number; height: number }>} */
+  const sofCandidates = [];
 
   while (offset + 4 < bytes.length) {
     if (bytes[offset] !== 0xFF) {
@@ -201,31 +210,35 @@ function readJpegDimensions(bytes) {
       orientation = readExifOrientation(bytes, segmentStart, segmentLength - 2);
     }
 
-    const isSof = (
-      (marker >= 0xC0 && marker <= 0xC3)
-      || (marker >= 0xC5 && marker <= 0xC7)
-      || (marker >= 0xC9 && marker <= 0xCB)
-      || (marker >= 0xCD && marker <= 0xCF)
-    );
-
-    if (isSof && segmentStart + 7 < segmentEnd && !width) {
-      height = readUint16BE(bytes, segmentStart + 3);
-      width = readUint16BE(bytes, segmentStart + 5);
+    if (isJpegSofMarker(marker) && segmentStart + 7 < segmentEnd) {
+      const segmentHeight = readUint16BE(bytes, segmentStart + 3);
+      const segmentWidth = readUint16BE(bytes, segmentStart + 5);
+      if (segmentWidth > 0 && segmentHeight > 0) {
+        sofCandidates.push({ width: segmentWidth, height: segmentHeight });
+      }
     }
 
     offset = segmentEnd;
   }
 
-  if (!width || !height) return null;
+  if (sofCandidates.length === 0) return null;
 
-  const oriented = applyExifOrientation(width, height, orientation);
+  // Progressive / multi-scan JPEGs may include low-resolution SOF segments first.
+  // Use the largest frame — that is the full creative resolution.
+  const best = sofCandidates.reduce((largest, candidate) => {
+    const candidateArea = candidate.width * candidate.height;
+    const largestArea = largest.width * largest.height;
+    return candidateArea >= largestArea ? candidate : largest;
+  });
+
+  const oriented = applyExifOrientation(best.width, best.height, orientation);
 
   return {
     width: oriented.width,
     height: oriented.height,
     format: "jpeg",
-    storedWidth: width,
-    storedHeight: height,
+    storedWidth: best.width,
+    storedHeight: best.height,
     exifOrientation: orientation,
   };
 }
@@ -327,6 +340,32 @@ export function reconcileDimensionsWithFilename(fileName, dimensions) {
       source: "filename_reconcile",
       format: dimensions.format,
     });
+  }
+
+  // Metadata read can pick embedded preview scans (e.g. 769×2105 instead of 1080×1080).
+  // When the filename encodes a standard ad size and detected pixels clearly disagree, trust the name.
+  const tolerance = SIZE_TOLERANCE_PX;
+  const widthDelta = Math.abs(dw - ew);
+  const heightDelta = Math.abs(dh - eh);
+  const swappedWidthDelta = Math.abs(dw - eh);
+  const swappedHeightDelta = Math.abs(dh - ew);
+  const exactishMatch = widthDelta <= tolerance && heightDelta <= tolerance;
+  const swappedExactish = swappedWidthDelta <= tolerance && swappedHeightDelta <= tolerance;
+
+  if (!exactishMatch && !swappedExactish) {
+    const expectedRatio = ew / eh;
+    const detectedRatio = dw / dh;
+    const ratioDrift = Math.abs(Math.log(expectedRatio / detectedRatio));
+    const bothAxesFarOff = widthDelta > 50 && heightDelta > 50
+      && swappedWidthDelta > 50 && swappedHeightDelta > 50;
+
+    if (bothAxesFarOff || ratioDrift > 0.12) {
+      return buildDimensionResult(ew, eh, {
+        source: "filename_trusted",
+        format: dimensions.format,
+        reconciledFrom: `${dw}x${dh}`,
+      });
+    }
   }
 
   return dimensions;

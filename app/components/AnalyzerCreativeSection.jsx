@@ -1,8 +1,8 @@
 "use client";
 
-import { Brain, Eye, Target, Wrench } from "lucide-react";
+import { Brain, Eye, FileText, Target, Wrench } from "lucide-react";
 import { qaItemIcon } from "@/app/lib/analyzerInsights";
-import { resolveGoalAlignmentStatus, resolveVerticalAlignmentStatus } from "@/app/lib/strategicPresentation";
+import { resolveGoalAlignmentStatus, resolveVerticalAlignmentStatus, resolveBriefAlignmentStatus } from "@/app/lib/strategicPresentation";
 import AnalyzerCreativeThumbnail from "./AnalyzerCreativeThumbnail";
 
 function AlignmentBadge({ status }) {
@@ -17,6 +17,126 @@ function AlignmentBadge({ status }) {
     <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-bold ${toneClasses[resolved.tone] || toneClasses.amber}`}>
       {resolved.emoji} {resolved.label}
     </span>
+  );
+}
+
+function CampaignBriefAlignmentPanel({ briefAlignment, campaignBrief, labelGoal }) {
+  const hasBrief = campaignBrief?.trim() || briefAlignment?.brief_provided;
+  if (!hasBrief) return null;
+
+  const status = briefAlignment?.status || resolveBriefAlignmentStatus(briefAlignment);
+  const tone = status.tone === "emerald" ? "emerald" : status.tone === "red" ? "red" : "amber";
+  const borderTone = {
+    emerald: "border-emerald-200 bg-emerald-50/40",
+    red: "border-red-200 bg-red-50/40",
+    amber: "border-amber-200 bg-amber-50/40",
+  }[tone];
+
+  const mismatches = briefAlignment?.misaligned_elements || [];
+  const recommendations = briefAlignment?.recommendations || [];
+  const aligned = briefAlignment?.aligned_elements || [];
+  const missing = briefAlignment?.missing_from_creative || [];
+  const goalCheck = briefAlignment?.goal_settings_check;
+  const verticalCheck = briefAlignment?.vertical_settings_check;
+  const platformCheck = briefAlignment?.platform_requirements_check;
+
+  return (
+    <div className={`rounded-xl border p-4 ${borderTone}`}>
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <FileText size={15} className="text-sky-600" />
+          <h4 className="text-sm font-semibold text-slate-900">Campaign Brief Alignment</h4>
+        </div>
+        <AlignmentBadge status={status} />
+      </div>
+
+      <p className="text-sm text-slate-800 leading-relaxed">
+        {briefAlignment?.enrichedReason || briefAlignment?.summary || briefAlignment?.reason}
+      </p>
+
+      {typeof briefAlignment?.alignment_score === "number" ? (
+        <p className="mt-2 text-xs font-semibold text-slate-700">
+          Brief match score: <span className="tabular-nums">{briefAlignment.alignment_score}</span>/100
+        </p>
+      ) : null}
+
+      {goalCheck?.is_aligned === false ? (
+        <div className="mt-3 rounded-lg border border-red-200 bg-white p-3">
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-red-800">Goal vs Brief</p>
+          <p className="mt-1 text-sm text-red-950 leading-relaxed">{goalCheck.explanation}</p>
+          {goalCheck.brief_implied_goal ? (
+            <p className="mt-1 text-xs text-red-800">
+              Brief implies: <span className="font-semibold">{labelGoal(goalCheck.brief_implied_goal)}</span>
+              {" · "}Selected: <span className="font-semibold">{labelGoal(goalCheck.selected_goal)}</span>
+            </p>
+          ) : null}
+        </div>
+      ) : null}
+
+      {verticalCheck?.is_aligned === false ? (
+        <div className="mt-3 rounded-lg border border-red-200 bg-white p-3">
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-red-800">Vertical vs Brief</p>
+          <p className="mt-1 text-sm text-red-950 leading-relaxed">{verticalCheck.explanation}</p>
+        </div>
+      ) : null}
+
+      {mismatches.length > 0 ? (
+        <div className="mt-3 space-y-2">
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-600">Mismatches</p>
+          {mismatches.map((row) => (
+            <div key={`${row.element}-${row.brief_expectation}`} className="rounded-lg border border-slate-200 bg-white p-3 text-sm">
+              <p className="font-semibold text-slate-900">{row.element} <span className="text-[10px] uppercase text-red-700">({row.severity})</span></p>
+              <p className="mt-1 text-slate-700"><span className="font-medium">Brief:</span> {row.brief_expectation}</p>
+              <p className="mt-0.5 text-slate-700"><span className="font-medium">Creative:</span> {row.creative_reality}</p>
+            </div>
+          ))}
+        </div>
+      ) : null}
+
+      {missing.length > 0 ? (
+        <div className="mt-3">
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-amber-800 mb-1">Missing from creative</p>
+          <ul className="text-sm text-slate-800 space-y-1">
+            {missing.map((item) => <li key={item}>• {item}</li>)}
+          </ul>
+        </div>
+      ) : null}
+
+      {aligned.length > 0 ? (
+        <div className="mt-3">
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-emerald-800 mb-1">Aligned with brief</p>
+          <ul className="text-sm text-slate-800 space-y-1">
+            {aligned.slice(0, 5).map((item) => <li key={item}>• {item}</li>)}
+          </ul>
+        </div>
+      ) : null}
+
+      {platformCheck?.findings?.length ? (
+        <div className="mt-3 rounded-lg border border-slate-200 bg-white p-3">
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-600">
+            {platformCheck.platform} requirements
+          </p>
+          <ul className="mt-1 text-sm text-slate-800 space-y-1">
+            {platformCheck.findings.map((item) => <li key={item}>• {item}</li>)}
+          </ul>
+        </div>
+      ) : null}
+
+      {recommendations.length > 0 ? (
+        <div className="mt-3 rounded-lg border border-sky-200 bg-sky-50 p-3">
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-sky-900 mb-1">Recommendations</p>
+          <ul className="text-sm text-sky-950 space-y-1">
+            {recommendations.map((item) => <li key={item}>• {item}</li>)}
+          </ul>
+        </div>
+      ) : null}
+
+      {status.key === "misaligned" ? (
+        <p className="mt-3 text-xs text-slate-700">
+          Update the creative, revise the Campaign Brief in Step 1, or align your goal/vertical settings — then click <strong>Reanalyze</strong>.
+        </p>
+      ) : null}
+    </div>
   );
 }
 
@@ -186,8 +306,13 @@ export default function AnalyzerCreativeSection({
   const insight = selectedInsight;
   if (!insight) return null;
 
-  const { goalAlignment, verticalAlignment, extractionSignals } = insight;
+  const { goalAlignment, verticalAlignment, creativeVerticalAlignment, extractionSignals } = insight;
   const verticalStatus = resolveVerticalAlignmentStatus(verticalAlignment);
+  const detectedCategoryLabel = creativeVerticalAlignment?.detected_category_label
+    || verticalAlignment?.detected_category_label
+    || verticalAlignment?.product_category;
+  const suggestedVerticalLabel = creativeVerticalAlignment?.suggested_vertical_label
+    || (verticalAlignment?.suggested_vertical ? labelVertical(verticalAlignment.suggested_vertical) : null);
   const goalStatus = resolveGoalAlignmentStatus(goalAlignment);
   const detectedGoalLabel = goalAlignment?.detected_goal || goalAlignment?.detected_goal_stage;
   const showDetectedGoal = detectedGoalLabel
@@ -249,6 +374,11 @@ export default function AnalyzerCreativeSection({
               ) : null}
             </p>
             <p>{goalAlignment?.enrichedReason}</p>
+            {goalAlignment?.brief_goal_conflict ? (
+              <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-red-900 text-xs">
+                Your selected goal does not match the Campaign Brief objective. Fix this in Step 1 before trusting launch readiness.
+              </p>
+            ) : null}
           </div>
         </div>
 
@@ -280,52 +410,51 @@ export default function AnalyzerCreativeSection({
           </div>
           <div className="space-y-2 text-sm text-slate-800 leading-relaxed">
             <p>
-              Selected: <span className="font-semibold text-slate-900">{labelVertical(verticalAlignment?.selected_vertical || campaignVertical)}</span>
-              {verticalAlignment?.detected_vertical && verticalAlignment.detected_vertical !== "unknown" ? (
-                <> · Detected: <span className={`font-semibold ${
+              Selected vertical: <span className="font-semibold text-slate-900">{labelVertical(verticalAlignment?.selected_vertical || campaignVertical)}</span>
+            </p>
+            {detectedCategoryLabel ? (
+              <p>
+                Creative category detected: <span className={`font-semibold ${
                   verticalStatus.tone === "red"
                     ? "text-red-700"
                     : verticalStatus.tone === "amber"
                       ? "text-amber-700"
                       : "text-emerald-700"
-                }`}>{labelVertical(verticalAlignment.detected_vertical)}</span></>
-              ) : null}
-            </p>
+                }`}>{detectedCategoryLabel}</span>
+              </p>
+            ) : null}
+            {verticalStatus.key === "misaligned" && suggestedVerticalLabel ? (
+              <p>
+                Suggested vertical: <span className="font-semibold text-sky-800">{suggestedVerticalLabel}</span>
+              </p>
+            ) : null}
+            {verticalAlignment?.detected_vertical && verticalAlignment.detected_vertical !== "unknown" && !detectedCategoryLabel ? (
+              <p>
+                Detected: <span className={`font-semibold ${
+                  verticalStatus.tone === "red"
+                    ? "text-red-700"
+                    : verticalStatus.tone === "amber"
+                      ? "text-amber-700"
+                      : "text-emerald-700"
+                }`}>{labelVertical(verticalAlignment.detected_vertical)}</span>
+              </p>
+            ) : null}
             {verticalAlignment?.enrichedReason || verticalAlignment?.reason ? (
               <p>{verticalAlignment.enrichedReason || verticalAlignment.reason}</p>
+            ) : null}
+            {verticalStatus.key === "misaligned" && (creativeVerticalAlignment?.recommendation || verticalAlignment?.vertical_recommendation) ? (
+              <p className="rounded-lg border border-red-200 bg-white px-3 py-2 text-xs text-red-900">
+                {creativeVerticalAlignment?.recommendation || verticalAlignment.vertical_recommendation}
+              </p>
             ) : null}
           </div>
         </div>
 
-        {insight.briefAlignment?.expected_focus ? (
-          <div className={`rounded-xl border p-4 ${
-            insight.briefAlignment.is_aligned === false
-              ? "border-red-200 bg-red-50/40"
-              : insight.briefAlignment.is_aligned === null
-                ? "border-amber-200 bg-amber-50/40"
-                : "border-emerald-200 bg-emerald-50/40"
-          }`}>
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2">
-                <Target size={15} className="text-sky-600" />
-                <h4 className="text-sm font-semibold text-slate-900">Brief & Product Match</h4>
-              </div>
-              <AlignmentBadge status={
-                insight.briefAlignment.is_aligned === false
-                  ? { emoji: "🔴", label: "Mismatch", tone: "red" }
-                  : insight.briefAlignment.is_aligned === null
-                    ? { emoji: "🟡", label: "Needs Review", tone: "amber" }
-                    : { emoji: "🟢", label: "Aligned", tone: "emerald" }
-              } />
-            </div>
-            <p className="text-sm text-slate-800 leading-relaxed">{insight.briefAlignment.reason}</p>
-            {insight.briefAlignment.is_aligned === false ? (
-              <p className="mt-2 text-xs text-slate-700">
-                Update the brief, change product focus in Step 1, or upload a creative that matches your campaign product.
-              </p>
-            ) : null}
-          </div>
-        ) : null}
+        <CampaignBriefAlignmentPanel
+          briefAlignment={insight.briefAlignment}
+          campaignBrief={campaignBrief}
+          labelGoal={labelGoal}
+        />
 
         {extractionSignals ? (
           <div className="rounded-xl border border-slate-200 bg-white p-4">

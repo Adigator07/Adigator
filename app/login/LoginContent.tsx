@@ -10,6 +10,8 @@ import {
   GENERIC_AUTH_VALIDATION_ERROR,
   GENERIC_SIGNUP_RESPONSE_MESSAGE,
   LOGIN_INCORRECT_CREDENTIALS_ERROR,
+  LOGIN_SERVER_ERROR,
+  LOGIN_SERVICE_UNAVAILABLE_ERROR,
   PASSWORD_RESET_REQUEST_MESSAGE,
 } from "@/app/lib/auth/constants";
 import { logUserActivity } from "@/app/lib/userActivity";
@@ -159,9 +161,20 @@ export default function LoginContent() {
       const result = await response.json().catch(() => ({}));
 
       if (!response.ok) {
-        const message = isRegisterMode
-          ? (response.status === 400 ? (result.error || GENERIC_AUTH_VALIDATION_ERROR) : GENERIC_SIGNUP_RESPONSE_MESSAGE)
-          : LOGIN_INCORRECT_CREDENTIALS_ERROR;
+        let message: string;
+        if (isRegisterMode) {
+          message = response.status === 400
+            ? (result.error || GENERIC_AUTH_VALIDATION_ERROR)
+            : GENERIC_SIGNUP_RESPONSE_MESSAGE;
+        } else if (response.status === 401) {
+          message = LOGIN_INCORRECT_CREDENTIALS_ERROR;
+        } else if (response.status === 404 || response.status === 405) {
+          message = LOGIN_SERVICE_UNAVAILABLE_ERROR;
+        } else if (response.status >= 500) {
+          message = LOGIN_SERVER_ERROR;
+        } else {
+          message = result.error || LOGIN_INCORRECT_CREDENTIALS_ERROR;
+        }
         setErrors({ form: message });
         return;
       }
@@ -213,7 +226,9 @@ export default function LoginContent() {
       setTimeout(() => router.replace(getPostAuthRedirect(resolvedRole)), 500);
     } catch {
       setErrors({
-        form: isRegisterMode ? GENERIC_SIGNUP_RESPONSE_MESSAGE : LOGIN_INCORRECT_CREDENTIALS_ERROR,
+        form: isRegisterMode
+          ? GENERIC_SIGNUP_RESPONSE_MESSAGE
+          : LOGIN_SERVICE_UNAVAILABLE_ERROR,
       });
     } finally {
       setLoading(false);

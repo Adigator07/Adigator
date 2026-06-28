@@ -166,8 +166,16 @@ export function buildFinalValidationChecklist(
   platform: AnalyzerPlatform,
   goal: string,
   vertical: string,
+  hasCampaignBrief = false,
 ): string {
   const brain = PLATFORM_BRAINS[platform];
+  const briefChecks = hasCampaignBrief
+    ? `
+✓ Is **briefAlignment** fully populated with creative ↔ brief evidence (aligned + misaligned elements)?
+✓ If the brief contradicts the creative (product, offer, audience, tone), is creativeMatchesBrief: false with specific reasons?
+✓ If the selected goal **${goal.replace(/_/g, " ")}** conflicts with the brief objective, is goalSettingsMismatch: true with a clear explanation?
+✓ Are brief recommendations actionable for **${brain.label}** delivery?`
+    : "";
   return `
 ## FINAL VALIDATION CHECK (run before returning JSON)
 
@@ -180,6 +188,7 @@ Before generating output, verify ALL of the following. If any fail, revise your 
 ✓ Is analysis non-generic (names elements, states problem + fix)?
 ✓ Does the analysis avoid mixing Google/Meta/Programmatic logic?
 ✓ Are forbidden topics avoided? (${brain.forbidden.slice(0, 3).join("; ")}…)
+${briefChecks}
 
 If any check fails, regenerate insights before output.
 `.trim();
@@ -252,7 +261,15 @@ export function buildExtractionUserPromptLock(
 ): string {
   const reminder = getCrossPlatformForbiddenReminder(platform);
   const briefBlock = campaignBrief?.trim()
-    ? `\n- Client Brief / Campaign Description: ${campaignBrief.trim()}\n\nTreat the campaign objective and client brief as primary context for alignment. Prefer brief-grounded reasoning over generic assumptions. Do NOT mark the creative aligned if the brief specifies a product (e.g. bike) but the visual shows a different product (e.g. car).`
+    ? `\n- **Campaign Brief (PRIMARY AUTHORITY):** ${campaignBrief.trim()}
+
+The brief overrides generic assumptions. Validate in this order:
+1) Creative vs brief (product, audience, offer, tone, mandatory elements)
+2) Selected goal vs brief objective — flag mismatches explicitly
+3) Selected vertical vs brief industry context
+4) ${platformLabel}-specific delivery fit for what the brief requires
+
+If anything conflicts with the brief, set briefAlignment.creativeMatchesBrief or briefAlignment.goalSettingsMismatch accordingly and explain exactly what is wrong and why.`
     : "";
   const productFocusBlock = campaignProductFocus?.trim()
     ? `\n- Campaign Product Focus: ${campaignProductFocus.replace(/_/g, " ")}\n\nWhen product focus is specified, compare detected product/subject in the creative against this focus. Flag misalignment explicitly.`

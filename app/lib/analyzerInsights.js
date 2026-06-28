@@ -22,11 +22,16 @@ import { enrichExtractionSignals } from "./creativeExtractionEnrichment";
 import {
   buildEnrichedGoalReasonForInsight,
   buildEnrichedVerticalReasonForInsight,
+  buildBriefAlignmentReason,
 } from "./analyzer/alignmentReasons.js";
 import {
   evaluateBriefProductAlignment,
   getProductFocusLabel,
 } from "./campaignProductFocus.js";
+import {
+  evaluateBriefSettingsAlignment,
+} from "./campaignBriefValidation";
+import { evaluateCreativeVerticalAlignment } from "./creativeVerticalValidation";
 import {
   getEntryPayload,
   getExtractionSignals,
@@ -34,6 +39,9 @@ import {
   getValidatedRecommendations,
   getVerticalAlignment,
   getCampaignAlignment,
+  getBriefAlignment,
+  resolveBriefAlignmentStatus,
+  getCreativeVerticalAlignment,
 } from "./strategicPresentation";
 
 export const LAUNCH_STATUS = {
@@ -471,6 +479,15 @@ function deriveRecommendedFix(creative, payload, platform) {
     return "Adjust headline, visual story, and emotional tone to match the selected campaign goal before scaling spend.";
   }
 
+  const brief = getBriefAlignment(payload);
+  if (brief?.brief_provided && brief?.creative_matches_brief === false) {
+    const fix = brief.recommendations?.[0];
+    return fix || "Revise the creative so it delivers what the Campaign Brief promises — product, audience, offer, and tone must match.";
+  }
+  if (brief?.brief_provided && brief?.goal_settings_check?.is_aligned === false) {
+    return brief.goal_settings_check.explanation || "Update the campaign goal in Step 1 to match the objective stated in your Campaign Brief.";
+  }
+
   const vertical = getVerticalAlignment(payload);
   if (vertical?.is_aligned === false) {
     return `Reframe visuals and copy toward ${vertical.selected_vertical || "the selected vertical"} cues before launch.`;
@@ -479,9 +496,10 @@ function deriveRecommendedFix(creative, payload, platform) {
   return null;
 }
 
-function deriveLaunchStatus(creative, payload, platform) {
+function deriveLaunchStatus(creative, payload, platform, verticalOverride = null) {
   const goal = getGoalAlignment(payload);
-  const vertical = getVerticalAlignment(payload);
+  const vertical = verticalOverride || getVerticalAlignment(payload);
+  const brief = getBriefAlignment(payload);
   const campaign = getCampaignAlignment(payload);
   const campaignStatus = String(campaign.alignment_status || "unknown").toLowerCase();
   const campaignSeverity = String(campaign.severity || "low").toLowerCase();
@@ -489,7 +507,12 @@ function deriveLaunchStatus(creative, payload, platform) {
   const strategicallyAligned = isStrategicallyAligned(goal, vertical);
 
   if (hasLaunchBlockingValidation(creative, platform)) return "misaligned";
+  const creativeVertical = getCreativeVerticalAlignment(payload);
   if (goal?.is_aligned === false || vertical?.is_aligned === false) return "misaligned";
+  if (creativeVertical?.is_aligned === false) return "misaligned";
+  if (brief?.brief_provided && brief?.creative_matches_brief === false) return "misaligned";
+  if (brief?.brief_provided && brief?.alignment_status === "misaligned") return "misaligned";
+  if (brief?.brief_provided && brief?.goal_settings_check?.is_aligned === false) return "misaligned";
 
   const scores = computePlacementCompatibility(creative, platform, payload);
   const primaryKeys = getPrimaryPlacementKeys(platform, creative);
@@ -557,7 +580,6 @@ export function computeCreativeInsight(
   const payload = getEntryPayload(entry) || {};
   const goalAlignment = getGoalAlignment(payload);
   let verticalAlignment = getVerticalAlignment(payload);
-  const launchStatusKey = deriveLaunchStatus(creative, payload, platform);
   const placementScores = computePlacementCompatibility(creative, platform, payload);
   const extractionSignals = enrichExtractionSignals(
     getExtractionSignals(payload),
@@ -568,14 +590,83 @@ export function computeCreativeInsight(
     placementScores,
   );
 
-  const briefAlignment = evaluateBriefProductAlignment({
-    campaignBrief: context.campaignBrief,
-    productFocus: context.campaignProductFocus,
-    signals: extractionSignals,
-    payload,
-  });
+  let creativeVerticalAlignment = getCreativeVerticalAlignment(payload);
+  if (!creativeVerticalAlignment && campaignVertical) {
+    creativeVerticalAlignment = evaluateCreativeVerticalAlignment({
+      selectedVertical: campaignVertical,
+      extraction: extractionSignals,
+      aiInferredVertical: verticalAlignment?.detected_vertical,
+      aiCreativeCategory: payload?.creativeCategory || payload?.ai_analysis?.creativeCategory,
+      aiVerticalFeedback: verticalAlignment?.reason,
+      aiVerticalMatch: verticalAlignment?.is_aligned,
+    });
+  }
+  if (creativeVerticalAlignment) {
+    verticalAlignment = {
+      ...verticalAlignment,
+      is_aligned: creativeVerticalAlignment.is_aligned,
+      detected_category_id: creativeVerticalAlignment.detected_category_id,
+      detected_category_label: creativeVerticalAlignment.detected_category_label,
+      suggested_vertical: creativeVerticalAlignment.suggested_vertical,
+      suggested_vertical_label: creativeVerticalAlignment.suggested_vertical_label,
+      detected_vertical: creativeVerticalAlignment.suggested_vertical || verticalAlignment.detected_vertical,
+      product_category: creativeVerticalAlignment.detected_category_label || verticalAlignment.product_category,
+      reason: creativeVerticalAlignment.mismatch_reason || verticalAlignment.reason,
+      vertical_recommendation: creativeVerticalAlignment.recommendation,
+      alignment_status: creativeVerticalAlignment.alignment_status,
+      selected_vertical: verticalAlignment.selected_vertical || campaignVertical,
+    };
+  }
+  const launchStatusKey = deriveLaunchStatus(creative, payload, platform, verticalAlignment);
 
-  if (briefAlignment.expected_focus && briefAlignment.is_aligned === false) {
+  const briefAlignmentFromApi = getBriefAlignment(payload);
+
+  const briefAlignment = briefAlignmentFromApi?.brief_provided
+    ? {
+        ...briefAlignmentFromApi,
+        enrichedReason: buildBriefAlignmentReason(briefAlignmentFromApi),
+        status: resolveBriefAlignmentStatus(briefAlignmentFromApi),
+      }
+    : (() => {
+        const productEval = evaluateBriefProductAlignment({
+          campaignBrief: context.campaignBrief,
+          productFocus: context.campaignProductFocus,
+          signals: extractionSignals,
+          payload,
+        });
+        if (!context.campaignBrief?.trim()) {
+          return {
+            brief_provided: false,
+            enrichedReason: buildBriefAlignmentReason({ brief_provided: false }),
+            status: resolveBriefAlignmentStatus({ brief_provided: false }),
+            expected_focus: "",
+            is_aligned: null,
+            reason: "",
+          };
+        }
+        return {
+          brief_provided: true,
+          expected_focus: productEval.expected_focus,
+          detected_product: productEval.detected_product,
+          is_aligned: productEval.is_aligned,
+          reason: productEval.reason,
+          enrichedReason: productEval.reason || buildBriefAlignmentReason({ brief_provided: true, summary: "Brief provided — reanalyze for full AI brief validation." }),
+          status: productEval.is_aligned === false
+            ? { key: "misaligned", label: "Brief Mismatch", emoji: "🔴", tone: "red" }
+            : productEval.is_aligned === null
+              ? { key: "review", label: "Brief Review", emoji: "🟡", tone: "amber" }
+              : { key: "aligned", label: "Brief Aligned", emoji: "🟢", tone: "emerald" },
+        };
+      })();
+
+  if (briefAlignmentFromApi?.brief_provided && briefAlignmentFromApi.creative_matches_brief === false) {
+    verticalAlignment = {
+      ...verticalAlignment,
+      is_aligned: false,
+      reason: briefAlignment.enrichedReason || verticalAlignment?.reason,
+      brief_override: true,
+    };
+  } else if (briefAlignment.expected_focus && briefAlignment.is_aligned === false) {
     verticalAlignment = {
       ...verticalAlignment,
       is_aligned: false,
@@ -624,8 +715,12 @@ export function computeCreativeInsight(
     },
     verticalAlignment: {
       ...verticalAlignment,
-      enrichedReason: briefAlignment.reason || buildEnrichedVerticalReasonForInsight(verticalAlignment, extractionSignals),
+      enrichedReason: briefAlignment.brief_override || briefAlignment.enrichedReason
+        ? (briefAlignment.enrichedReason || briefAlignment.reason)
+        : creativeVerticalAlignment?.mismatch_reason
+          || buildEnrichedVerticalReasonForInsight(verticalAlignment, extractionSignals),
     },
+    creativeVerticalAlignment,
     briefAlignment,
     extractionSignals,
     technicalQa: deriveTechnicalQa(creative, payload, platform),
@@ -661,21 +756,77 @@ export function computeCampaignOverview(
 
   const verticalMisaligned = insights.filter((i) => i.verticalAlignment?.is_aligned === false);
   if (verticalMisaligned.length > 0) {
-    const label = verticalLabelFn?.(campaignVertical) || campaignVertical;
     const sample = verticalMisaligned[0];
-    const detected = sample.verticalAlignment?.detected_vertical;
+    const detectedLabel = sample.verticalAlignment?.detected_category_label
+      || sample.creativeVerticalAlignment?.detected_category_label
+      || sample.verticalAlignment?.detected_vertical;
+    const label = verticalLabelFn?.(campaignVertical) || campaignVertical;
     launchRisks.push(
-      `⚠️ ${verticalMisaligned.length} creative${verticalMisaligned.length === 1 ? "" : "s"} read as ${detected || "another category"} instead of ${label}`,
+      `⚠️ ${verticalMisaligned.length} creative${verticalMisaligned.length === 1 ? "" : "s"} are not ${label} — detected as ${detectedLabel || "another category"}`,
     );
   }
+
+  const verticalMismatchReport = insights
+    .filter((i) => i.verticalAlignment?.is_aligned === false || i.creativeVerticalAlignment?.is_aligned === false)
+    .map((i) => ({
+      id: i.creativeId,
+      name: i.creativeName,
+      size: i.creativeSize,
+      selectedVertical: campaignVertical,
+      selectedVerticalLabel: verticalLabelFn?.(campaignVertical) || campaignVertical,
+      detectedCategory: i.creativeVerticalAlignment?.detected_category_label
+        || i.verticalAlignment?.detected_category_label
+        || i.verticalAlignment?.product_category
+        || "Unknown category",
+      suggestedVertical: i.creativeVerticalAlignment?.suggested_vertical_label
+        || i.verticalAlignment?.suggested_vertical_label
+        || i.verticalAlignment?.suggested_vertical
+        || "unknown",
+      reason: i.creativeVerticalAlignment?.mismatch_reason
+        || i.verticalAlignment?.enrichedReason
+        || i.verticalAlignment?.reason,
+      recommendation: i.creativeVerticalAlignment?.recommendation
+        || i.verticalAlignment?.vertical_recommendation
+        || "",
+      status: i.launchStatus,
+    }));
 
   const goalMisaligned = insights.filter((i) => i.goalAlignment?.is_aligned === false);
   if (goalMisaligned.length > 0) {
     const sample = goalMisaligned[0];
     const detected = sample.goalAlignment?.detected_goal_stage || sample.goalAlignment?.detected_goal;
+    const briefConflict = sample.goalAlignment?.brief_goal_conflict;
     launchRisks.push(
-      `⚠️ ${goalMisaligned.length} creative${goalMisaligned.length === 1 ? "" : "s"} signal ${detected || "different"} intent vs ${goalText} goal`,
+      briefConflict
+        ? `⚠️ Campaign goal conflicts with your brief — ${sample.goalAlignment?.enrichedReason || sample.goalAlignment?.reason || "update goal or brief in Step 1"}`
+        : `⚠️ ${goalMisaligned.length} creative${goalMisaligned.length === 1 ? "" : "s"} signal ${detected || "different"} intent vs ${goalText} goal`,
     );
+  }
+
+  const briefMisaligned = insights.filter((i) => {
+    const ba = i.briefAlignment;
+    return ba?.brief_provided && (ba.creative_matches_brief === false || ba.alignment_status === "misaligned" || ba.status?.key === "misaligned");
+  });
+  if (briefMisaligned.length > 0) {
+    const sample = briefMisaligned[0];
+    launchRisks.push(
+      `⚠️ ${briefMisaligned.length} creative${briefMisaligned.length === 1 ? "" : "s"} do not match the Campaign Brief — ${sample.briefAlignment?.enrichedReason || sample.briefAlignment?.summary || "review brief requirements"}`,
+    );
+  }
+
+  if (context.campaignBrief?.trim() && insights.every((i) => !i.briefAlignment?.brief_provided && !getBriefAlignment(getEntryPayload(entries[0]) || {})?.brief_provided)) {
+    const settingsCheck = evaluateBriefSettingsAlignment({
+      brief: context.campaignBrief,
+      selectedGoal: campaignGoal,
+      selectedVertical: campaignVertical,
+      platform,
+    });
+    if (settingsCheck.goal_settings_check.is_aligned === false) {
+      launchRisks.push(`⚠️ Brief vs goal mismatch: ${settingsCheck.goal_settings_check.explanation}`);
+    }
+    if (settingsCheck.vertical_settings_check.is_aligned === false) {
+      launchRisks.push(`⚠️ Brief vs vertical mismatch: ${settingsCheck.vertical_settings_check.explanation}`);
+    }
   }
 
   if (platform === "meta_ads") {
@@ -834,6 +985,20 @@ export function computeCampaignOverview(
     reviewCount,
     misalignedCount,
     totalCount: insights.length,
+    briefValidation: context.campaignBrief?.trim()
+      ? {
+          settings: evaluateBriefSettingsAlignment({
+            brief: context.campaignBrief,
+            selectedGoal: campaignGoal,
+            selectedVertical: campaignVertical,
+            platform,
+          }),
+          sampleBriefAlignment: insights.find((i) => i.briefAlignment?.brief_provided)?.briefAlignment || null,
+          briefMisalignedCount: briefMisaligned.length,
+        }
+      : null,
+    verticalMismatchReport,
+    verticalMismatchCount: verticalMismatchReport.length,
   };
 
   const sections = buildPlatformOverviewSections({

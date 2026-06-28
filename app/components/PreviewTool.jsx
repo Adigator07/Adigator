@@ -40,6 +40,7 @@ import {
 import {
   deleteCreativeAssets,
   getCreativeFullBlob,
+  getCreativeSourceBlob,
   hydrateCreativesList,
   revokeCreativeObjectUrls,
   storeCompressedCreativeBlobs,
@@ -47,6 +48,7 @@ import {
   stripCreativeForPersistence,
 } from "../lib/creativeAssetStore";
 import {
+  analysisMatchesCreatives,
   readStoredAnalysisResult,
   readStoredWorkflow,
   writeStoredAnalysisResult,
@@ -67,7 +69,9 @@ import ValidationReport from "./ValidationReport";
 import ValidationIssueRow from "./ValidationIssueRow";
 import {
   clearStoredUrlValidation,
+  getCreativeValidationFingerprint,
   readStoredUrlValidation,
+  resolveActiveUrlValidation,
   runUrlValidationRequest,
   writeStoredUrlValidation,
 } from "../lib/urlValidationClient";
@@ -495,10 +499,7 @@ export default function PreviewTool() {
   const [campaignProductFocus, setCampaignProductFocus] = useState("");
   const [landingUrl, setLandingUrl] = useState("");
   const [sizeReviewAcknowledged, setSizeReviewAcknowledged] = useState(false);
-  const [urlValidation, setUrlValidation] = useState(() => {
-    if (typeof window === "undefined") return null;
-    return readStoredUrlValidation();
-  });
+  const [urlValidation, setUrlValidation] = useState(null);
   const [urlValidationRunning, setUrlValidationRunning] = useState(false);
   const [analysisSessionId, setAnalysisSessionId] = useState(() => {
     if (typeof window === "undefined") return null;
@@ -524,11 +525,10 @@ export default function PreviewTool() {
   const creativesRef = useRef(creatives);
   const compressingIdsRef = useRef(new Set());
   const workflowPersistTimerRef = useRef(null);
+  const sessionSyncInitializedRef = useRef(false);
+  const lastCreativeFingerprintRef = useRef(null);
 
-  const [analysisResult, setAnalysisResult] = useState(() => {
-    if (typeof window === "undefined") return null;
-    return readStoredAnalysisResult();
-  });
+  const [analysisResult, setAnalysisResult] = useState(null);
   const [analysisLoading, setAnalysisLoading] = useState(false);
   const [viewerName, setViewerName] = useState("");
   const {
@@ -608,13 +608,6 @@ export default function PreviewTool() {
     if (!landingUrl && storedLandingUrl) {
       setLandingUrl(storedLandingUrl);
     }
-
-    if (!urlValidation) {
-      const storedUrlValidation = readStoredUrlValidation();
-      if (storedUrlValidation) {
-        setUrlValidation(storedUrlValidation);
-      }
-    }
   }, [
     step,
     platform,
@@ -625,7 +618,6 @@ export default function PreviewTool() {
     campaignBrief,
     campaignProductFocus,
     landingUrl,
-    urlValidation,
   ]);
 
   useEffect(() => {
@@ -635,20 +627,9 @@ export default function PreviewTool() {
   const runUrlValidation = useCallback(async () => {
     const trimmedUrl = landingUrl.trim();
     if (!trimmedUrl) {
-      const skipped = {
-        status: "skipped",
-        submitted_url: "",
-        final_url: null,
-        summary: "No landing page URL was provided.",
-        reasons: [],
-        suggestions: ["Add a landing page URL in Step 2 to validate destination alignment."],
-        confidence: 0,
-        source: "unavailable",
-        checked_at: new Date().toISOString(),
-      };
-      setUrlValidation(skipped);
-      writeStoredUrlValidation(skipped);
-      return skipped;
+      setUrlValidation(null);
+      clearStoredUrlValidation();
+      return null;
     }
 
     if (!platform || !campaignGoal) {
@@ -686,9 +667,13 @@ export default function PreviewTool() {
           })),
         }),
       ]);
-      setUrlValidation(result);
-      writeStoredUrlValidation(result);
-      return result;
+      const enrichedResult = {
+        ...result,
+        creative_fingerprint: getCreativeValidationFingerprint(creatives),
+      };
+      setUrlValidation(enrichedResult);
+      writeStoredUrlValidation(enrichedResult);
+      return enrichedResult;
     } catch (error) {
       console.error("URL validation failed", error);
       addToast(error?.message || "Validation failed.", "error");
@@ -755,7 +740,20 @@ export default function PreviewTool() {
       );
       if (!needsRevalidation) return;
 
-      const updated = await revalidateCreativesForPlatform(current, platform);
+      const updated = await revalidateCreativesForPlatform(current, platform, {
+        resolveImage: async (creative) => {
+          const blob = await getCreativeSourceBlob(creative);
+          if (!blob) return null;
+          try {
+            const dims = await readImageDimensionsFromBlob(blob, {
+              fileName: creative.originalFile || creative.name || "",
+            });
+            return { width: dims.width, height: dims.height };
+          } catch {
+            return null;
+          }
+        },
+      });
       if (active) {
         startTransition(() => {
           setCreatives(updated);
@@ -1107,6 +1105,61 @@ export default function PreviewTool() {
   const validCreatives = useMemo(() => creatives.filter((c) => c && c.valid && (c.url || c.text || c.image || c.title)), [creatives]);
   const invalidCreatives = useMemo(() => creatives.filter((c) => c && (!c.valid || !(c.url || c.text || c.image || c.title))), [creatives]);
   const uploadedCreatives = validCreatives;
+  const creativeFingerprint = useMemo(
+    () => getCreativeValidationFingerprint(creatives),
+    [creatives],
+  );
+
+  const activeUrlValidation = useMemo(
+    () => resolveActiveUrlValidation(landingUrl, urlValidation, creatives),
+    [landingUrl, urlValidation, creatives],
+  );
+
+  useEffect(() => {
+    if (isHydratingCreatives) return;
+
+    const fingerprint = creativeFingerprint;
+    const creativesChanged = lastCreativeFingerprintRef.current !== null
+      && lastCreativeFingerprintRef.current !== fingerprint;
+
+    if (creativesChanged) {
+      setAnalysisResult(null);
+      writeStoredAnalysisResult(null);
+      setUrlValidation((current) => {
+        const stored = current ?? readStoredUrlValidation();
+        const resolved = resolveActiveUrlValidation(landingUrl, stored, creatives);
+        if (stored && !resolved) clearStoredUrlValidation();
+        return resolved;
+      });
+    } else if (!sessionSyncInitializedRef.current) {
+      setAnalysisResult((current) => {
+        const candidate = current ?? readStoredAnalysisResult();
+        if (candidate && analysisMatchesCreatives(candidate, creatives)) return candidate;
+        if (candidate) writeStoredAnalysisResult(null);
+        return null;
+      });
+
+      setUrlValidation((current) => {
+        const stored = current ?? readStoredUrlValidation();
+        const resolved = resolveActiveUrlValidation(landingUrl, stored, creatives);
+        if (stored && !resolved) clearStoredUrlValidation();
+        return resolved;
+      });
+    }
+
+    sessionSyncInitializedRef.current = true;
+    lastCreativeFingerprintRef.current = fingerprint;
+  }, [isHydratingCreatives, creativeFingerprint, landingUrl, creatives]);
+
+  useEffect(() => {
+    if (isHydratingCreatives) return;
+
+    setUrlValidation((current) => {
+      const resolved = resolveActiveUrlValidation(landingUrl, current, creatives);
+      if (current && !resolved) clearStoredUrlValidation();
+      return resolved;
+    });
+  }, [landingUrl, isHydratingCreatives, creativeFingerprint, creatives]);
   const primaryCreativeUrl = getPersistableCreativeUrl(uploadedCreatives[0]);
   const needsReviewCreatives = useMemo(
     () => creatives.filter((c) =>
@@ -1181,12 +1234,15 @@ export default function PreviewTool() {
     if (step === 2 && !canAdvanceToAnalysis) return;
 
     if (step === 2 && landingUrl.trim()) {
-      const needsRefresh = !urlValidation
-        || urlValidation.submitted_url !== landingUrl.trim()
-        || urlValidation.status === "pending";
+      const needsRefresh = !activeUrlValidation
+        || activeUrlValidation.submitted_url !== landingUrl.trim()
+        || activeUrlValidation.status === "pending";
       if (needsRefresh && !urlValidationRunning) {
         await runUrlValidation();
       }
+    } else if (step === 2 && !landingUrl.trim()) {
+      setUrlValidation(null);
+      clearStoredUrlValidation();
     }
 
     const nextStep = Math.min(step + 1, TOTAL_STEPS);
@@ -1215,7 +1271,7 @@ export default function PreviewTool() {
     campaignVertical,
     campaignAudienceStage,
     landingUrl,
-    urlValidation,
+    activeUrlValidation,
     urlValidationRunning,
     runUrlValidation,
   ]);
@@ -1691,7 +1747,7 @@ export default function PreviewTool() {
       revokeCreativeObjectUrls(creative);
       const { displayUrl, fullUrl } = await storeCompressedCreativeBlobs(creative.id, finalBlob);
 
-      const sourceDims = resolvePersistedDimensions(creative) || {
+      const sourceDims = {
         width: imageSource.width,
         height: imageSource.height,
       };
@@ -1960,7 +2016,14 @@ export default function PreviewTool() {
     const existing = creativesRef.current.find((c) => c.id === id);
     if (existing) revokeCreativeObjectUrls(existing);
 
-    setCreatives((prev) => prev.filter((c) => c.id !== id));
+    const nextCreatives = creativesRef.current.filter((c) => c.id !== id);
+    setCreatives(nextCreatives);
+    if (nextCreatives.length === 0) {
+      setAnalysisResult(null);
+      writeStoredAnalysisResult(null);
+      setUrlValidation(null);
+      clearStoredUrlValidation();
+    }
     setTargetSizeByCreative((prev) => {
       const next = { ...prev };
       delete next[id];
@@ -2889,7 +2952,7 @@ export default function PreviewTool() {
                     onCopy={() => addToast("Readiness report copied to clipboard.", "success")}
                   />
                 ) : null}
-                {urlValidation?.submitted_url && urlValidation.submitted_url === landingUrl.trim() && !urlValidationRunning ? (
+                {activeUrlValidation?.submitted_url && activeUrlValidation.submitted_url === landingUrl.trim() && !urlValidationRunning ? (
                   <p className="text-xs text-slate-500">
                     URL check complete. Open Step 3 Overview for alignment details.
                   </p>
@@ -2978,7 +3041,7 @@ export default function PreviewTool() {
                     platform={platform}
                     viewerName={viewerName}
                     creatives={validCreatives}
-                    urlValidation={urlValidation}
+                    urlValidation={activeUrlValidation}
                     campaignBrief={campaignBrief}
                     campaignProductFocus={campaignProductFocus}
                     onDownloadReport={handleDownloadReport}

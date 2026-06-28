@@ -29,6 +29,59 @@ export function clearStoredUrlValidation() {
   localStorage.removeItem(URL_VALIDATION_STORAGE_KEY);
 }
 
+/** Stable fingerprint of the creatives used for URL / analysis session binding. */
+export function getCreativeValidationFingerprint(creatives) {
+  if (!Array.isArray(creatives) || creatives.length === 0) return "";
+  return creatives
+    .map((creative) => `${creative.id}:${creative.contentHash || creative.size || ""}`)
+    .sort()
+    .join("|");
+}
+
+export function createSkippedUrlValidation() {
+  return {
+    status: "skipped",
+    submitted_url: "",
+    final_url: null,
+    summary: "No landing page URL was provided.",
+    reasons: [],
+    suggestions: ["Add a landing page URL in Step 2 to validate destination alignment."],
+    confidence: 0,
+    source: "unavailable",
+    checked_at: new Date().toISOString(),
+  };
+}
+
+/**
+ * Return URL validation only when it belongs to the current landing URL and creative set.
+ * Prevents a previously validated URL from appearing after the field is cleared or creatives change.
+ */
+export function resolveActiveUrlValidation(landingUrl, urlValidation, creatives) {
+  if (!urlValidation || typeof urlValidation !== "object") return null;
+
+  const trimmedUrl = String(landingUrl || "").trim();
+  const submittedUrl = String(urlValidation.submitted_url || "").trim();
+
+  if (!trimmedUrl) {
+    return null;
+  }
+
+  if (!submittedUrl || submittedUrl !== trimmedUrl) {
+    return null;
+  }
+
+  const fingerprint = getCreativeValidationFingerprint(creatives);
+  if (
+    urlValidation.creative_fingerprint
+    && fingerprint
+    && urlValidation.creative_fingerprint !== fingerprint
+  ) {
+    return null;
+  }
+
+  return urlValidation;
+}
+
 async function blobToBase64(blob) {
   if (!blob) return "";
   return new Promise((resolve, reject) => {

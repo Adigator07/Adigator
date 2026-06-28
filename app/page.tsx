@@ -22,7 +22,6 @@ import {
   Zap,
 } from "lucide-react";
 import {
-  MARKETING_CTA,
   MARKETING_DEMO_VIDEO,
   MARKETING_FOOTER_COLUMNS,
   MARKETING_PARTNER_BADGES,
@@ -227,7 +226,7 @@ export default function HomePage() {
 
   return (
     <div className="marketing-page min-h-screen scroll-smooth bg-[#F5F5F0] text-[#0D0D0D]">
-      <MarketingNav activePath="/" />
+      <MarketingNav activePath="/" showCta={false} />
 
       <main className="pt-28">
         {/* Hero */}
@@ -275,12 +274,6 @@ export default function HomePage() {
               transition={{ duration: 0.6, delay: 0.55 }}
               className="mt-8 flex flex-wrap gap-4"
             >
-              <Link
-                href={MARKETING_CTA.href}
-                className="marketing-btn-lime saas-hover rounded-full px-8 py-4 text-base font-bold"
-              >
-                {MARKETING_CTA.label}
-              </Link>
               <Link
                 href={MARKETING_DEMO_VIDEO.href}
                 className="marketing-btn-outline saas-hover rounded-full px-8 py-4 text-base font-semibold"
@@ -519,12 +512,6 @@ export default function HomePage() {
               <p className="text-2xl font-black leading-tight text-white sm:text-3xl">
                 Fewer escalations. Less rework. Faster approvals.
               </p>
-              <Link
-                href={MARKETING_CTA.href}
-                className="inline-flex items-center gap-2 rounded-full bg-[#C8F04D] px-6 py-3 text-sm font-bold text-[#0D0D0D] transition hover:brightness-105"
-              >
-                {MARKETING_CTA.label} →
-              </Link>
             </div>
           </div>
         </section>
@@ -606,12 +593,6 @@ export default function HomePage() {
             <p className="mt-4 max-w-xl text-base text-white/60">
               Validate every campaign before it reaches your audience.
             </p>
-            <Link
-              href={MARKETING_CTA.href}
-              className="saas-hover mt-8 rounded-full bg-[#C8F04D] px-9 py-4 text-base font-bold text-[#0D0D0D]"
-            >
-              {MARKETING_CTA.label}
-            </Link>
           </div>
         </section>
       </main>

@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Activity, AlertTriangle, BarChart3, CheckCircle, ExternalLink, Layers, Link2, Shield, Target, Wrench } from "lucide-react";
+import { Activity, AlertTriangle, BarChart3, CheckCircle, ExternalLink, FileText, Layers, Link2, Shield, Target, Wrench, Brain } from "lucide-react";
 import { qaItemIcon } from "@/app/lib/analyzerInsights";
 
 const PLATFORM_LABELS = {
@@ -89,6 +89,20 @@ export default function AnalyzerOverview({
             Update the brief and click <strong>Reanalyze</strong> to refresh results.
           </p>
         </section>
+      ) : (
+        <CampaignBriefOverviewSection
+          campaignBrief={campaignBrief}
+          briefValidation={overview.briefValidation}
+          platformLabel={platformLabel}
+        />
+      )}
+
+      {overview.verticalMismatchCount > 0 ? (
+        <VerticalCategoryMismatchSection
+          report={overview.verticalMismatchReport}
+          selectedVerticalLabel={verticalText}
+          totalCount={overview.totalCount}
+        />
       ) : null}
 
       {/* 2. Campaign Health Summary */}
@@ -450,6 +464,155 @@ function StatCard({ label, value, accent = "slate" }) {
       <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-600">{label}</p>
       <p className="mt-1 text-3xl font-black leading-none text-slate-900">{value}</p>
     </div>
+  );
+}
+
+function CampaignBriefOverviewSection({ campaignBrief, briefValidation, platformLabel }) {
+  const settings = briefValidation?.settings;
+  const sample = briefValidation?.sampleBriefAlignment;
+  const goalOk = settings?.goal_settings_check?.is_aligned;
+  const verticalOk = settings?.vertical_settings_check?.is_aligned;
+  const hasSettingsConflict = goalOk === false || verticalOk === false;
+  const hasCreativeConflict = (briefValidation?.briefMisalignedCount || 0) > 0
+    || sample?.creative_matches_brief === false
+    || sample?.alignment_status === "misaligned";
+
+  const tone = hasSettingsConflict || hasCreativeConflict ? RISK_TONES.red : RISK_TONES.emerald;
+
+  return (
+    <section className={`rounded-2xl border p-5 ${tone.border} ${tone.bg}`}>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <SectionHeader icon={FileText} label="Campaign Brief Validation" accent={hasSettingsConflict || hasCreativeConflict ? "text-red-700" : "text-emerald-700"} />
+        <span className={`rounded-full border px-3 py-1 text-xs font-bold uppercase tracking-wide ${tone.badge}`}>
+          {hasSettingsConflict || hasCreativeConflict ? "Review required" : "Brief active"}
+        </span>
+      </div>
+
+      <p className={`mt-3 text-sm leading-relaxed ${tone.text}`}>
+        {sample?.summary || "Your Campaign Brief is the primary validation source for creative and settings alignment across all analysis."}
+      </p>
+
+      <p className="mt-2 text-xs text-slate-700 line-clamp-3 italic border-l-2 border-slate-300 pl-3">
+        {campaignBrief.trim()}
+      </p>
+
+      <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3">
+        <BriefCheckCard
+          title="Goal vs Brief"
+          ok={goalOk}
+          explanation={settings?.goal_settings_check?.explanation}
+        />
+        <BriefCheckCard
+          title="Vertical vs Brief"
+          ok={verticalOk}
+          explanation={settings?.vertical_settings_check?.explanation}
+        />
+      </div>
+
+      {settings?.platform_requirements_check?.findings?.length ? (
+        <div className="mt-3 rounded-lg border border-slate-200 bg-white p-3">
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-600">{platformLabel} brief requirements</p>
+          <ul className="mt-1 text-sm text-slate-800 space-y-1">
+            {settings.platform_requirements_check.findings.map((item) => (
+              <li key={item}>• {item}</li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+
+      {hasCreativeConflict && sample?.recommendations?.length ? (
+        <ul className="mt-3 text-sm text-slate-800 space-y-1">
+          {sample.recommendations.slice(0, 3).map((item) => (
+            <li key={item} className="flex items-start gap-2">
+              <AlertTriangle size={14} className="text-amber-600 shrink-0 mt-0.5" />
+              {item}
+            </li>
+          ))}
+        </ul>
+      ) : null}
+    </section>
+  );
+}
+
+function BriefCheckCard({ title, ok, explanation }) {
+  const isFail = ok === false;
+  const isUnknown = ok === null || ok === undefined;
+  const cardTone = isFail
+    ? "border-red-200 bg-white"
+    : isUnknown
+      ? "border-amber-200 bg-white"
+      : "border-emerald-200 bg-white";
+
+  return (
+    <div className={`rounded-lg border p-3 ${cardTone}`}>
+      <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-600">{title}</p>
+      <p className={`mt-1 text-sm font-bold ${isFail ? "text-red-900" : isUnknown ? "text-amber-900" : "text-emerald-900"}`}>
+        {isFail ? "Mismatch" : isUnknown ? "Needs clarity" : "Aligned"}
+      </p>
+      {explanation ? <p className="mt-1 text-xs text-slate-700 leading-relaxed">{explanation}</p> : null}
+    </div>
+  );
+}
+
+function VerticalCategoryMismatchSection({ report = [], selectedVerticalLabel, totalCount }) {
+  const mismatches = report || [];
+  const previewLimit = 25;
+  const visible = mismatches.slice(0, previewLimit);
+  const hiddenCount = Math.max(0, mismatches.length - previewLimit);
+  const tone = RISK_TONES.red;
+
+  return (
+    <section className={`rounded-2xl border p-5 ${tone.border} ${tone.bg}`}>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <SectionHeader icon={Brain} label="Creative Category vs Vertical" accent="text-red-700" />
+        <span className={`rounded-full border px-3 py-1 text-xs font-bold uppercase tracking-wide ${tone.badge}`}>
+          {mismatches.length} of {totalCount} misaligned
+        </span>
+      </div>
+
+      <p className={`mt-3 text-sm leading-relaxed ${tone.text}`}>
+        These creatives do not match your selected vertical ({selectedVerticalLabel}). Each row shows the detected category and the vertical we recommend instead.
+      </p>
+
+      <div className="mt-4 overflow-x-auto rounded-xl border border-red-200 bg-white">
+        <table className="min-w-full text-left text-sm">
+          <thead className="border-b border-red-100 bg-red-50/60 text-[10px] font-semibold uppercase tracking-wider text-slate-600">
+            <tr>
+              <th className="px-3 py-2.5">Creative</th>
+              <th className="px-3 py-2.5">Detected category</th>
+              <th className="px-3 py-2.5">Suggested vertical</th>
+              <th className="px-3 py-2.5">Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {visible.map((row) => (
+              <tr key={row.id} className="border-b border-slate-100 last:border-0">
+                <td className="px-3 py-2.5 align-top">
+                  <p className="font-medium text-slate-900 break-words">{row.name}</p>
+                  {row.size ? <p className="text-xs text-slate-500">{row.size}</p> : null}
+                  {row.reason ? <p className="mt-1 text-xs text-slate-600 leading-snug">{row.reason}</p> : null}
+                </td>
+                <td className="px-3 py-2.5 align-top font-semibold text-red-800">{row.detectedCategory}</td>
+                <td className="px-3 py-2.5 align-top text-sky-900">{row.suggestedVertical}</td>
+                <td className="px-3 py-2.5 align-top text-base">{row.status?.emoji || "🔴"}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {hiddenCount > 0 ? (
+        <p className="mt-2 text-xs text-red-900">
+          + {hiddenCount} more misaligned creative{hiddenCount === 1 ? "" : "s"} not shown. Open each creative in the Creative tab for full details.
+        </p>
+      ) : null}
+
+      {mismatches[0]?.recommendation ? (
+        <p className="mt-3 rounded-lg border border-red-200 bg-white px-3 py-2 text-xs text-red-900">
+          {mismatches[0].recommendation}
+        </p>
+      ) : null}
+    </section>
   );
 }
 

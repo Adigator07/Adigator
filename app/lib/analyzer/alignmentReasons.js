@@ -156,3 +156,24 @@ export function buildEnrichedVerticalReasonForInsight(verticalAlignment, signals
     aiFeedback: verticalAlignment?.ai_vertical_feedback || verticalAlignment?.reason,
   });
 }
+
+export function buildBriefAlignmentReason(briefAlignment) {
+  const ba = briefAlignment || {};
+  if (!ba.brief_provided) {
+    return "Add a Campaign Brief in Step 1 to enable brief-first validation.";
+  }
+  if (ba.ai_brief_feedback && !isGenericAnalyzerText(ba.ai_brief_feedback)) {
+    return ba.ai_brief_feedback;
+  }
+  if (ba.summary && !isGenericAnalyzerText(ba.summary)) {
+    return ba.summary;
+  }
+  if (ba.creative_matches_brief === false && Array.isArray(ba.misaligned_elements) && ba.misaligned_elements.length > 0) {
+    const top = ba.misaligned_elements[0];
+    return `Brief mismatch on ${top.element}: expected "${top.brief_expectation}" but creative shows "${top.creative_reality}".`;
+  }
+  if (ba.goal_settings_check?.is_aligned === false && ba.goal_settings_check?.explanation) {
+    return ba.goal_settings_check.explanation;
+  }
+  return ba.summary || "Brief alignment requires review.";
+}

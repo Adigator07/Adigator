@@ -8,6 +8,7 @@ const STRATEGIST_CONTRACT_FIELDS = [
   "campaign_alignment",
   "goal_alignment",
   "vertical_alignment",
+  "brief_alignment",
   "business_impact",
   "adigator_analysis",
 ];
@@ -174,6 +175,50 @@ export function getVerticalAlignment(payload) {
   return { is_aligned: null, selected_vertical: null, detected_vertical: null, reason: "", evidence: [], fit_score: null };
 }
 
+export function getCreativeVerticalAlignment(payload) {
+  const cva = payload?.creative_vertical_alignment || payload?.vertical_alignment?.creative_vertical_alignment;
+  if (cva && typeof cva === "object") return cva;
+  return null;
+}
+
+export function getBriefAlignment(payload) {
+  const ba = payload?.brief_alignment;
+  if (ba && typeof ba === "object") return ba;
+  return {
+    brief_provided: false,
+    alignment_status: "not_evaluated",
+    alignment_score: null,
+    summary: "",
+    creative_matches_brief: null,
+    aligned_elements: [],
+    misaligned_elements: [],
+    missing_from_creative: [],
+    unexpected_in_creative: [],
+    goal_settings_check: { is_aligned: null, explanation: "" },
+    vertical_settings_check: { is_aligned: null, explanation: "" },
+    platform_requirements_check: { status: "not_evaluated", findings: [] },
+    ai_brief_feedback: "",
+    recommendations: [],
+  };
+}
+
+/** Resolve brief alignment into aligned / review / misaligned for UI. */
+export function resolveBriefAlignmentStatus(briefAlignment) {
+  const ba = briefAlignment || {};
+  const status = String(ba.alignment_status || "not_evaluated").toLowerCase();
+
+  if (!ba.brief_provided) {
+    return { key: "none", label: "No Brief", emoji: "⚪", tone: "slate" };
+  }
+  if (status === "aligned" && ba.creative_matches_brief !== false) {
+    return { key: "aligned", label: "Brief Aligned", emoji: "🟢", tone: "emerald" };
+  }
+  if (status === "misaligned" || ba.creative_matches_brief === false) {
+    return { key: "misaligned", label: "Brief Mismatch", emoji: "🔴", tone: "red" };
+  }
+  return { key: "review", label: "Brief Review", emoji: "🟡", tone: "amber" };
+}
+
 /** Resolve goal alignment into aligned / review / misaligned for UI. */
 export function resolveGoalAlignmentStatus(goalAlignment) {
   const ga = goalAlignment || {};
@@ -207,12 +252,20 @@ export function resolveVerticalAlignmentStatus(verticalAlignment) {
   const detected = va.detected_vertical;
   const fitScore = typeof va.fit_score === "number" ? va.fit_score : null;
   const detectedDiffers = detected && detected !== "unknown" && selected && detected !== selected;
+  const categoryDiffers = va.detected_category_id
+    && va.detected_category_id !== "unknown"
+    && selected
+    && va.detected_category_id !== selected;
+  const categoryMismatch = categoryDiffers || detectedDiffers;
 
   if (va.is_aligned === true) {
     return { key: "aligned", label: "Aligned", emoji: "🟢", tone: "emerald" };
   }
 
   if (va.is_aligned === false) {
+    if (categoryMismatch) {
+      return { key: "misaligned", label: "Misaligned", emoji: "🔴", tone: "red" };
+    }
     if (fitScore !== null && fitScore >= 55) {
       return { key: "review", label: "Needs Review", emoji: "🟡", tone: "amber" };
     }

@@ -84,6 +84,18 @@ export function writeStoredAnalysisResult(analysisResult) {
   localStorage.setItem(ANALYSIS_STORAGE_KEY, JSON.stringify(analysisResult));
 }
 
+/** True when stored analysis entries map 1:1 to the current creative ids. */
+export function analysisMatchesCreatives(analysisResult, creatives) {
+  if (!Array.isArray(analysisResult) || analysisResult.length === 0) return false;
+  if (!Array.isArray(creatives) || creatives.length === 0) return false;
+  if (analysisResult.length !== creatives.length) return false;
+
+  const creativeIds = new Set(creatives.map((creative) => creative.id));
+  return analysisResult.every(
+    (entry) => entry?.creative?.id && creativeIds.has(entry.creative.id),
+  );
+}
+
 /** Clear all persisted workflow and analysis state for a fresh session. */
 export function clearStoredWorkflow() {
   if (typeof window === "undefined") return;

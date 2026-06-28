@@ -12,9 +12,10 @@ import {
 
 type MarketingNavProps = {
   activePath?: string;
+  showCta?: boolean;
 };
 
-export default function MarketingNav({ activePath }: MarketingNavProps) {
+export default function MarketingNav({ activePath, showCta = true }: MarketingNavProps) {
   const pathname = usePathname();
   const currentPath = activePath || pathname;
   const [scrolled, setScrolled] = useState(false);
@@ -70,9 +71,11 @@ export default function MarketingNav({ activePath }: MarketingNavProps) {
           <Link href={MARKETING_SIGN_IN.href} className="marketing-btn-outline rounded-full px-4 py-2 text-xs font-semibold sm:px-5 sm:py-2.5 sm:text-sm">
             {MARKETING_SIGN_IN.label}
           </Link>
-          <Link href={MARKETING_CTA.href} className="marketing-btn-lime rounded-full px-5 py-2.5 text-xs font-semibold sm:px-6 sm:py-3 sm:text-sm">
-            {MARKETING_CTA.label}
-          </Link>
+          {showCta ? (
+            <Link href={MARKETING_CTA.href} className="marketing-btn-lime rounded-full px-5 py-2.5 text-xs font-semibold sm:px-6 sm:py-3 sm:text-sm">
+              {MARKETING_CTA.label}
+            </Link>
+          ) : null}
         </div>
 
         <button
@@ -105,9 +108,11 @@ export default function MarketingNav({ activePath }: MarketingNavProps) {
             <Link href={MARKETING_SIGN_IN.href} className="marketing-btn-outline rounded-full px-5 py-3 text-center text-sm font-semibold">
               {MARKETING_SIGN_IN.label}
             </Link>
-            <Link href={MARKETING_CTA.href} className="marketing-btn-lime rounded-full px-5 py-3 text-center text-sm font-semibold">
-              {MARKETING_CTA.label}
-            </Link>
+            {showCta ? (
+              <Link href={MARKETING_CTA.href} className="marketing-btn-lime rounded-full px-5 py-3 text-center text-sm font-semibold">
+                {MARKETING_CTA.label}
+              </Link>
+            ) : null}
           </div>
         </div>
       ) : null}
