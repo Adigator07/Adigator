@@ -8,14 +8,14 @@ type MarketingFooterProps = {
 
 export default function MarketingFooter({ description = MARKETING_FOOTER_DESCRIPTION }: MarketingFooterProps) {
   return (
-    <footer className="border-t border-[#DDDCD4] bg-[#F5F5F0] py-16">
-      <div className="mx-auto w-[min(1280px,92vw)]">
-        <div className="max-w-md">
+    <footer className="border-t border-[#DDDCD4] bg-[#F5F5F0] py-10 sm:py-12">
+      <div className="mx-auto flex w-[min(1280px,92vw)] flex-col gap-8 lg:flex-row lg:items-center lg:justify-between lg:gap-12">
+        <div className="max-w-md shrink-0">
           <p className="text-2xl font-black tracking-tight">Adigator</p>
-          <p className="mt-3 text-sm leading-relaxed text-[#66665F]">{description}</p>
+          <p className="mt-2 text-sm leading-relaxed text-[#66665F]">{description}</p>
         </div>
 
-        <div className="mt-10 flex flex-col gap-4 border-t border-[#DDDCD4] pt-6 text-sm sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-10 sm:gap-y-2">
+        <div className="flex flex-col gap-4 text-sm sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-8 sm:gap-y-2 lg:justify-end">
           <span className="text-[#66665F]">© 2026 Adigator</span>
           {MARKETING_FOOTER_LEGAL_LINKS.map((item) => (
             <Link
