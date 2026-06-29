@@ -140,7 +140,7 @@ const FEATURES = [
   {
     title: "Campaign Risk Score",
     description:
-      "Know your campaign's health before a single impression is served. Adigator surfaces every mismatch — creative, landing page, platform, and objective — in one report before launch.",
+      "Know your campaign's health before a single impression is served. Adigator surfaces every mismatch across creative, landing page, platform, and objective in one report before launch.",
   },
   {
     title: "Stop Escalations Before They Start",
@@ -206,8 +206,8 @@ export default function HomePage() {
                 transition={{ duration: 0.6, delay: 0.25 }}
                 className="mt-6 max-w-2xl text-lg leading-relaxed text-[#5A5A55] sm:text-xl"
               >
-                Adigator validates your campaign brief, display creatives, landing page, URLs, and platform requirements —
-                and tells you exactly what&apos;s misaligned before your campaign goes live.
+                Adigator validates your campaign brief, display creatives, landing page, URLs, and platform
+                requirements, then shows you exactly what&apos;s misaligned before your campaign goes live.
               </motion.p>
 
               <motion.div
@@ -301,7 +301,7 @@ export default function HomePage() {
           </div>
 
           <p className="mt-8 text-center text-xl font-black tracking-tight sm:text-2xl">
-            Adigator validates every layer before a single rupee of media is spent.
+            Stop wasting media budget on preventable mistakes.
           </p>
         </section>
 

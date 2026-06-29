@@ -152,7 +152,7 @@ export default function AboutPage() {
           <p className="mx-auto mt-7 max-w-3xl text-center text-lg leading-relaxed text-[#5C5C56] sm:text-xl">
             Campaigns move from client briefs to campaign setup through multiple teams, platforms, and tools.
             Adigator validates campaign intent, creatives, landing pages, URLs, platform requirements, and technical
-            readiness before setup—helping teams reduce errors, prevent budget waste, and launch campaigns with
+            readiness before setup, helping teams reduce errors, prevent budget waste, and launch campaigns with
             confidence.
           </p>
 
@@ -378,7 +378,7 @@ export default function AboutPage() {
               ))}
             </div>
             <p className="mx-auto mt-10 max-w-2xl text-center text-lg font-semibold text-[#D4D4D4]">
-              Adigator is where all of these parts are validated together — before launch.
+              Adigator is where all of these parts are validated together before launch.
             </p>
           </div>
         </section>

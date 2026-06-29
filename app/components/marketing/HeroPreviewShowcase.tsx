@@ -16,7 +16,7 @@ export default function HeroPreviewShowcase({ className = "" }: { className?: st
             See your creative before it goes live
           </h2>
           <p className="mt-1 text-sm leading-relaxed text-[#5B5B55]">
-            Don&apos;t guess how your ads will look — preview placements before you spend.
+            Preview placements before you spend instead of guessing how your ads will look.
           </p>
           <p className="mt-2 text-xs text-[#8A8A82]">
             {PLATFORMS.join(" · ")} · Feed · Story · Display

@@ -27,8 +27,8 @@ const IllustrationWrapper = dynamic(
   () => import("@/app/components/illustrations/IllustrationWrapper"),
   { loading: () => <IllustrationSkeleton /> },
 );
-const ValidationLayerDiagram = dynamic(
-  () => import("@/app/components/marketing/ValidationLayerDiagram"),
+const CampaignValidationCheckpoint = dynamic(
+  () => import("@/app/components/marketing/CampaignValidationCheckpoint"),
   { ssr: false },
 );
 const CampaignJourneyFlow = dynamic(
@@ -191,8 +191,8 @@ export default function SolutionsPage() {
             Every Campaign Has the Same Problem. Nobody Validates Before Launch.
           </h1>
           <p className="mx-auto mt-7 max-w-2xl text-lg leading-relaxed text-[#5C5C56]">
-            Adigator gives agencies and AdOps teams one validation pass — campaign brief, creatives, landing page, URLs,
-            and platform requirements — before campaign setup begins.
+            Adigator gives agencies and AdOps teams one validation pass over the campaign brief, creatives, landing
+            page, URLs, and platform requirements before campaign setup begins.
           </p>
           <div className="mt-10 flex justify-center">
             <Link
@@ -233,8 +233,8 @@ export default function SolutionsPage() {
             <div>
               <h2 className="text-2xl font-black tracking-tight text-white sm:text-3xl">Campaign Risk Score</h2>
               <p className="mt-4 text-base leading-relaxed text-[#A3A3A3]">
-                Every mismatch between your creative, landing page, and campaign objective is surfaced before launch —
-                not after complaints.
+                Every mismatch between your creative, landing page, and campaign objective is surfaced before launch, not
+                after complaints.
               </p>
               <IllustrationWrapper
                 src={STORYSET_ILLUSTRATIONS.searchAmico}
@@ -345,11 +345,8 @@ export default function SolutionsPage() {
           </div>
         </section>
 
-        {/* Why Teams Need This */}
-        <ValidationLayerDiagram
-          title="Everyone assumes someone else validated the campaign."
-          gapLabel="No validation"
-        />
+        {/* Campaign validation checkpoint */}
+        <CampaignValidationCheckpoint />
 
         {/* Industry / Who it's for */}
         <section id="industry" className="bg-[#0D0D0D] py-10 text-white sm:py-12 md:py-14">
