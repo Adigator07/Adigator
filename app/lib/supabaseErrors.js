@@ -29,7 +29,6 @@ export function getSupabaseErrorMessage(error) {
 
 const SCHEMA_UNAVAILABLE_PATTERNS = [
   "could not find the table",
-  "schema cache",
   "pgrst205",
   "relation",
   "does not exist",
@@ -37,5 +36,12 @@ const SCHEMA_UNAVAILABLE_PATTERNS = [
 
 export function isSchemaUnavailableError(error) {
   const message = getSupabaseErrorMessage(error).toLowerCase();
+  // PostgREST reports missing columns via "schema cache" too — not a missing table.
+  if (message.includes("column") && message.includes("schema cache")) {
+    return false;
+  }
+  if (message.includes("schema cache") && !message.includes("column")) {
+    return true;
+  }
   return SCHEMA_UNAVAILABLE_PATTERNS.some((pattern) => message.includes(pattern));
 }

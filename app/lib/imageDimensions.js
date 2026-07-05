@@ -210,9 +210,9 @@ function readJpegDimensions(bytes) {
       orientation = readExifOrientation(bytes, segmentStart, segmentLength - 2);
     }
 
-    if (isJpegSofMarker(marker) && segmentStart + 7 < segmentEnd) {
-      const segmentHeight = readUint16BE(bytes, segmentStart + 3);
-      const segmentWidth = readUint16BE(bytes, segmentStart + 5);
+    if (isJpegSofMarker(marker) && segmentStart + 5 <= segmentEnd) {
+      const segmentHeight = readUint16BE(bytes, segmentStart + 1);
+      const segmentWidth = readUint16BE(bytes, segmentStart + 3);
       if (segmentWidth > 0 && segmentHeight > 0) {
         sofCandidates.push({ width: segmentWidth, height: segmentHeight });
       }
@@ -243,6 +243,52 @@ function readJpegDimensions(bytes) {
   };
 }
 
+export function dimensionsWithinTolerance(
+  widthA,
+  heightA,
+  widthB,
+  heightB,
+  tolerance = SIZE_TOLERANCE_PX,
+) {
+  const direct = Math.abs(widthA - widthB) <= tolerance && Math.abs(heightA - heightB) <= tolerance;
+  const swapped = Math.abs(widthA - heightB) <= tolerance && Math.abs(heightA - widthB) <= tolerance;
+  return direct || swapped;
+}
+
+/** Keep upload-time dimensions when a later blob re-read disagrees materially. */
+export function preferTrustedCreativeDimensions(detected, persisted, fileName = "") {
+  if (!persisted?.width || !persisted?.height) return detected;
+  if (!detected?.width || !detected?.height) {
+    return buildDimensionResult(persisted.width, persisted.height, { source: "persisted" });
+  }
+
+  if (dimensionsWithinTolerance(
+    detected.width,
+    detected.height,
+    persisted.width,
+    persisted.height,
+  )) {
+    return buildDimensionResult(persisted.width, persisted.height, {
+      source: detected.source || "persisted_confirmed",
+      format: detected.format,
+    });
+  }
+
+  const fromName = extractExpectedSizeFromFilename(fileName);
+  if (
+    fromName
+    && dimensionsWithinTolerance(fromName.width, fromName.height, persisted.width, persisted.height)
+  ) {
+    return buildDimensionResult(persisted.width, persisted.height, {
+      source: "persisted_trusted",
+      format: detected.format,
+      reconciledFrom: `${detected.width}x${detected.height}`,
+    });
+  }
+
+  return detected;
+}
+
 /**
  * Read width/height from encoded image bytes without decoding or transforming pixels.
  */
@@ -267,6 +313,31 @@ function buildDimensionResult(width, height, extra = {}) {
     normalized: false,
     ...extra,
   };
+}
+
+export function isPlausibleCreativeDimension(width, height) {
+  if (!width || !height) return false;
+  if (width < 50 || height < 50) return false;
+  if (width > 8192 || height > 8192) return false;
+  const ratio = width / height;
+  return ratio <= 20 && ratio >= 1 / 20;
+}
+
+async function resolveDimensionsWithBitmapFallback(blob, fileName, headerResult) {
+  if (headerResult && isPlausibleCreativeDimension(headerResult.width, headerResult.height)) {
+    return reconcileDimensionsWithFilename(fileName, headerResult);
+  }
+
+  if (blob.size > 20 * 1024 * 1024) {
+    return headerResult ? reconcileDimensionsWithFilename(fileName, headerResult) : null;
+  }
+
+  const fromBitmap = await readImageDimensionsViaBitmap(blob);
+  if (fromBitmap?.width && fromBitmap?.height) {
+    return reconcileDimensionsWithFilename(fileName, fromBitmap);
+  }
+
+  return headerResult ? reconcileDimensionsWithFilename(fileName, headerResult) : null;
 }
 
 async function readImageDimensionsViaBitmap(blob) {
@@ -382,28 +453,30 @@ export async function readImageDimensionsFromBlob(blob, options = {}) {
     const buffer = await blob.slice(0, headerBytes).arrayBuffer();
     const fromHeader = readImageDimensionsFromBuffer(buffer);
     if (fromHeader?.width && fromHeader?.height) {
-      const reconciled = reconcileDimensionsWithFilename(fileName, buildDimensionResult(fromHeader.width, fromHeader.height, {
+      const headerResult = buildDimensionResult(fromHeader.width, fromHeader.height, {
         source: "file_metadata",
         format: fromHeader.format,
         exifOrientation: fromHeader.exifOrientation,
         storedWidth: fromHeader.storedWidth,
         storedHeight: fromHeader.storedHeight,
-      }));
-      return reconciled;
+      });
+      const resolved = await resolveDimensionsWithBitmapFallback(blob, fileName, headerResult);
+      if (resolved) return resolved;
     }
 
     if (blob.size > headerBytes) {
       const fullBuffer = await blob.arrayBuffer();
       const fromFullFile = readImageDimensionsFromBuffer(fullBuffer);
       if (fromFullFile?.width && fromFullFile?.height) {
-        const reconciled = reconcileDimensionsWithFilename(fileName, buildDimensionResult(fromFullFile.width, fromFullFile.height, {
+        const headerResult = buildDimensionResult(fromFullFile.width, fromFullFile.height, {
           source: "file_metadata",
           format: fromFullFile.format,
           exifOrientation: fromFullFile.exifOrientation,
           storedWidth: fromFullFile.storedWidth,
           storedHeight: fromFullFile.storedHeight,
-        }));
-        return reconciled;
+        });
+        const resolved = await resolveDimensionsWithBitmapFallback(blob, fileName, headerResult);
+        if (resolved) return resolved;
       }
     }
   } catch {

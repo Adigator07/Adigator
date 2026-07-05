@@ -111,6 +111,41 @@ const CATEGORY_HINTS: Record<string, string[]> = {
 
 const KNOWN_CATEGORY_IDS = new Set(Object.keys(CATEGORY_HINTS));
 
+/** Categories that are close enough to count as aligned with the selected vertical. */
+const RELATED_VERTICALS: Record<string, string[]> = {
+  consumer_products: ["ecommerce", "fashion"],
+  ecommerce: ["consumer_products", "fashion"],
+  fashion: ["ecommerce", "consumer_products", "luxury"],
+  food: ["hotels", "travel"],
+  hotels: ["food", "travel"],
+  travel: ["hotels"],
+  fitness: ["sports", "healthcare"],
+  finance: ["banking", "technology"],
+  banking: ["finance", "technology"],
+  technology: ["education", "finance"],
+  entertainment: ["gaming"],
+  gaming: ["entertainment", "technology"],
+  sports: ["fitness"],
+};
+
+function areRelatedVerticals(left: string, right: string): boolean {
+  if (!left || !right || left === right) return left === right;
+  return RELATED_VERTICALS[left]?.includes(right) || RELATED_VERTICALS[right]?.includes(left) || false;
+}
+
+function categoriesAlignWithSelected(
+  selectedVertical: string,
+  detected: CreativeCategoryDetection,
+  suggestedVertical: string,
+  aiInferredVertical?: string | null,
+): boolean {
+  if (detected.id === selectedVertical) return true;
+  if (suggestedVertical === selectedVertical) return true;
+  if (aiInferredVertical && aiInferredVertical === selectedVertical) return true;
+  if (areRelatedVerticals(detected.id, selectedVertical)) return true;
+  return false;
+}
+
 export interface ExtractionSignalsLike {
   headline?: string;
   primary_message?: string;
@@ -234,6 +269,20 @@ function formatVerticalName(id: string): string {
     || id.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
+/** Map a stored product category label back to a category id. */
+export function categoryIdFromLabel(label?: string | null): CreativeCategoryId | null {
+  if (!label?.trim()) return null;
+  const normalized = label.trim().toLowerCase();
+  for (const [id, categoryLabel] of Object.entries(CREATIVE_CATEGORY_LABELS)) {
+    if (id === "unknown") continue;
+    const labelLower = categoryLabel.toLowerCase();
+    if (labelLower === normalized || normalized.includes(labelLower) || labelLower.includes(normalized)) {
+      return id as CreativeCategoryId;
+    }
+  }
+  return null;
+}
+
 function buildMismatchReason(
   selectedVertical: string,
   detected: CreativeCategoryDetection,
@@ -276,6 +325,9 @@ export function evaluateCreativeVerticalAlignment(params: {
   aiVerticalFeedback?: string | null;
   aiVerticalMatch?: boolean | null;
   aiExplicitVerticalMatch?: boolean | null;
+  storedDetectedCategoryId?: string | null;
+  storedProductCategoryLabel?: string | null;
+  storedIsAligned?: boolean | null;
 }): CreativeVerticalAlignment {
   const {
     selectedVertical,
@@ -285,21 +337,47 @@ export function evaluateCreativeVerticalAlignment(params: {
     aiVerticalFeedback,
     aiVerticalMatch,
     aiExplicitVerticalMatch,
+    storedDetectedCategoryId,
+    storedProductCategoryLabel,
+    storedIsAligned,
   } = params;
 
-  const detected = detectCreativeCategoryUnbiased(extraction, aiInferredVertical, aiCreativeCategory);
+  const storedCategoryId = storedDetectedCategoryId && storedDetectedCategoryId !== "unknown"
+    ? storedDetectedCategoryId
+    : categoryIdFromLabel(storedProductCategoryLabel || aiCreativeCategory);
+
+  const inferredVertical = aiInferredVertical
+    || storedCategoryId
+    || categoryIdFromLabel(aiCreativeCategory);
+
+  const detected = detectCreativeCategoryUnbiased(extraction, inferredVertical, aiCreativeCategory);
+  const resolvedDetected = storedCategoryId
+    && storedCategoryId !== "unknown"
+    && (detected.id === "unknown" || detected.confidence === "low")
+    ? {
+        ...detected,
+        id: storedCategoryId as CreativeCategoryId,
+        label: CREATIVE_CATEGORY_LABELS[storedCategoryId as CreativeCategoryId] || detected.label,
+      }
+    : detected;
   const { fullCorpus } = buildCorpus(extraction);
   const fitScore = scoreSelectedVerticalFit(selectedVertical, fullCorpus);
-  const suggestedVertical = CATEGORY_TO_SUGGESTED_VERTICAL[detected.id] || detected.id;
+  const suggestedVertical = CATEGORY_TO_SUGGESTED_VERTICAL[resolvedDetected.id] || resolvedDetected.id;
   const suggestedVerticalLabel = formatVerticalName(suggestedVertical);
 
   let isAligned = false;
   let alignmentStatus: CreativeVerticalAlignment["alignment_status"] = "unknown";
 
-  if (detected.id === selectedVertical) {
+  if (aiExplicitVerticalMatch === false || aiVerticalMatch === false) {
+    isAligned = false;
+    alignmentStatus = "misaligned";
+  } else if (categoriesAlignWithSelected(selectedVertical, resolvedDetected, suggestedVertical, inferredVertical)) {
     isAligned = true;
     alignmentStatus = "aligned";
-  } else if (detected.id === "unknown") {
+  } else if (aiVerticalMatch === true || storedIsAligned === true) {
+    isAligned = true;
+    alignmentStatus = "aligned";
+  } else if (resolvedDetected.id === "unknown") {
     if (fitScore >= 65) {
       isAligned = true;
       alignmentStatus = "aligned";
@@ -310,23 +388,22 @@ export function evaluateCreativeVerticalAlignment(params: {
       isAligned = false;
       alignmentStatus = "misaligned";
     }
+  } else if (areRelatedVerticals(resolvedDetected.id, selectedVertical) && fitScore >= 45) {
+    isAligned = true;
+    alignmentStatus = "aligned";
   } else {
-    // Different category detected — strict mismatch unless AI explicitly confirms vertical match with high fit
-    const aiConfirmsSelected = aiVerticalMatch === true && aiExplicitVerticalMatch !== false && fitScore >= 70;
-    isAligned = aiConfirmsSelected;
-    alignmentStatus = aiConfirmsSelected ? "partially_aligned" : "misaligned";
-  }
-
-  if (aiExplicitVerticalMatch === false || aiVerticalMatch === false) {
     isAligned = false;
     alignmentStatus = "misaligned";
   }
 
-  // Consumer products vs fashion is always a mismatch
+  // Fashion vs consumer goods only when keyword signals strongly disagree and AI did not confirm.
   if (
-    selectedVertical === "fashion"
-    && (detected.id === "consumer_products" || detected.id === "ecommerce")
-    && detected.confidence !== "low"
+    !isAligned
+    && selectedVertical === "fashion"
+    && (resolvedDetected.id === "consumer_products" || resolvedDetected.id === "ecommerce")
+    && resolvedDetected.confidence !== "low"
+    && aiVerticalMatch !== true
+    && storedIsAligned !== true
   ) {
     const { textCorpus, visualCorpus } = buildCorpus(extraction);
     const fashionScore = scoreCategoryKeywords(CATEGORY_HINTS.fashion, textCorpus, visualCorpus, 0);
@@ -336,24 +413,27 @@ export function evaluateCreativeVerticalAlignment(params: {
     }
   }
 
-  const mismatchReason = aiVerticalFeedback && !/largely consistent|no major/i.test(aiVerticalFeedback)
-    ? aiVerticalFeedback
-    : buildMismatchReason(selectedVertical, detected, suggestedVertical);
+  const positiveReason = buildMismatchReason(selectedVertical, resolvedDetected, suggestedVertical);
+  const mismatchReason = isAligned
+    ? positiveReason
+    : (aiVerticalFeedback && !/largely consistent|no major|consistent with/i.test(aiVerticalFeedback)
+      ? aiVerticalFeedback
+      : positiveReason);
 
   return {
     selected_vertical: selectedVertical,
-    detected_category_id: detected.id,
-    detected_category_label: detected.label,
+    detected_category_id: resolvedDetected.id,
+    detected_category_label: resolvedDetected.label,
     detected_vertical: suggestedVertical,
     suggested_vertical: suggestedVertical,
     suggested_vertical_label: suggestedVerticalLabel,
     is_aligned: isAligned === true,
     alignment_status: alignmentStatus,
-    confidence: detected.confidence,
+    confidence: resolvedDetected.confidence,
     fit_score: fitScore,
-    evidence: detected.evidence,
+    evidence: resolvedDetected.evidence,
     mismatch_reason: mismatchReason,
-    recommendation: buildRecommendation(isAligned === true, selectedVertical, detected, suggestedVertical),
+    recommendation: buildRecommendation(isAligned === true, selectedVertical, resolvedDetected, suggestedVertical),
     ai_category_feedback: aiVerticalFeedback || undefined,
   };
 }

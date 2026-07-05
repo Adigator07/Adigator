@@ -186,6 +186,7 @@ export interface PreviewEngineOutput {
 
 export interface PreviewEngineInput {
   vertical: string;
+  campaignVertical?: string;
   goal:
     | "awareness"
     | "traffic"
@@ -196,13 +197,21 @@ export interface PreviewEngineInput {
     | "video_views"
     | "retargeting"
     | "consideration";
-  preferredEnvironment?: EnvironmentFamily;
+  preferredEnvironment?: EnvironmentFamily | string;
+  templateId?: string;
   device?: DeviceType;
   creativeSize?: string;
   creativeType?: string;
+  creativeId?: string;
   analyzerOutput?: Record<string, unknown>;
   ctaText?: string;
   headline?: string;
   logoPresent?: boolean;
   riskFlags?: string[];
+  campaignBrief?: string;
+  campaignIntent?: string;
+  advertiserName?: string;
+  brandName?: string;
+  campaignName?: string;
+  campaignProductFocus?: string;
 }

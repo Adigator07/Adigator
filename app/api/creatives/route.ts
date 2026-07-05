@@ -19,6 +19,34 @@ function json(
   return NextResponse.json({ success, data, error, ...extras }, { status });
 }
 
+function isMissingColumnError(message: string, column: string): boolean {
+  const normalized = message.toLowerCase();
+  return normalized.includes(column.toLowerCase()) && normalized.includes("column");
+}
+
+async function upsertCreativeRow(
+  supabase: ReturnType<typeof createWritableSupabaseClient>,
+  row: Record<string, unknown>,
+  existingId: string | null,
+  userId: string,
+) {
+  if (existingId) {
+    return supabase
+      .from("creatives")
+      .update(row)
+      .eq("id", existingId)
+      .eq("user_id", userId)
+      .select("*")
+      .single();
+  }
+
+  return supabase
+    .from("creatives")
+    .insert(row)
+    .select("*")
+    .single();
+}
+
 export async function POST(request: NextRequest) {
   try {
     const token = getAccessTokenFromRequest(request);
@@ -52,30 +80,25 @@ export async function POST(request: NextRequest) {
       ...(isValid !== null ? { is_valid: isValid } : {}),
     };
 
-    if (existingId) {
-      const { data, error } = await supabase
-        .from("creatives")
-        .update(row)
-        .eq("id", existingId)
-        .eq("user_id", user.id)
-        .select("*")
-        .single();
+    let { data, error } = await upsertCreativeRow(supabase, row, existingId, user.id);
 
-      if (error) {
-        if (isSchemaUnavailableError(error)) {
-          return json(false, null, error.message, 503, { skipped: true, schemaUnavailable: true });
-        }
-        return json(false, null, error.message, 400);
-      }
-
-      return json(true, data, null, 200);
+    if (
+      error
+      && (
+        isMissingColumnError(error.message, "ad_size")
+        || isMissingColumnError(error.message, "validation_status")
+        || isMissingColumnError(error.message, "is_valid")
+      )
+    ) {
+      const fallbackRow = {
+        user_id: user.id,
+        creative_name: creativeName,
+        creative_type: creativeType,
+        file_url: fileUrl,
+        uploaded_at: row.uploaded_at,
+      };
+      ({ data, error } = await upsertCreativeRow(supabase, fallbackRow, existingId, user.id));
     }
-
-    const { data, error } = await supabase
-      .from("creatives")
-      .insert(row)
-      .select("*")
-      .single();
 
     if (error) {
       if (isSchemaUnavailableError(error)) {
@@ -84,7 +107,7 @@ export async function POST(request: NextRequest) {
       return json(false, null, error.message, 400);
     }
 
-    return json(true, data, null, 201);
+    return json(true, data, null, existingId ? 200 : 201);
   } catch (err) {
     const message = err instanceof Error ? err.message : "Failed to save creative";
     if (isSchemaUnavailableError(message)) {

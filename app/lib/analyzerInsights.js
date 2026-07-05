@@ -30,7 +30,10 @@ import {
 } from "./campaignProductFocus.js";
 import {
   evaluateBriefSettingsAlignment,
+  buildBriefIntentSummary,
+  buildCampaignIntentFromBrief,
 } from "./campaignBriefValidation";
+import { computeCampaignAlignmentReport } from "./campaignAlignmentValidation";
 import { evaluateCreativeVerticalAlignment } from "./creativeVerticalValidation";
 import {
   getEntryPayload,
@@ -41,7 +44,10 @@ import {
   getCampaignAlignment,
   getBriefAlignment,
   resolveBriefAlignmentStatus,
+  resolveVerticalAlignmentStatus,
+  getVerticalAlignmentDisplay,
   getCreativeVerticalAlignment,
+  getAdigatorAnalysis,
 } from "./strategicPresentation";
 
 export const LAUNCH_STATUS = {
@@ -120,8 +126,13 @@ function isNativeCreativeSize(size, platform) {
   return false;
 }
 
+function isVerticalMisaligned(vertical) {
+  return resolveVerticalAlignmentStatus(vertical).key === "misaligned";
+}
+
 function isStrategicallyAligned(goal, vertical) {
-  return goal?.is_aligned === true && vertical?.is_aligned === true;
+  if (goal?.is_aligned === false) return false;
+  return resolveVerticalAlignmentStatus(vertical).key === "aligned";
 }
 
 /** High-severity upload issues that should block launch. not weight warnings on native assets. */
@@ -254,7 +265,7 @@ function deriveMetaMainRisk(creative, payload, campaignVertical) {
   const feedNative = isMetaFeedNativeSize(size);
   const primaryKeys = getPrimaryPlacementKeys("meta_ads", creative);
 
-  if (vertical?.is_aligned === false) {
+  if (isVerticalMisaligned(vertical)) {
     return `Vertical bleed. creative reads as ${vertical.detected_vertical || "another category"}, not ${campaignVertical || vertical.selected_vertical}. Meta's interest targeting may deliver to the wrong audience cluster.`;
   }
 
@@ -306,7 +317,7 @@ function deriveGoogleMainRisk(creative, payload, campaignVertical) {
   const googleEval = payload?.ai_analysis?.google_ads_dynamic_eval;
   const dims = parseSize(size);
 
-  if (vertical?.is_aligned === false) {
+  if (isVerticalMisaligned(vertical)) {
     return `Vertical mismatch. creative cues read as ${vertical.detected_vertical || "another industry"}, not ${campaignVertical || vertical.selected_vertical}. Google audience signals may misalign with keyword/theme targeting.`;
   }
 
@@ -361,7 +372,7 @@ function deriveProgrammaticMainRisk(creative, payload, campaignVertical) {
   const enterpriseQa = payload?.enterprise_qa;
   const intel = creative?.validation?.intelligence;
 
-  if (vertical?.is_aligned === false) {
+  if (isVerticalMisaligned(vertical)) {
     return `Publisher-context mismatch. creative reads ${vertical.detected_vertical || "off-category"} vs ${campaignVertical || vertical.selected_vertical}. Contextual and vertical PMP deals may under-deliver.`;
   }
 
@@ -407,7 +418,115 @@ function deriveProgrammaticMainRisk(creative, payload, campaignVertical) {
   return null;
 }
 
+function uniqueStrings(items) {
+  const seen = new Set();
+  return items.filter((item) => {
+    const text = String(item || "").trim();
+    if (!text) return false;
+    const key = text.toLowerCase();
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+function deriveCreativeRiskAssessment(creative, payload, platform) {
+  const adigator = getAdigatorAnalysis(payload) || {};
+  const recs = getValidatedRecommendations(payload);
+  const technicalQa = deriveTechnicalQa(creative, payload, platform);
+  const placementQa = derivePlacementQa(creative, payload, platform);
+
+  const criticalIssues = [];
+  const complianceConcerns = [];
+  const creativeWeaknesses = [];
+  const optimizationRecommendations = [];
+
+  if (Array.isArray(adigator.technical_risks)) {
+    adigator.technical_risks.forEach((risk) => {
+      const text = String(risk || "").trim();
+      if (text) criticalIssues.push(text);
+    });
+  }
+
+  if (adigator.main_risk && !isGenericPositiveMessage(adigator.main_risk)) {
+    creativeWeaknesses.push(adigator.main_risk);
+  }
+
+  const launchReadiness = adigator.launch_readiness;
+  if (launchReadiness?.reason) {
+    if (launchReadiness.status === "Do Not Launch") {
+      criticalIssues.push(launchReadiness.reason);
+    } else if (launchReadiness.status === "Launch with Fixes") {
+      creativeWeaknesses.push(launchReadiness.reason);
+    }
+  }
+
+  if (Array.isArray(adigator.placement_compatibility)) {
+    adigator.placement_compatibility.forEach((entry) => {
+      if (!entry || (entry.status !== "Risk" && entry.status !== "Caution")) return;
+      complianceConcerns.push(`${entry.placement}: ${entry.reason || entry.status}`);
+    });
+  }
+
+  recs.forEach((rec) => {
+    if (rec?.issue) {
+      const issueText = rec.reasoning ? `${rec.issue} — ${rec.reasoning}` : rec.issue;
+      if (rec.priority === "HIGH") criticalIssues.push(issueText);
+      else creativeWeaknesses.push(issueText);
+    }
+    if (rec?.recommended_change) optimizationRecommendations.push(rec.recommended_change);
+  });
+
+  if (Array.isArray(adigator.recommended_fixes)) {
+    adigator.recommended_fixes.forEach((fix) => {
+      const text = String(fix || "").trim();
+      if (text) optimizationRecommendations.push(text);
+    });
+  }
+
+  technicalQa.filter((item) => item.status === "fail").forEach((item) => {
+    criticalIssues.push(item.text);
+  });
+  technicalQa.filter((item) => item.status === "warn").forEach((item) => {
+    complianceConcerns.push(item.text);
+  });
+  placementQa.filter((item) => item.status === "fail").forEach((item) => {
+    complianceConcerns.push(item.text);
+  });
+  placementQa.filter((item) => item.status === "warn").forEach((item) => {
+    creativeWeaknesses.push(item.text);
+  });
+
+  const contextual = payload?.contextual_reasoning;
+  if (contextual && typeof contextual === "object") {
+    if (contextual.primary_friction) creativeWeaknesses.push(String(contextual.primary_friction));
+    if (contextual.message_gap) creativeWeaknesses.push(String(contextual.message_gap));
+    if (contextual.audience_mismatch) creativeWeaknesses.push(String(contextual.audience_mismatch));
+  }
+
+  const understanding = payload?.creative_understanding;
+  if (understanding && typeof understanding === "object") {
+    if (understanding.primary_weakness) creativeWeaknesses.push(String(understanding.primary_weakness));
+    if (understanding.compliance_flag) complianceConcerns.push(String(understanding.compliance_flag));
+  }
+
+  return {
+    criticalIssues: uniqueStrings(criticalIssues).slice(0, 5),
+    complianceConcerns: uniqueStrings(complianceConcerns).slice(0, 5),
+    creativeWeaknesses: uniqueStrings(creativeWeaknesses).slice(0, 5),
+    optimizationRecommendations: uniqueStrings(optimizationRecommendations).slice(0, 5),
+    launchReadiness: launchReadiness || null,
+  };
+}
+
 function deriveMainRisk(creative, payload, platform, campaignVertical) {
+  const adigator = getAdigatorAnalysis(payload);
+  if (adigator?.main_risk && !isGenericPositiveMessage(adigator.main_risk)) {
+    return adigator.main_risk;
+  }
+  const assessment = deriveCreativeRiskAssessment(creative, payload, platform);
+  if (assessment.criticalIssues[0]) return assessment.criticalIssues[0];
+  if (assessment.creativeWeaknesses[0]) return assessment.creativeWeaknesses[0];
   if (platform === "meta_ads") return deriveMetaMainRisk(creative, payload, campaignVertical);
   if (platform === "google_ads") return deriveGoogleMainRisk(creative, payload, campaignVertical);
   if (platform === "programmatic") return deriveProgrammaticMainRisk(creative, payload, campaignVertical);
@@ -416,7 +535,7 @@ function deriveMainRisk(creative, payload, platform, campaignVertical) {
   const signals = getExtractionSignals(payload) || {};
   const risks = [];
 
-  if (vertical?.is_aligned === false) {
+  if (isVerticalMisaligned(vertical)) {
     risks.push(`Vertical mismatch. reads as ${vertical.detected_vertical || "another category"} vs selected ${campaignVertical || vertical.selected_vertical}`);
   }
   if (goal?.is_aligned === false) {
@@ -435,6 +554,11 @@ function deriveMainRisk(creative, payload, platform, campaignVertical) {
 }
 
 function deriveRecommendedFix(creative, payload, platform) {
+  const adigator = getAdigatorAnalysis(payload);
+  if (Array.isArray(adigator?.recommended_fixes) && adigator.recommended_fixes[0]) {
+    return adigator.recommended_fixes[0];
+  }
+
   const recs = getValidatedRecommendations(payload);
   if (recs[0]?.recommended_change) return recs[0].recommended_change;
 
@@ -489,7 +613,7 @@ function deriveRecommendedFix(creative, payload, platform) {
   }
 
   const vertical = getVerticalAlignment(payload);
-  if (vertical?.is_aligned === false) {
+  if (isVerticalMisaligned(vertical)) {
     return `Reframe visuals and copy toward ${vertical.selected_vertical || "the selected vertical"} cues before launch.`;
   }
 
@@ -507,9 +631,8 @@ function deriveLaunchStatus(creative, payload, platform, verticalOverride = null
   const strategicallyAligned = isStrategicallyAligned(goal, vertical);
 
   if (hasLaunchBlockingValidation(creative, platform)) return "misaligned";
-  const creativeVertical = getCreativeVerticalAlignment(payload);
-  if (goal?.is_aligned === false || vertical?.is_aligned === false) return "misaligned";
-  if (creativeVertical?.is_aligned === false) return "misaligned";
+  const verticalStatus = resolveVerticalAlignmentStatus(verticalOverride || vertical);
+  if (goal?.is_aligned === false || verticalStatus.key === "misaligned") return "misaligned";
   if (brief?.brief_provided && brief?.creative_matches_brief === false) return "misaligned";
   if (brief?.brief_provided && brief?.alignment_status === "misaligned") return "misaligned";
   if (brief?.brief_provided && brief?.goal_settings_check?.is_aligned === false) return "misaligned";
@@ -562,7 +685,7 @@ function deriveLaunchStatus(creative, payload, platform, verticalOverride = null
     return "ready";
   }
 
-  if (goal?.is_aligned !== false && vertical?.is_aligned !== false && !primaryBad) {
+  if (goal?.is_aligned !== false && resolveVerticalAlignmentStatus(verticalOverride || vertical).key !== "misaligned" && !primaryBad) {
     return "ready";
   }
 
@@ -591,14 +714,37 @@ export function computeCreativeInsight(
   );
 
   let creativeVerticalAlignment = getCreativeVerticalAlignment(payload);
-  if (!creativeVerticalAlignment && campaignVertical) {
+  if (campaignVertical) {
     creativeVerticalAlignment = evaluateCreativeVerticalAlignment({
       selectedVertical: campaignVertical,
       extraction: extractionSignals,
-      aiInferredVertical: verticalAlignment?.detected_vertical,
-      aiCreativeCategory: payload?.creativeCategory || payload?.ai_analysis?.creativeCategory,
-      aiVerticalFeedback: verticalAlignment?.reason,
-      aiVerticalMatch: verticalAlignment?.is_aligned,
+      aiInferredVertical: extractionSignals?.inferred_vertical
+        ?? creativeVerticalAlignment?.detected_category_id
+        ?? verticalAlignment?.detected_category_id
+        ?? verticalAlignment?.detected_vertical,
+      aiCreativeCategory: verticalAlignment?.product_category
+        || creativeVerticalAlignment?.detected_category_label
+        || payload?.creativeCategory
+        || payload?.ai_analysis?.creativeCategory,
+      aiVerticalFeedback: verticalAlignment?.ai_vertical_feedback
+        || creativeVerticalAlignment?.ai_category_feedback
+        || verticalAlignment?.reason,
+      aiVerticalMatch: typeof payload?.ai_analysis?.vertical_match === "boolean"
+        ? payload.ai_analysis.vertical_match
+        : null,
+      aiExplicitVerticalMatch: typeof payload?.ai_analysis?.explicit_vertical_match === "boolean"
+        ? payload.ai_analysis.explicit_vertical_match
+        : null,
+      storedDetectedCategoryId: verticalAlignment?.detected_category_id
+        || creativeVerticalAlignment?.detected_category_id
+        || null,
+      storedProductCategoryLabel: verticalAlignment?.detected_category_label
+        || verticalAlignment?.product_category
+        || creativeVerticalAlignment?.detected_category_label
+        || null,
+      storedIsAligned: typeof verticalAlignment?.is_aligned === "boolean"
+        ? verticalAlignment.is_aligned
+        : (typeof creativeVerticalAlignment?.is_aligned === "boolean" ? creativeVerticalAlignment.is_aligned : null),
     });
   }
   if (creativeVerticalAlignment) {
@@ -609,12 +755,15 @@ export function computeCreativeInsight(
       detected_category_label: creativeVerticalAlignment.detected_category_label,
       suggested_vertical: creativeVerticalAlignment.suggested_vertical,
       suggested_vertical_label: creativeVerticalAlignment.suggested_vertical_label,
-      detected_vertical: creativeVerticalAlignment.suggested_vertical || verticalAlignment.detected_vertical,
+      detected_vertical: creativeVerticalAlignment.detected_category_id !== "unknown"
+        ? creativeVerticalAlignment.detected_category_id
+        : verticalAlignment.detected_vertical,
       product_category: creativeVerticalAlignment.detected_category_label || verticalAlignment.product_category,
       reason: creativeVerticalAlignment.mismatch_reason || verticalAlignment.reason,
       vertical_recommendation: creativeVerticalAlignment.recommendation,
       alignment_status: creativeVerticalAlignment.alignment_status,
       selected_vertical: verticalAlignment.selected_vertical || campaignVertical,
+      fit_score: creativeVerticalAlignment.fit_score ?? verticalAlignment.fit_score,
     };
   }
   const launchStatusKey = deriveLaunchStatus(creative, payload, platform, verticalAlignment);
@@ -662,23 +811,7 @@ export function computeCreativeInsight(
   if (briefAlignmentFromApi?.brief_provided && briefAlignmentFromApi.creative_matches_brief === false) {
     verticalAlignment = {
       ...verticalAlignment,
-      is_aligned: false,
       reason: briefAlignment.enrichedReason || verticalAlignment?.reason,
-      brief_override: true,
-    };
-  } else if (briefAlignment.expected_focus && briefAlignment.is_aligned === false) {
-    verticalAlignment = {
-      ...verticalAlignment,
-      is_aligned: false,
-      reason: briefAlignment.reason,
-      product_category: getProductFocusLabel(briefAlignment.detected_product),
-      brief_override: true,
-    };
-  } else if (briefAlignment.expected_focus && briefAlignment.is_aligned === null) {
-    verticalAlignment = {
-      ...verticalAlignment,
-      is_aligned: undefined,
-      reason: briefAlignment.reason,
       brief_override: true,
     };
   }
@@ -721,12 +854,14 @@ export function computeCreativeInsight(
           || buildEnrichedVerticalReasonForInsight(verticalAlignment, extractionSignals),
     },
     creativeVerticalAlignment,
+    verticalStatus: getVerticalAlignmentDisplay(verticalAlignment),
     briefAlignment,
     extractionSignals,
     technicalQa: deriveTechnicalQa(creative, payload, platform),
     placementQa: derivePlacementQa(creative, payload, platform),
     mainRisk,
     recommendedFix,
+    riskAssessment: deriveCreativeRiskAssessment(creative, payload, platform),
     placementScores,
     deviceScores: computeDeviceCompatibility(creative, platform, payload),
   };
@@ -754,8 +889,21 @@ export function computeCampaignOverview(
   const goalText = goalLabelFn?.(campaignGoal || "awareness") || campaignGoal || "awareness";
   const verticalText = verticalLabelFn?.(campaignVertical) || campaignVertical || "general";
 
-  const verticalMisaligned = insights.filter((i) => i.verticalAlignment?.is_aligned === false);
-  if (verticalMisaligned.length > 0) {
+  insights.forEach((insight) => {
+    const assessment = insight.riskAssessment;
+    if (!assessment) return;
+    assessment.criticalIssues.forEach((issue) => {
+      launchRisks.push(`🔴 ${insight.creativeName}: ${issue}`);
+    });
+    if (insight.launchStatusKey !== "ready") {
+      assessment.complianceConcerns.slice(0, 2).forEach((issue) => {
+        launchRisks.push(`⚠️ ${insight.creativeName}: ${issue}`);
+      });
+    }
+  });
+
+  const verticalMisaligned = insights.filter((i) => resolveVerticalAlignmentStatus(i.verticalAlignment).key === "misaligned");
+  if (verticalMisaligned.length > 0 && !launchRisks.some((risk) => /vertical/i.test(risk))) {
     const sample = verticalMisaligned[0];
     const detectedLabel = sample.verticalAlignment?.detected_category_label
       || sample.creativeVerticalAlignment?.detected_category_label
@@ -766,9 +914,10 @@ export function computeCampaignOverview(
     );
   }
 
-  const verticalMismatchReport = insights
-    .filter((i) => i.verticalAlignment?.is_aligned === false || i.creativeVerticalAlignment?.is_aligned === false)
-    .map((i) => ({
+  const verticalAlignmentReport = insights.map((i) => {
+    const verticalStatus = i.verticalStatus || getVerticalAlignmentDisplay(i.verticalAlignment);
+    const isAligned = verticalStatus.key === "aligned";
+    return {
       id: i.creativeId,
       name: i.creativeName,
       size: i.creativeSize,
@@ -785,11 +934,17 @@ export function computeCampaignOverview(
       reason: i.creativeVerticalAlignment?.mismatch_reason
         || i.verticalAlignment?.enrichedReason
         || i.verticalAlignment?.reason,
-      recommendation: i.creativeVerticalAlignment?.recommendation
-        || i.verticalAlignment?.vertical_recommendation
-        || "",
-      status: i.launchStatus,
-    }));
+      recommendation: isAligned
+        ? ""
+        : (i.creativeVerticalAlignment?.recommendation
+          || i.verticalAlignment?.vertical_recommendation
+          || ""),
+      status: verticalStatus,
+      isAligned,
+    };
+  });
+
+  const verticalMismatchReport = verticalAlignmentReport.filter((row) => !row.isAligned);
 
   const goalMisaligned = insights.filter((i) => i.goalAlignment?.is_aligned === false);
   if (goalMisaligned.length > 0) {
@@ -971,7 +1126,7 @@ export function computeCampaignOverview(
 
   const overviewCore = {
     hasNoRisk: launchRisks.length === 0 && misalignedCount === 0,
-    launchRisks,
+    launchRisks: [...new Set(launchRisks)].slice(0, 10),
     qaSummary,
     placementMatrix,
     placementColumns: columns,
@@ -995,10 +1150,40 @@ export function computeCampaignOverview(
           }),
           sampleBriefAlignment: insights.find((i) => i.briefAlignment?.brief_provided)?.briefAlignment || null,
           briefMisalignedCount: briefMisaligned.length,
+          intentSummary: buildBriefIntentSummary(context.campaignBrief, {
+            campaignGoal,
+            vertical: campaignVertical,
+          }),
+          intentLine: context.campaignIntent
+            || buildCampaignIntentFromBrief(context.campaignBrief, {
+              campaignGoal,
+              vertical: campaignVertical,
+            })
+            || "",
         }
       : null,
+    verticalAlignmentReport,
     verticalMismatchReport,
     verticalMismatchCount: verticalMismatchReport.length,
+    campaignAlignment: (() => {
+      if (context.campaignAlignmentReport) return context.campaignAlignmentReport;
+      if (!context.campaignBrief?.trim()) return null;
+      const intent = context.campaignIntent
+        || buildCampaignIntentFromBrief(context.campaignBrief, {
+          campaignGoal,
+          vertical: campaignVertical,
+        })
+        || "";
+      return computeCampaignAlignmentReport({
+        campaignBrief: context.campaignBrief,
+        campaignIntent: intent,
+        campaignGoal,
+        campaignVertical,
+        platform,
+        analysisEntries: entries,
+        urlValidation: context.urlValidation || null,
+      });
+    })(),
   };
 
   const sections = buildPlatformOverviewSections({
@@ -1053,17 +1238,43 @@ export function runAnalyzerStatusMatrix() {
     { platform: "programmatic", size: "1080x1080", expected: "ready", validation: nativeWeightWarning },
     { platform: "programmatic", size: "1080x1350", expected: "ready", validation: nativeWeightWarning },
     { platform: "programmatic", size: "300x250", expected: "ready", validation: passValidation },
+    {
+      platform: "programmatic",
+      size: "300x250",
+      expected: "ready",
+      validation: passValidation,
+      campaignVertical: "food",
+      payload: {
+        ...alignedPayload,
+        vertical_alignment: {
+          is_aligned: false,
+          selected_vertical: "food",
+          detected_vertical: "consumer_products",
+          detected_category_id: "consumer_products",
+          detected_category_label: "Consumer Products / CPG",
+          product_category: "Consumer Products / CPG",
+        },
+        ai_analysis: { vertical_match: true },
+        extraction_signals: {
+          text_density: "moderate",
+          headline: "Fresh pasta menu special",
+          primary_message: "Restaurant dining experience",
+          visual_elements: ["restaurant", "chef", "food plating"],
+          inferred_vertical: "food",
+        },
+      },
+    },
   ];
 
-  return scenarios.map(({ platform, size, expected, validation }) => {
+  return scenarios.map(({ platform, size, expected, validation, campaignVertical = "fashion", payload = alignedPayload }) => {
     const insight = computeCreativeInsight(
       {
         creative: { id: `test-${platform}-${size}`, size, validation, fileSizeKB: 220 },
-        data: alignedPayload,
+        data: payload,
       },
       platform,
       "awareness",
-      "fashion",
+      campaignVertical,
     );
     return {
       platform,

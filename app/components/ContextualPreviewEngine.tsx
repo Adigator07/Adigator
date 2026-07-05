@@ -1,12 +1,13 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { PreviewEngineOutput, EnvironmentFamily, DeviceType } from "@/app/lib/preview-engine/types";
 import { compactAnalyzerOutputForPreview } from "@/app/lib/previewAnalyzerCompact";
 import { mapProgrammaticTemplateToRenderer } from "@/app/lib/programmaticPreviewPrompt";
 import { PROGRAMMATIC_ENVIRONMENT_LABELS } from "@/app/lib/previewPlacementRegistry";
 import NewsEnvironment from "./environments/NewsEnvironment";
+import NativeDisplayEnvironment from "./environments/NativeDisplayEnvironment";
 import CommerceEnvironment from "./environments/CommerceEnvironment";
 import SocialEnvironment from "./environments/SocialEnvironment";
 import FinanceEnvironment from "./environments/FinanceEnvironment";
@@ -15,7 +16,15 @@ import SportsEnvironment from "./environments/SportsEnvironment";
 import GamingEnvironment from "./environments/GamingEnvironment";
 import LuxuryEnvironment from "./environments/LuxuryEnvironment";
 import BookingEnvironment from "./environments/BookingEnvironment";
+import type { PreviewStudioCache } from "@/app/lib/previewStudioPersistence";
+import {
+  buildPreviewStudioEntryKey,
+  buildPreviewStudioSourceFingerprint,
+  readPreviewStudioCacheEntry,
+  writePreviewStudioCacheEntry,
+} from "@/app/lib/previewStudioPersistence";
 import { validatePreviewDeviceCompatibility } from "@/app/lib/previewDeviceCompatibility";
+import { resolveCreativeVertical } from "@/app/lib/creativePreviewContext";
 import { pickPlacement, ProgrammaticMobileAdPreview } from "./environments/adSlotUtils";
 import { PreviewDeviceIncompatibleState, PreviewErrorState, PreviewLoadingState } from "./PreviewStudio/PreviewShared";
 import { EnvironmentPreviewCard } from "./PreviewStudio/shared/envShared";
@@ -29,6 +38,8 @@ interface Props {
     analyzerOutput?: Record<string, unknown>;
     ctaText?: string;
     headline?: string;
+    previewVertical?: string;
+    previewTemplate?: string;
   }>;
   vertical: string;
   goal: "awareness" | "consideration" | "conversion";
@@ -46,7 +57,23 @@ interface Props {
   allowedEnvironmentFamilies?: EnvironmentFamily[];
   hideCreativeSidebar?: boolean;
   hideEnvironmentSelector?: boolean;
-}
+  campaignBrief?: string;
+  campaignIntent?: string;
+  campaignIntentFingerprint?: string;
+  advertiserName?: string;
+  brandName?: string;
+  campaignName?: string;
+  campaignProductFocus?: string;
+  advertiserId?: string;
+  campaignId?: string;
+  creativeFingerprint?: string;
+  previewStudioCache?: PreviewStudioCache | null;
+  onPreviewCacheUpdate?: (cache: PreviewStudioCache) => void;
+  regenerateNonce?: number;
+  exportMode?: boolean;
+  /** When true, only render from previewStudioCache — never call preview-engine API. */
+  cacheOnly?: boolean;
+};
 
 const ENV_LABELS: Record<EnvironmentFamily, { label: string; icon: string; color: string }> = {
   news: { label: "Editorial Context", icon: "ED", color: "from-blue-600/20 to-blue-800/10 border-blue-500/30" },
@@ -125,23 +152,45 @@ const LEGACY_TEMPLATE_LABELS: Record<string, string> = {
 
 function EnvironmentRenderer({
   env,
+  templateId,
   output,
   creativeUrl,
   creativeSize,
   device,
+  vertical,
+  brandName,
 }: {
   env: EnvironmentFamily;
+  templateId: string;
   output: PreviewEngineOutput;
   creativeUrl: string;
   creativeSize: string;
   device: DeviceType;
+  vertical: string;
+  brandName: string;
 }) {
+  if (templateId === "native_display") {
+    return (
+      <NativeDisplayEnvironment
+        content={output.generatedEnvironment}
+        slotType={output.creativeMapping.slotType}
+        creativeUrl={creativeUrl}
+        creativeSize={creativeSize}
+        device={device}
+        vertical={vertical}
+        brandName={brandName}
+      />
+    );
+  }
+
   const props = {
     content: output.generatedEnvironment,
     slotType: output.creativeMapping.slotType,
     creativeUrl,
     creativeSize,
     device,
+    vertical,
+    brandName,
   };
 
   switch (env) {
@@ -158,6 +207,7 @@ function EnvironmentRenderer({
 }
 
 function resolveRendererFamily(env: string): EnvironmentFamily {
+  if (env === "native_display") return "social";
   if (["news", "commerce", "social", "luxury", "sports", "gaming", "finance", "travel", "booking"].includes(env)) {
     return env as EnvironmentFamily;
   }
@@ -182,6 +232,21 @@ export default function ContextualPreviewEngine({
   allowedEnvironmentFamilies,
   hideCreativeSidebar = false,
   hideEnvironmentSelector = false,
+  campaignBrief = "",
+  campaignIntent = "",
+  campaignIntentFingerprint = "",
+  advertiserName = "",
+  brandName = "",
+  campaignName = "",
+  campaignProductFocus = "",
+  advertiserId = "",
+  campaignId = "",
+  creativeFingerprint = "",
+  previewStudioCache = null,
+  onPreviewCacheUpdate,
+  regenerateNonce = 0,
+  exportMode = false,
+  cacheOnly = false,
 }: Props) {
   const [output, setOutput] = useState<PreviewEngineOutput | null>(null);
   const [loading, setLoading] = useState(false);
@@ -228,9 +293,71 @@ export default function ContextualPreviewEngine({
     }
   }, [device, onDeviceChange]);
 
+  const resolveCreativeVerticalForPreview = useCallback((creative: Props["creatives"][number]) => (
+    creative.previewVertical
+    || resolveCreativeVertical(creative.analyzerOutput, vertical)
+  ), [vertical]);
+
   const buildCacheKey = useCallback((creative: Props["creatives"][number], envOverride: string | EnvironmentFamily | null = selectedEnvironment) => {
-    return [vertical, goal, device ?? "unselected", envOverride ?? "auto", creative.url, creative.size].join("|");
-  }, [vertical, goal, device, selectedEnvironment]);
+    const creativeVertical = resolveCreativeVerticalForPreview(creative);
+    return [creativeVertical, goal, device ?? "unselected", envOverride ?? "auto", creative.id ?? creative.url, creative.size].join("|");
+  }, [resolveCreativeVerticalForPreview, goal, device, selectedEnvironment]);
+
+  const sourceFingerprint = useMemo(
+    () => buildPreviewStudioSourceFingerprint({
+      advertiserId,
+      advertiserName,
+      campaignId,
+      campaignName,
+      campaignBrief,
+      campaignIntentFingerprint: campaignIntentFingerprint || "",
+      campaignIntent,
+      vertical,
+      creativeFingerprint,
+    }),
+    [
+      advertiserId,
+      advertiserName,
+      campaignId,
+      campaignName,
+      campaignBrief,
+      campaignIntent,
+      campaignIntentFingerprint,
+      vertical,
+      creativeFingerprint,
+    ],
+  );
+
+  /** Prefer the fingerprint stored with the cache (dashboard / reload). */
+  const effectiveSourceFingerprint = previewStudioCache?.sourceFingerprint || sourceFingerprint;
+
+  const resolvePersistedPreview = useCallback((
+    entryKey: string,
+  ): PreviewEngineOutput | null => {
+    const fromStored = readPreviewStudioCacheEntry(
+      previewStudioCache,
+      effectiveSourceFingerprint,
+      entryKey,
+    );
+    if (fromStored?.output) return fromStored.output;
+
+    if (cacheOnly && previewStudioCache?.entries?.[entryKey]?.output) {
+      return previewStudioCache.entries[entryKey].output;
+    }
+
+    return null;
+  }, [previewStudioCache, effectiveSourceFingerprint, cacheOnly]);
+
+  const buildPersistedEntryKey = useCallback((creative: Props["creatives"][number], envOverride: string | EnvironmentFamily | null = selectedEnvironment) => {
+    return buildPreviewStudioEntryKey({
+      templateId: String(envOverride || "news"),
+      device: device || "desktop",
+      creativeId: String(creative.id ?? creative.url),
+      creativeSize: creative.size,
+      goal,
+      creativeVertical: resolveCreativeVerticalForPreview(creative),
+    });
+  }, [device, goal, selectedEnvironment, resolveCreativeVerticalForPreview]);
 
   useEffect(() => {
     if (safeCreativeIndex !== activeCreativeIndex) {
@@ -242,18 +369,46 @@ export default function ContextualPreviewEngine({
     activeKeyRef.current = activeCreative ? buildCacheKey(activeCreative, selectedEnvironment) : "";
   }, [activeCreative, buildCacheKey]);
 
-  const fetchPreview = useCallback(async (targetCreative: Props["creatives"][number], withLoading = true, envOverride: string | EnvironmentFamily | null = selectedEnvironment) => {
-    if (!targetCreative?.url || !vertical || !goal || !envOverride || !device) return;
+  const fetchPreview = useCallback(async (
+    targetCreative: Props["creatives"][number],
+    withLoading = true,
+    envOverride: string | EnvironmentFamily | null = selectedEnvironment,
+    skipPersistedCache = false,
+  ) => {
+    if (!targetCreative?.url || !goal || !envOverride || !device) return;
 
+    const creativeVertical = resolveCreativeVerticalForPreview(targetCreative);
     const cacheKey = buildCacheKey(targetCreative, envOverride);
-    const cached = previewCacheRef.current.get(cacheKey);
+    const persistedEntryKey = buildPersistedEntryKey(targetCreative, envOverride);
+    const shouldBypassCache = skipPersistedCache;
 
-    if (cached) {
-      if (cacheKey === activeKeyRef.current) {
-        setOutput(cached);
-        setError(null);
+    if (!shouldBypassCache) {
+      const persistedOutput = resolvePersistedPreview(persistedEntryKey);
+      if (persistedOutput) {
+        previewCacheRef.current.set(cacheKey, persistedOutput);
+        if (cacheKey === activeKeyRef.current) {
+          setOutput(persistedOutput);
+          setError(null);
+        }
+        return;
       }
-      return;
+
+      if (cacheOnly) {
+        if (cacheKey === activeKeyRef.current) {
+          setOutput(null);
+          setError("No saved preview for this template. Generate previews in the Preview Tool first.");
+        }
+        return;
+      }
+
+      const cached = previewCacheRef.current.get(cacheKey);
+      if (cached) {
+        if (cacheKey === activeKeyRef.current) {
+          setOutput(cached);
+          setError(null);
+        }
+        return;
+      }
     }
 
     if (withLoading) setLoading(true);
@@ -264,17 +419,26 @@ export default function ContextualPreviewEngine({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          vertical,
+          vertical: creativeVertical,
+          campaignVertical: vertical,
           goal,
+          templateId: String(envOverride),
           preferredEnvironment: envOverride ?? undefined,
           device: device ?? undefined,
           creativeSize: targetCreative.size,
+          creativeId: String(targetCreative.id ?? ""),
           creativeType: "display",
           analyzerOutput: compactAnalyzerOutputForPreview(targetCreative.analyzerOutput ?? {}),
           ctaText: targetCreative.ctaText,
           headline: targetCreative.headline,
           logoPresent: true,
           riskFlags: [],
+          campaignBrief,
+          campaignIntent,
+          advertiserName,
+          brandName,
+          campaignName,
+          campaignProductFocus,
         }),
       });
 
@@ -286,6 +450,17 @@ export default function ContextualPreviewEngine({
       const data = (await res.json()) as PreviewEngineOutput;
       previewCacheRef.current.set(cacheKey, data);
 
+      if (onPreviewCacheUpdate) {
+        onPreviewCacheUpdate(
+          writePreviewStudioCacheEntry(
+            previewStudioCache,
+            sourceFingerprint,
+            persistedEntryKey,
+            data,
+          ),
+        );
+      }
+
       if (cacheKey === activeKeyRef.current) {
         setOutput(data);
       }
@@ -296,7 +471,27 @@ export default function ContextualPreviewEngine({
     } finally {
       if (withLoading && cacheKey === activeKeyRef.current) setLoading(false);
     }
-  }, [buildCacheKey, vertical, goal, device, selectedEnvironment]);
+  }, [
+    buildCacheKey,
+    buildPersistedEntryKey,
+    vertical,
+    goal,
+    device,
+    selectedEnvironment,
+    previewStudioCache,
+    effectiveSourceFingerprint,
+    regenerateNonce,
+    campaignBrief,
+    campaignIntent,
+    advertiserName,
+    brandName,
+    campaignName,
+    campaignProductFocus,
+    onPreviewCacheUpdate,
+    resolveCreativeVerticalForPreview,
+    cacheOnly,
+    resolvePersistedPreview,
+  ]);
 
   useEffect(() => {
     if (!activeCreative || !selectedEnvironment || !device) {
@@ -316,12 +511,43 @@ export default function ContextualPreviewEngine({
       return;
     }
 
-    fetchPreview(activeCreative, true, selectedEnvironment);
-  }, [activeCreative, buildCacheKey, fetchPreview, selectedEnvironment]);
+    const persistedOutput = resolvePersistedPreview(
+      buildPersistedEntryKey(activeCreative, selectedEnvironment),
+    );
+    if (persistedOutput && regenerateNonce === 0) {
+      previewCacheRef.current.set(activeKey, persistedOutput);
+      setOutput(persistedOutput);
+      setError(null);
+      setLoading(false);
+      return;
+    }
+
+    if (cacheOnly) {
+      setOutput(null);
+      setError("No saved preview for this template. Generate previews in the Preview Tool first.");
+      setLoading(false);
+      return;
+    }
+
+    if (regenerateNonce > 0) {
+      return;
+    }
+
+    fetchPreview(activeCreative, true, selectedEnvironment, false);
+  }, [activeCreative, buildCacheKey, buildPersistedEntryKey, fetchPreview, previewStudioCache, regenerateNonce, selectedEnvironment, effectiveSourceFingerprint, device, cacheOnly, resolvePersistedPreview]);
+
+  useEffect(() => {
+    if (regenerateNonce === 0) return;
+    if (!activeCreative || !selectedEnvironment || !device) return;
+    fetchPreview(activeCreative, true, selectedEnvironment, true);
+  }, [regenerateNonce, activeCreative, selectedEnvironment, device, fetchPreview]);
 
   const templateId = String(fixedEnvironment || selectedEnvironment || "news");
   const rendererEnv = resolveRendererFamily(templateId);
   const currentEnv: EnvironmentFamily = rendererEnv;
+  const activeCreativeVertical = activeCreative
+    ? resolveCreativeVerticalForPreview(activeCreative)
+    : vertical;
   const isMobilePreview = device === "mobile";
   const envMeta = getTemplateMeta(templateId);
   const activeExpectedSlot = activeCreative ? getExpectedSlotForSize(activeCreative.size) : null;
@@ -481,6 +707,14 @@ export default function ContextualPreviewEngine({
     : { supported: true, message: null };
 
   const alternateDevice = device === "mobile" ? "desktop" : "mobile";
+  const previewFrameScrollClass = exportMode || isMobilePreview
+    ? "max-h-none overflow-visible"
+    : "max-h-175 overflow-y-auto";
+  const previewInnerScrollClass = exportMode
+    ? ""
+    : isMobilePreview
+      ? "max-h-[calc(100vh-320px)] overflow-y-auto"
+      : "";
 
   if (studioMode) {
     const previewCreative = {
@@ -504,8 +738,10 @@ export default function ContextualPreviewEngine({
         deviceMode={device || "desktop"}
         hideSizeLabel
         fitNotice={null}
+        exportMode={exportMode}
         onCopy={onCopyCreative ? () => onCopyCreative(previewCreative) : undefined}
         onEdit={onEditCreative ? () => onEditCreative(previewCreative) : undefined}
+        data-export-ready="true"
       >
         <div className={`mx-auto transition-all duration-300 ${isMobilePreview ? "w-full max-w-[460px]" : "w-full"}`}>
           <div className="bg-[#1c1f27] border border-white/10 rounded-t-xl px-4 py-2.5 flex items-center gap-3">
@@ -523,22 +759,25 @@ export default function ContextualPreviewEngine({
             </div>
           </div>
 
-          <div className={`border-x border-b border-white/10 rounded-b-xl overflow-hidden ${isMobilePreview ? "max-h-none" : "max-h-175 overflow-y-auto"}`}>
+          <div className={`border-x border-b border-white/10 rounded-b-xl ${exportMode ? "overflow-visible" : "overflow-hidden"} ${previewFrameScrollClass}`}>
             <AnimatePresence mode="wait">
               <motion.div
                 key={`${currentEnv}-${device}`}
-                initial={{ opacity: 0 }}
+                initial={exportMode ? false : { opacity: 0 }}
                 animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.25 }}
-                className={isMobilePreview ? "max-h-[calc(100vh-320px)] overflow-y-auto" : ""}
+                exit={exportMode ? undefined : { opacity: 0 }}
+                transition={exportMode ? { duration: 0 } : { duration: 0.25 }}
+                className={previewInnerScrollClass}
               >
                 <EnvironmentRenderer
                   env={rendererEnv}
+                  templateId={templateId}
                   output={output}
                   creativeUrl={resolvedCreativeUrl}
                   creativeSize={activeCreative.size}
                   device={device || "desktop"}
+                  vertical={activeCreativeVertical}
+                  brandName={brandName}
                 />
               </motion.div>
             </AnimatePresence>
@@ -656,7 +895,7 @@ export default function ContextualPreviewEngine({
           </div>
         ) : null}
 
-        <div className={`${showBrowserChrome ? "border-x border-b border-white/10 rounded-b-xl" : "rounded-2xl border border-white/10"} overflow-hidden ${isMobilePreview ? "max-h-none" : "max-h-175 overflow-y-auto"} flex ${isMobilePreview ? "flex-col" : ""}`}>
+        <div className={`${showBrowserChrome ? "border-x border-b border-white/10 rounded-b-xl" : "rounded-2xl border border-white/10"} ${exportMode ? "overflow-visible" : "overflow-hidden"} ${previewFrameScrollClass} flex ${isMobilePreview ? "flex-col" : ""}`}>
           {showSidebar ? (
           <div className={`${isMobilePreview ? "w-full border-b border-white/10" : "w-1/3 border-r border-white/10"} bg-gray-900 p-4 space-y-3`}>
             <div className="flex items-center justify-between">
@@ -717,7 +956,7 @@ export default function ContextualPreviewEngine({
               </div>
             )}
 
-            <div className={`space-y-2 pr-1 ${isMobilePreview ? "max-h-40 overflow-y-auto" : "max-h-52 overflow-y-auto"}`}>
+            <div className={`space-y-2 pr-1 ${exportMode ? "max-h-none overflow-visible" : isMobilePreview ? "max-h-40 overflow-y-auto" : "max-h-52 overflow-y-auto"}`}>
               {creatives.map((creative, index) => {
                 const expectedSlot = getExpectedSlotForSize(creative.size);
                 const isSupported = Boolean(expectedSlot);
@@ -788,17 +1027,20 @@ export default function ContextualPreviewEngine({
             <AnimatePresence mode="wait">
               <motion.div
                 key={`${currentEnv}-${device}`}
-                initial={{ opacity: 0 }}
+                initial={exportMode ? false : { opacity: 0 }}
                 animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.25 }}
+                exit={exportMode ? undefined : { opacity: 0 }}
+                transition={exportMode ? { duration: 0 } : { duration: 0.25 }}
               >
                 <EnvironmentRenderer
                   env={rendererEnv}
+                  templateId={templateId}
                   output={output}
                   creativeUrl={resolvedCreativeUrl}
                   creativeSize={activeCreative.size}
                   device={device || "desktop"}
+                  vertical={activeCreativeVertical}
+                  brandName={brandName}
                 />
               </motion.div>
             </AnimatePresence>

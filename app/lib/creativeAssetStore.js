@@ -7,12 +7,26 @@
 
 import { compressDrawable, yieldToMain } from "./imageCompression";
 import { attachSourceDimensions } from "./creativeValidation";
-import { readImageDimensionsFromBlob } from "./imageDimensions";
+import { readImageDimensionsFromBlob, isPlausibleCreativeDimension } from "./imageDimensions";
 import { resolvePersistedDimensions } from "./creativeFitAnalysis";
 
 const DB_NAME = "adigator-creative-assets";
 const DB_VERSION = 1;
 const STORE_NAME = "blobs";
+
+let creativeStorageScope = "default";
+
+export function setCreativeStorageScope(scope) {
+  creativeStorageScope = String(scope || "default");
+}
+
+export function getCreativeStorageScope() {
+  return creativeStorageScope;
+}
+
+function scopedBlobKey(key) {
+  return `${creativeStorageScope}::${key}`;
+}
 
 let dbPromise = null;
 
@@ -64,16 +78,16 @@ export function previewKey(creativeId) {
 
 export async function putCreativeBlob(key, blob) {
   if (!blob) return;
-  await withStore("readwrite", (store) => store.put(blob, key));
+  await withStore("readwrite", (store) => store.put(blob, scopedBlobKey(key)));
 }
 
 export async function getCreativeBlob(key) {
-  const record = await withStore("readonly", (store) => store.get(key));
+  const record = await withStore("readonly", (store) => store.get(scopedBlobKey(key)));
   return record instanceof Blob ? record : null;
 }
 
 export async function deleteCreativeBlob(key) {
-  await withStore("readwrite", (store) => store.delete(key));
+  await withStore("readwrite", (store) => store.delete(scopedBlobKey(key)));
 }
 
 export async function deleteCreativeAssets(creativeId) {
@@ -202,19 +216,27 @@ export async function hydrateCreativeRecord(meta) {
 
   const applyDimensionsFromFullBlob = async (record, fullBlob) => {
     const fileName = record.originalFile || record.name || "";
+    const persisted = resolvePersistedDimensions(record);
+    if (
+      persisted
+      && isPlausibleCreativeDimension(persisted.width, persisted.height)
+    ) {
+      return attachSourceDimensions(record, persisted.width, persisted.height);
+    }
+
     if (fullBlob) {
       try {
-        const dims = await readImageDimensionsFromBlob(fullBlob, { fileName });
-        return attachSourceDimensions(record, dims.width, dims.height);
+        const detected = await readImageDimensionsFromBlob(fullBlob, { fileName });
+        return attachSourceDimensions(record, detected.width, detected.height);
       } catch {
         // Fall through to persisted metadata.
       }
     }
 
-    const persisted = resolvePersistedDimensions(record);
     if (persisted) {
       return attachSourceDimensions(record, persisted.width, persisted.height);
     }
+
     return record;
   };
 
@@ -285,7 +307,46 @@ export async function hydrateCreativeRecord(meta) {
     }
   }
 
+  if (meta.previewDataUrl && typeof meta.previewDataUrl === "string" && meta.previewDataUrl.startsWith("data:")) {
+    const persisted = resolvePersistedDimensions(meta);
+    const withPreview = {
+      ...meta,
+      url: meta.previewDataUrl,
+      hasStoredAssets: true,
+    };
+    if (persisted) {
+      return attachSourceDimensions(withPreview, persisted.width, persisted.height);
+    }
+    return withPreview;
+  }
+
   return { ...meta, url: meta.url || null };
+}
+
+function blobToDataUrl(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(typeof reader.result === "string" ? reader.result : "");
+    reader.onerror = () => reject(reader.error || new Error("Failed to read blob"));
+    reader.readAsDataURL(blob);
+  });
+}
+
+export async function attachPersistedPreviewData(creative) {
+  if (!creative || typeof creative !== "object") return creative;
+  const stripped = stripCreativeForPersistence(creative);
+  if (stripped.previewDataUrl) return stripped;
+
+  try {
+    const previewBlob = await getCreativeBlob(previewKey(creative.id));
+    const sourceBlob = previewBlob || await getCreativeBlob(creative.id);
+    if (!sourceBlob) return stripped;
+    const dataUrl = await blobToDataUrl(sourceBlob);
+    if (!dataUrl || dataUrl.length > 120_000) return stripped;
+    return { ...stripped, previewDataUrl: dataUrl };
+  } catch {
+    return stripped;
+  }
 }
 
 export function stripCreativeForPersistence(creative) {

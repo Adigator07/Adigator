@@ -1,4 +1,4 @@
-import { SIZE_TOLERANCE_PX, formatCreativeSize, readImageDimensionsFromBlob } from "./imageDimensions";
+import { SIZE_TOLERANCE_PX, formatCreativeSize, readImageDimensionsFromBlob, dimensionsWithinTolerance } from "./imageDimensions";
 import { enrichIssuesWithFixActions } from "./creativeFixActions";
 import {
   SIZE_INTELLIGENCE,
@@ -491,6 +491,26 @@ function buildPlatformIntelligenceFallback(size, platform, platformLabel) {
   };
 }
 
+/** Map detected pixels to the supported size label users expect when a match exists. */
+function resolveValidatedDisplayDimensions(rawW, rawH, sizeMatch) {
+  if (sizeMatch?.match) {
+    const canonical = parseSize(sizeMatch.match);
+    if (canonical) {
+      return {
+        width: canonical.width,
+        height: canonical.height,
+        size: sizeMatch.match,
+      };
+    }
+  }
+
+  return {
+    width: rawW,
+    height: rawH,
+    size: `${rawW}x${rawH}`,
+  };
+}
+
 export async function validateCreativeAsset({ file, image, platform }) {
   const rawW = Math.max(1, Math.round(Number(image?.width) || 0));
   const rawH = Math.max(1, Math.round(Number(image?.height) || 0));
@@ -505,8 +525,9 @@ export async function validateCreativeAsset({ file, image, platform }) {
   const supportedSizes = getPlatformSupportedSizes(normalizedPlatform);
   const sizeMatch = matchPlatformSupportedSize(rawW, rawH, normalizedPlatform);
   const nearSizeMatch = !sizeMatch ? findNearPlatformSize(rawW, rawH, normalizedPlatform) : null;
-  const canonicalSize = sizeMatch?.match || nearSizeMatch?.match || actualSize;
-  const size = actualSize;
+  const displayDims = resolveValidatedDisplayDimensions(rawW, rawH, sizeMatch);
+  const canonicalSize = sizeMatch?.match || nearSizeMatch?.match || displayDims.size;
+  const size = displayDims.size;
   const issues = [];
   const intelligence = normalizedPlatform === "programmatic"
     ? resolveSizeIntelligence(canonicalSize)
@@ -687,8 +708,10 @@ export async function validateCreativeAsset({ file, image, platform }) {
       height: rawH,
       detectedWidth: rawW,
       detectedHeight: rawH,
-      canonicalWidth: parseSize(canonicalSize)?.width || rawW,
-      canonicalHeight: parseSize(canonicalSize)?.height || rawH,
+      canonicalWidth: parseSize(canonicalSize)?.width || displayDims.width,
+      canonicalHeight: parseSize(canonicalSize)?.height || displayDims.height,
+      displayWidth: displayDims.width,
+      displayHeight: displayDims.height,
       normalized: Boolean(sizeMatch && sizeMatch.detectedSize !== canonicalSize),
       normalizationReason: sizeMatch?.type || null,
     },
@@ -765,28 +788,41 @@ export function applyValidationFields(creative, validation) {
 }
 
 function resolveCreativeImageDimensions(creative, imageOverride) {
+  const persisted = (() => {
+    const sourceW = Number(creative?.sourceWidth);
+    const sourceH = Number(creative?.sourceHeight);
+    if (sourceW > 0 && sourceH > 0) {
+      return { width: sourceW, height: sourceH };
+    }
+
+    const detectedW = Number(creative?.validation?.dimensions?.detectedWidth);
+    const detectedH = Number(creative?.validation?.dimensions?.detectedHeight);
+    if (detectedW > 0 && detectedH > 0) {
+      return { width: detectedW, height: detectedH };
+    }
+
+    return parseSize(creative?.size) || null;
+  })();
+
   if (imageOverride?.width && imageOverride?.height) {
-    return {
-      width: Math.round(imageOverride.width),
-      height: Math.round(imageOverride.height),
-    };
+    const overrideW = Math.round(imageOverride.width);
+    const overrideH = Math.round(imageOverride.height);
+
+    if (
+      persisted
+      && !dimensionsWithinTolerance(overrideW, overrideH, persisted.width, persisted.height)
+      && Math.abs(overrideW - persisted.width) > 50
+      && Math.abs(overrideH - persisted.height) > 50
+    ) {
+      return persisted;
+    }
+
+    return { width: overrideW, height: overrideH };
   }
 
-  const sourceW = Number(creative?.sourceWidth);
-  const sourceH = Number(creative?.sourceHeight);
-  if (sourceW > 0 && sourceH > 0) {
-    return { width: sourceW, height: sourceH };
-  }
+  if (persisted) return persisted;
 
-  const detectedW = Number(creative?.validation?.dimensions?.detectedWidth);
-  const detectedH = Number(creative?.validation?.dimensions?.detectedHeight);
-  if (detectedW > 0 && detectedH > 0) {
-    return { width: detectedW, height: detectedH };
-  }
-
-  const dims = parseSize(creative?.size);
-  if (!dims) return null;
-  return dims;
+  return null;
 }
 
 export function attachSourceDimensions(creative, width, height) {
@@ -814,7 +850,8 @@ export async function revalidateCreativeForPlatform(creative, platform, options 
     image: { width: dims.width, height: dims.height },
     platform,
   });
-  const validation = finalizeValidationForPlatform(baseValidation, platform, size);
+  const validationSize = baseValidation.size || size;
+  const validation = finalizeValidationForPlatform(baseValidation, platform, validationSize);
   return applyValidationFields(
     attachSourceDimensions(creative, dims.width, dims.height),
     validation,

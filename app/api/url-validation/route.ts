@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { checkUrlHealth } from "@/app/lib/url/healthCheck";
 import { evaluateUrlAlignment } from "@/app/lib/url/urlAlignment";
+import { stripUtmFromUrl } from "@/app/lib/utmManagement";
 import type { UrlValidationRequestBody } from "@/app/types/urlValidation";
 
 export const runtime = "nodejs";
@@ -34,9 +35,14 @@ export async function POST(request: Request) {
       }
     }
 
-    const urlHealth = await checkUrlHealth(body.url.trim());
+    const cleanUrl = stripUtmFromUrl(body.url.trim());
+    if (!cleanUrl) {
+      return NextResponse.json({ error: "Landing page URL is required." }, { status: 400 });
+    }
+
+    const urlHealth = await checkUrlHealth(cleanUrl);
     const result = await evaluateUrlAlignment({
-      submittedUrl: body.url.trim(),
+      submittedUrl: cleanUrl,
       urlHealth,
       platform: body.platform,
       objective: body.objective,

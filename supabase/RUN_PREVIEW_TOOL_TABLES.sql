@@ -5,6 +5,76 @@
 
 create extension if not exists "pgcrypto";
 
+-- ── 1b. Fix legacy creatives schema (bigint id/user_id breaks RLS: uuid = bigint) ──
+do $$
+declare
+  id_udt text;
+  user_udt text;
+  has_rows boolean;
+begin
+  if to_regclass('public.creatives') is null then
+    return;
+  end if;
+
+  select c.udt_name into id_udt
+  from information_schema.columns c
+  where c.table_schema = 'public' and c.table_name = 'creatives' and c.column_name = 'id';
+
+  select c.udt_name into user_udt
+  from information_schema.columns c
+  where c.table_schema = 'public' and c.table_name = 'creatives' and c.column_name = 'user_id';
+
+  if id_udt is distinct from 'uuid' or user_udt is distinct from 'uuid' then
+    select exists (select 1 from public.creatives limit 1) into has_rows;
+
+    if has_rows then
+      if to_regclass('public.creatives_legacy_incompatible') is null then
+        alter table public.creatives rename to creatives_legacy_incompatible;
+      else
+        drop table public.creatives cascade;
+      end if;
+    else
+      drop table public.creatives cascade;
+    end if;
+  end if;
+end $$;
+
+-- analyzer_results FK requires creatives.id uuid — drop incompatible legacy table
+do $$
+declare
+  creative_id_udt text;
+begin
+  if to_regclass('public.analyzer_results') is null then
+    return;
+  end if;
+
+  select c.udt_name into creative_id_udt
+  from information_schema.columns c
+  where c.table_schema = 'public' and c.table_name = 'analyzer_results' and c.column_name = 'creative_id';
+
+  if creative_id_udt is distinct from 'uuid' then
+    drop table public.analyzer_results cascade;
+  end if;
+end $$;
+
+-- activity_logs user_id must be uuid for RLS policies
+do $$
+declare
+  user_udt text;
+begin
+  if to_regclass('public.activity_logs') is null then
+    return;
+  end if;
+
+  select c.udt_name into user_udt
+  from information_schema.columns c
+  where c.table_schema = 'public' and c.table_name = 'activity_logs' and c.column_name = 'user_id';
+
+  if user_udt is distinct from 'uuid' then
+    drop table public.activity_logs cascade;
+  end if;
+end $$;
+
 -- ── 1. analysis_sessions (workflow persistence) ───────────────────────────────
 create table if not exists public.analysis_sessions (
   id uuid primary key default gen_random_uuid(),
@@ -64,10 +134,14 @@ create table if not exists public.creatives (
 );
 
 -- Upgrade old creatives table that used `name`, `size`, `valid`, etc.
+alter table public.creatives add column if not exists user_id uuid references auth.users(id) on delete cascade;
 alter table public.creatives add column if not exists creative_name text;
 alter table public.creatives add column if not exists creative_type text;
 alter table public.creatives add column if not exists file_url text;
 alter table public.creatives add column if not exists uploaded_at timestamptz default now();
+alter table public.creatives add column if not exists ad_size text;
+alter table public.creatives add column if not exists validation_status text;
+alter table public.creatives add column if not exists is_valid boolean;
 
 do $$
 begin
@@ -161,6 +235,9 @@ create policy "analyzer_results_insert_own"
 on public.analyzer_results for insert with check (auth.uid() = user_id);
 
 -- ── 4. activity_logs (if missing) ────────────────────────────────────────────
+-- Ensure action_label exists on legacy tables before create-if-not-exists skips
+alter table public.activity_logs add column if not exists action_label text null;
+
 create table if not exists public.activity_logs (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users(id) on delete cascade,

@@ -1,6 +1,7 @@
 import OpenAI from "openai";
 import type { UrlAlignmentResult } from "@/app/types/urlValidation";
 import type { UrlHealthResult } from "@/app/lib/url/healthCheck";
+import { stripUtmFromUrl } from "@/app/lib/utmManagement";
 import { CATEGORY_KEYWORDS } from "@/app/constants/programmaticSpecs";
 
 export interface UrlAlignmentInput {
@@ -15,12 +16,13 @@ export interface UrlAlignmentInput {
 
 function normalizeUrlForCompare(value: string): string {
   try {
-    const parsed = new URL(value.trim().startsWith("http") ? value.trim() : `https://${value.trim()}`);
+    const cleaned = stripUtmFromUrl(value.trim());
+    const parsed = new URL(cleaned.startsWith("http") ? cleaned : `https://${cleaned}`);
     const host = parsed.hostname.replace(/^www\./i, "").toLowerCase();
     const path = parsed.pathname.replace(/\/+$/, "") || "/";
     return `${host}${path}${parsed.search}`;
   } catch {
-    return value.trim().toLowerCase();
+    return stripUtmFromUrl(value.trim()).toLowerCase();
   }
 }
 
@@ -166,7 +168,10 @@ function sanitizeAlignmentResponse(raw: unknown, input: UrlAlignmentInput): UrlA
 }
 
 export async function evaluateUrlAlignment(input: UrlAlignmentInput): Promise<UrlAlignmentResult> {
-  if (!input.submittedUrl?.trim()) {
+  const cleanSubmittedUrl = stripUtmFromUrl(input.submittedUrl || "");
+  const normalizedInput = { ...input, submittedUrl: cleanSubmittedUrl };
+
+  if (!cleanSubmittedUrl) {
     return {
       status: "skipped",
       submitted_url: "",
@@ -182,10 +187,10 @@ export async function evaluateUrlAlignment(input: UrlAlignmentInput): Promise<Ur
 
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
-    return buildHeuristicAlignment(input);
+    return buildHeuristicAlignment(normalizedInput);
   }
 
-  const health = input.urlHealth;
+  const health = normalizedInput.urlHealth;
   const creativeSummaries = (input.creatives || [])
     .slice(0, 3)
     .map((c, i) => `#${i + 1} "${c.name}"${c.size ? ` (${c.size})` : ""}`)
@@ -210,8 +215,8 @@ export async function evaluateUrlAlignment(input: UrlAlignmentInput): Promise<Ur
     `Campaign objective: ${input.objective || "awareness"}`,
     `Industry vertical: ${input.vertical || "general"}`,
     `Campaign name: ${input.campaignName || "Campaign"}`,
-    `Submitted URL: ${input.submittedUrl.trim()}`,
-    `Final URL (after redirects): ${health?.finalUrl || input.submittedUrl.trim()}`,
+    `Submitted URL: ${cleanSubmittedUrl}`,
+    `Final URL (after redirects): ${health?.finalUrl ? stripUtmFromUrl(health.finalUrl) : cleanSubmittedUrl}`,
     `HTTP status: ${health?.statusCode ?? "unknown"}`,
     `Page title: ${health?.pageTitle || "n/a"}`,
     `H1: ${health?.h1 || "n/a"}`,
@@ -261,12 +266,12 @@ export async function evaluateUrlAlignment(input: UrlAlignmentInput): Promise<Ur
 
     const raw = completion.choices[0]?.message?.content;
     if (!raw) {
-      return buildHeuristicAlignment(input);
+      return buildHeuristicAlignment(normalizedInput);
     }
 
-    return sanitizeAlignmentResponse(JSON.parse(raw), input);
+    return sanitizeAlignmentResponse(JSON.parse(raw), normalizedInput);
   } catch (err) {
     console.error("[urlAlignment] OpenAI evaluation failed:", err);
-    return buildHeuristicAlignment(input);
+    return buildHeuristicAlignment(normalizedInput);
   }
 }

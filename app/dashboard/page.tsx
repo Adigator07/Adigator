@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { supabase } from "../lib/supabase";
+import { getClientUser } from "../lib/supabaseAuthClient";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { SkeletonStatCard } from "../components/SkeletonLoader";
@@ -15,6 +15,11 @@ import {
   computeCreativeCountStats,
 } from "../lib/userDashboardAnalytics";
 import UserAnalyticsCharts from "../components/dashboard/UserAnalyticsCharts";
+import AdvertisersSection from "../components/dashboard/AdvertisersSection";
+import { listAdvertisers, pruneInvalidAdvertisers, rebuildAdvertisersFromProgrammaticCampaigns, ADVERTISERS_STORAGE_KEY, type Advertiser } from "../lib/advertiserStore";
+import { PROGRAMMATIC_CAMPAIGNS_STORAGE_KEY } from "../lib/programmaticCampaignStore";
+import { invalidateStorageCache } from "../lib/clientStorageCache";
+import { resolveCampaignOwnerId } from "../lib/campaignOwnerScope";
 import {
   Zap, TrendingUp, Eye, ImageIcon, Plus, ArrowRight, Clock, Shield, Building2,
 } from "lucide-react";
@@ -28,43 +33,101 @@ export default function Dashboard() {
   const [user, setUser] = useState<any>(null);
   const [stats, setStats] = useState({ totalCreatives: 0, validCreatives: 0, invalidCreatives: 0, platformsUsed: 0 });
   const [analytics, setAnalytics] = useState<any>(null);
+  const [advertisers, setAdvertisers] = useState<Advertiser[]>([]);
+  const [campaignOwnerId, setCampaignOwnerId] = useState("");
   const [loading, setLoading] = useState(true);
   const { isAdmin } = useAdminAuth();
   const { isOrgAdmin, organizationName, memberRole } = useOrgAuth();
 
   useEffect(() => {
+    let active = true;
+
     const load = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      setUser(user);
-      if (user) {
-        void trackUserActivity("page_visit", {
-          action_label: "Dashboard visited",
-          metadata: { page: "dashboard" },
-        }, { dedupeKey: "page-visit-dashboard" });
+      try {
+        const currentUser = await getClientUser();
+        if (!active) return;
 
-        const [creatives, activityStats, analyzedCreativeIds] = await Promise.all([
-          fetchUserCreatives(),
-          fetchUserDashboardAnalytics(user.id),
-          fetchAnalyzerResultCreativeIds(),
-        ]);
+        setUser(currentUser);
+        if (currentUser) {
+          void trackUserActivity("page_visit", {
+            action_label: "Dashboard visited",
+            metadata: { page: "dashboard" },
+          }, { dedupeKey: "page-visit-dashboard" });
 
-        const counts = computeCreativeCountStats(creatives, activityStats, analyzedCreativeIds);
-        const platformSet = new Set(
-          activityStats.platformUsage.filter((p) => p.count > 0).map((p) => p.platform),
-        );
+          const [creatives, activityStats, analyzedCreativeIds] = await Promise.all([
+            fetchUserCreatives(),
+            fetchUserDashboardAnalytics(currentUser.id),
+            fetchAnalyzerResultCreativeIds(),
+          ]);
 
-        setStats({
-          totalCreatives: counts.totalCreatives,
-          validCreatives: counts.validCreatives,
-          invalidCreatives: counts.invalidCreatives,
-          platformsUsed: platformSet.size,
-        });
-        setAnalytics(activityStats);
+          if (!active) return;
+
+          const counts = computeCreativeCountStats(creatives, activityStats, analyzedCreativeIds);
+          const platformSet = new Set(
+            activityStats.platformUsage.filter((p) => p.count > 0).map((p) => p.platform),
+          );
+
+          setStats({
+            totalCreatives: counts.totalCreatives,
+            validCreatives: counts.validCreatives,
+            invalidCreatives: counts.invalidCreatives,
+            platformsUsed: platformSet.size,
+          });
+          setAnalytics(activityStats);
+
+          const ownerId = await resolveCampaignOwnerId();
+          if (!active) return;
+
+          setCampaignOwnerId(ownerId);
+          rebuildAdvertisersFromProgrammaticCampaigns(ownerId);
+          setAdvertisers(pruneInvalidAdvertisers(ownerId));
+        }
+      } catch (error) {
+        console.warn("[Dashboard] Failed to load dashboard data:", error);
+      } finally {
+        if (active) setLoading(false);
       }
-      setLoading(false);
     };
-    load();
+
+    void load();
+    return () => {
+      active = false;
+    };
   }, []);
+
+  useEffect(() => {
+    if (!campaignOwnerId) return;
+
+    let refreshTimer: ReturnType<typeof setTimeout> | null = null;
+
+    const refreshAdvertisers = () => {
+      if (refreshTimer) clearTimeout(refreshTimer);
+      refreshTimer = setTimeout(() => {
+        refreshTimer = null;
+        setAdvertisers(listAdvertisers(campaignOwnerId));
+      }, 300);
+    };
+
+    const handleStorage = (event: StorageEvent) => {
+      if (
+        event.key
+        && event.key !== ADVERTISERS_STORAGE_KEY
+        && event.key !== PROGRAMMATIC_CAMPAIGNS_STORAGE_KEY
+      ) {
+        return;
+      }
+      if (event.key) invalidateStorageCache(event.key);
+      refreshAdvertisers();
+    };
+
+    window.addEventListener("adigator-advertisers-updated", refreshAdvertisers);
+    window.addEventListener("storage", handleStorage);
+    return () => {
+      if (refreshTimer) clearTimeout(refreshTimer);
+      window.removeEventListener("adigator-advertisers-updated", refreshAdvertisers);
+      window.removeEventListener("storage", handleStorage);
+    };
+  }, [campaignOwnerId]);
 
   const firstName = user?.user_metadata?.full_name?.split(" ")[0] || user?.email?.split("@")[0] || "there";
   const today = new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
@@ -160,6 +223,10 @@ export default function Dashboard() {
             Valid and invalid counts are cumulative across your upload history. A creative fixed after an initial failure may appear in both totals.
           </p>
         ) : null}
+      </motion.div>
+
+      <motion.div variants={fade}>
+        <AdvertisersSection advertisers={advertisers} loading={loading} ownerId={campaignOwnerId} />
       </motion.div>
 
       <motion.div variants={fade}>

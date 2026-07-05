@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { supabase } from "@/app/lib/supabase";
+import { getClientUser } from "@/app/lib/supabaseAuthClient";
 import { isOrgAdminRole, type OrgMemberRole } from "./types";
 
 type OrgAuthState = {
@@ -33,7 +34,7 @@ export function OrgAuthProvider({ children }: { children: ReactNode }) {
     let active = true;
 
     async function load() {
-      const { data: { user } } = await supabase.auth.getUser();
+      const user = await getClientUser();
       if (!user) {
         if (active) {
           setState({ isOrgAdmin: false, loading: false, organizationId: null, organizationName: null, memberRole: null });

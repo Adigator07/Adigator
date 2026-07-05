@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabaseClient, getAccessTokenFromRequest, getAuthenticatedUser } from "../../../lib/supabaseServer";
+import { isSchemaUnavailableError } from "@/app/lib/supabaseErrors";
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
@@ -38,6 +39,15 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       .single();
 
     if (error) {
+      if (isSchemaUnavailableError(error)) {
+        return NextResponse.json({
+          skipped: true,
+          schemaUnavailable: true,
+          sessionId: null,
+          session: null,
+          error: error.message,
+        });
+      }
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
 

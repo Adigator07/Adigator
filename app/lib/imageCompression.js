@@ -187,8 +187,8 @@ export function pickBetterCandidate(current, next, targetBytes) {
   return next.blob.size < current.blob.size ? next : current;
 }
 
-function buildScaleAttempts(sourceWidth, sourceHeight, targetBytes) {
-  if (!targetBytes) return [1];
+function buildScaleAttempts(sourceWidth, sourceHeight, targetBytes, preserveDimensions = false) {
+  if (!targetBytes || preserveDimensions) return [1];
 
   const pixelCount = Math.max(1, sourceWidth * sourceHeight);
   const roughBytesPerPixel = 0.12;
@@ -219,6 +219,7 @@ export async function compressImageToTarget(drawable, options = {}) {
     sourceWidth,
     sourceHeight,
     maxQualityIterations = 5,
+    preserveDimensions = false,
   } = options;
 
   const width = sourceWidth || drawable.width;
@@ -235,7 +236,8 @@ export async function compressImageToTarget(drawable, options = {}) {
     });
   }
 
-  const scaleAttempts = buildScaleAttempts(width, height, targetBytes);
+  const scaleAttempts = buildScaleAttempts(width, height, targetBytes, preserveDimensions);
+  const qualityIterations = preserveDimensions ? Math.max(maxQualityIterations, 8) : maxQualityIterations;
 
   let bestCandidate = null;
 
@@ -244,7 +246,7 @@ export async function compressImageToTarget(drawable, options = {}) {
     let high = 0.92;
     let localBest = null;
 
-    for (let iteration = 0; iteration < maxQualityIterations; iteration += 1) {
+    for (let iteration = 0; iteration < qualityIterations; iteration += 1) {
       const quality = Number(((low + high) / 2).toFixed(3));
       const compressed = await compressDrawable(drawable, {
         outputType,
@@ -270,7 +272,7 @@ export async function compressImageToTarget(drawable, options = {}) {
 
     if (localBest) {
       bestCandidate = pickBetterCandidate(bestCandidate, localBest, targetBytes);
-      if (targetBytes && localBest.blob.size <= targetBytes && scale >= 0.5) {
+      if (targetBytes && localBest.blob.size <= targetBytes && (preserveDimensions || scale >= 0.5)) {
         break;
       }
     }

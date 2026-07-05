@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Inter, JetBrains_Mono, Cormorant_Garamond } from "next/font/google";
+import BrowserExtensionErrorGuard from "./components/BrowserExtensionErrorGuard";
 import "./globals.css";
 
 const inter = Inter({
@@ -41,6 +42,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" className={`dark ${inter.variable} ${jetbrainsMono.variable} ${cormorant.variable}`} data-scroll-behavior="smooth">
       <body className="antialiased" style={{ fontFamily: "var(--font-inter), sans-serif" }}>
+        <BrowserExtensionErrorGuard />
         {children}
       </body>
     </html>

@@ -7,7 +7,10 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "docs:pdf": "node scripts/generate-documentation-pdf.mjs"
+    "docs:pdf": "node scripts/generate-documentation-pdf.mjs",
+    "test:e2e:creative-brain": "node scripts/e2e-creative-brain-reuse.mjs",
+    "test:e2e:creative-brain:staging": "node scripts/e2e-creative-brain-reuse.mjs --staging",
+    "sql:staging": "node scripts/build-staging-sql.mjs"
   },
   "dependencies": {
     "@gsap/react": "^2.1.2",
@@ -17,6 +20,7 @@
     "framer-motion": "^12.38.0",
     "gsap": "^3.15.0",
     "html2canvas": "^1.4.1",
+    "html2canvas-pro": "^2.2.1",
     "ioredis": "^5.11.1",
     "jspdf": "^4.2.1",
     "lucide-react": "^1.8.0",

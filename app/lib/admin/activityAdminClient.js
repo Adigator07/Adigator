@@ -3,10 +3,11 @@
  */
 
 import { supabase } from "../supabase";
+import { getClientSession, getClientUser } from "../supabaseAuthClient";
 import { isAdminRole } from "./permissions";
 
 async function getAccessToken() {
-  const { data: { session } } = await supabase.auth.getSession();
+  const session = await getClientSession();
   return session?.access_token || null;
 }
 
@@ -36,7 +37,7 @@ async function fetchProfileRole(userId) {
 }
 
 async function getCurrentUserRole() {
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getClientUser();
   if (!user) return null;
 
   const metaRole = user.user_metadata?.role;

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   DeviceToggle,
   PreviewDeviceIncompatibleState,
@@ -19,6 +19,10 @@ import {
   getSupportedDevicesForCreative,
   validatePreviewDeviceCompatibility,
 } from "@/app/lib/previewDeviceCompatibility";
+import {
+  formatVerticalLabel,
+  resolveCreativePreviewContext,
+} from "@/app/lib/creativePreviewContext";
 
 const TEMPLATE_TABS = PROGRAMMATIC_DISPLAY_WEBSITE_ENVIRONMENTS.map((id) => ({
   id,
@@ -43,16 +47,34 @@ export default function ProgrammaticPreviewStudio({
   goal,
   onCopyCreative,
   onEditCreative,
+  campaignBrief = "",
+  campaignIntent = "",
+  campaignIntentFingerprint = "",
+  advertiserName = "",
+  brandName = "",
+  campaignName = "",
+  campaignProductFocus = "",
+  advertiserId = "",
+  campaignId = "",
+  creativeFingerprint = "",
+  previewStudioCache = null,
+  onPreviewCacheUpdate,
+  onExportContextChange,
+  cacheOnly = false,
+  initialTemplateId = null,
+  initialPreviewDevice = null,
+  initialPreviewCreativeId = null,
 }) {
   const [activeTemplate, setActiveTemplate] = useState(
-    () => PROGRAMMATIC_DISPLAY_WEBSITE_ENVIRONMENTS[0],
+    () => initialTemplateId || PROGRAMMATIC_DISPLAY_WEBSITE_ENVIRONMENTS[0],
   );
-  const [device, setDevice] = useState("desktop");
+  const [device, setDevice] = useState(() => initialPreviewDevice || "desktop");
   const [regenerateToken, setRegenerateToken] = useState(0);
   const [isRegenerating, setIsRegenerating] = useState(false);
   const [selectedSourceId, setSelectedSourceId] = useState(
-    () => sourceCreatives[0]?.id || null,
+    () => initialPreviewCreativeId || sourceCreatives[0]?.id || null,
   );
+  const lastAutoTemplateCreativeRef = useRef(null);
 
   useEffect(() => {
     if (!sourceCreatives.length) return;
@@ -60,6 +82,12 @@ export default function ProgrammaticPreviewStudio({
       setSelectedSourceId(sourceCreatives[0].id);
     }
   }, [sourceCreatives, selectedSourceId]);
+
+  useEffect(() => {
+    if (initialTemplateId) setActiveTemplate(initialTemplateId);
+    if (initialPreviewDevice) setDevice(initialPreviewDevice);
+    if (initialPreviewCreativeId) setSelectedSourceId(initialPreviewCreativeId);
+  }, [initialTemplateId, initialPreviewDevice, initialPreviewCreativeId]);
 
   const selectedSource = useMemo(
     () => sourceCreatives.find((creative) => creative.id === selectedSourceId)
@@ -71,14 +99,40 @@ export default function ProgrammaticPreviewStudio({
   const selectedCreativeWithAnalysis = useMemo(() => {
     if (!selectedSource) return null;
     const enriched = creatives.find((creative) => creative.id === selectedSource.id);
+    const analyzerOutput = enriched?.analyzerOutput || {};
+    const previewContext = resolveCreativePreviewContext(analyzerOutput, vertical);
     return {
       ...selectedSource,
       url: enriched?.url || selectedSource.url || selectedSource.fullUrl || "",
-      analyzerOutput: enriched?.analyzerOutput || {},
+      analyzerOutput,
       ctaText: enriched?.ctaText || "",
       headline: enriched?.headline || selectedSource.name || "",
+      previewVertical: enriched?.previewVertical || previewContext.creativeVertical,
+      previewTemplate: enriched?.previewTemplate || previewContext.templateId,
     };
-  }, [selectedSource, creatives]);
+  }, [selectedSource, creatives, vertical]);
+
+  const selectedPreviewContext = useMemo(() => (
+    resolveCreativePreviewContext(selectedCreativeWithAnalysis?.analyzerOutput, vertical)
+  ), [selectedCreativeWithAnalysis?.analyzerOutput, vertical]);
+
+  useEffect(() => {
+    if (!selectedCreativeWithAnalysis?.previewTemplate) return;
+    if (lastAutoTemplateCreativeRef.current === selectedSourceId) return;
+    setActiveTemplate(selectedCreativeWithAnalysis.previewTemplate);
+    lastAutoTemplateCreativeRef.current = selectedSourceId;
+  }, [selectedSourceId, selectedCreativeWithAnalysis?.previewTemplate]);
+
+  useEffect(() => {
+    onExportContextChange?.({
+      platform: "programmatic",
+      templateId: activeTemplate,
+      device,
+      creativeId: selectedSourceId,
+      studioMode: "previews",
+      getPreviewElement: null,
+    });
+  }, [activeTemplate, device, selectedSourceId, onExportContextChange]);
 
   const selectedSourceDeviceValidation = useMemo(() => {
     if (!selectedSource) return { supported: true, message: null };
@@ -100,6 +154,11 @@ export default function ProgrammaticPreviewStudio({
     setRegenerateToken((value) => value + 1);
     window.setTimeout(() => setIsRegenerating(false), 600);
   }, []);
+
+  const handlePreviewCacheUpdate = useCallback((cache) => {
+    onPreviewCacheUpdate?.(cache);
+    setRegenerateToken(0);
+  }, [onPreviewCacheUpdate]);
 
   const alternateDevice = device === "mobile" ? "desktop" : "mobile";
   const creativeSize = selectedSource?.size || selectedSource?.validation?.size;
@@ -128,7 +187,10 @@ export default function ProgrammaticPreviewStudio({
 
       <StudioContentPanel panelKey={activeTemplate} className="space-y-5">
         <p className="-mt-2 text-xs text-studio-muted">
-          Choose a publisher template. Previews are generated to match your campaign vertical and creative.
+          Each creative gets its own publisher preview based on its detected category.
+          {selectedPreviewContext ? (
+            <> Detected for this creative: <strong className="text-studio-text">{formatVerticalLabel(selectedPreviewContext.creativeVertical)}</strong> · auto template <strong className="text-studio-text">{PROGRAMMATIC_ENVIRONMENT_LABELS[selectedPreviewContext.templateId] || selectedPreviewContext.templateId}</strong>.</>
+          ) : null}
         </p>
 
         <CompatibleCreativePicker
@@ -152,7 +214,7 @@ export default function ProgrammaticPreviewStudio({
           <StudioToolbar
             count={canPreview ? 1 : 0}
             device={device}
-            onRegenerate={handleRegenerate}
+            onRegenerate={cacheOnly ? undefined : handleRegenerate}
             isRegenerating={isRegenerating}
           />
         </div>
@@ -188,7 +250,7 @@ export default function ProgrammaticPreviewStudio({
         ) : (
           <div className="preview-environment-root">
           <ContextualPreviewEngine
-            key={`${selectedSourceId}-${activeTemplate}-${device}-${regenerateToken}`}
+            key={`${selectedSourceId}-${activeTemplate}-${device}-${selectedCreativeWithAnalysis?.previewVertical || vertical}`}
             creatives={[selectedCreativeWithAnalysis]}
             vertical={vertical}
             goal={goal}
@@ -203,8 +265,22 @@ export default function ProgrammaticPreviewStudio({
             previewPlacement={PROGRAMMATIC_PREVIEW_PLACEMENT}
             onCopyCreative={onCopyCreative}
             onEditCreative={onEditCreative}
-          getSupportedDevicesForCreative={getSupportedDevices}
-        />
+            getSupportedDevicesForCreative={getSupportedDevices}
+            campaignBrief={campaignBrief}
+            campaignIntent={campaignIntent}
+            campaignIntentFingerprint={campaignIntentFingerprint}
+            advertiserName={advertiserName}
+            brandName={brandName}
+            campaignName={campaignName}
+            campaignProductFocus={campaignProductFocus}
+            advertiserId={advertiserId}
+            campaignId={campaignId}
+            creativeFingerprint={creativeFingerprint}
+            previewStudioCache={previewStudioCache}
+            onPreviewCacheUpdate={handlePreviewCacheUpdate}
+            regenerateNonce={regenerateToken}
+            cacheOnly={cacheOnly}
+          />
           </div>
         )}
       </StudioContentPanel>

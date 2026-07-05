@@ -4,6 +4,7 @@
  */
 
 import pptxgen from "pptxgenjs";
+import { getCreativeBlob, previewKey } from "./creativeAssetStore";
 import {
   compareStrategicEntries,
   getEntryPayload,
@@ -31,7 +32,102 @@ const PLATFORM_LABELS = {
 };
 
 function imgSrc(url) {
-  return url;
+  if (!url || typeof url !== "string") return null;
+  const trimmed = url.trim();
+  if (!trimmed) return null;
+  if (trimmed.startsWith("data:") && trimmed.includes("base64,")) {
+    return trimmed;
+  }
+  return null;
+}
+
+function blobToDataUrl(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(typeof reader.result === "string" ? reader.result : "");
+    reader.onerror = () => reject(reader.error || new Error("Failed to read blob"));
+    reader.readAsDataURL(blob);
+  });
+}
+
+async function fetchUrlAsDataUri(url) {
+  if (!url || typeof url !== "string") return null;
+  const trimmed = url.trim();
+  if (!trimmed) return null;
+  if (trimmed.startsWith("data:") && trimmed.includes("base64,")) {
+    return trimmed;
+  }
+  if (!trimmed.startsWith("blob:") && !/^https?:\/\//i.test(trimmed)) {
+    return null;
+  }
+
+  try {
+    const response = await fetch(trimmed);
+    if (!response.ok) return null;
+    const blob = await response.blob();
+    const dataUrl = await blobToDataUrl(blob);
+    return imgSrc(dataUrl);
+  } catch {
+    return null;
+  }
+}
+
+async function resolveCreativeExportImage(creative) {
+  if (!creative || typeof creative !== "object") return null;
+
+  const inlineCandidates = [
+    creative.pptxImageData,
+    creative.previewDataUrl,
+    creative.url,
+    creative.fullUrl,
+    creative.imageDataUrl,
+    creative.image,
+  ];
+
+  for (const candidate of inlineCandidates) {
+    const normalized = imgSrc(candidate);
+    if (normalized) return normalized;
+  }
+
+  if (creative.id) {
+    try {
+      const previewBlob = await getCreativeBlob(previewKey(creative.id));
+      const fullBlob = previewBlob || await getCreativeBlob(creative.id);
+      if (fullBlob) {
+        const dataUrl = await blobToDataUrl(fullBlob);
+        const normalized = imgSrc(dataUrl);
+        if (normalized) return normalized;
+      }
+    } catch {
+      // fall through to URL fetch
+    }
+  }
+
+  for (const candidate of inlineCandidates) {
+    const resolved = await fetchUrlAsDataUri(candidate);
+    if (resolved) return resolved;
+  }
+
+  return null;
+}
+
+export async function hydrateCreativesForExport(validCreatives) {
+  return Promise.all(
+    validCreatives.map(async (item) => {
+      const creative = item.creative || item;
+      const pptxImageData = await resolveCreativeExportImage(creative);
+      if (!pptxImageData) {
+        return item;
+      }
+      if (item.creative) {
+        return {
+          ...item,
+          creative: { ...creative, pptxImageData },
+        };
+      }
+      return { ...item, pptxImageData };
+    }),
+  );
 }
 
 function addSlideBackground(slide) {
@@ -319,17 +415,29 @@ function addCreativeSlide(prs, entry, slideNum, totalSlides) {
   const imageX = 0.6;
   const imageY = 1.2;
 
-  if (entry.creative.url) {
-    try {
-      slide.addImage({
-        data: imgSrc(entry.creative.url),
-        x: imageX,
-        y: imageY,
-        w: imageW,
-        h: imageH,
-        sizing: { type: "contain", w: imageW, h: imageH },
-      });
-    } catch {
+  if (entry.creative.url || entry.creative.pptxImageData) {
+    const imageData = imgSrc(entry.creative.pptxImageData || entry.creative.url);
+    if (imageData) {
+      try {
+        slide.addImage({
+          data: imageData,
+          x: imageX,
+          y: imageY,
+          w: imageW,
+          h: imageH,
+          sizing: { type: "contain", w: imageW, h: imageH },
+        });
+      } catch {
+        slide.addText("Creative image unavailable", {
+          x: imageX,
+          y: imageY + 1.2,
+          w: imageW,
+          h: 0.4,
+          fontSize: 10,
+          color: "94A3B8",
+        });
+      }
+    } else {
       slide.addText("Creative image unavailable", {
         x: imageX,
         y: imageY + 1.2,
@@ -631,23 +739,418 @@ function buildStrategicDeck(prs, validCreatives, templateName, meta = {}) {
   });
 }
 
+const PREVIEW_TEMPLATE_LABELS = {
+  news: "News Articles",
+  blog: "Blog",
+  native_display: "Native Display",
+  health: "Health",
+  newspaper: "News website layout",
+  ecommerce: "E-commerce product page",
+  health_legacy: "Native ad placement",
+  technology: "Product landing page",
+  business: "Feature comparison layout",
+  entertainment: "Video platform preview",
+};
+
+function parsePreviewCacheKey(entryKey) {
+  const parts = String(entryKey || "").split("|");
+  return {
+    templateId: parts[0] || "news",
+    device: parts[1] || "desktop",
+    creativeId: parts[2] || "",
+    creativeSize: parts[3] || "",
+    goal: parts[4] || "",
+    creativeVertical: parts[5] || "",
+  };
+}
+
+function templateLabel(templateId) {
+  return PREVIEW_TEMPLATE_LABELS[templateId] || templateId.replace(/_/g, " ");
+}
+
+function deviceLabel(device) {
+  if (device === "mobile") return "Mobile";
+  if (device === "tablet") return "Tablet";
+  return "Desktop";
+}
+
+function extractPreviewHeadline(output) {
+  const env = output?.generatedEnvironment;
+  if (!env) return "";
+  const headlineBlock = (env.contextBlocks || []).find((b) => b.type === "headline");
+  if (headlineBlock?.text) return headlineBlock.text;
+  if (env.pageTitle) return env.pageTitle;
+  if (env.landingPage?.hero?.headline) return env.landingPage.hero.headline;
+  return "";
+}
+
+function extractPreviewContextLines(output, max = 6) {
+  const env = output?.generatedEnvironment;
+  if (!env) return [];
+
+  const lines = [];
+  if (env.publisherName) lines.push(`Publisher: ${env.publisherName}`);
+  if (env.layoutType) lines.push(`Layout: ${env.layoutType.replace(/_/g, " ")}`);
+
+  (env.contextBlocks || []).slice(0, 4).forEach((block) => {
+    if (block.text) {
+      lines.push(`${block.type}: ${block.text}${block.secondary ? ` — ${block.secondary}` : ""}`);
+    }
+  });
+
+  (env.uiModules || []).slice(0, 2).forEach((mod) => {
+    if (mod.label) lines.push(`${mod.type}: ${mod.label}`);
+    (mod.items || []).slice(0, 2).forEach((item) => {
+      if (item.text) lines.push(`  • ${item.text}`);
+    });
+  });
+
+  const mapping = output?.creativeMapping;
+  if (mapping?.slotDescription) lines.push(`Placement: ${mapping.slotDescription}`);
+
+  const validation = output?.validation;
+  if (validation?.overallStatus) {
+    lines.push(`Validation: ${validation.overallStatus.toUpperCase()}`);
+  }
+
+  return lines.slice(0, max);
+}
+
+function addPreviewStudioCoverSlide(prs, meta, cacheEntries, slideNum, totalSlides) {
+  const slide = prs.addSlide();
+  addSlideBackground(slide);
+  addHeader(
+    prs,
+    slide,
+    "Preview Studio Visual Report",
+    `${meta?.campaignName || "Campaign"}  ·  ${meta?.verticalLabel || meta?.vertical || "General"}`,
+  );
+
+  slide.addText("Contextual preview snapshots across templates, devices, and placements", {
+    x: 0.6,
+    y: 1.55,
+    w: 11,
+    h: 0.4,
+    fontSize: 13,
+    color: "67E8F9",
+    fontFace: "Arial",
+  });
+
+  slide.addText(`Creatives: ${meta?.creativeCount || 0}  ·  Preview variants: ${cacheEntries.length}`, {
+    x: 0.6,
+    y: 2.05,
+    w: 10,
+    h: 0.35,
+    fontSize: 11,
+    color: "E2E8F0",
+    fontFace: "Arial",
+  });
+
+  const templates = [...new Set(cacheEntries.map((e) => e.templateId))];
+  slide.addText(`Templates: ${templates.map(templateLabel).join(" · ")}`, {
+    x: 0.6,
+    y: 2.45,
+    w: 11.5,
+    h: 0.35,
+    fontSize: 10,
+    color: "CBD5E1",
+    fontFace: "Arial",
+  });
+
+  addFooter(slide, slideNum, totalSlides);
+}
+
+function addPreviewCreativeDividerSlide(prs, creative, index, total, slideNum, totalSlides) {
+  const slide = prs.addSlide();
+  addSlideBackground(slide);
+  addHeader(
+    prs,
+    slide,
+    `Creative ${index + 1} of ${total}`,
+    creative?.name || "Untitled Creative",
+  );
+
+  slide.addText(creative?.size || "", {
+    x: 0.6,
+    y: 1.5,
+    w: 6,
+    h: 0.35,
+    fontSize: 12,
+    color: "94A3B8",
+    fontFace: "Arial",
+  });
+
+  if (creative?.previewVertical) {
+    slide.addText(`Detected vertical: ${creative.previewVertical.replace(/_/g, " ")}`, {
+      x: 0.6,
+      y: 1.9,
+      w: 8,
+      h: 0.35,
+      fontSize: 10,
+      color: "CBD5E1",
+      fontFace: "Arial",
+    });
+  }
+
+  addFooter(slide, slideNum, totalSlides);
+}
+
+function addPreviewSnapshotSlide(prs, entry, creative, slideNum, totalSlides) {
+  const slide = prs.addSlide();
+  addSlideBackground(slide);
+  const headline = extractPreviewHeadline(entry.output);
+  const subtitle = [
+    templateLabel(entry.templateId),
+    deviceLabel(entry.device),
+    entry.creativeSize,
+    entry.creativeVertical ? entry.creativeVertical.replace(/_/g, " ") : null,
+  ].filter(Boolean).join("  ·  ");
+
+  addHeader(
+    prs,
+    slide,
+    creative?.name || "Preview Snapshot",
+    subtitle,
+  );
+
+  const frameX = 0.55;
+  const frameY = 1.15;
+  const frameW = 6.2;
+  const frameH = 5.6;
+
+  slide.addShape(prs.ShapeType.roundRect, {
+    x: frameX,
+    y: frameY,
+    w: frameW,
+    h: frameH,
+    fill: { color: "FFFFFF" },
+    line: { color: "334155", pt: 1 },
+    radius: 0.08,
+  });
+
+  slide.addShape(prs.ShapeType.rect, {
+    x: frameX,
+    y: frameY,
+    w: frameW,
+    h: 0.35,
+    fill: { color: "E2E8F0" },
+    line: { color: "E2E8F0" },
+  });
+
+  slide.addText(envBrowserDots(), {
+    x: frameX + 0.15,
+    y: frameY + 0.08,
+    w: 1,
+    h: 0.2,
+    fontSize: 7,
+    color: "64748B",
+    fontFace: "Arial",
+  });
+
+  const imageData = imgSrc(creative?.pptxImageData);
+  const imageInsetX = frameX + 0.35;
+  const imageInsetY = frameY + 0.55;
+  const imageW = frameW - 0.7;
+  const imageH = 2.4;
+
+  if (imageData) {
+    try {
+      slide.addImage({
+        data: imageData,
+        x: imageInsetX,
+        y: imageInsetY,
+        w: imageW,
+        h: imageH,
+        sizing: { type: "contain", w: imageW, h: imageH },
+      });
+    } catch {
+      slide.addText("Creative image unavailable", {
+        x: imageInsetX,
+        y: imageInsetY + 1,
+        w: imageW,
+        h: 0.3,
+        fontSize: 9,
+        color: "64748B",
+        fontFace: "Arial",
+      });
+    }
+  }
+
+  if (headline) {
+    slide.addText(headline, {
+      x: imageInsetX,
+      y: imageInsetY + imageH + 0.15,
+      w: imageW,
+      h: 0.45,
+      fontSize: 11,
+      bold: true,
+      color: "0F172A",
+      fontFace: "Arial",
+      breakLine: true,
+    });
+  }
+
+  const publisher = entry.output?.generatedEnvironment?.publisherName;
+  if (publisher) {
+    slide.addText(publisher, {
+      x: imageInsetX,
+      y: imageInsetY + imageH + 0.62,
+      w: imageW,
+      h: 0.25,
+      fontSize: 8,
+      color: "64748B",
+      fontFace: "Arial",
+    });
+  }
+
+  slide.addShape(prs.ShapeType.roundRect, {
+    x: 7.1,
+    y: 1.15,
+    w: 5.7,
+    h: 5.6,
+    fill: { color: "111827", transparency: 8 },
+    line: { color: "334155" },
+    radius: 0.06,
+  });
+
+  slide.addText("PREVIEW CONTEXT", {
+    x: 7.35,
+    y: 1.35,
+    w: 5,
+    h: 0.25,
+    fontSize: 10,
+    bold: true,
+    color: "67E8F9",
+    fontFace: "Arial",
+  });
+
+  let y = 1.65;
+  extractPreviewContextLines(entry.output, 8).forEach((line) => {
+    slide.addText(line, {
+      x: 7.35,
+      y,
+      w: 5.2,
+      h: 0.32,
+      fontSize: 8,
+      color: "CBD5E1",
+      fontFace: "Arial",
+      breakLine: true,
+    });
+    y += 0.34;
+  });
+
+  const decision = entry.output?.previewDecision;
+  if (decision?.reason && y < 6.2) {
+    slide.addText(`Why this environment: ${decision.reason}`, {
+      x: 7.35,
+      y: Math.min(y + 0.2, 5.9),
+      w: 5.2,
+      h: 0.55,
+      fontSize: 7,
+      color: "94A3B8",
+      fontFace: "Arial",
+      breakLine: true,
+    });
+  }
+
+  addFooter(slide, slideNum, totalSlides);
+}
+
+function envBrowserDots() {
+  return "● ● ●";
+}
+
+function buildPreviewStudioDeck(prs, validCreatives, meta = {}) {
+  const cache = meta.previewStudioCache;
+  const cacheEntries = [];
+
+  if (cache?.entries && typeof cache.entries === "object") {
+    Object.entries(cache.entries).forEach(([entryKey, cacheEntry]) => {
+      if (!cacheEntry?.output) return;
+      const parsed = parsePreviewCacheKey(entryKey);
+      cacheEntries.push({
+        entryKey,
+        output: cacheEntry.output,
+        generatedAt: cacheEntry.generatedAt,
+        ...parsed,
+      });
+    });
+  }
+
+  const creativeById = new Map(
+    validCreatives.map((item) => {
+      const creative = item.creative || item;
+      return [creative.id, { ...item, creative }];
+    }),
+  );
+
+  if (cacheEntries.length === 0) {
+    buildStrategicDeck(prs, validCreatives, meta.templateName || "Template", meta);
+    return;
+  }
+
+  cacheEntries.sort((a, b) => {
+    const nameA = creativeById.get(a.creativeId)?.creative?.name || a.creativeId;
+    const nameB = creativeById.get(b.creativeId)?.creative?.name || b.creativeId;
+    if (nameA !== nameB) return nameA.localeCompare(nameB);
+    if (a.templateId !== b.templateId) return a.templateId.localeCompare(b.templateId);
+    return a.device.localeCompare(b.device);
+  });
+
+  const creativeIds = [...new Set(cacheEntries.map((e) => e.creativeId))];
+  const totalSlides = 1 + creativeIds.length + cacheEntries.length;
+  let slideNum = 1;
+
+  addPreviewStudioCoverSlide(
+    prs,
+    { ...meta, creativeCount: creativeIds.length },
+    cacheEntries,
+    slideNum++,
+    totalSlides,
+  );
+
+  creativeIds.forEach((creativeId, index) => {
+    const item = creativeById.get(creativeId);
+    if (item) {
+      addPreviewCreativeDividerSlide(prs, item.creative, index, creativeIds.length, slideNum++, totalSlides);
+    }
+    cacheEntries
+      .filter((entry) => entry.creativeId === creativeId)
+      .forEach((entry) => {
+        addPreviewSnapshotSlide(prs, entry, item?.creative, slideNum++, totalSlides);
+      });
+  });
+}
+
 /**
  * @param {Object[]} validCreatives - array of { id, name, url, size, analysisData? }
  * @param {"single"|"multiple"} viewMode
  * @param {string} templateName
- * @param {Object} meta - { goal, platform, vertical, verticalLabel, overview }
+ * @param {Object} meta - { goal, platform, vertical, verticalLabel, overview, previewStudioCache, reportKind }
  */
 export async function exportToPptx(validCreatives, viewMode = "multiple", templateName = "Template", meta = {}) {
   const prs = new pptxgen();
   prs.layout = "LAYOUT_WIDE";
   prs.author = "Adigator Advertising Intelligence";
   prs.company = "Adigator";
-  prs.subject = "Advertising Intelligence Report";
-  prs.title = `Adigator Validation Report — ${templateName}`;
+  prs.subject = meta.reportKind === "preview_studio"
+    ? "Preview Studio Visual Report"
+    : "Advertising Intelligence Report";
+  prs.title = meta.reportKind === "preview_studio"
+    ? `Adigator Preview Studio — ${meta.campaignName || templateName}`
+    : `Adigator Validation Report — ${templateName}`;
 
-  buildStrategicDeck(prs, validCreatives, templateName, meta);
+  const hydratedCreatives = await hydrateCreativesForExport(validCreatives);
 
-  const filename = `Adigator_Advertising_Intelligence_${viewMode === "single" ? "Single" : `${validCreatives.length}Creatives`}.pptx`;
+  if (meta.reportKind === "preview_studio" && meta.previewStudioCache?.entries) {
+    buildPreviewStudioDeck(prs, hydratedCreatives, { ...meta, templateName });
+  } else {
+    buildStrategicDeck(prs, hydratedCreatives, templateName, meta);
+  }
+
+  const filename = meta.reportKind === "preview_studio"
+    ? `Adigator_Preview_Studio_${validCreatives.length}Creatives.pptx`
+    : `Adigator_Advertising_Intelligence_${viewMode === "single" ? "Single" : `${validCreatives.length}Creatives`}.pptx`;
   await prs.writeFile({ fileName: filename });
   return filename;
 }

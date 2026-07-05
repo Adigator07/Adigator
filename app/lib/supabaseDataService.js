@@ -4,6 +4,7 @@
  */
 
 import { supabase } from "./supabase";
+import { getClientUser, getFreshAccessToken } from "./supabaseAuthClient";
 import { getCreativeFullBlob } from "./creativeAssetStore";
 import { formatSupabaseError, getSupabaseErrorMessage, isSchemaUnavailableError } from "./supabaseErrors";
 
@@ -21,14 +22,13 @@ function warnSchemaOnce(message) {
 }
 
 export async function getAuthenticatedUser() {
-  const { data: { user }, error } = await supabase.auth.getUser();
-  if (error) throw new Error(error.message);
+  const user = await getClientUser();
+  if (!user) return null;
   return user;
 }
 
 export async function getActivityAccessToken() {
-  const { data: { session } } = await supabase.auth.getSession();
-  return session?.access_token || null;
+  return getFreshAccessToken();
 }
 
 function sanitizeFileName(name) {
@@ -188,7 +188,14 @@ export async function saveCreative({ creative, platform, supabaseCreativeId = nu
     }
 
     if (!response.ok || !payload.success) {
-      const normalized = formatSupabaseError(payload.error || "Failed to save creative");
+      const errorMessage = payload.error || "Failed to save creative";
+      if (
+        response.status === 401
+        || String(errorMessage).toLowerCase() === "unauthorized"
+      ) {
+        return { data: null, error: null, skipped: true, authExpired: true };
+      }
+      const normalized = formatSupabaseError(errorMessage);
       return { data: null, error: normalized, skipped: false };
     }
 
@@ -319,10 +326,36 @@ export async function trackUserActivity(actionType, payload = {}, options = {}) 
 
       if (response.ok) {
         const body = await response.json();
-        return { data: normalizeActivityRow(body.event), error: null, skipped: false };
+        if (body?.skipped) {
+          return writeLocalActivity({
+            action_type: normalizedType,
+            action_label: actionLabel,
+            metadata,
+            created_at: new Date().toISOString(),
+          });
+        }
+        if (body.event) {
+          return { data: normalizeActivityRow(body.event), error: null, skipped: false };
+        }
       }
 
       const body = await response.json().catch(() => ({}));
+      if (body?.skipped || body?.schemaUnavailable) {
+        return writeLocalActivity({
+          action_type: normalizedType,
+          action_label: actionLabel,
+          metadata,
+          created_at: new Date().toISOString(),
+        });
+      }
+      if (response.status >= 500) {
+        return writeLocalActivity({
+          action_type: normalizedType,
+          action_label: actionLabel,
+          metadata,
+          created_at: new Date().toISOString(),
+        });
+      }
       console.warn("[Adigator] Activity log API failed:", body.error || response.statusText);
     } catch (error) {
       console.warn("[Adigator] Activity log request failed:", error);

@@ -30,6 +30,85 @@ function getClient(): OpenAI {
   return new OpenAI({ apiKey });
 }
 
+async function generateWithGemini(prompt: string): Promise<Partial<GeneratedEnvironment> & { landingPage?: Partial<LandingPageContent> } | null> {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) return null;
+
+  const model = process.env.GEMINI_MODEL || "gemini-2.0-flash";
+  const response = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents: [{ role: "user", parts: [{ text: prompt }] }],
+        generationConfig: {
+          temperature: 0.55,
+          maxOutputTokens: 1200,
+          responseMimeType: "application/json",
+        },
+      }),
+    },
+  );
+
+  if (!response.ok) {
+    console.warn("[preview-engine] Gemini request failed:", response.status, await response.text().catch(() => ""));
+    return null;
+  }
+
+  const payload = await response.json();
+  const text = payload?.candidates?.[0]?.content?.parts?.[0]?.text;
+  if (typeof text !== "string" || !text.trim()) return null;
+
+  try {
+    return JSON.parse(text) as Partial<GeneratedEnvironment> & { landingPage?: Partial<LandingPageContent> };
+  } catch {
+    console.warn("[preview-engine] Gemini returned invalid JSON");
+    return null;
+  }
+}
+
+async function generatePreviewEnvironment(
+  prompt: string,
+  rendererFamily: EnvironmentFamily,
+  vertical: string,
+  goal: PreviewEngineInput["goal"],
+  promptHints: PromptHints,
+): Promise<GeneratedEnvironment> {
+  let aiError: unknown = null;
+
+  if (process.env.OPENAI_API_KEY) {
+    try {
+      const client = getClient();
+      const completion = await client.chat.completions.create({
+        model: process.env.OPENAI_MODEL || "gpt-4o",
+        messages: [{ role: "user", content: prompt }],
+        temperature: 0.55,
+        max_tokens: 1200,
+        response_format: { type: "json_object" },
+      });
+
+      const raw = completion.choices[0]?.message?.content ?? "{}";
+      const parsed = JSON.parse(raw) as Partial<GeneratedEnvironment> & { landingPage?: Partial<LandingPageContent> };
+      return normalizeGeneratedEnvironment(parsed, rendererFamily, vertical, goal, promptHints);
+    } catch (error) {
+      aiError = error;
+      console.warn("[preview-engine] OpenAI content generation failed:", error);
+    }
+  }
+
+  const geminiParsed = await generateWithGemini(prompt);
+  if (geminiParsed) {
+    return normalizeGeneratedEnvironment(geminiParsed, rendererFamily, vertical, goal, promptHints);
+  }
+
+  if (aiError) {
+    console.warn("[preview-engine] Falling back to deterministic content after AI failures");
+  }
+
+  return buildFallbackContent(rendererFamily, vertical, goal, promptHints);
+}
+
 type PromptHints = {
   audience: string;
   creativeMessage: string;
@@ -39,6 +118,14 @@ type PromptHints = {
   headline: string;
   ctaText: string;
   brand: string;
+  product: string;
+  topic: string;
+  visualSummary: string;
+  campaignBrief: string;
+  campaignIntent: string;
+  advertiserName: string;
+  campaignName: string;
+  productFocus: string;
 };
 
 function cleanText(value: unknown, fallback: string): string {
@@ -73,12 +160,20 @@ function buildPromptHints(input: PreviewEngineInput): PromptHints {
   return {
     audience: cleanText(analyzer.target_audience, `${input.vertical} buyers evaluating solutions`),
     creativeMessage: cleanText(analyzer.primary_message, input.headline ?? `${input.vertical} growth value proposition`),
-    offerType: cleanText(input.ctaText, goalOfferMap[input.goal]),
+    offerType: cleanText(input.ctaText, cleanText(analyzer.cta, goalOfferMap[input.goal])),
     tone: input.goal === "awareness" ? "brand-forward and modern" : input.goal === "consideration" ? "credible and persuasive" : "urgent and conversion-focused",
     platform: cleanText(analyzer.platform, "display advertising"),
-    headline: cleanText(input.headline, `Built for ${input.vertical} performance`),
-    ctaText: cleanText(input.ctaText, input.goal === "conversion" ? "Get Started" : "Learn More"),
-    brand: cleanText(analyzer.brand, ""),
+    headline: cleanText(input.headline, cleanText(analyzer.headline, `Built for ${input.vertical} performance`)),
+    ctaText: cleanText(input.ctaText, cleanText(analyzer.cta, input.goal === "conversion" ? "Get Started" : "Learn More")),
+    brand: cleanText(input.brandName, cleanText(analyzer.brand, "")),
+    product: cleanText(analyzer.product, input.campaignProductFocus || ""),
+    topic: cleanText(analyzer.topic, cleanText(analyzer.primary_message, "")),
+    visualSummary: cleanText(analyzer.visual_summary, ""),
+    campaignBrief: cleanText(input.campaignBrief, ""),
+    campaignIntent: cleanText(input.campaignIntent, ""),
+    advertiserName: cleanText(input.advertiserName, ""),
+    campaignName: cleanText(input.campaignName, ""),
+    productFocus: cleanText(input.campaignProductFocus, cleanText(analyzer.product, "")),
   };
 }
 
@@ -261,15 +356,15 @@ function buildFallbackContent(
   hints: PromptHints
 ): GeneratedEnvironment {
   const publisherNames: Record<EnvironmentFamily, string> = {
-    news: "The Digital Post",
-    commerce: "ShopSphere",
-    social: "FeedFlow",
-    luxury: "Prestige Living",
-    sports: "SportsPulse Live",
-    gaming: "GameVault",
-    finance: "MarketWatch Pro",
-    travel: "Wanderlust Guide",
-    booking: "ReserveNow",
+    news: hints.brand || `${vertical} Journal`,
+    commerce: hints.brand || `${vertical} Market`,
+    social: hints.brand || `${vertical} Network`,
+    luxury: hints.brand || `${vertical} Prestige`,
+    sports: hints.brand || `${vertical} Sports`,
+    gaming: hints.brand || `${vertical} Play`,
+    finance: hints.brand || `${vertical} Finance`,
+    travel: hints.brand || `${vertical} Travel`,
+    booking: hints.brand || `${vertical} Reserve`,
   };
 
   return normalizeGeneratedEnvironment({
@@ -285,6 +380,11 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
     const body = await request.json() as PreviewEngineInput;
     const { preferredEnvironment, vertical, goal, device, creativeSize, creativeType, analyzerOutput, ctaText, headline, logoPresent, riskFlags } = body;
+    const templateId = cleanText(body.templateId, cleanText(String(preferredEnvironment || ""), "news"));
+    const mappedRenderer = mapProgrammaticTemplateToRenderer(String(templateId));
+    const rendererFamily: EnvironmentFamily = mappedRenderer === "native_display"
+      ? "social"
+      : mappedRenderer as EnvironmentFamily;
 
     if (!vertical || !goal) {
       return NextResponse.json(
@@ -293,34 +393,15 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       );
     }
 
-    const templateId = preferredEnvironment ?? selectEnvironmentFamily(vertical, goal);
-    const rendererFamily = mapProgrammaticTemplateToRenderer(String(templateId)) as EnvironmentFamily;
     const promptHints = buildPromptHints(body);
     let generatedEnv: GeneratedEnvironment;
 
-    // Try AI content generation, fall back to deterministic content
-    try {
-      const client = getClient();
-      const prompt = buildContentPrompt(String(templateId), vertical, goal, promptHints);
-
-      if (prompt.length > MAX_PREVIEW_PROMPT_CHARS) {
-        throw new Error("Preview prompt exceeded size limit");
-      }
-
-      const completion = await client.chat.completions.create({
-        model: process.env.OPENAI_MODEL || "gpt-4o",
-        messages: [{ role: "user", content: prompt }],
-        temperature: 0.55,
-        max_tokens: 1200,
-        response_format: { type: "json_object" },
-      });
-
-      const raw = completion.choices[0]?.message?.content ?? "{}";
-      const parsed = JSON.parse(raw) as Partial<GeneratedEnvironment> & { landingPage?: Partial<LandingPageContent> };
-      generatedEnv = normalizeGeneratedEnvironment(parsed, rendererFamily, vertical, goal, promptHints);
-    } catch (aiErr) {
-      console.warn("[preview-engine] AI content generation failed, using fallback:", aiErr);
+    const prompt = buildContentPrompt(String(templateId), vertical, goal, promptHints);
+    if (prompt.length > MAX_PREVIEW_PROMPT_CHARS) {
+      console.warn("[preview-engine] Prompt exceeded size limit — using fallback content");
       generatedEnv = buildFallbackContent(rendererFamily, vertical, goal, promptHints);
+    } else {
+      generatedEnv = await generatePreviewEnvironment(prompt, rendererFamily, vertical, goal, promptHints);
     }
 
     const output = buildPreviewEngineOutput(
@@ -342,5 +423,9 @@ export async function GET(): Promise<NextResponse> {
     engine: "Preview Engine v1.0",
     description: "Contextual Ad Reality Simulator",
     endpoint: "POST /api/preview-engine",
+    providers: {
+      openai: Boolean(process.env.OPENAI_API_KEY),
+      gemini: Boolean(process.env.GEMINI_API_KEY),
+    },
   });
 }

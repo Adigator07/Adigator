@@ -278,7 +278,18 @@ export function buildPreviewEngineOutput(
   generatedEnv: GeneratedEnvironment
 ): PreviewEngineOutput {
   const device = input.device ?? inferDevice(input.creativeSize);
-  const environment = input.preferredEnvironment ?? selectEnvironmentFamily(input.vertical, input.goal);
+  const preferredEnv = input.preferredEnvironment;
+  const environment: EnvironmentFamily = (
+    preferredEnv === "news"
+    || preferredEnv === "commerce"
+    || preferredEnv === "social"
+    || preferredEnv === "luxury"
+    || preferredEnv === "sports"
+    || preferredEnv === "gaming"
+    || preferredEnv === "finance"
+    || preferredEnv === "travel"
+    || preferredEnv === "booking"
+  ) ? preferredEnv : selectEnvironmentFamily(input.vertical, input.goal);
   const slotType = selectSlotType(input.creativeSize ?? "300x250", environment);
   const primaryTemplate = buildTemplateName(environment, device, input.goal);
   const riskFlags = input.riskFlags ?? [];

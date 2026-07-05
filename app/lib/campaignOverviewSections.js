@@ -6,6 +6,7 @@
 import { CAMPAIGN_LAUNCH_STATUS } from "./analyzerInsights";
 import { summarizePlacementMatrix } from "./platformQaBuilders";
 import { getPlacementColumns } from "./placementCompatibility";
+import { resolveVerticalAlignmentStatus, getVerticalAlignmentDisplay } from "./strategicPresentation";
 
 function clampScore(value) {
   return Math.max(0, Math.min(100, Math.round(value)));
@@ -65,7 +66,7 @@ function computeDimensionScores(insights, platform) {
   const total = insights.length || 1;
   const ready = insights.filter((i) => i.launchStatusKey === "ready").length;
   const goalAligned = insights.filter((i) => i.goalAlignment?.is_aligned === true).length;
-  const verticalAligned = insights.filter((i) => i.verticalAlignment?.is_aligned === true).length;
+  const verticalAligned = insights.filter((i) => resolveVerticalAlignmentStatus(i.verticalAlignment).key === "aligned").length;
 
   const techItems = aggregateQaItems(insights, "technicalQa");
   const placementItems = aggregateQaItems(insights, "placementQa");
@@ -439,23 +440,34 @@ function buildProgrammaticBriefing(overview, goalText, verticalText, insights = 
   );
 }
 
-function buildCreativeAnalysisSection(insights, platform) {
-  const perCreative = insights.map((i) => ({
-    id: i.creativeId,
-    name: i.creativeName,
-    status: i.launchStatus,
-    statusKey: i.launchStatusKey,
-    headline: i.extractionSignals?.headline || null,
-    cta: i.extractionSignals?.cta || null,
-    dominantVisual: i.extractionSignals?.dominant_visual_cue || i.extractionSignals?.topic_summary || null,
-    textDensity: i.extractionSignals?.text_density || null,
-    goalAligned: i.goalAlignment?.is_aligned,
-    verticalAligned: i.verticalAlignment?.is_aligned,
-  }));
+function buildCreativeAnalysisSection(insights, platform, verticalText = "") {
+  const perCreative = insights.map((i) => {
+    const verticalStatus = i.verticalStatus || getVerticalAlignmentDisplay(i.verticalAlignment);
+    return {
+      id: i.creativeId,
+      name: i.creativeName,
+      status: verticalStatus,
+      statusKey: verticalStatus.key,
+      launchStatus: i.launchStatus,
+      launchStatusKey: i.launchStatusKey,
+      detectedCategory: i.creativeVerticalAlignment?.detected_category_label
+        || i.verticalAlignment?.detected_category_label
+        || i.verticalAlignment?.product_category
+        || null,
+      selectedVerticalLabel: verticalText || i.verticalAlignment?.selected_vertical || "",
+      headline: i.extractionSignals?.headline || null,
+      cta: i.extractionSignals?.cta || null,
+      dominantVisual: i.extractionSignals?.dominant_visual_cue || i.extractionSignals?.topic_summary || null,
+      textDensity: i.extractionSignals?.text_density || null,
+      goalAligned: i.goalAlignment?.is_aligned,
+      verticalAligned: verticalStatus.key === "aligned",
+    };
+  });
 
-  const aligned = insights.filter((i) => i.launchStatusKey === "ready").length;
+  const verticalAlignedCount = perCreative.filter((row) => row.verticalAligned).length;
+  const launchReadyCount = insights.filter((i) => i.launchStatusKey === "ready").length;
   const textHeavy = insights.filter((i) => i.extractionSignals?.text_density === "high").length;
-  const misalignedVertical = insights.filter((i) => i.verticalAlignment?.is_aligned === false).length;
+  const misalignedVertical = perCreative.filter((row) => row.statusKey === "misaligned").length;
   const misalignedGoal = insights.filter((i) => i.goalAlignment?.is_aligned === false).length;
   const visualCues = [...new Set(perCreative.map((c) => c.dominantVisual).filter(Boolean))].slice(0, 3);
 
@@ -463,8 +475,10 @@ function buildCreativeAnalysisSection(insights, platform) {
   let highlights = [];
 
   if (platform === "google_ads") {
-    summary = `${aligned}/${insights.length} display creatives launch-ready for Google Ads.${misalignedVertical ? ` ${misalignedVertical} vertical mismatch.` : ""}${misalignedGoal ? ` ${misalignedGoal} goal mismatch.` : ""}`;
+    summary = `${verticalAlignedCount}/${insights.length} creatives align with your vertical${verticalText ? ` (${verticalText})` : ""}. ${launchReadyCount}/${insights.length} launch-ready for Google Ads.`;
     highlights = [
+      misalignedVertical ? `${misalignedVertical} vertical mismatch.` : null,
+      misalignedGoal ? `${misalignedGoal} goal mismatch.` : null,
       textHeavy ? `${textHeavy} asset${textHeavy === 1 ? "" : "s"} carry high text density. risky for 320×50/728×90 placements` : null,
       visualCues.length ? `Visual signals: ${visualCues.join("; ")}` : null,
       perCreative.filter((c) => c.headline).length
@@ -472,8 +486,10 @@ function buildCreativeAnalysisSection(insights, platform) {
         : "Visual-led assets. verify ad copy in Google Ads UI",
     ];
   } else if (platform === "meta_ads") {
-    summary = `${aligned}/${insights.length} static image creatives evaluated for Meta placements.${misalignedVertical ? ` ${misalignedVertical} vertical conflict.` : ""}${misalignedGoal ? ` ${misalignedGoal} goal conflict.` : ""}`;
+    summary = `${verticalAlignedCount}/${insights.length} creatives align with your vertical${verticalText ? ` (${verticalText})` : ""}. ${launchReadyCount}/${insights.length} launch-ready for Meta placements.`;
     highlights = [
+      misalignedVertical ? `${misalignedVertical} vertical conflict.` : null,
+      misalignedGoal ? `${misalignedGoal} goal conflict.` : null,
       textHeavy ? `${textHeavy} creative${textHeavy === 1 ? "" : "s"} exceed recommended in-frame text density` : null,
       visualCues.length ? `Dominant visuals: ${visualCues.join("; ")}` : null,
       perCreative.filter((c) => c.cta).length
@@ -481,8 +497,9 @@ function buildCreativeAnalysisSection(insights, platform) {
         : null,
     ];
   } else {
-    summary = `${aligned}/${insights.length} display assets assessed for programmatic RTB and open-web inventory.${misalignedVertical ? ` ${misalignedVertical} vertical mismatch.` : ""}`;
+    summary = `${verticalAlignedCount}/${insights.length} creatives align with your vertical${verticalText ? ` (${verticalText})` : ""}. ${launchReadyCount}/${insights.length} launch-ready for programmatic RTB and open-web inventory.`;
     highlights = [
+      misalignedVertical ? `${misalignedVertical} vertical mismatch.` : null,
       textHeavy ? `${textHeavy} banner${textHeavy === 1 ? "" : "s"} overloaded for peripheral scan` : null,
       visualCues.length ? `Visual themes: ${visualCues.join("; ")}` : null,
       misalignedGoal ? `${misalignedGoal} creative${misalignedGoal === 1 ? "" : "s"} misaligned with campaign goal` : null,
@@ -532,6 +549,104 @@ function buildPlacementQaSection(insights, platform, overview) {
   };
 }
 
+function uniqueRiskItems(items, limit = 12) {
+  const seen = new Set();
+  const result = [];
+  items.forEach((item) => {
+    const text = String(item || "").trim();
+    if (!text) return;
+    const key = text.toLowerCase();
+    if (seen.has(key)) return;
+    seen.add(key);
+    result.push(text);
+  });
+  return result.slice(0, limit);
+}
+
+function countCreativesWithField(insights, field) {
+  return insights.filter((insight) => {
+    const assessment = insight.riskAssessment;
+    return Array.isArray(assessment?.[field]) && assessment[field].length > 0;
+  }).length;
+}
+
+function collectAggregatedRiskItems(insights) {
+  const critical = [];
+  const compliance = [];
+  const weaknesses = [];
+  const optimizations = [];
+
+  insights.forEach((insight) => {
+    const assessment = insight.riskAssessment;
+    if (!assessment) {
+      if (insight.mainRisk) weaknesses.push(insight.mainRisk);
+      if (insight.recommendedFix) optimizations.push(insight.recommendedFix);
+      return;
+    }
+    assessment.criticalIssues?.forEach((item) => critical.push(item));
+    assessment.complianceConcerns?.forEach((item) => compliance.push(item));
+    assessment.creativeWeaknesses?.forEach((item) => weaknesses.push(item));
+    assessment.optimizationRecommendations?.forEach((item) => optimizations.push(item));
+  });
+
+  return {
+    critical: uniqueRiskItems(critical),
+    compliance: uniqueRiskItems(compliance),
+    weaknesses: uniqueRiskItems(weaknesses),
+    optimizations: uniqueRiskItems(optimizations),
+  };
+}
+
+function rankCreativeRisks(perCreativeRisks) {
+  const severityWeight = { misaligned: 300, review: 200, ready: 100 };
+
+  return [...perCreativeRisks].sort((left, right) => {
+    const leftWeight = severityWeight[left.statusKey] || 0;
+    const rightWeight = severityWeight[right.statusKey] || 0;
+    if (rightWeight !== leftWeight) return rightWeight - leftWeight;
+
+    const leftCritical = left.riskAssessment?.criticalIssues?.length || 0;
+    const rightCritical = right.riskAssessment?.criticalIssues?.length || 0;
+    if (rightCritical !== leftCritical) return rightCritical - leftCritical;
+
+    const leftCompliance = left.riskAssessment?.complianceConcerns?.length || 0;
+    const rightCompliance = right.riskAssessment?.complianceConcerns?.length || 0;
+    if (rightCompliance !== leftCompliance) return rightCompliance - leftCompliance;
+
+    return String(left.name || "").localeCompare(String(right.name || ""));
+  });
+}
+
+function buildRiskSummaryBlock(label, affectedCount, totalCreatives, items) {
+  const hasIssues = affectedCount > 0 || items.length > 0;
+  let status = "aligned";
+  if (affectedCount > Math.max(1, Math.floor(totalCreatives * 0.25))) status = "misaligned";
+  else if (hasIssues) status = "partial";
+
+  const score = totalCreatives
+    ? Math.max(0, Math.round(100 - (affectedCount / totalCreatives) * 100))
+    : 100;
+
+  return {
+    label,
+    count: affectedCount,
+    score,
+    status,
+    reason: items[0] || (hasIssues ? `${affectedCount} creative${affectedCount === 1 ? "" : "s"} flagged` : "No issues detected"),
+    recommendations: items.slice(1, 3),
+  };
+}
+
+function buildPrimaryCreativeRiskLine(row) {
+  const assessment = row.riskAssessment;
+  if (assessment?.criticalIssues?.[0]) return assessment.criticalIssues[0];
+  if (assessment?.complianceConcerns?.[0]) return assessment.complianceConcerns[0];
+  if (assessment?.creativeWeaknesses?.[0]) return assessment.creativeWeaknesses[0];
+  if (row.mainRisk) return row.mainRisk;
+  if (row.statusKey === "ready") return "No blocking issues detected.";
+  return "Review recommended before launch.";
+}
+
 function buildCreativeRiskSection(insights, overview) {
   const perCreativeRisks = insights.map((i) => ({
     id: i.creativeId,
@@ -540,19 +655,71 @@ function buildCreativeRiskSection(insights, overview) {
     statusKey: i.launchStatusKey,
     mainRisk: i.mainRisk,
     recommendedFix: i.recommendedFix,
+    riskAssessment: i.riskAssessment || null,
+    headline: buildPrimaryCreativeRiskLine({
+      riskAssessment: i.riskAssessment,
+      mainRisk: i.mainRisk,
+      statusKey: i.launchStatusKey,
+    }),
   }));
+
+  const totalCreatives = overview.totalCount || perCreativeRisks.length || 0;
+  const aggregated = collectAggregatedRiskItems(insights);
+  const rankedCreativeRisks = rankCreativeRisks(perCreativeRisks);
+  const featuredLimit = 6;
+  const featuredCreativeRisks = rankedCreativeRisks.slice(0, featuredLimit);
+  const remainingCreativeRiskCount = Math.max(0, rankedCreativeRisks.length - featuredLimit);
+
+  const riskSummaryBlocks = [
+    buildRiskSummaryBlock(
+      "Critical Issues",
+      countCreativesWithField(insights, "criticalIssues"),
+      totalCreatives,
+      aggregated.critical,
+    ),
+    buildRiskSummaryBlock(
+      "Compliance Concerns",
+      countCreativesWithField(insights, "complianceConcerns"),
+      totalCreatives,
+      aggregated.compliance,
+    ),
+    buildRiskSummaryBlock(
+      "Creative Weaknesses",
+      countCreativesWithField(insights, "creativeWeaknesses"),
+      totalCreatives,
+      aggregated.weaknesses,
+    ),
+    buildRiskSummaryBlock(
+      "Optimization",
+      insights.filter((insight) => (
+        (insight.riskAssessment?.optimizationRecommendations?.length || 0) > 0
+        || Boolean(insight.recommendedFix)
+      )).length,
+      totalCreatives,
+      aggregated.optimizations,
+    ),
+  ];
+
+  const dedupedLaunchRisks = [...new Set(overview.launchRisks || [])];
 
   return {
     hasNoRisk: overview.hasNoRisk,
-    launchRisks: overview.launchRisks,
+    launchRisks: dedupedLaunchRisks.slice(0, 5),
+    allLaunchRisks: dedupedLaunchRisks,
+    hiddenLaunchRiskCount: Math.max(0, dedupedLaunchRisks.length - 5),
     campaignLaunchStatus: overview.campaignLaunchStatus,
-    recommendationBullets: overview.recommendationBullets,
+    recommendationBullets: (overview.recommendationBullets || []).slice(0, 4),
     perCreativeRisks,
+    rankedCreativeRisks,
+    featuredCreativeRisks,
+    remainingCreativeRiskCount,
+    riskSummaryBlocks,
+    aggregated,
     counts: {
       ready: overview.readyCount,
       review: overview.reviewCount,
       misaligned: overview.misalignedCount,
-      total: overview.totalCount,
+      total: totalCreatives,
     },
   };
 }
@@ -581,7 +748,7 @@ export function buildPlatformOverviewSections({
   return {
     briefing: briefingFn(overview, goalText, verticalText, insights),
     campaignHealth: healthFn(insights, overview),
-    creativeAnalysis: buildCreativeAnalysisSection(insights, platform),
+    creativeAnalysis: buildCreativeAnalysisSection(insights, platform, verticalText),
     technicalQa: buildTechnicalQaSection(insights, platform),
     placementQa: buildPlacementQaSection(insights, platform, overview),
     creativeRiskSummary: buildCreativeRiskSection(insights, overview),

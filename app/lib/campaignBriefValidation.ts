@@ -175,8 +175,182 @@ function goalsShareStage(selected: string, implied: string): boolean {
   return GOAL_STAGE_MAP[selected] === GOAL_STAGE_MAP[implied];
 }
 
+const GOAL_DISPLAY_LABELS: Record<string, string> = {
+  awareness: "Awareness",
+  consideration: "Consideration",
+  conversion: "Conversion",
+  traffic: "Traffic",
+  lead_generation: "Lead Generation",
+  engagement: "Engagement",
+  app_installs: "App Installs",
+  retargeting: "Retargeting",
+};
+
+/** Bump when generation rules change so stored intents are regenerated. */
+export const CAMPAIGN_INTENT_GENERATOR_VERSION = "v2";
+
+const LABELED_GOAL_PATTERNS: Array<{ pattern: RegExp; priority: number }> = [
+  { pattern: /\bprimary kpi[:\s-]+([^.;\n]+)/i, priority: 1 },
+  { pattern: /\bprimary objective[:\s-]+([^.;\n]+)/i, priority: 1 },
+  { pattern: /\bcampaign goal[:\s-]+([^.;\n]+)/i, priority: 1 },
+  { pattern: /\bmain objective[:\s-]+([^.;\n]+)/i, priority: 1 },
+  { pattern: /\bsecondary kpi[:\s-]+([^.;\n]+)/i, priority: 2 },
+  { pattern: /\bobjective[:\s-]+([^.;\n]+)/i, priority: 2 },
+  { pattern: /\bsupporting kpi[:\s-]+([^.;\n]+)/i, priority: 3 },
+];
+
+const LABELED_ACTION_PATTERNS: Array<{ pattern: RegExp; priority: number }> = [
+  { pattern: /\bprimary kpi[:\s-]+([^.;\n]+)/i, priority: 1 },
+  { pattern: /\bsecondary kpi[:\s-]+([^.;\n]+)/i, priority: 2 },
+  { pattern: /\bsupporting kpi[:\s-]+([^.;\n]+)/i, priority: 3 },
+  { pattern: /\bdesired (?:user )?action[:\s-]+([^.;\n]+)/i, priority: 1 },
+  { pattern: /\btarget action[:\s-]+([^.;\n]+)/i, priority: 1 },
+  { pattern: /\bcta[:\s-]+([^.;\n]+)/i, priority: 2 },
+];
+
 function formatGoalLabel(goal: string): string {
-  return goal.replace(/_/g, " ");
+  return GOAL_DISPLAY_LABELS[goal] || goal.replace(/_/g, " ").replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+function goalArticle(goalLabel: string): string {
+  return /^[aeiou]/i.test(goalLabel.trim()) ? "an" : "a";
+}
+
+const USER_ACTION_PATTERNS: Array<{ pattern: RegExp; action: string; priority: number }> = [
+  { pattern: /\b(sign up|register|subscribe|join|enroll)\b/i, action: "sign up", priority: 1 },
+  { pattern: /\b(purchase|buy|order|checkout|convert|sales)\b/i, action: "complete a purchase", priority: 1 },
+  { pattern: /\b(download|install|get the app|app install)\b/i, action: "download or install the app", priority: 1 },
+  { pattern: /\b(book|schedule|request a demo|get a quote|contact us|lead|leads)\b/i, action: "request information or a demo", priority: 1 },
+  { pattern: /\b(learn more|discover|explore|read|watch|research)\b/i, action: "learn more about the offer", priority: 2 },
+  { pattern: /\b(click|visit|browse|shop|view)\b/i, action: "visit and explore the offer", priority: 2 },
+  { pattern: /\b(engage|share|comment|follow|like)\b/i, action: "engage with the brand", priority: 3 },
+  { pattern: /\b(awareness|introduce|reach|discover the brand)\b/i, action: "discover the brand and offering", priority: 3 },
+];
+
+function extractPrimaryUserAction(brief: string): string | null {
+  const matches = USER_ACTION_PATTERNS
+    .filter(({ pattern }) => pattern.test(brief))
+    .sort((a, b) => a.priority - b.priority);
+  return matches[0]?.action || null;
+}
+
+function resolveFunnelStageLabel(goal: string | null): string {
+  const stage = goal ? GOAL_STAGE_MAP[goal] : null;
+  switch (stage) {
+    case "awareness":
+      return "top-of-funnel awareness";
+    case "consideration":
+      return "mid-funnel consideration";
+    case "conversion":
+      return "bottom-funnel conversion";
+    default:
+      return goal ? `${formatGoalLabel(goal).toLowerCase()} stage` : "the intended funnel stage";
+  }
+}
+
+function extractLabeledValues(
+  brief: string,
+  patterns: Array<{ pattern: RegExp; priority: number }>,
+): string[] {
+  return patterns
+    .slice()
+    .sort((a, b) => a.priority - b.priority)
+    .map(({ pattern }) => brief.match(pattern)?.[1]?.trim().replace(/[.,;]+$/, "") || "")
+    .filter(Boolean);
+}
+
+/** Resolve campaign goal — Primary KPI and labeled objectives take precedence over body keyword hits. */
+function resolveCampaignGoalForIntent(
+  brief: string,
+  options: { campaignGoal?: string; vertical?: string } = {},
+): string | null {
+  for (const labeled of extractLabeledValues(brief, LABELED_GOAL_PATTERNS)) {
+    const fromLabel = inferCampaignGoalFromBrief(labeled);
+    if (fromLabel) return fromLabel;
+  }
+
+  const fromBrief = inferCampaignGoalFromBrief(brief);
+  if (fromBrief) return fromBrief;
+
+  return options.campaignGoal || null;
+}
+
+function kpiPhraseToUserAction(phrase: string): string | null {
+  const normalized = phrase.trim().replace(/[.,;]+$/, "");
+  if (!normalized) return null;
+
+  const fromPatterns = extractPrimaryUserAction(normalized);
+  if (fromPatterns) return fromPatterns;
+
+  const lower = normalized.toLowerCase();
+  if (/\b(app install|installs|downloads?)\b/i.test(lower)) return "download or install the app";
+  if (/\b(leads?|lead gen)\b/i.test(lower)) return "submit a lead or request information";
+  if (/\b(conversions?|sales|purchases?|revenue)\b/i.test(lower)) return "complete a purchase or conversion";
+  if (/\b(traffic|clicks|visits)\b/i.test(lower)) return "visit and explore the offer";
+  if (/\b(awareness|reach|impressions)\b/i.test(lower)) return "discover the brand and offering";
+  if (/\b(engagement|shares|comments)\b/i.test(lower)) return "engage with the brand";
+
+  if (normalized.length > 3 && normalized.length < 80) {
+    return `achieve ${normalized.toLowerCase()}`;
+  }
+  return null;
+}
+
+function extractPrioritizedUserAction(brief: string): string | null {
+  for (const labeled of extractLabeledValues(brief, LABELED_ACTION_PATTERNS)) {
+    const action = kpiPhraseToUserAction(labeled);
+    if (action) return action;
+  }
+  return extractPrimaryUserAction(brief);
+}
+
+function extractDesiredOutcome(
+  brief: string,
+  goal: string | null,
+  primaryAction: string | null,
+): string | null {
+  for (const labeled of extractLabeledValues(brief, LABELED_GOAL_PATTERNS)) {
+    const action = kpiPhraseToUserAction(labeled);
+    if (action) return action;
+  }
+
+  const metricOutcome = brief.match(
+    /\b(?:increase|grow|drive|boost|generate|achieve|improve|maximize|reduce)\s+([^.;\n]{4,80})/i,
+  );
+  if (metricOutcome?.[1]) {
+    const value = metricOutcome[1].trim().replace(/[.,;]+$/, "");
+    if (!/^traffic to\b/i.test(value)) {
+      return value;
+    }
+  }
+
+  const businessOutcome = brief.match(
+    /\b(?:business outcome|desired outcome|success metric)[:\s-]+([^.;\n]+)/i,
+  );
+  if (businessOutcome?.[1]) {
+    return businessOutcome[1].trim().replace(/[.,;]+$/, "");
+  }
+
+  if (primaryAction) return primaryAction;
+  if (goal) return `${formatGoalLabel(goal).toLowerCase()} results`;
+  return null;
+}
+
+function padIntentToMinWords(text: string, minWords = 25, maxWords = 45): string {
+  const words = text.split(/\s+/).filter(Boolean);
+  if (words.length >= minWords) {
+    return words.length <= maxWords
+      ? text.replace(/\s+/g, " ").trim()
+      : `${words.slice(0, maxWords).join(" ").replace(/[.,;]+$/, "")}.`;
+  }
+
+  const padding = "while keeping messaging consistent with the campaign brief and landing experience";
+  const expanded = `${text.replace(/\s+/g, " ").trim()} ${padding}`;
+  return padIntentToMinWords(expanded, minWords, maxWords);
+}
+
+function clampIntentWordCount(text: string, minWords = 25, maxWords = 45): string {
+  return padIntentToMinWords(text.replace(/\s+/g, " ").trim(), minWords, maxWords);
 }
 
 /** Check whether user-selected goal/vertical match what the brief describes. */
@@ -192,7 +366,7 @@ export function evaluateBriefSettingsAlignment(params: {
   const { brief, selectedGoal, selectedVertical, platform } = params;
   const text = normalizeText(brief);
 
-  const impliedGoal = inferCampaignGoalFromBrief(brief);
+  const impliedGoal = resolveCampaignGoalForIntent(brief, { campaignGoal: selectedGoal });
   const impliedVertical = inferVerticalFromBrief(brief);
 
   let goalAligned: boolean | null = null;
@@ -535,4 +709,279 @@ export function parseAIBriefAlignment(raw: Record<string, unknown>): RawAIBriefA
   const block = raw.briefAlignment || raw.brief_alignment;
   if (!block || typeof block !== "object") return null;
   return block as RawAIBriefAlignment;
+}
+
+export type BriefIntentSummary = {
+  campaignObjective: string;
+  tryingToAchieve: string;
+  productOrService: string;
+  targetAudience: string;
+  overallPurpose: string;
+  narrative: string;
+};
+
+const AUDIENCE_PATTERNS = [
+  /\btarget audience[:\s-]+([^.;\n]+)/i,
+  /\baudience[:\s-]+([^.;\n]+)/i,
+  /\baimed at ([^.;\n]+)/i,
+  /\bfor ([^.;\n]{8,120}(?:users|customers|shoppers|buyers|professionals|parents|athletes|consumers))/i,
+];
+
+const PRODUCT_PATTERNS = [
+  /\bpromot(?:e|ing|es)\s+(?:the\s+|our\s+|a\s+)?([^.;\n]+)/i,
+  /\blaunch(?:ing)?\s+(?:the\s+|our\s+|a\s+)?([^.;\n]+)/i,
+  /\bfor\s+(?:the\s+|our\s+)?([^.;\n]{4,80}?)\s+(?:campaign|collection|product|service|line|platform)/i,
+  /\b(?:product|service|brand)[:\s-]+([^.;\n]+)/i,
+];
+
+function extractFirstMatch(text: string, patterns: RegExp[]): string | null {
+  for (const pattern of patterns) {
+    const match = text.match(pattern);
+    const value = match?.[1]?.trim().replace(/\s+/g, " ");
+    if (value && value.length > 3) return value.replace(/[.,;]+$/, "");
+  }
+  return null;
+}
+
+function summarizeSentences(brief: string, maxSentences = 2): string {
+  const sentences = brief
+    .split(/(?<=[.!?])\s+/)
+    .map((part) => part.trim())
+    .filter(Boolean);
+  return sentences.slice(0, maxSentences).join(" ");
+}
+
+/** Derive a concise intent summary from the brief without echoing raw input. */
+export function buildBriefIntentSummary(
+  brief: string,
+  options: { campaignGoal?: string; vertical?: string } = {},
+): BriefIntentSummary | null {
+  const text = brief.trim();
+  if (!text) return null;
+
+  const impliedGoal = resolveCampaignGoalForIntent(brief, options);
+  const impliedVertical = inferVerticalFromBrief(brief);
+  const resolvedGoal = impliedGoal || options.campaignGoal || null;
+  const resolvedVertical = impliedVertical || options.vertical || null;
+
+  const campaignObjective = resolvedGoal
+    ? `Drive ${formatGoalLabel(resolvedGoal)} outcomes`
+    : "Establish a clear marketing objective from the brief's stated goals";
+
+  const productOrService = extractFirstMatch(text, PRODUCT_PATTERNS)
+    || (resolvedVertical ? `${resolvedVertical.replace(/_/g, " ")} offering` : "The product or service described in the brief");
+
+  const targetAudience = extractFirstMatch(text, AUDIENCE_PATTERNS)
+    || "The audience segment referenced in the brief";
+
+  const tryingToAchieve = resolvedGoal
+    ? `Move the audience toward ${formatGoalLabel(resolvedGoal)} by delivering a message that supports that funnel stage.`
+    : "Achieve the business outcome described in the brief through the proposed creative and media approach.";
+
+  const overallPurpose = summarizeSentences(text, 1)
+    || "Support the campaign's commercial or brand-building goals as outlined in the brief.";
+
+  const narrativeParts = [
+    resolvedGoal
+      ? `This campaign is oriented toward ${formatGoalLabel(resolvedGoal)}.`
+      : "The brief defines a campaign with a specific commercial or brand outcome.",
+    `It focuses on ${productOrService.toLowerCase()}.`,
+    `The intended audience appears to be ${targetAudience.toLowerCase()}.`,
+    tryingToAchieve,
+  ];
+
+  return {
+    campaignObjective,
+    tryingToAchieve,
+    productOrService,
+    targetAudience,
+    overallPurpose,
+    narrative: narrativeParts.join(" "),
+  };
+}
+
+export function buildCampaignIntentFingerprint(
+  brief: string,
+  options: { campaignGoal?: string; vertical?: string } = {},
+): string {
+  return [
+    CAMPAIGN_INTENT_GENERATOR_VERSION,
+    brief.trim(),
+    options.campaignGoal || "",
+    options.vertical || "",
+  ].join("|");
+}
+
+export type ResolvedCampaignIntent = {
+  intent: string;
+  fingerprint: string;
+  /** True when the brief (or goal/vertical) changed and intent was regenerated. */
+  regenerated: boolean;
+};
+
+/**
+ * Return persisted intent when the brief fingerprint matches; otherwise regenerate.
+ */
+export function resolveCampaignIntentForBrief(
+  brief: string,
+  options: {
+    campaignGoal?: string;
+    vertical?: string;
+    storedIntent?: string;
+    storedFingerprint?: string;
+  } = {},
+): ResolvedCampaignIntent {
+  const trimmed = brief.trim();
+  const fingerprint = trimmed
+    ? buildCampaignIntentFingerprint(trimmed, options)
+    : "";
+
+  if (!trimmed) {
+    return { intent: "", fingerprint: "", regenerated: false };
+  }
+
+  const stored = options.storedIntent?.trim();
+  const hasStructuredFormat = Boolean(stored && stored.includes(" · ") && stored.split(" · ").length >= 3);
+  if (stored && hasStructuredFormat && options.storedFingerprint === fingerprint) {
+    return { intent: stored, fingerprint, regenerated: false };
+  }
+
+  const intent = buildCampaignIntentFromBrief(trimmed, options) || "";
+  return { intent, fingerprint, regenerated: true };
+}
+
+function pickStoredIntentForFingerprint(
+  fingerprint: string,
+  ...sources: Array<{
+    campaignIntent?: string;
+    campaignIntentFingerprint?: string;
+  } | null | undefined>
+): string | undefined {
+  for (const source of sources) {
+    const intent = source?.campaignIntent?.trim();
+    if (intent && source?.campaignIntentFingerprint === fingerprint) {
+      return intent;
+    }
+  }
+  return undefined;
+}
+
+export function resolveCampaignBriefContext(
+  campaign: {
+    id: string;
+    campaignBrief?: string;
+    campaignGoal?: string;
+    vertical?: string;
+    campaignIntent?: string;
+    campaignIntentFingerprint?: string;
+    updatedAt?: string;
+  },
+  snapshot: {
+    campaignBrief?: string;
+    campaignGoal?: string;
+    vertical?: string;
+    campaignIntent?: string;
+    campaignIntentFingerprint?: string;
+    updatedAt?: string;
+  } | null,
+): {
+  brief: string;
+  goal?: string;
+  vertical?: string;
+  storedIntent?: string;
+  storedFingerprint?: string;
+} {
+  const snapBrief = snapshot?.campaignBrief?.trim() || "";
+  const campBrief = campaign.campaignBrief?.trim() || "";
+
+  const snapshotIsNewer = Boolean(
+    snapshot?.updatedAt
+    && campaign.updatedAt
+    && new Date(snapshot.updatedAt).getTime() > new Date(campaign.updatedAt).getTime(),
+  );
+
+  const useSnapshotBrief = Boolean(snapBrief) && (
+    !campBrief
+    || snapBrief !== campBrief
+    || snapshotIsNewer
+  );
+
+  const brief = useSnapshotBrief ? snapBrief : (campBrief || snapBrief);
+  const goal = (useSnapshotBrief ? snapshot?.campaignGoal : undefined)
+    || campaign.campaignGoal
+    || snapshot?.campaignGoal;
+  const vertical = (useSnapshotBrief ? snapshot?.vertical : undefined)
+    || campaign.vertical
+    || snapshot?.vertical;
+
+  const fingerprint = brief
+    ? buildCampaignIntentFingerprint(brief, { campaignGoal: goal, vertical })
+    : "";
+
+  const storedIntent = pickStoredIntentForFingerprint(
+    fingerprint,
+    useSnapshotBrief ? snapshot : null,
+    campaign,
+    useSnapshotBrief ? null : snapshot,
+  );
+
+  return {
+    brief,
+    goal,
+    vertical,
+    storedIntent,
+    storedFingerprint: storedIntent ? fingerprint : undefined,
+  };
+}
+
+/**
+ * Generate a 25–45 word Campaign Intent from the brief using the standard three-part structure.
+ * Wording adapts to brief content — nothing is invented beyond what can be inferred.
+ */
+export function buildCampaignIntentFromBrief(
+  brief: string,
+  options: { campaignGoal?: string; vertical?: string } = {},
+): string | null {
+  const text = brief.trim();
+  if (!text) return null;
+
+  const resolvedGoal = resolveCampaignGoalForIntent(text, options);
+  const goalLabel = resolvedGoal ? formatGoalLabel(resolvedGoal).toLowerCase() : "campaign";
+  const goalArticleWord = goalArticle(resolvedGoal ? formatGoalLabel(resolvedGoal) : "Campaign");
+
+  const product = extractFirstMatch(text, PRODUCT_PATTERNS);
+  const primaryAction = extractPrioritizedUserAction(text);
+  const funnelStage = resolveFunnelStageLabel(resolvedGoal);
+  const desiredOutcome = extractDesiredOutcome(text, resolvedGoal, primaryAction);
+
+  const sentence1 = `Drive ${goalLabel} outcomes`;
+
+  let sentence2: string;
+  if (primaryAction) {
+    sentence2 = `Promote ${goalArticleWord} ${goalLabel}-focused campaign to ${primaryAction}`;
+  } else if (product) {
+    sentence2 = `Promote ${goalArticleWord} ${goalLabel}-focused campaign for ${product.toLowerCase()}`;
+  } else {
+    sentence2 = `Promote ${goalArticleWord} ${goalLabel}-focused campaign aligned with the stated brief objectives`;
+  }
+
+  let sentence3: string;
+  const outcomeForSentence3 = desiredOutcome && primaryAction && desiredOutcome === primaryAction
+    ? `${goalLabel} results`
+    : desiredOutcome;
+  if (outcomeForSentence3) {
+    sentence3 = `Move the audience toward ${outcomeForSentence3} by delivering messaging that supports ${funnelStage}`;
+  } else {
+    sentence3 = `Move the audience toward ${goalLabel} results by delivering messaging that supports ${funnelStage}`;
+  }
+
+  return clampIntentWordCount([sentence1, sentence2, sentence3].join(" · "));
+}
+
+/** Medium-length intent line for dashboard tables — delegates to structured generator. */
+export function buildBriefIntentLine(
+  brief: string,
+  options: { campaignGoal?: string; vertical?: string } = {},
+): string {
+  return buildCampaignIntentFromBrief(brief, options) || "";
 }

@@ -96,6 +96,36 @@ export function analysisMatchesCreatives(analysisResult, creatives) {
   );
 }
 
+/** Keep analysis rows that still match creatives in the current session. */
+export function filterAnalysisForCreatives(analysisResult, creatives) {
+  if (!Array.isArray(analysisResult) || !Array.isArray(creatives)) return [];
+  const creativeIds = new Set(creatives.map((creative) => creative.id));
+  return analysisResult.filter(
+    (entry) => entry?.creative?.id && creativeIds.has(entry.creative.id),
+  );
+}
+
+/** Creatives that do not yet have a matching analysis entry. */
+export function getCreativesMissingAnalysis(creatives, analysisResult) {
+  if (!Array.isArray(creatives) || creatives.length === 0) return [];
+  const analyzedIds = new Set(
+    (Array.isArray(analysisResult) ? analysisResult : [])
+      .map((entry) => entry?.creative?.id)
+      .filter(Boolean),
+  );
+  return creatives.filter((creative) => creative?.id && !analyzedIds.has(creative.id));
+}
+
+/** True when every creative in the list has a matching analysis entry (length may differ). */
+export function analysisCoversCreatives(analysisResult, creatives) {
+  if (!Array.isArray(creatives) || creatives.length === 0) return false;
+  if (!Array.isArray(analysisResult) || analysisResult.length === 0) return false;
+  const analyzedIds = new Set(
+    analysisResult.map((entry) => entry?.creative?.id).filter(Boolean),
+  );
+  return creatives.every((creative) => creative?.id && analyzedIds.has(creative.id));
+}
+
 /** Clear all persisted workflow and analysis state for a fresh session. */
 export function clearStoredWorkflow() {
   if (typeof window === "undefined") return;

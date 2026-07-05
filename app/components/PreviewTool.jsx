@@ -26,7 +26,7 @@ import {
   PLATFORM_SIZE_GROUP_LABELS,
   DSP_PARTNERS,
 } from "../lib/creativeValidation";
-import { readImageDimensionsFromBlob } from "../lib/imageDimensions";
+import { readImageDimensionsFromBlob, isPlausibleCreativeDimension } from "../lib/imageDimensions";
 import { resolvePersistedDimensions } from "../lib/creativeFitAnalysis";
 import {
   compressDrawable,
@@ -46,14 +46,133 @@ import {
   storeCompressedCreativeBlobs,
   storeUploadedCreativeFile,
   stripCreativeForPersistence,
+  attachPersistedPreviewData,
+  setCreativeStorageScope,
 } from "../lib/creativeAssetStore";
 import {
   analysisMatchesCreatives,
+  analysisCoversCreatives,
+  filterAnalysisForCreatives,
+  getCreativesMissingAnalysis,
   readStoredAnalysisResult,
   readStoredWorkflow,
   writeStoredAnalysisResult,
   writeStoredWorkflow,
 } from "../lib/workflowStorage";
+import {
+  addProgrammaticAdGroup,
+  buildProgrammaticAdGroups,
+  filterImageFiles,
+  filterProgrammaticAdGroupsBySelection,
+  getProgrammaticCampaignGoalFromAdGroups,
+  getProgrammaticAdGroupDisplayName,
+  isProgrammaticAdGroupConfigComplete,
+  isProgrammaticAdGroupSelectionComplete,
+  isProgrammaticCampaignSetup,
+  isProgrammaticCreativeAddition,
+  isProgrammaticCreativeReplacement,
+  isProgrammaticCampaignRenewal,
+  isProgrammaticUrlValidationUtmUpdate,
+  isProgrammaticCampaignUpdateTask,
+  PROGRAMMATIC_OBJECTIVE_CUSTOM,
+  normalizeProgrammaticAdGroups,
+  removeProgrammaticAdGroup,
+} from "../lib/programmaticWorkflow";
+import { buildCampaignRenewalReport } from "../lib/campaignRenewalComparison";
+import {
+  buildTrackingUrl,
+  emptyUtmParameters,
+  normalizeUtmParameters,
+  parseUtmFromUrl,
+  stripUtmFromUrl,
+  SUPPORTED_UTM_KEYS,
+} from "../lib/utmManagement";
+import { buildUrlUtmValidationReport } from "../lib/urlUtmValidation";
+import {
+  CREATIVE_ROLE_BASELINE,
+  CREATIVE_ROLE_REPLACEMENT,
+  tagCreativeRole,
+} from "../lib/creativeRoles";
+import { buildReplacementComparisonReport } from "../lib/creativeReplacementComparison";
+import { warmDashboardCampaignCaches } from "../lib/dashboardCampaignCache";
+import { resolveCreativePreviewContext } from "../lib/creativePreviewContext";
+import {
+  buildPreviewStudioSourceFingerprint,
+} from "../lib/previewStudioPersistence";
+import { prewarmPreviewStudioCache } from "../lib/previewStudioPrewarm";
+import {
+  loadPreviewStudioCacheFromStorage,
+  mergePreviewStudioCaches,
+  savePreviewStudioCacheToStorage,
+  setPreviewStudioStorageScope,
+} from "../lib/previewStudioStorage";
+import { recordAndStoreDownloadReport } from "../lib/downloadHistoryStore";
+import {
+  buildPreviewStudioReportFingerprint,
+  setReportExportStorageScope,
+  saveCachedReportExport,
+} from "../lib/reportExportCache";
+import { downloadBlob } from "../lib/wysiwygCapture";
+import WysiwygExportHost from "./export/WysiwygExportHost";
+import {
+  resolveCampaignIntentForBrief,
+} from "../lib/campaignBriefValidation";
+import {
+  buildCampaignAlignmentFingerprint,
+  computeCampaignAlignmentReport,
+} from "../lib/campaignAlignmentValidation";
+import {
+  findProgrammaticCampaign,
+  generateProgrammaticCampaignId,
+  getProgrammaticCampaignById,
+  resolveProgrammaticCampaignId,
+  upsertProgrammaticCampaign,
+} from "../lib/programmaticCampaignStore";
+import {
+  fetchProgrammaticCampaignFromApi,
+  persistProgrammaticCampaignToApi,
+  fetchCampaignFromApi,
+  persistCampaignToApi,
+} from "../lib/campaignApi";
+import { resolveCampaignOwnerId } from "../lib/campaignOwnerScope";
+import { getPlatformAdapter } from "../lib/platforms/registry";
+import { resolveCampaignId } from "../lib/campaignSnapshot";
+import {
+  getCampaignById,
+  upsertCampaign,
+} from "../lib/campaignStore";
+import {
+  isCampaignSetupTask,
+  isCampaignUpdateTask,
+  isCreativeAdditionTask,
+  isCreativeReplacementTask,
+  isCampaignRenewalTask,
+  isUrlUtmUpdateTask,
+} from "../lib/platforms/sharedTaskTypes";
+import {
+  createOrGetAdvertiser,
+  listAdvertisers,
+  syncAdvertiserFromGenericSession,
+  syncAdvertiserFromProgrammaticSnapshot,
+} from "../lib/advertiserStore";
+import ProgrammaticStep1Fields from "./preview-tool/ProgrammaticStep1Fields";
+import PlatformStep1Fields from "./preview-tool/PlatformStep1Fields";
+import AdvertiserStep1Field from "./preview-tool/AdvertiserStep1Field";
+import ProgrammaticFolderSections from "./preview-tool/ProgrammaticFolderSections";
+import { getImageFilesFromDataTransfer, preventDropDefaults } from "../lib/folderUpload";
+import UrlUtmValidationReportPanel from "./preview-tool/UrlUtmValidationReportPanel";
+import CampaignAssistantModal from "./preview-tool/CampaignAssistantModal";
+import MissingSetupFieldsPanel from "./preview-tool/MissingSetupFieldsPanel";
+import {
+  getMissingSetupFields,
+  getRecommendedCampaignDetailFields,
+  isSetupComplete,
+} from "@/app/lib/setupRequiredFields";
+import {
+  buildCampaignAssistantFingerprint,
+  isCampaignAssistantContextValid,
+} from "../lib/campaignAssistant/fingerprint";
+import { mergeAssistantAnswers } from "../lib/campaignAssistant/mergeContext";
 import {
   trackUserActivity,
   trackValidationOutcome,
@@ -75,7 +194,6 @@ import {
   runUrlValidationRequest,
   writeStoredUrlValidation,
 } from "../lib/urlValidationClient";
-import { PRODUCT_FOCUS_OPTIONS } from "../lib/campaignProductFocus";
 import {
   WizardStepNav,
   ToolNavBtn,
@@ -103,6 +221,7 @@ const PLATFORM_INTELLIGENCE_LABEL = {
 const GROUP_LABELS = PLATFORM_SIZE_GROUP_LABELS;
 
 const ANALYSIS_SESSION_STORAGE_KEY = "adigator_analysis_session_id";
+const ACTIVE_CAMPAIGN_STORAGE_KEY = "adigator_active_campaign_id";
 
 function clampStep(value) {
   const numeric = Number.parseInt(String(value || "1"), 10);
@@ -110,32 +229,43 @@ function clampStep(value) {
   return Math.min(Math.max(numeric, 1), TOTAL_STEPS);
 }
 import {
-  UploadCloud, CheckCircle2, XCircle, AlertCircle,
+  UploadCloud, CheckCircle2, AlertCircle,
   Download, LayoutGrid, Square, CheckSquare, RotateCcw,
   Newspaper, ShoppingCart, Coffee, Activity, Laptop, Briefcase, GraduationCap, Gamepad2, Film,
   Monitor, Smartphone,
 } from "lucide-react";
 
-// ── Toast Component ──────────────────────────────────────────
-function Toast({ toasts }) {
+// ── Inline workflow status (replaces popup toasts) ─────────────────────────────
+function WorkflowStatusBar({ status, analysisLoading, analysisProgress }) {
+  const showProgress = analysisLoading && analysisProgress?.total > 0;
+  if (!status?.message && !showProgress) return null;
+
+  const tone = status?.type === "error"
+    ? "border-rose-500/35 bg-rose-500/10 text-rose-100"
+    : status?.type === "success"
+      ? "border-emerald-500/35 bg-emerald-500/10 text-emerald-100"
+      : "border-studio-border bg-studio-surface/80 text-studio-text";
+
   return (
-    <div className="fixed bottom-6 right-6 z-9999 flex flex-col gap-2 pointer-events-none">
-      <AnimatePresence>
-        {toasts.map((t) => (
-          <motion.div key={t.id} initial={{ opacity: 0, y: 20, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 10, scale: 0.95 }}
-            className={`flex items-center gap-3 rounded-xl border px-4 py-3 text-sm font-medium text-white backdrop-blur-xl shadow-2xl ${
-              t.type === "success"
-                ? "border-studio-success/40 bg-studio-success/20"
-                : t.type === "error"
-                  ? "border-studio-error/40 bg-studio-error/20"
-                  : "border-studio-border bg-studio-surface/90"
-            }`}
-          >
-            <span>{t.type === "success" ? "✅" : t.type === "error" ? "❌" : "⏳"}</span>
-            {t.message}
-          </motion.div>
-        ))}
-      </AnimatePresence>
+    <div className={`rounded-xl border px-4 py-3 text-sm ${tone}`}>
+      {status?.message ? <p className="font-medium leading-relaxed">{status.message}</p> : null}
+      {showProgress ? (
+        <div className={status?.message ? "mt-2" : ""}>
+          <div className="mb-1 flex items-center justify-between gap-2 text-xs text-studio-muted">
+            <span>Analyzing creatives…</span>
+            <span>{analysisProgress.completed}/{analysisProgress.total}</span>
+          </div>
+          <div className="h-1.5 overflow-hidden rounded-full bg-white/10">
+            <div
+              className="h-full rounded-full bg-studio-accent transition-all duration-300"
+              style={{ width: `${Math.round((analysisProgress.completed / analysisProgress.total) * 100)}%` }}
+            />
+          </div>
+          {analysisProgress.label ? (
+            <p className="mt-1 text-xs text-studio-tertiary">Latest: {analysisProgress.label}</p>
+          ) : null}
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -296,6 +426,108 @@ const VALID_VERTICALS = new Set([
 
 // ── Creative analysis ──────────────────────────────────────────────────────────
 
+const ANALYSIS_CONCURRENCY = 4;
+
+async function analyzeSingleCreative(
+  creative,
+  {
+    goal,
+    platform,
+    verticalForApi,
+    audienceStage,
+    campaignBrief,
+    campaignProductFocus,
+    landingUrl,
+    extractStrategicPayload,
+    useOrchestrator = false,
+    campaignId = "",
+    accessToken = null,
+    taskType = "creative_addition",
+  },
+) {
+  const imageBlob = await getCreativeFullBlob(creative);
+  if (!imageBlob) {
+    throw new Error(`Could not load image bytes for ${creative.name || creative.id}. Re-upload the creative and try again.`);
+  }
+
+  const goalForCreative = creative.adGroupObjective || goal;
+  const apiGoal = resolveApiGoal(goalForCreative, platform || "programmatic");
+  const formData = new FormData();
+  formData.append("image", imageBlob, `${creative.name || "creative"}.jpg`);
+  formData.append("goal", apiGoal);
+  formData.append("vertical", verticalForApi);
+  formData.append("platform", platform || "programmatic");
+  formData.append("audience_stage", audienceStage || "cold");
+  if (campaignBrief?.trim()) {
+    formData.append("campaign_brief", campaignBrief.trim());
+  }
+  if (campaignProductFocus?.trim()) {
+    formData.append("campaign_product_focus", campaignProductFocus.trim());
+  }
+  if (landingUrl?.trim()) {
+    formData.append("landing_url", stripUtmFromUrl(landingUrl.trim()));
+  }
+
+  if (useOrchestrator && campaignId && accessToken) {
+    formData.append("creative_id", creative.id);
+    formData.append("campaign_id", campaignId);
+    formData.append("task_type", taskType);
+
+    const orchestratorRes = await fetch("/api/validate-campaign", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${accessToken}` },
+      body: formData,
+    });
+
+    if (orchestratorRes.ok) {
+      const body = await orchestratorRes.json();
+      if (body?.success && body?.data?.analysis) {
+        const payload = extractStrategicPayload(body.data.analysis);
+        return {
+          creative,
+          data: payload,
+          brainReused: Boolean(body.data.reused),
+        };
+      }
+    } else if (orchestratorRes.status !== 401) {
+      let apiError = orchestratorRes.statusText;
+      try {
+        const body = await orchestratorRes.json();
+        apiError = body?.error || apiError;
+      } catch { /* noop */ }
+      console.warn("[validate-campaign] falling back to analyze-creative:", apiError);
+    }
+  }
+
+  const analysisRes = await fetch("/api/analyze-creative", {
+    method: "POST",
+    body: formData,
+  });
+
+  if (!analysisRes.ok) {
+    let apiError = analysisRes.statusText;
+    try {
+      const body = await analysisRes.json();
+      apiError = body?.error || apiError;
+    } catch { /* noop */ }
+    return {
+      creative,
+      data: {
+        error: apiError,
+        main_strategic_problem: undefined,
+        attention_analysis: undefined,
+        strategic_recommendations: undefined,
+        strategic_alignment_score: undefined,
+        adigator_analysis: undefined,
+      },
+    };
+  }
+
+  const aiJson = await analysisRes.json();
+  const payload = extractStrategicPayload(aiJson);
+  return { creative, data: payload };
+}
+
 async function analyzeAllCreatives(
   creatives,
   goal,
@@ -305,8 +537,9 @@ async function analyzeAllCreatives(
   campaignBrief = "",
   campaignProductFocus = "",
   landingUrl = "",
+  onProgress,
+  orchestratorOptions = {},
 ) {
-  const results = [];
   const verticalForApi = VALID_VERTICALS.has(vertical) ? vertical : "technology";
 
   const extractStrategicPayload = (raw) => {
@@ -332,77 +565,50 @@ async function analyzeAllCreatives(
     return candidate;
   };
 
-  for (const creative of creatives) {
+  const analysisConfig = {
+    goal,
+    platform,
+    verticalForApi,
+    audienceStage,
+    campaignBrief,
+    campaignProductFocus,
+    landingUrl,
+    extractStrategicPayload,
+    useOrchestrator: Boolean(orchestratorOptions.useOrchestrator),
+    campaignId: orchestratorOptions.campaignId || "",
+    accessToken: orchestratorOptions.accessToken || null,
+    taskType: orchestratorOptions.taskType || "creative_addition",
+  };
+
+  let completed = 0;
+
+  return mapWithConcurrency(creatives, ANALYSIS_CONCURRENCY, async (creative) => {
     try {
-      const imageBlob = await getCreativeFullBlob(creative);
-      if (!imageBlob) {
-        throw new Error(`Could not load image bytes for ${creative.name || creative.id}. Re-upload the creative and try again.`);
-      }
-
-      const apiGoal = resolveApiGoal(goal, platform || "programmatic");
-      const formData = new FormData();
-      formData.append("image", imageBlob, `${creative.name || "creative"}.jpg`);
-      formData.append("goal", apiGoal);
-      formData.append("vertical", verticalForApi);
-      formData.append("platform", platform || "programmatic");
-      formData.append("audience_stage", audienceStage || "cold");
-      if (campaignBrief?.trim()) {
-        formData.append("campaign_brief", campaignBrief.trim());
-      }
-      if (campaignProductFocus?.trim()) {
-        formData.append("campaign_product_focus", campaignProductFocus.trim());
-      }
-      if (landingUrl?.trim()) {
-        formData.append("landing_url", landingUrl.trim());
-      }
-
-      const analysisRes = await fetch("/api/analyze-creative", {
-        method: "POST",
-        body: formData,
-      });
-
-      if (!analysisRes.ok) {
-        let apiError = analysisRes.statusText;
-        try {
-          const body = await analysisRes.json();
-          apiError = body?.error || apiError;
-        } catch { /* noop */ }
-        // Pass minimal error marker with expected schema fields
-        results.push({ 
-          creative, 
-          data: { 
-            error: apiError,
-            main_strategic_problem: undefined,
-            attention_analysis: undefined,
-            strategic_recommendations: undefined,
-            strategic_alignment_score: undefined,
-            adigator_analysis: undefined,
-          } 
-        });
-        continue;
-      }
-
-      const aiJson = await analysisRes.json();
-      const payload = extractStrategicPayload(aiJson);
-      results.push({ creative, data: payload });
+      const result = await analyzeSingleCreative(creative, analysisConfig);
+      completed += 1;
+      const progressLabel = result.brainReused
+        ? `${creative.name || creative.id} (reused stored brain)`
+        : (creative.name || creative.id);
+      onProgress?.(completed, creatives.length, progressLabel);
+      return result;
     } catch (err) {
       const errMessage = err instanceof Error ? err.message : "Analysis failed";
       console.error(`Analysis failed for ${creative.url}:`, err);
-      // Pass minimal error marker with expected schema fields
-      results.push({ 
-        creative, 
-        data: { 
+      completed += 1;
+      onProgress?.(completed, creatives.length, creative.name || creative.id);
+      return {
+        creative,
+        data: {
           error: errMessage,
           main_strategic_problem: undefined,
           attention_analysis: undefined,
           strategic_recommendations: undefined,
           strategic_alignment_score: undefined,
           adigator_analysis: undefined,
-        } 
-      });
+        },
+      };
     }
-  }
-  return results;
+  });
 }
 
 function deriveStatusFromIssues(issues) {
@@ -453,11 +659,27 @@ export default function PreviewTool() {
 
   const urlStepParam = searchParams.get("step");
   const step = clampStep(urlStepParam || "1");
-  const [toasts, setToasts] = useState([]);
+
+  const reportDeepLink = useMemo(() => {
+    const analysisTab = searchParams.get("analysis_tab");
+    const creativeId = searchParams.get("creative_id");
+    const templateId = searchParams.get("template_id");
+    const previewDevice = searchParams.get("preview_device");
+    const previewCreativeId = searchParams.get("preview_creative_id");
+    if (!analysisTab && !templateId && !previewCreativeId) return null;
+
+    const validTabs = new Set(["overview", "qa", "creative-analysis"]);
+    return {
+      analysisTab: analysisTab && validTabs.has(analysisTab) ? analysisTab : undefined,
+      selectedCreativeId: creativeId || undefined,
+      templateId: templateId || undefined,
+      device: previewDevice === "mobile" ? "mobile" : previewDevice === "desktop" ? "desktop" : undefined,
+      previewCreativeId: previewCreativeId || undefined,
+    };
+  }, [searchParams]);
+  const [workflowStatus, setWorkflowStatus] = useState(null);
   const addToast = useCallback((message, type = "info") => {
-    const id = Date.now();
-    setToasts((prev) => [...prev, { id, message, type }]);
-    setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), 3500);
+    setWorkflowStatus({ message, type, at: Date.now() });
   }, []);
 
   const [platform, setPlatform] = useState(null);
@@ -465,9 +687,35 @@ export default function PreviewTool() {
   const [campaignVertical, setCampaignVertical] = useState(null);
   const [campaignAudienceStage, setCampaignAudienceStage] = useState(null);
   const [campaignName, setCampaignName] = useState("");
+  const [advertiserName, setAdvertiserName] = useState("");
+  const [advertiserId, setAdvertiserId] = useState("");
   const [campaignBrief, setCampaignBrief] = useState("");
   const [campaignProductFocus, setCampaignProductFocus] = useState("");
   const [landingUrl, setLandingUrl] = useState("");
+  const [programmaticTaskType, setProgrammaticTaskType] = useState("");
+  const [programmaticAdGroupCount, setProgrammaticAdGroupCount] = useState("");
+  const [programmaticAdGroups, setProgrammaticAdGroups] = useState([]);
+  const [selectedProgrammaticAdGroupIds, setSelectedProgrammaticAdGroupIds] = useState([]);
+  const [applyProgrammaticAdGroupsToAll, setApplyProgrammaticAdGroupsToAll] = useState(false);
+  const [activeCampaignId, setActiveCampaignId] = useState(() => {
+    if (typeof window === "undefined") return "";
+    return localStorage.getItem(ACTIVE_CAMPAIGN_STORAGE_KEY) || "";
+  });
+  const [lookupCampaignId, setLookupCampaignId] = useState("");
+  const [campaignOwnerId, setCampaignOwnerId] = useState("");
+  const [campaignAccessToken, setCampaignAccessToken] = useState(null);
+  const [loadedCampaignSnapshot, setLoadedCampaignSnapshot] = useState(null);
+  const [previewStudioCache, setPreviewStudioCache] = useState(null);
+  const [campaignAssistantContext, setCampaignAssistantContext] = useState(null);
+  const [setupPromptHighlighted, setSetupPromptHighlighted] = useState(false);
+  const [assistantModalOpen, setAssistantModalOpen] = useState(false);
+  const [assistantQuestions, setAssistantQuestions] = useState([]);
+  const [assistantReasoning, setAssistantReasoning] = useState("");
+  const [assistantChecking, setAssistantChecking] = useState(false);
+  const [assistantSubmitting, setAssistantSubmitting] = useState(false);
+  const [assistantProvider, setAssistantProvider] = useState("");
+  const [creativeAdditionMode, setCreativeAdditionMode] = useState("");
+  const [creativeAdditionFindError, setCreativeAdditionFindError] = useState("");
   const [sizeReviewAcknowledged, setSizeReviewAcknowledged] = useState(false);
   const [urlValidation, setUrlValidation] = useState(null);
   const [urlValidationRunning, setUrlValidationRunning] = useState(false);
@@ -482,6 +730,8 @@ export default function PreviewTool() {
   const [isHydratingCreatives, setIsHydratingCreatives] = useState(true);
   const [drag, setDrag] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(null);
+  const uploadQueueRef = useRef(Promise.resolve());
   const [editingId, setEditingId] = useState(null);
   const [editingName, setEditingName] = useState("");
   const [editModalCreative, setEditModalCreative] = useState(null);
@@ -495,11 +745,34 @@ export default function PreviewTool() {
   const creativesRef = useRef(creatives);
   const compressingIdsRef = useRef(new Set());
   const workflowPersistTimerRef = useRef(null);
+  const campaignConfigPersistTimerRef = useRef(null);
+  const persistCreativeTimersRef = useRef(new Map());
+  const missingSetupPanelRef = useRef(null);
   const sessionSyncInitializedRef = useRef(false);
   const lastCreativeFingerprintRef = useRef(null);
+  const wysiwygExportRef = useRef(null);
+  const previewExportContextRef = useRef({
+    platform: "",
+    templateId: "",
+    placement: "",
+    device: "desktop",
+    creativeId: null,
+    studioMode: "previews",
+    getPreviewElement: null,
+  });
 
   const [analysisResult, setAnalysisResult] = useState(null);
+  const [baselineAnalysisResult, setBaselineAnalysisResult] = useState(null);
+  const [additionBaselineCreativeIds, setAdditionBaselineCreativeIds] = useState([]);
+  const [replacementComparisonReport, setReplacementComparisonReport] = useState(null);
+  const [renewalReferenceSnapshot, setRenewalReferenceSnapshot] = useState(null);
+  const [renewalComparisonReport, setRenewalComparisonReport] = useState(null);
+  const [destinationUrl, setDestinationUrl] = useState("");
+  const [utmParameters, setUtmParameters] = useState(() => emptyUtmParameters());
+  const [urlUtmReferenceSnapshot, setUrlUtmReferenceSnapshot] = useState(null);
+  const [urlUtmValidationReport, setUrlUtmValidationReport] = useState(null);
   const [analysisLoading, setAnalysisLoading] = useState(false);
+  const [analysisProgress, setAnalysisProgress] = useState({ completed: 0, total: 0, label: "" });
   const [viewerName, setViewerName] = useState("");
   const {
     report: readinessReport,
@@ -521,11 +794,56 @@ export default function PreviewTool() {
     return typeof storedWorkflow?.showSlotLabels === "boolean" ? storedWorkflow.showSlotLabels : false;
   });
   const [isExporting, setIsExporting] = useState(false);
+  const [isDownloadingReport, setIsDownloadingReport] = useState(false);
 
   useEffect(() => {
     mountRef.current = true;
     return () => {
       mountRef.current = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const storedAdvertiserName = localStorage.getItem("adigator_advertiser_name");
+    const storedAdvertiserId = localStorage.getItem("adigator_advertiser_id");
+    if (storedAdvertiserName) setAdvertiserName(storedAdvertiserName);
+    if (storedAdvertiserId) setAdvertiserId(storedAdvertiserId);
+  }, []);
+
+  useEffect(() => {
+    if (!advertiserName.trim() || advertiserName.trim().length < 2 || !campaignOwnerId) {
+      if (!advertiserName.trim()) setAdvertiserId("");
+      return undefined;
+    }
+    const timer = window.setTimeout(() => {
+      try {
+        const advertiser = createOrGetAdvertiser(advertiserName, campaignOwnerId);
+        setAdvertiserId(advertiser.id);
+      } catch {
+        // Ignore invalid advertiser sync attempts.
+      }
+    }, 400);
+    return () => window.clearTimeout(timer);
+  }, [advertiserName, campaignOwnerId]);
+
+  const existingAdvertisers = useMemo(
+    () => (campaignOwnerId ? listAdvertisers(campaignOwnerId) : []),
+    [campaignOwnerId, advertiserId],
+  );
+
+  useEffect(() => {
+    let active = true;
+    void (async () => {
+      const ownerId = await resolveCampaignOwnerId();
+      if (!active || !ownerId) return;
+      setCampaignOwnerId(ownerId);
+      setCreativeStorageScope(ownerId);
+      const { data: { session } } = await supabase.auth.getSession();
+      if (active) setCampaignAccessToken(session?.access_token || null);
+    })();
+    return () => {
+      active = false;
     };
   }, []);
 
@@ -576,7 +894,43 @@ export default function PreviewTool() {
 
     const storedLandingUrl = localStorage.getItem("adigator_landing_url");
     if (!landingUrl && storedLandingUrl) {
-      setLandingUrl(storedLandingUrl);
+      setLandingUrl(stripUtmFromUrl(storedLandingUrl));
+    }
+
+    const storedAdvertiserName = localStorage.getItem("adigator_advertiser_name");
+    if (!advertiserName && storedAdvertiserName) {
+      setAdvertiserName(storedAdvertiserName);
+    }
+
+    const storedAdvertiserId = localStorage.getItem("adigator_advertiser_id");
+    if (!advertiserId && storedAdvertiserId) {
+      setAdvertiserId(storedAdvertiserId);
+    }
+
+    const storedTaskType = localStorage.getItem("adigator_programmatic_task_type");
+    if (!programmaticTaskType && storedTaskType) {
+      setProgrammaticTaskType(storedTaskType);
+    }
+
+    const storedAdGroupCount = localStorage.getItem("adigator_programmatic_ad_group_count");
+    if (programmaticAdGroupCount === "" && storedAdGroupCount) {
+      const parsedCount = Number(storedAdGroupCount);
+      if (!Number.isNaN(parsedCount)) {
+        setProgrammaticAdGroupCount(parsedCount);
+      }
+    }
+
+    const storedAdGroups = localStorage.getItem("adigator_programmatic_ad_groups");
+    if (!programmaticAdGroups.length && storedAdGroups) {
+      try {
+        const parsedGroups = JSON.parse(storedAdGroups);
+        if (Array.isArray(parsedGroups)) {
+          const forSetupAdGroups = (storedTaskType || programmaticTaskType) === "campaign_setup";
+          setProgrammaticAdGroups(normalizeProgrammaticAdGroups(parsedGroups, { forSetup: forSetupAdGroups }));
+        }
+      } catch {
+        // Ignore invalid persisted ad group config.
+      }
     }
   }, [
     step,
@@ -588,21 +942,28 @@ export default function PreviewTool() {
     campaignBrief,
     campaignProductFocus,
     landingUrl,
+    programmaticTaskType,
+    programmaticAdGroupCount,
+    programmaticAdGroups.length,
   ]);
 
   useEffect(() => {
     creativesRef.current = creatives;
   }, [creatives]);
 
-  const runUrlValidation = useCallback(async () => {
-    const trimmedUrl = landingUrl.trim();
+  const runUrlValidation = useCallback(async (urlOverride = null) => {
+    const trimmedUrl = stripUtmFromUrl(String(urlOverride ?? landingUrl).trim());
     if (!trimmedUrl) {
       setUrlValidation(null);
       clearStoredUrlValidation();
       return null;
     }
 
-    if (!platform || !campaignGoal) {
+    const goalForValidation = platform === "programmatic" && isProgrammaticCampaignSetup(programmaticTaskType)
+      ? getProgrammaticCampaignGoalFromAdGroups(programmaticAdGroups) || campaignGoal
+      : campaignGoal;
+
+    if (!platform || !goalForValidation) {
       addToast("Complete campaign setup before validating.", "error");
       return null;
     }
@@ -614,7 +975,7 @@ export default function PreviewTool() {
         runUrlValidationRequest({
           url: trimmedUrl,
           platform,
-          objective: campaignGoal,
+          objective: goalForValidation,
           vertical: campaignVertical,
           campaignName: campaignName.trim() || "Campaign",
           creatives: validForUrlCheck.length ? validForUrlCheck : creatives,
@@ -623,7 +984,7 @@ export default function PreviewTool() {
         runReadinessValidation({
           platform,
           url: trimmedUrl,
-          objective: campaignGoal,
+          objective: goalForValidation,
           campaignName: campaignName.trim() || "Campaign",
           vertical: campaignVertical || undefined,
           creatives: creatives.map((c) => ({
@@ -658,6 +1019,8 @@ export default function PreviewTool() {
     campaignVertical,
     campaignName,
     creatives,
+    programmaticTaskType,
+    programmaticAdGroups,
     addToast,
     runReadinessValidation,
   ]);
@@ -706,24 +1069,11 @@ export default function PreviewTool() {
       if (!current.length) return;
       const needsRevalidation = current.some((creative) =>
         creative.validation?.platform !== platform
-        || creative.validation?.size !== creative.size,
+        || !isPlausibleCreativeDimension(creative.sourceWidth, creative.sourceHeight),
       );
       if (!needsRevalidation) return;
 
-      const updated = await revalidateCreativesForPlatform(current, platform, {
-        resolveImage: async (creative) => {
-          const blob = await getCreativeSourceBlob(creative);
-          if (!blob) return null;
-          try {
-            const dims = await readImageDimensionsFromBlob(blob, {
-              fileName: creative.originalFile || creative.name || "",
-            });
-            return { width: dims.width, height: dims.height };
-          } catch {
-            return null;
-          }
-        },
-      });
+      const updated = await revalidateCreativesForPlatform(current, platform);
       if (active) {
         startTransition(() => {
           setCreatives(updated);
@@ -738,6 +1088,8 @@ export default function PreviewTool() {
 
   useEffect(() => () => {
     creativesRef.current.forEach((creative) => revokeCreativeObjectUrls(creative));
+    persistCreativeTimersRef.current.forEach((timer) => clearTimeout(timer));
+    persistCreativeTimersRef.current.clear();
   }, []);
 
   useEffect(() => {
@@ -747,37 +1099,70 @@ export default function PreviewTool() {
   }, [urlStepParam, pathname, router]);
 
   useEffect(() => {
-    if (platform) localStorage.setItem("adigator_platform", platform);
-    else localStorage.removeItem("adigator_platform");
+    if (campaignConfigPersistTimerRef.current) {
+      clearTimeout(campaignConfigPersistTimerRef.current);
+    }
 
-    if (campaignGoal) localStorage.setItem("adigator_goal", campaignGoal);
-    else localStorage.removeItem("adigator_goal");
+    campaignConfigPersistTimerRef.current = setTimeout(() => {
+      if (platform) localStorage.setItem("adigator_platform", platform);
+      else localStorage.removeItem("adigator_platform");
 
-    if (campaignVertical) localStorage.setItem("adigator_vertical", campaignVertical);
-    else localStorage.removeItem("adigator_vertical");
+      if (campaignGoal) localStorage.setItem("adigator_goal", campaignGoal);
+      else localStorage.removeItem("adigator_goal");
 
-    if (campaignAudienceStage) localStorage.setItem("adigator_audience_stage", campaignAudienceStage);
-    else localStorage.removeItem("adigator_audience_stage");
+      if (campaignVertical) localStorage.setItem("adigator_vertical", campaignVertical);
+      else localStorage.removeItem("adigator_vertical");
 
-    if (campaignName) localStorage.setItem("adigator_campaign_name", campaignName);
-    else localStorage.removeItem("adigator_campaign_name");
+      if (campaignAudienceStage) localStorage.setItem("adigator_audience_stage", campaignAudienceStage);
+      else localStorage.removeItem("adigator_audience_stage");
 
-    if (campaignBrief) localStorage.setItem("adigator_campaign_brief", campaignBrief);
-    else localStorage.removeItem("adigator_campaign_brief");
+      if (campaignName) localStorage.setItem("adigator_campaign_name", campaignName);
+      else localStorage.removeItem("adigator_campaign_name");
 
-    if (campaignProductFocus) localStorage.setItem("adigator_product_focus", campaignProductFocus);
-    else localStorage.removeItem("adigator_product_focus");
+      if (advertiserName) localStorage.setItem("adigator_advertiser_name", advertiserName);
+      else localStorage.removeItem("adigator_advertiser_name");
 
-    if (landingUrl) localStorage.setItem("adigator_landing_url", landingUrl);
-    else localStorage.removeItem("adigator_landing_url");
-  }, [platform, campaignGoal, campaignVertical, campaignAudienceStage, campaignName, campaignBrief, landingUrl]);
+      if (advertiserId) localStorage.setItem("adigator_advertiser_id", advertiserId);
+      else localStorage.removeItem("adigator_advertiser_id");
+
+      if (campaignBrief) localStorage.setItem("adigator_campaign_brief", campaignBrief);
+      else localStorage.removeItem("adigator_campaign_brief");
+
+      if (campaignProductFocus) localStorage.setItem("adigator_product_focus", campaignProductFocus);
+      else localStorage.removeItem("adigator_product_focus");
+
+      if (landingUrl) localStorage.setItem("adigator_landing_url", landingUrl);
+      else localStorage.removeItem("adigator_landing_url");
+
+      if (programmaticTaskType) localStorage.setItem("adigator_programmatic_task_type", programmaticTaskType);
+      else localStorage.removeItem("adigator_programmatic_task_type");
+
+      if (programmaticAdGroupCount !== "") {
+        localStorage.setItem("adigator_programmatic_ad_group_count", String(programmaticAdGroupCount));
+      } else {
+        localStorage.removeItem("adigator_programmatic_ad_group_count");
+      }
+
+      if (programmaticAdGroups.length > 0) {
+        localStorage.setItem("adigator_programmatic_ad_groups", JSON.stringify(programmaticAdGroups));
+      } else {
+        localStorage.removeItem("adigator_programmatic_ad_groups");
+      }
+    }, 500);
+
+    return () => {
+      if (campaignConfigPersistTimerRef.current) {
+        clearTimeout(campaignConfigPersistTimerRef.current);
+      }
+    };
+  }, [platform, campaignGoal, campaignVertical, campaignAudienceStage, campaignName, advertiserName, advertiserId, campaignBrief, campaignProductFocus, landingUrl, programmaticTaskType, programmaticAdGroupCount, programmaticAdGroups]);
 
   useEffect(() => {
     if (workflowPersistTimerRef.current) {
       clearTimeout(workflowPersistTimerRef.current);
     }
 
-    const delayMs = isBulkCompressing || compressingCreativeIds.length > 0 ? 1200 : 350;
+    const delayMs = isLoading || isBulkCompressing || compressingCreativeIds.length > 0 ? 2000 : 350;
 
     workflowPersistTimerRef.current = setTimeout(() => {
       try {
@@ -804,6 +1189,7 @@ export default function PreviewTool() {
     showSlotLabels,
     isBulkCompressing,
     compressingCreativeIds.length,
+    isLoading,
   ]);
 
   useEffect(() => {
@@ -833,19 +1219,946 @@ export default function PreviewTool() {
   const sessionInitRef = useRef(false);
   const lastSessionPayloadRef = useRef(null);
   const sessionNetworkWarningShownRef = useRef(false);
+  const lastUrlUtmAutoValidationKeyRef = useRef("");
 
-  const isConfigComplete = Boolean(platform && campaignGoal && campaignVertical);
+  const isProgrammatic = platform === "programmatic";
+  const isGoogleAds = platform === "google_ads";
+  const isMetaAds = platform === "meta_ads";
+  const platformAdapter = useMemo(() => getPlatformAdapter(platform), [platform]);
+  const isPlatformSetup = platformAdapter.isSetupTask(programmaticTaskType);
+  const isPlatformUpdateTask = platformAdapter.isUpdateTask(programmaticTaskType);
+  const isProgrammaticSetup = isProgrammatic && isProgrammaticCampaignSetup(programmaticTaskType);
+  const isProgrammaticCreativeAdditionFlow = isProgrammatic && isProgrammaticCreativeAddition(programmaticTaskType);
+  const isCreativeAdditionAdditionFlow = isProgrammaticCreativeAdditionFlow && creativeAdditionMode === "addition";
+  const isProgrammaticCreativeReplacementFlow = isProgrammatic && isProgrammaticCreativeReplacement(programmaticTaskType);
+  const isProgrammaticRenewalFlow = isProgrammatic && isProgrammaticCampaignRenewal(programmaticTaskType);
+  const isProgrammaticUrlUtmFlow = isProgrammatic && isProgrammaticUrlValidationUtmUpdate(programmaticTaskType);
+  const renewalUsesAdGroups = isProgrammaticRenewalFlow && programmaticAdGroups.length > 0;
+  const activeProgrammaticAdGroups = useMemo(() => {
+    if (!programmaticAdGroups.length) return [];
+    if (isProgrammaticSetup) return programmaticAdGroups;
+    return filterProgrammaticAdGroupsBySelection(
+      programmaticAdGroups,
+      selectedProgrammaticAdGroupIds,
+      applyProgrammaticAdGroupsToAll,
+    );
+  }, [
+    programmaticAdGroups,
+    selectedProgrammaticAdGroupIds,
+    applyProgrammaticAdGroupsToAll,
+    isProgrammaticSetup,
+  ]);
+  const creativeAdditionUsesAdGroups = isProgrammaticCreativeAdditionFlow
+    && Boolean(creativeAdditionMode)
+    && activeProgrammaticAdGroups.length > 0;
+  const creativeSwapUsesAdGroups = isProgrammaticCreativeReplacementFlow
+    && Boolean(loadedCampaignSnapshot)
+    && activeProgrammaticAdGroups.length > 0;
+  const usesProgrammaticFolderSections = isProgrammatic && !isProgrammaticUrlUtmFlow;
+  const programmaticUsesMultiFolder = isProgrammaticSetup
+    || renewalUsesAdGroups
+    || creativeAdditionUsesAdGroups
+    || creativeSwapUsesAdGroups;
+  const effectiveCampaignGoal = (isProgrammaticSetup || renewalUsesAdGroups)
+    ? getProgrammaticCampaignGoalFromAdGroups(programmaticAdGroups) || campaignGoal
+    : campaignGoal;
+  const resolvedCampaignIntent = useMemo(() => {
+    const briefText = campaignBrief?.trim() || "";
+    if (!briefText) return "";
+    const goal = effectiveCampaignGoal || campaignGoal || "";
+    const resolved = resolveCampaignIntentForBrief(briefText, {
+      campaignGoal: goal,
+      vertical: campaignVertical,
+      storedIntent: loadedCampaignSnapshot?.campaignIntent,
+      storedFingerprint: loadedCampaignSnapshot?.campaignIntentFingerprint,
+    });
+    return resolved.intent;
+  }, [
+    campaignBrief,
+    campaignGoal,
+    campaignVertical,
+    effectiveCampaignGoal,
+    loadedCampaignSnapshot?.campaignIntent,
+    loadedCampaignSnapshot?.campaignIntentFingerprint,
+  ]);
+  const resolvedCampaignIntentFingerprint = useMemo(() => {
+    const briefText = campaignBrief?.trim() || "";
+    if (!briefText) return loadedCampaignSnapshot?.campaignIntentFingerprint || "";
+    const goal = effectiveCampaignGoal || campaignGoal || "";
+    const resolved = resolveCampaignIntentForBrief(briefText, {
+      campaignGoal: goal,
+      vertical: campaignVertical,
+      storedIntent: loadedCampaignSnapshot?.campaignIntent,
+      storedFingerprint: loadedCampaignSnapshot?.campaignIntentFingerprint,
+    });
+    return resolved.fingerprint;
+  }, [
+    campaignBrief,
+    campaignGoal,
+    campaignVertical,
+    effectiveCampaignGoal,
+    loadedCampaignSnapshot?.campaignIntent,
+    loadedCampaignSnapshot?.campaignIntentFingerprint,
+  ]);
+  const setupFieldContext = useMemo(() => ({
+    platform,
+    advertiserName,
+    campaignVertical,
+    campaignGoal,
+    campaignBrief,
+    campaignName,
+    landingUrl,
+    programmaticTaskType,
+    programmaticAdGroupCount,
+    programmaticAdGroups,
+    selectedProgrammaticAdGroupIds,
+    applyProgrammaticAdGroupsToAll,
+    loadedCampaignSnapshot,
+    creativeAdditionMode,
+    renewalReferenceSnapshot,
+    urlUtmReferenceSnapshot,
+    lookupCampaignId,
+    renewalUsesAdGroups,
+  }), [
+    platform,
+    advertiserName,
+    campaignVertical,
+    campaignGoal,
+    campaignBrief,
+    campaignName,
+    landingUrl,
+    programmaticTaskType,
+    programmaticAdGroupCount,
+    programmaticAdGroups,
+    selectedProgrammaticAdGroupIds,
+    applyProgrammaticAdGroupsToAll,
+    loadedCampaignSnapshot,
+    creativeAdditionMode,
+    renewalReferenceSnapshot,
+    urlUtmReferenceSnapshot,
+    lookupCampaignId,
+    renewalUsesAdGroups,
+  ]);
+
+  const missingSetupFields = useMemo(
+    () => getMissingSetupFields(setupFieldContext),
+    [setupFieldContext],
+  );
+
+  const recommendedDetailFields = useMemo(
+    () => getRecommendedCampaignDetailFields(setupFieldContext),
+    [setupFieldContext],
+  );
+
+  const isConfigComplete = isSetupComplete(setupFieldContext);
+
+  const clearCreativeSessionState = useCallback(() => {
+    creativesRef.current.forEach((creative) => revokeCreativeObjectUrls(creative));
+    setCreatives([]);
+    setAnalysisResult(null);
+    writeStoredAnalysisResult(null);
+    setUrlValidation(null);
+    clearStoredUrlValidation();
+    sessionSyncInitializedRef.current = false;
+    lastCreativeFingerprintRef.current = null;
+  }, []);
+
+  const clearCreativeSessionAssets = useCallback(async () => {
+    const previousCreatives = [...creativesRef.current];
+    previousCreatives.forEach((creative) => revokeCreativeObjectUrls(creative));
+    await Promise.all(previousCreatives.map((creative) => deleteCreativeAssets(creative.id)));
+    clearCreativeSessionState();
+  }, [clearCreativeSessionState]);
+
+  const applyCampaignConfigFromSnapshot = useCallback((snapshot) => {
+    setActiveCampaignId(snapshot.id);
+    setCampaignName(snapshot.campaignName);
+    setCampaignBrief(snapshot.campaignBrief);
+    setCampaignVertical(snapshot.vertical);
+    setLandingUrl(snapshot.landingUrl);
+    setCampaignGoal(snapshot.campaignGoal || null);
+    setCampaignAudienceStage(snapshot.campaignAudienceStage || null);
+    setCampaignProductFocus(snapshot.campaignProductFocus || "");
+    setProgrammaticAdGroupCount(snapshot.programmaticAdGroupCount ?? "");
+    const normalizedGroups = normalizeProgrammaticAdGroups(snapshot.programmaticAdGroups || []);
+    setProgrammaticAdGroups(normalizedGroups);
+    setSelectedProgrammaticAdGroupIds(
+      Array.isArray(snapshot.selectedProgrammaticAdGroupIds) && snapshot.selectedProgrammaticAdGroupIds.length
+        ? snapshot.selectedProgrammaticAdGroupIds
+        : normalizedGroups.map((group) => group.id),
+    );
+    setApplyProgrammaticAdGroupsToAll(
+      typeof snapshot.applyProgrammaticAdGroupsToAll === "boolean"
+        ? snapshot.applyProgrammaticAdGroupsToAll
+        : isProgrammaticCampaignRenewal(snapshot.programmaticTaskType),
+    );
+    if (snapshot.viewMode) setViewMode(snapshot.viewMode);
+    if (typeof snapshot.showSlotLabels === "boolean") setShowSlotLabels(snapshot.showSlotLabels);
+    if (snapshot.advertiserName) setAdvertiserName(snapshot.advertiserName);
+    if (snapshot.advertiserId) setAdvertiserId(snapshot.advertiserId);
+    localStorage.setItem(ACTIVE_CAMPAIGN_STORAGE_KEY, snapshot.id);
+  }, []);
+
+  const applyCreativeReplacementLoad = useCallback(async (snapshot) => {
+    applyCampaignConfigFromSnapshot(snapshot);
+    setLookupCampaignId(snapshot.id);
+    setLoadedCampaignSnapshot(snapshot);
+    setIsHydratingCreatives(true);
+
+    try {
+      const metas = Array.isArray(snapshot.creatives) ? snapshot.creatives : [];
+      const hydrated = metas.length ? await hydrateCreativesList(metas, 4) : [];
+      const baselines = hydrated.map((creative) => tagCreativeRole(creative, CREATIVE_ROLE_BASELINE));
+      setCreatives(baselines);
+      writeStoredWorkflow({
+        step,
+        creatives: baselines.map(stripCreativeForPersistence),
+        viewMode: snapshot.viewMode || viewMode,
+        showSlotLabels: snapshot.showSlotLabels ?? showSlotLabels,
+      });
+
+      if (snapshot.analysisResult && analysisMatchesCreatives(snapshot.analysisResult, hydrated)) {
+        setBaselineAnalysisResult(snapshot.analysisResult);
+        setAnalysisResult(null);
+        writeStoredAnalysisResult(null);
+      } else {
+        setBaselineAnalysisResult(null);
+        setAnalysisResult(null);
+        writeStoredAnalysisResult(null);
+      }
+
+      if (snapshot.urlValidation) {
+        setUrlValidation(snapshot.urlValidation);
+        writeStoredUrlValidation(snapshot.urlValidation);
+      } else {
+        setUrlValidation(null);
+        clearStoredUrlValidation();
+      }
+
+      setReplacementComparisonReport(null);
+      sessionSyncInitializedRef.current = true;
+      lastCreativeFingerprintRef.current = getCreativeValidationFingerprint(baselines);
+      addToast("Loaded previous creatives and validation history for replacement comparison.", "success");
+    } finally {
+      setIsHydratingCreatives(false);
+    }
+  }, [
+    addToast,
+    applyCampaignConfigFromSnapshot,
+    showSlotLabels,
+    step,
+    viewMode,
+  ]);
+
+  const applyCampaignRenewalLoad = useCallback(async (snapshot) => {
+    applyCampaignConfigFromSnapshot(snapshot);
+    setLookupCampaignId(snapshot.id);
+    setLoadedCampaignSnapshot(snapshot);
+    setRenewalReferenceSnapshot({
+      ...snapshot,
+      creatives: Array.isArray(snapshot.creatives) ? [...snapshot.creatives] : [],
+      analysisResult: Array.isArray(snapshot.analysisResult) ? [...snapshot.analysisResult] : null,
+      programmaticAdGroups: Array.isArray(snapshot.programmaticAdGroups) ? [...snapshot.programmaticAdGroups] : [],
+    });
+    setIsHydratingCreatives(true);
+
+    try {
+      const metas = Array.isArray(snapshot.creatives) ? snapshot.creatives : [];
+      const hydrated = metas.length ? await hydrateCreativesList(metas, 4) : [];
+      setCreatives(hydrated);
+      writeStoredWorkflow({
+        step,
+        creatives: hydrated.map(stripCreativeForPersistence),
+        viewMode: snapshot.viewMode || viewMode,
+        showSlotLabels: snapshot.showSlotLabels ?? showSlotLabels,
+      });
+
+      if (snapshot.analysisResult && analysisMatchesCreatives(snapshot.analysisResult, hydrated)) {
+        setBaselineAnalysisResult(snapshot.analysisResult);
+        setAnalysisResult(null);
+        writeStoredAnalysisResult(null);
+      } else {
+        setBaselineAnalysisResult(null);
+        setAnalysisResult(null);
+        writeStoredAnalysisResult(null);
+      }
+
+      if (snapshot.urlValidation) {
+        setUrlValidation(snapshot.urlValidation);
+        writeStoredUrlValidation(snapshot.urlValidation);
+      } else {
+        setUrlValidation(null);
+        clearStoredUrlValidation();
+      }
+
+      setRenewalComparisonReport(null);
+      sessionSyncInitializedRef.current = true;
+      lastCreativeFingerprintRef.current = getCreativeValidationFingerprint(hydrated);
+      addToast("Campaign loaded for renewal. Update settings and creatives, then run a fresh validation.", "success");
+    } finally {
+      setIsHydratingCreatives(false);
+    }
+  }, [
+    addToast,
+    applyCampaignConfigFromSnapshot,
+    showSlotLabels,
+    step,
+    viewMode,
+  ]);
+
+  const applyUrlUtmCampaignLoad = useCallback(async (snapshot) => {
+    applyCampaignConfigFromSnapshot(snapshot);
+    setLookupCampaignId(snapshot.id);
+    setLoadedCampaignSnapshot(snapshot);
+    setUrlUtmReferenceSnapshot({
+      ...snapshot,
+      creatives: Array.isArray(snapshot.creatives) ? [...snapshot.creatives] : [],
+      analysisResult: Array.isArray(snapshot.analysisResult) ? [...snapshot.analysisResult] : null,
+      utmParameters: snapshot.utmParameters ? { ...snapshot.utmParameters } : undefined,
+    });
+
+    const parsed = parseUtmFromUrl(snapshot.landingUrl || "");
+    const resolvedUtms = normalizeUtmParameters(snapshot.utmParameters || parsed.utmParameters);
+    const resolvedDestination = snapshot.destinationUrl || parsed.destinationUrl || snapshot.landingUrl || "";
+
+    setDestinationUrl(resolvedDestination);
+    setUtmParameters(resolvedUtms);
+    setLandingUrl(buildTrackingUrl(resolvedDestination, resolvedUtms) || snapshot.landingUrl || "");
+    setIsHydratingCreatives(true);
+
+    try {
+      const metas = Array.isArray(snapshot.creatives) ? snapshot.creatives : [];
+      const hydrated = metas.length ? await hydrateCreativesList(metas, 4) : [];
+      setCreatives(hydrated);
+      writeStoredWorkflow({
+        step,
+        creatives: hydrated.map(stripCreativeForPersistence),
+        viewMode: snapshot.viewMode || viewMode,
+        showSlotLabels: snapshot.showSlotLabels ?? showSlotLabels,
+      });
+
+      if (snapshot.analysisResult && analysisMatchesCreatives(snapshot.analysisResult, hydrated)) {
+        setBaselineAnalysisResult(snapshot.analysisResult);
+        setAnalysisResult(snapshot.analysisResult);
+        writeStoredAnalysisResult(snapshot.analysisResult);
+      } else {
+        setBaselineAnalysisResult(null);
+        setAnalysisResult(null);
+        writeStoredAnalysisResult(null);
+      }
+
+      if (snapshot.urlValidation) {
+        setUrlValidation(snapshot.urlValidation);
+        writeStoredUrlValidation(snapshot.urlValidation);
+      } else {
+        setUrlValidation(null);
+        clearStoredUrlValidation();
+      }
+
+      setUrlUtmValidationReport(null);
+      sessionSyncInitializedRef.current = true;
+      lastCreativeFingerprintRef.current = getCreativeValidationFingerprint(hydrated);
+      addToast("Campaign loaded. Update destination URLs and UTM parameters, then validate.", "success");
+    } finally {
+      setIsHydratingCreatives(false);
+    }
+  }, [
+    addToast,
+    applyCampaignConfigFromSnapshot,
+    showSlotLabels,
+    step,
+    viewMode,
+  ]);
+
+  const applyCreativeAdditionMode = useCallback(async (mode, snapshot) => {
+    applyCampaignConfigFromSnapshot(snapshot);
+    setCreativeAdditionMode(mode);
+    setLookupCampaignId(snapshot.id);
+    setLoadedCampaignSnapshot(snapshot);
+
+    if (mode === "addition") {
+      setIsHydratingCreatives(true);
+      try {
+        const metas = Array.isArray(snapshot.creatives) ? snapshot.creatives : [];
+        let hydrated = metas.length ? await hydrateCreativesList(metas, 4) : [];
+        if (hydrated.length && platform) {
+          hydrated = await revalidateCreativesForPlatform(hydrated, platform);
+        }
+        setCreatives(hydrated);
+        writeStoredWorkflow({
+          step,
+          creatives: hydrated.map(stripCreativeForPersistence),
+          viewMode: snapshot.viewMode || viewMode,
+          showSlotLabels: snapshot.showSlotLabels ?? showSlotLabels,
+        });
+        const baselineIds = hydrated.map((creative) => creative.id);
+        setAdditionBaselineCreativeIds(baselineIds);
+        const restoredAnalysis = Array.isArray(snapshot.analysisResult)
+          ? filterAnalysisForCreatives(snapshot.analysisResult, hydrated)
+          : [];
+        if (restoredAnalysis.length > 0) {
+          setBaselineAnalysisResult(restoredAnalysis);
+          setAnalysisResult(restoredAnalysis);
+          writeStoredAnalysisResult(restoredAnalysis);
+        } else {
+          setBaselineAnalysisResult(null);
+          setAnalysisResult(null);
+          writeStoredAnalysisResult(null);
+        }
+        if (snapshot.urlValidation) {
+          setUrlValidation(snapshot.urlValidation);
+          writeStoredUrlValidation(snapshot.urlValidation);
+        } else {
+          setUrlValidation(null);
+          clearStoredUrlValidation();
+        }
+        sessionSyncInitializedRef.current = true;
+        lastCreativeFingerprintRef.current = getCreativeValidationFingerprint(hydrated);
+        addToast("Loaded existing campaign creatives and validation history.", "success");
+      } finally {
+        setIsHydratingCreatives(false);
+      }
+      return;
+    }
+
+    setAdditionBaselineCreativeIds([]);
+    await clearCreativeSessionAssets();
+    writeStoredWorkflow({
+      step,
+      creatives: [],
+      viewMode: snapshot.viewMode || viewMode,
+      showSlotLabels: snapshot.showSlotLabels ?? showSlotLabels,
+    });
+    addToast("Campaign settings loaded. Upload new creatives to start a fresh validation session.", "info");
+  }, [
+    addToast,
+    applyCampaignConfigFromSnapshot,
+    clearCreativeSessionAssets,
+    platform,
+    showSlotLabels,
+    step,
+    viewMode,
+  ]);
+
+  const getAccessToken = useCallback(async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    return session?.access_token || null;
+  }, []);
+
+  const handleFindProgrammaticCampaign = useCallback(async (overrides = null) => {
+    setCreativeAdditionFindError("");
+    if (!campaignOwnerId) {
+      setCreativeAdditionFindError("Unable to resolve your campaign session. Refresh the page and try again.");
+      return;
+    }
+
+    const resolvedName = (overrides?.campaignName ?? campaignName).trim();
+    const resolvedId = (overrides?.campaignId ?? lookupCampaignId).trim();
+
+    if (overrides?.campaignName) setCampaignName(overrides.campaignName);
+    if (overrides?.campaignId) setLookupCampaignId(overrides.campaignId);
+
+    if (!resolvedName || !resolvedId) {
+      setCreativeAdditionFindError("Enter both campaign name and ID, or select a campaign from your advertiser list.");
+      return;
+    }
+
+    let match = platform === "programmatic"
+      ? findProgrammaticCampaign({
+        campaignId: resolvedId,
+        campaignName: resolvedName,
+        ownerId: campaignOwnerId,
+      })
+      : getCampaignById(resolvedId, campaignOwnerId);
+
+    if (!match) {
+      const token = await getAccessToken();
+      if (token) {
+        const fetched = platform === "programmatic"
+          ? await fetchProgrammaticCampaignFromApi({
+            campaignName: resolvedName,
+            campaignId: resolvedId,
+            accessToken: token,
+          })
+          : await fetchCampaignFromApi({
+            campaignName: resolvedName,
+            campaignId: resolvedId,
+            accessToken: token,
+            platform,
+          });
+        match = fetched;
+        if (match && match.ownerId && match.ownerId !== campaignOwnerId) {
+          match = null;
+        }
+        if (match) {
+          if (platform === "programmatic") {
+            upsertProgrammaticCampaign({ ...match, ownerId: campaignOwnerId });
+          } else {
+            upsertCampaign({ ...match, ownerId: campaignOwnerId, platform });
+          }
+        }
+      }
+    }
+
+    if (!match) {
+      setLoadedCampaignSnapshot(null);
+      setCreativeAdditionMode("");
+      setCreativeAdditionFindError("No campaign matched that name and ID on your account. Check both values and try again.");
+      return;
+    }
+    setLoadedCampaignSnapshot(match);
+    setCreativeAdditionMode("");
+    if (isCreativeReplacementTask(programmaticTaskType)) {
+      void applyCreativeReplacementLoad(match);
+      return;
+    }
+    if (isCampaignRenewalTask(programmaticTaskType)) {
+      void applyCampaignRenewalLoad(match);
+      return;
+    }
+    if (isUrlUtmUpdateTask(programmaticTaskType)) {
+      void applyUrlUtmCampaignLoad(match);
+      return;
+    }
+    if (isCreativeAdditionTask(programmaticTaskType)) {
+      sessionSyncInitializedRef.current = false;
+      applyCampaignConfigFromSnapshot(match);
+      addToast("Campaign found. Choose how to proceed.", "success");
+      return;
+    }
+  }, [lookupCampaignId, campaignName, campaignOwnerId, programmaticTaskType, getAccessToken, applyCampaignConfigFromSnapshot, applyCreativeReplacementLoad, applyCampaignRenewalLoad, applyUrlUtmCampaignLoad, addToast]);
+
+  const reportDeepLinkHandledRef = useRef("");
+
+  const loadCampaignFromDownloadLink = useCallback(async ({ campaignId, campaignName: linkCampaignName, advertiserId: linkAdvertiserId }) => {
+    if (!campaignOwnerId || !campaignId?.trim() || !linkCampaignName?.trim()) return false;
+
+    let match = findProgrammaticCampaign({
+      campaignId: campaignId.trim(),
+      campaignName: linkCampaignName.trim(),
+      ownerId: campaignOwnerId,
+    });
+
+    if (!match) {
+      const token = await getAccessToken();
+      if (token) {
+        match = await fetchProgrammaticCampaignFromApi({
+          campaignName: linkCampaignName.trim(),
+          campaignId: campaignId.trim(),
+          accessToken: token,
+        });
+        if (match && match.ownerId && match.ownerId !== campaignOwnerId) {
+          match = null;
+        }
+        if (match) {
+          upsertProgrammaticCampaign({ ...match, ownerId: campaignOwnerId });
+        }
+      }
+    }
+
+    if (!match) {
+      addToast("Campaign not found on this device. Open it from Step 1 to view this report.", "error");
+      return false;
+    }
+
+    setLookupCampaignId(match.id);
+    setLoadedCampaignSnapshot(match);
+    if (linkAdvertiserId) setAdvertiserId(linkAdvertiserId);
+    if (match.programmaticTaskType) setProgrammaticTaskType(match.programmaticTaskType);
+    applyCampaignConfigFromSnapshot(match);
+
+    setIsHydratingCreatives(true);
+    try {
+      const metas = Array.isArray(match.creatives) ? match.creatives : [];
+      let hydrated = metas.length ? await hydrateCreativesList(metas, 4) : [];
+      if (hydrated.length && platform) {
+        hydrated = await revalidateCreativesForPlatform(hydrated, platform);
+      }
+      setCreatives(hydrated);
+      writeStoredWorkflow({
+        step,
+        creatives: hydrated.map(stripCreativeForPersistence),
+        viewMode: match.viewMode || viewMode,
+        showSlotLabels: match.showSlotLabels ?? showSlotLabels,
+      });
+
+      const restoredAnalysis = Array.isArray(match.analysisResult)
+        ? filterAnalysisForCreatives(match.analysisResult, hydrated)
+        : [];
+      if (restoredAnalysis.length > 0) {
+        setAnalysisResult(restoredAnalysis);
+        writeStoredAnalysisResult(restoredAnalysis);
+      }
+
+      if (match.urlValidation) {
+        setUrlValidation(match.urlValidation);
+        writeStoredUrlValidation(match.urlValidation);
+      }
+
+      if (match.previewStudioCache) {
+        setPreviewStudioCache(match.previewStudioCache);
+        setPreviewStudioStorageScope(campaignOwnerId);
+        void savePreviewStudioCacheToStorage(match.id, match.previewStudioCache);
+      } else {
+        setPreviewStudioStorageScope(campaignOwnerId);
+        const storedCache = await loadPreviewStudioCacheFromStorage(match.id);
+        if (storedCache) setPreviewStudioCache(storedCache);
+      }
+
+      sessionSyncInitializedRef.current = true;
+      lastCreativeFingerprintRef.current = getCreativeValidationFingerprint(hydrated);
+      addToast(`Loaded "${linkCampaignName}" — ready to view.`, "success");
+      return true;
+    } finally {
+      setIsHydratingCreatives(false);
+    }
+  }, [
+    campaignOwnerId,
+    getAccessToken,
+    applyCampaignConfigFromSnapshot,
+    addToast,
+    platform,
+    step,
+    viewMode,
+    showSlotLabels,
+  ]);
+
+  useEffect(() => {
+    const campaignIdParam = searchParams.get("campaign_id");
+    const campaignNameParam = searchParams.get("campaign_name");
+    if (!campaignIdParam || !campaignNameParam || !campaignOwnerId) return;
+
+    const linkKey = `${campaignIdParam}|${campaignNameParam}|${searchParams.get("advertiser_id") || ""}`;
+    if (reportDeepLinkHandledRef.current === linkKey) return;
+    reportDeepLinkHandledRef.current = linkKey;
+
+    void loadCampaignFromDownloadLink({
+      campaignId: campaignIdParam,
+      campaignName: campaignNameParam,
+      advertiserId: searchParams.get("advertiser_id") || "",
+    });
+  }, [searchParams, campaignOwnerId, loadCampaignFromDownloadLink]);
+
+  const handleAdvertiserCampaignSelect = useCallback((campaign) => {
+    void handleFindProgrammaticCampaign({
+      campaignName: campaign.name,
+      campaignId: campaign.id,
+    });
+  }, [handleFindProgrammaticCampaign]);
+
+  const handleCreativeAdditionModeChange = useCallback((mode) => {
+    if (!loadedCampaignSnapshot) return;
+    void applyCreativeAdditionMode(mode, loadedCampaignSnapshot);
+  }, [applyCreativeAdditionMode, loadedCampaignSnapshot]);
+
+  const buildProgrammaticCampaignSnapshot = useCallback((analysisOverride = null) => {
+    const id = platform === "programmatic"
+      ? resolveProgrammaticCampaignId({
+        taskType: programmaticTaskType,
+        activeCampaignId,
+        lookupCampaignId,
+        loadedCampaignId: loadedCampaignSnapshot?.id,
+        referenceCampaignId: renewalReferenceSnapshot?.id || urlUtmReferenceSnapshot?.id,
+      })
+      : resolveCampaignId({
+        platform: platform || "programmatic",
+        taskType: programmaticTaskType,
+        activeCampaignId,
+        lookupCampaignId,
+        loadedCampaignId: loadedCampaignSnapshot?.id,
+        referenceCampaignId: renewalReferenceSnapshot?.id || urlUtmReferenceSnapshot?.id,
+      });
+    const resolvedAnalysis = analysisOverride ?? analysisResult;
+    const briefText = campaignBrief?.trim() || "";
+    const goal = effectiveCampaignGoal || campaignGoal || "";
+    const vertical = campaignVertical || "";
+    const resolvedIntent = resolveCampaignIntentForBrief(briefText, {
+      campaignGoal: goal,
+      vertical,
+      storedIntent: loadedCampaignSnapshot?.campaignIntent,
+      storedFingerprint: loadedCampaignSnapshot?.campaignIntentFingerprint,
+    });
+    const campaignIntent = resolvedIntent.intent;
+    const intentFingerprint = resolvedIntent.fingerprint;
+
+    const analysisEntries = Array.isArray(resolvedAnalysis) ? resolvedAnalysis : [];
+    const urlVal = urlValidation || readStoredUrlValidation();
+    let campaignAlignmentReport;
+    if (briefText && analysisEntries.length) {
+      const alignmentFingerprint = buildCampaignAlignmentFingerprint({
+        campaignBrief: briefText,
+        campaignIntent,
+        campaignGoal: goal,
+        campaignVertical: vertical,
+        landingUrl: landingUrl || destinationUrl || "",
+        analysisCount: analysisEntries.length,
+        urlCheckedAt: String(urlVal?.checked_at || ""),
+      });
+      const storedAlignment = loadedCampaignSnapshot?.campaignAlignmentReport;
+      if (storedAlignment?.sourceFingerprint === alignmentFingerprint) {
+        campaignAlignmentReport = storedAlignment;
+      } else {
+        campaignAlignmentReport = computeCampaignAlignmentReport({
+          campaignBrief: briefText,
+          campaignIntent,
+          campaignGoal: goal || "awareness",
+          campaignVertical: vertical || "technology",
+          platform: platform || "programmatic",
+          analysisEntries,
+          urlValidation: urlVal,
+        }) || undefined;
+      }
+    }
+
+    return {
+      id,
+      platform: platform || "programmatic",
+      campaignTaskType: programmaticTaskType || "campaign_setup",
+      ownerId: campaignOwnerId || loadedCampaignSnapshot?.ownerId || "",
+      campaignName: campaignName.trim() || "Untitled Campaign",
+      campaignBrief,
+      campaignIntent: campaignIntent || undefined,
+      campaignIntentFingerprint: campaignIntent ? intentFingerprint : undefined,
+      campaignAlignmentReport,
+      vertical: campaignVertical || "",
+      landingUrl,
+      campaignGoal: effectiveCampaignGoal || campaignGoal || "",
+      campaignAudienceStage: campaignAudienceStage || "",
+      campaignProductFocus,
+      programmaticTaskType,
+      programmaticAdGroupCount,
+      programmaticAdGroups,
+      selectedProgrammaticAdGroupIds,
+      applyProgrammaticAdGroupsToAll,
+      creatives: creatives.map(stripCreativeForPersistence),
+      analysisResult: Array.isArray(resolvedAnalysis) ? resolvedAnalysis : null,
+      urlValidation: urlValidation || readStoredUrlValidation(),
+      destinationUrl,
+      utmParameters,
+      viewMode,
+      showSlotLabels,
+      advertiserId: advertiserId || undefined,
+      advertiserName: advertiserName.trim() || undefined,
+      previewStudioCache: previewStudioCache || loadedCampaignSnapshot?.previewStudioCache || undefined,
+      campaignAssistantContext: campaignAssistantContext || loadedCampaignSnapshot?.campaignAssistantContext || undefined,
+      createdAt: loadedCampaignSnapshot?.createdAt || new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      ...platformAdapter.buildSnapshotExtensions({
+        programmaticAdGroupCount,
+        programmaticAdGroups,
+        selectedProgrammaticAdGroupIds,
+        applyProgrammaticAdGroupsToAll,
+      }),
+    };
+  }, [
+    activeCampaignId,
+    analysisResult,
+    campaignOwnerId,
+    campaignAudienceStage,
+    campaignBrief,
+    campaignGoal,
+    campaignName,
+    campaignProductFocus,
+    campaignVertical,
+    creativeAdditionMode,
+    creatives,
+    effectiveCampaignGoal,
+    landingUrl,
+    destinationUrl,
+    utmParameters,
+    loadedCampaignSnapshot,
+    lookupCampaignId,
+    programmaticAdGroupCount,
+    programmaticAdGroups,
+    selectedProgrammaticAdGroupIds,
+    applyProgrammaticAdGroupsToAll,
+    programmaticTaskType,
+    renewalReferenceSnapshot,
+    showSlotLabels,
+    urlUtmReferenceSnapshot,
+    urlValidation,
+    viewMode,
+    advertiserId,
+    advertiserName,
+    previewStudioCache,
+    campaignAssistantContext,
+    platform,
+    platformAdapter,
+  ]);
+
+  const handlePreviewStudioCacheUpdate = useCallback((cache) => {
+    setPreviewStudioCache(cache);
+    const campaignId = activeCampaignId || loadedCampaignSnapshot?.id;
+    if (!cache || !campaignId || !campaignOwnerId) return;
+    setPreviewStudioStorageScope(campaignOwnerId);
+    void savePreviewStudioCacheToStorage(campaignId, cache);
+  }, [activeCampaignId, loadedCampaignSnapshot?.id, campaignOwnerId]);
+
+  useEffect(() => {
+    let active = true;
+    const campaignId = activeCampaignId || loadedCampaignSnapshot?.id;
+    const snapshotCache = loadedCampaignSnapshot?.previewStudioCache || null;
+
+    if (!campaignId) {
+      setPreviewStudioCache(snapshotCache);
+      return undefined;
+    }
+
+    setPreviewStudioStorageScope(campaignOwnerId || "default");
+    void loadPreviewStudioCacheFromStorage(campaignId).then((storedCache) => {
+      if (!active) return;
+      setPreviewStudioCache(mergePreviewStudioCaches(snapshotCache, storedCache) || snapshotCache);
+    });
+
+    return () => {
+      active = false;
+    };
+  }, [
+    activeCampaignId,
+    loadedCampaignSnapshot?.id,
+    loadedCampaignSnapshot?.previewStudioCache,
+    campaignOwnerId,
+  ]);
+
+  useEffect(() => {
+    setCampaignAssistantContext(loadedCampaignSnapshot?.campaignAssistantContext || null);
+  }, [loadedCampaignSnapshot?.id, loadedCampaignSnapshot?.campaignAssistantContext]);
+
+  const persistProgrammaticCampaignSnapshot = useCallback(async (analysisOverride = null, options = {}) => {
+    const { syncRemote = true } = options;
+    if (!platform || !campaignVertical || !campaignOwnerId) return null;
+    const adapter = getPlatformAdapter(platform);
+    const snapshotBase = buildProgrammaticCampaignSnapshot(analysisOverride);
+    if (!snapshotBase.id && adapter.isUpdateTask(programmaticTaskType)) {
+      return null;
+    }
+    const creativesWithPreviews = await Promise.all(
+      creatives.map((creative) => attachPersistedPreviewData(creative)),
+    );
+
+    const preserveStoredAssets = adapter.isUpdateTask(programmaticTaskType) && (
+      !sessionSyncInitializedRef.current
+      || (isProgrammaticCreativeAdditionFlow && !creativeAdditionMode)
+      || (isProgrammaticCreativeAdditionFlow && creativeAdditionMode === "new_setup" && creatives.length === 0)
+    );
+    const storedCampaign = snapshotBase.id
+      ? (platform === "programmatic"
+        ? getProgrammaticCampaignById(snapshotBase.id, campaignOwnerId)
+        : getCampaignById(snapshotBase.id, campaignOwnerId))
+      : null;
+
+    const snapshot = {
+      ...snapshotBase,
+      ownerId: campaignOwnerId,
+      creatives: preserveStoredAssets && storedCampaign?.creatives?.length
+        ? storedCampaign.creatives
+        : creativesWithPreviews,
+      analysisResult: preserveStoredAssets && storedCampaign?.analysisResult?.length
+        ? storedCampaign.analysisResult
+        : snapshotBase.analysisResult,
+    };
+    const saved = platform === "programmatic"
+      ? upsertProgrammaticCampaign(snapshot)
+      : upsertCampaign(snapshot);
+    setLoadedCampaignSnapshot((prev) => (prev?.id === saved.id ? saved : prev));
+    warmDashboardCampaignCaches(saved);
+    setActiveCampaignId(saved.id);
+    localStorage.setItem(ACTIVE_CAMPAIGN_STORAGE_KEY, saved.id);
+
+    if (snapshot.advertiserId && snapshot.advertiserName) {
+      if (platform === "programmatic") {
+        syncAdvertiserFromProgrammaticSnapshot(snapshot);
+      } else {
+        syncAdvertiserFromGenericSession({
+          ownerId: campaignOwnerId,
+          advertiserId: snapshot.advertiserId,
+          advertiserName: snapshot.advertiserName,
+          campaignName: snapshot.campaignName,
+          platform,
+          campaignId: saved.id,
+        });
+      }
+    }
+
+    const token = await getAccessToken();
+    if (token && syncRemote) {
+      if (platform === "programmatic") {
+        await persistProgrammaticCampaignToApi(saved, token);
+      } else {
+        await persistCampaignToApi(saved, token);
+      }
+    }
+
+    return saved;
+  }, [
+    buildProgrammaticCampaignSnapshot,
+    campaignVertical,
+    campaignOwnerId,
+    platform,
+    creatives,
+    getAccessToken,
+    programmaticTaskType,
+    advertiserId,
+    advertiserName,
+    creativeAdditionMode,
+    isProgrammaticCreativeAdditionFlow,
+  ]);
+
+  useEffect(() => {
+    if (!previewStudioCache || !campaignOwnerId) return;
+    if (platform !== "programmatic") return;
+    const timer = window.setTimeout(() => {
+      void persistProgrammaticCampaignSnapshot(null, { syncRemote: false });
+    }, 500);
+    return () => window.clearTimeout(timer);
+  }, [previewStudioCache, platform, campaignOwnerId, persistProgrammaticCampaignSnapshot]);
+
+  useEffect(() => {
+    if (!campaignVertical || !campaignOwnerId || isHydratingCreatives) return;
+
+    const isSetup = isPlatformSetup;
+    const isUpdate = isPlatformUpdateTask;
+    if (!isSetup && !isUpdate) return;
+
+    if (isSetup && (!activeCampaignId || !campaignName.trim())) return;
+    if (isUpdate && !loadedCampaignSnapshot?.id && !lookupCampaignId?.trim() && !activeCampaignId) return;
+
+    const timer = window.setTimeout(() => {
+      void persistProgrammaticCampaignSnapshot(null, { syncRemote: false });
+    }, 500);
+
+    return () => window.clearTimeout(timer);
+  }, [
+    platform,
+    programmaticTaskType,
+    isPlatformSetup,
+    isPlatformUpdateTask,
+    activeCampaignId,
+    lookupCampaignId,
+    loadedCampaignSnapshot?.id,
+    campaignVertical,
+    campaignOwnerId,
+    campaignName,
+    campaignBrief,
+    landingUrl,
+    destinationUrl,
+    programmaticAdGroupCount,
+    programmaticAdGroups,
+    selectedProgrammaticAdGroupIds,
+    applyProgrammaticAdGroupsToAll,
+    creatives,
+    urlValidation,
+    analysisResult,
+    utmParameters,
+    isHydratingCreatives,
+    persistProgrammaticCampaignSnapshot,
+  ]);
 
   const scrollToSection = useCallback((ref) => {
     if (!ref?.current) return;
     window.setTimeout(() => {
       ref.current?.scrollIntoView({ behavior: "smooth", block: "start" });
     }, 120);
-  }, []);
-
-  const getAccessToken = useCallback(async () => {
-    const { data: { session } } = await supabase.auth.getSession();
-    return session?.access_token || null;
   }, []);
 
   const createAnalysisSession = useCallback(async (initialValues = {}) => {
@@ -874,6 +2187,16 @@ export default function PreviewTool() {
       let message = "Unable to create analysis session.";
       try {
         const payload = await response.json();
+        if (payload?.skipped || payload?.schemaUnavailable) {
+          if (!sessionNetworkWarningShownRef.current) {
+            sessionNetworkWarningShownRef.current = true;
+            console.warn(
+              "Analysis sessions table not found in Supabase. Preview tool will continue without server session persistence. Run supabase/RUN_PREVIEW_TOOL_TABLES.sql in the SQL editor.",
+              payload.error || message,
+            );
+          }
+          return null;
+        }
         if (payload?.error) message = payload.error;
       } catch {
         // Ignore parse errors and keep fallback message.
@@ -976,6 +2299,17 @@ export default function PreviewTool() {
     setPlatform(id);
     setCampaignGoal(nextGoal);
     if (platformChanged) {
+      setProgrammaticTaskType("");
+      setProgrammaticAdGroupCount("");
+      setProgrammaticAdGroups([]);
+      setSelectedProgrammaticAdGroupIds([]);
+      setApplyProgrammaticAdGroupsToAll(false);
+      setActiveCampaignId("");
+      setLookupCampaignId("");
+      setLoadedCampaignSnapshot(null);
+      setCreativeAdditionMode("");
+      setCreativeAdditionFindError("");
+      localStorage.removeItem(ACTIVE_CAMPAIGN_STORAGE_KEY);
       creativesRef.current.forEach((creative) => revokeCreativeObjectUrls(creative));
       void Promise.all(creativesRef.current.map((creative) => deleteCreativeAssets(creative.id)));
       setCreatives([]);
@@ -1013,6 +2347,224 @@ export default function PreviewTool() {
         console.error("Failed to persist platform selection", error);
       });
   }, [campaignGoal, platform, scrollToSection, ensureAnalysisSession, updateAnalysisSession, campaignVertical, campaignAudienceStage]);
+
+  const handleProgrammaticTaskTypeChange = useCallback((taskType) => {
+    setProgrammaticTaskType(taskType);
+    setLoadedCampaignSnapshot(null);
+    setCreativeAdditionMode("");
+    setCreativeAdditionFindError("");
+    setLookupCampaignId("");
+    setBaselineAnalysisResult(null);
+    setAdditionBaselineCreativeIds([]);
+    setRenewalReferenceSnapshot(null);
+    setRenewalComparisonReport(null);
+    setUrlUtmReferenceSnapshot(null);
+    setUrlUtmValidationReport(null);
+    setDestinationUrl("");
+    setUtmParameters(emptyUtmParameters());
+    setSelectedProgrammaticAdGroupIds([]);
+    setApplyProgrammaticAdGroupsToAll(isProgrammaticCampaignRenewal(taskType));
+    if (isProgrammaticCampaignSetup(taskType)) {
+      void clearCreativeSessionAssets();
+    } else if (
+      isProgrammaticCreativeAddition(taskType)
+      || isProgrammaticCreativeReplacement(taskType)
+      || isProgrammaticCampaignRenewal(taskType)
+      || isProgrammaticUrlValidationUtmUpdate(taskType)
+    ) {
+      clearCreativeSessionState();
+    }
+    if (!isProgrammaticCampaignSetup(taskType)) {
+      setProgrammaticAdGroupCount("");
+      setProgrammaticAdGroups([]);
+      setSelectedProgrammaticAdGroupIds([]);
+      setApplyProgrammaticAdGroupsToAll(false);
+    }
+    if (!isProgrammaticCreativeAddition(taskType) && !isProgrammaticCreativeReplacement(taskType) && !isProgrammaticCampaignRenewal(taskType) && !isProgrammaticUrlValidationUtmUpdate(taskType)) {
+      setLoadedCampaignSnapshot(null);
+      setCreativeAdditionMode("");
+    }
+    if (!isProgrammaticCampaignSetup(taskType) && !isProgrammaticCreativeAddition(taskType) && !isProgrammaticCreativeReplacement(taskType) && !isProgrammaticCampaignRenewal(taskType) && !isProgrammaticUrlValidationUtmUpdate(taskType)) {
+      setCampaignGoal(null);
+    } else if (isProgrammaticCampaignSetup(taskType)) {
+      setCampaignGoal(null);
+      setProgrammaticAdGroupCount("");
+      setProgrammaticAdGroups([]);
+      localStorage.removeItem("adigator_programmatic_ad_groups");
+      localStorage.removeItem("adigator_programmatic_ad_group_count");
+      const newCampaignId = generateProgrammaticCampaignId();
+      setActiveCampaignId(newCampaignId);
+      localStorage.setItem(ACTIVE_CAMPAIGN_STORAGE_KEY, newCampaignId);
+    } else {
+      setActiveCampaignId("");
+      localStorage.removeItem(ACTIVE_CAMPAIGN_STORAGE_KEY);
+    }
+  }, [clearCreativeSessionAssets, clearCreativeSessionState]);
+
+  const handleProgrammaticAdGroupCountChange = useCallback((count) => {
+    setProgrammaticAdGroupCount(count);
+    setProgrammaticAdGroups((previous) => buildProgrammaticAdGroups(count, previous));
+  }, []);
+
+  const handleProgrammaticAdGroupNameChange = useCallback((groupId, name) => {
+    setProgrammaticAdGroups((previous) => previous.map((group) => (
+      group.id === groupId ? { ...group, name } : group
+    )));
+  }, []);
+
+  const handleProgrammaticAdGroupObjectiveChange = useCallback((groupId, objective) => {
+    setProgrammaticAdGroups((previous) => {
+      const next = previous.map((group) => {
+        if (group.id !== groupId) return group;
+        return {
+          ...group,
+          objective,
+          customObjective: objective === PROGRAMMATIC_OBJECTIVE_CUSTOM ? group.customObjective : undefined,
+        };
+      });
+      const goalFromAdGroups = getProgrammaticCampaignGoalFromAdGroups(next);
+      if (goalFromAdGroups) {
+        setCampaignGoal(goalFromAdGroups);
+      }
+      return next;
+    });
+  }, []);
+
+  const handleProgrammaticAdGroupCustomObjectiveChange = useCallback((groupId, customObjective) => {
+    setProgrammaticAdGroups((previous) => {
+      const next = previous.map((group) => (
+        group.id === groupId ? { ...group, customObjective } : group
+      ));
+      const goalFromAdGroups = getProgrammaticCampaignGoalFromAdGroups(next);
+      if (goalFromAdGroups) {
+        setCampaignGoal(goalFromAdGroups);
+      }
+      return next;
+    });
+  }, []);
+
+  const handleAddProgrammaticAdGroup = useCallback(() => {
+    setProgrammaticAdGroups((previous) => {
+      const next = addProgrammaticAdGroup(previous);
+      const newGroup = next[next.length - 1];
+      setProgrammaticAdGroupCount(next.length);
+      if (newGroup?.id) {
+        setSelectedProgrammaticAdGroupIds((selected) => (
+          selected.includes(newGroup.id) ? selected : [...selected, newGroup.id]
+        ));
+        setApplyProgrammaticAdGroupsToAll(false);
+      }
+      return next;
+    });
+  }, []);
+
+  const handleRemoveProgrammaticAdGroup = useCallback((groupId) => {
+    setProgrammaticAdGroups((previous) => {
+      const next = removeProgrammaticAdGroup(previous, groupId);
+      setProgrammaticAdGroupCount(next.length);
+      setSelectedProgrammaticAdGroupIds((selected) => selected.filter((id) => id !== groupId));
+      return next;
+    });
+  }, []);
+
+  const handleSelectedProgrammaticAdGroupIdsChange = useCallback((groupIds) => {
+    setSelectedProgrammaticAdGroupIds(groupIds);
+  }, []);
+
+  const handleApplyProgrammaticAdGroupsToAllChange = useCallback((applyToAll) => {
+    setApplyProgrammaticAdGroupsToAll(applyToAll);
+    if (applyToAll) {
+      setSelectedProgrammaticAdGroupIds(programmaticAdGroups.map((group) => group.id));
+    }
+  }, [programmaticAdGroups]);
+
+  const handleLandingUrlChange = useCallback((value) => {
+    const parsed = parseUtmFromUrl(value);
+    setLandingUrl(parsed.destinationUrl);
+    if (isProgrammatic) {
+      setDestinationUrl(parsed.destinationUrl);
+      setUtmParameters((previous) => {
+        const next = { ...previous };
+        SUPPORTED_UTM_KEYS.forEach((key) => {
+          const detected = parsed.utmParameters[key]?.trim();
+          if (detected) next[key] = detected;
+        });
+        return next;
+      });
+    }
+    setUrlUtmValidationReport(null);
+  }, [isProgrammatic]);
+
+  const parsedLandingUtmState = useMemo(
+    () => parseUtmFromUrl(landingUrl || ""),
+    [landingUrl],
+  );
+  const hasManualUtmValues = useMemo(
+    () => Object.values(utmParameters).some((value) => String(value || "").trim().length > 0),
+    [utmParameters],
+  );
+  const effectiveDestinationUrl = useMemo(
+    () => (destinationUrl || parsedLandingUtmState.destinationUrl || "").trim(),
+    [destinationUrl, parsedLandingUtmState.destinationUrl],
+  );
+  const effectiveUtmParameters = useMemo(
+    () => (hasManualUtmValues ? utmParameters : normalizeUtmParameters(parsedLandingUtmState.utmParameters)),
+    [hasManualUtmValues, utmParameters, parsedLandingUtmState.utmParameters],
+  );
+  const displayValidationUrl = useMemo(
+    () => stripUtmFromUrl(isProgrammatic ? (effectiveDestinationUrl || landingUrl) : landingUrl),
+    [isProgrammatic, effectiveDestinationUrl, landingUrl],
+  );
+
+  const runUrlUtmValidation = useCallback(async () => {
+    const cleanDestinationUrl = stripUtmFromUrl(effectiveDestinationUrl || landingUrl);
+    if (!cleanDestinationUrl.trim()) {
+      addToast("Enter a landing page URL.", "error");
+      return null;
+    }
+
+    setLandingUrl(cleanDestinationUrl);
+    setDestinationUrl(cleanDestinationUrl);
+    const urlResult = await runUrlValidation(cleanDestinationUrl);
+    const report = buildUrlUtmValidationReport({
+      referenceSnapshot: urlUtmReferenceSnapshot,
+      destinationUrl: cleanDestinationUrl,
+      utmParameters: emptyUtmParameters(),
+      landingUrl: cleanDestinationUrl,
+      campaignName: campaignName.trim() || "Campaign",
+      platform: platform || "programmatic",
+      campaignGoal: effectiveCampaignGoal || campaignGoal || "",
+      urlValidationResult: urlResult || urlValidation,
+    });
+    setUrlUtmValidationReport(report);
+
+    const savedCampaign = await persistProgrammaticCampaignSnapshot();
+    if (savedCampaign) {
+      addToast(`Campaign saved as ${savedCampaign.id}.`, "info");
+    }
+
+    if (report.flags.some((flag) => flag.severity === "error")) {
+      addToast("URL validation found blocking issues.", "error");
+    } else if (report.flags.some((flag) => flag.severity === "warning")) {
+      addToast("URL validation completed with warnings.", "info");
+    } else {
+      addToast("URL validation passed.", "success");
+    }
+
+    return report;
+  }, [
+    effectiveDestinationUrl,
+    landingUrl,
+    addToast,
+    runUrlValidation,
+    urlUtmReferenceSnapshot,
+    campaignName,
+    platform,
+    effectiveCampaignGoal,
+    campaignGoal,
+    urlValidation,
+    persistProgrammaticCampaignSnapshot,
+  ]);
 
   const handleGoalSelect = useCallback((id) => {
     if (!platform) return;
@@ -1074,7 +2626,24 @@ export default function PreviewTool() {
 
   const validCreatives = useMemo(() => creatives.filter((c) => c && c.valid && (c.url || c.text || c.image || c.title)), [creatives]);
   const invalidCreatives = useMemo(() => creatives.filter((c) => c && (!c.valid || !(c.url || c.text || c.image || c.title))), [creatives]);
-  const uploadedCreatives = validCreatives;
+  const baselineCreatives = useMemo(
+    () => (isProgrammaticCreativeReplacementFlow
+      ? creatives.filter((creative) => creative?.creativeRole === CREATIVE_ROLE_BASELINE)
+      : []),
+    [creatives, isProgrammaticCreativeReplacementFlow],
+  );
+  const replacementCreatives = useMemo(
+    () => (isProgrammaticCreativeReplacementFlow
+      ? creatives.filter((creative) => creative?.creativeRole === CREATIVE_ROLE_REPLACEMENT)
+      : []),
+    [creatives, isProgrammaticCreativeReplacementFlow],
+  );
+  const validReplacementCreatives = useMemo(
+    () => replacementCreatives.filter((creative) => creative && creative.valid && (creative.url || creative.text || creative.image || creative.title)),
+    [replacementCreatives],
+  );
+  const uploadedCreatives = isProgrammaticCreativeReplacementFlow ? validReplacementCreatives : validCreatives;
+  const creativesForAnalysis = isProgrammaticCreativeReplacementFlow ? validReplacementCreatives : validCreatives;
   const creativeFingerprint = useMemo(
     () => getCreativeValidationFingerprint(creatives),
     [creatives],
@@ -1093,8 +2662,17 @@ export default function PreviewTool() {
       && lastCreativeFingerprintRef.current !== fingerprint;
 
     if (creativesChanged) {
-      setAnalysisResult(null);
-      writeStoredAnalysisResult(null);
+      if (isCreativeAdditionAdditionFlow) {
+        const preserved = filterAnalysisForCreatives(
+          baselineAnalysisResult || analysisResult,
+          creatives,
+        );
+        setAnalysisResult(preserved.length > 0 ? preserved : null);
+        writeStoredAnalysisResult(preserved.length > 0 ? preserved : null);
+      } else {
+        setAnalysisResult(null);
+        writeStoredAnalysisResult(null);
+      }
       setUrlValidation((current) => {
         const stored = current ?? readStoredUrlValidation();
         const resolved = resolveActiveUrlValidation(landingUrl, stored, creatives);
@@ -1119,7 +2697,7 @@ export default function PreviewTool() {
 
     sessionSyncInitializedRef.current = true;
     lastCreativeFingerprintRef.current = fingerprint;
-  }, [isHydratingCreatives, creativeFingerprint, landingUrl, creatives]);
+  }, [isHydratingCreatives, creativeFingerprint, landingUrl, creatives, isCreativeAdditionAdditionFlow, baselineAnalysisResult, analysisResult]);
 
   useEffect(() => {
     if (isHydratingCreatives) return;
@@ -1132,16 +2710,68 @@ export default function PreviewTool() {
   }, [landingUrl, isHydratingCreatives, creativeFingerprint, creatives]);
   const primaryCreativeUrl = getPersistableCreativeUrl(uploadedCreatives[0]);
   const needsReviewCreatives = useMemo(
-    () => creatives.filter((c) =>
-      c?.validation?.issues?.some((issue) => issue.needsReview || issue.type === "size_near_match" || issue.type === "dimension_normalization"),
-    ),
-    [creatives],
+    () => {
+      const source = isProgrammaticCreativeReplacementFlow ? replacementCreatives : creatives;
+      return source.filter((c) =>
+        c?.validation?.issues?.some((issue) => issue.needsReview || issue.type === "size_near_match" || issue.type === "dimension_normalization"),
+      );
+    },
+    [creatives, replacementCreatives, isProgrammaticCreativeReplacementFlow],
   );
   useEffect(() => {
     setSizeReviewAcknowledged(false);
   }, [needsReviewCreatives.map((c) => c.id).join(",")]);
   const canAdvanceToAnalysis = uploadedCreatives.length > 0
-    && (needsReviewCreatives.length === 0 || sizeReviewAcknowledged);
+    && (needsReviewCreatives.length === 0 || sizeReviewAcknowledged)
+    && (
+      !programmaticUsesMultiFolder
+      || activeProgrammaticAdGroups.every((group) => creatives.some((creative) => creative.adGroupId === group.id && creative.valid))
+    )
+    && (
+      !isProgrammaticCreativeReplacementFlow
+      || baselineCreatives.some((creative) => creative.valid)
+    )
+    && (
+      !isProgrammaticUrlUtmFlow
+      || (urlUtmReferenceSnapshot && destinationUrl.trim() && creatives.length > 0)
+    );
+
+  const creativesByAdGroup = useMemo(() => (
+    creatives.reduce((accumulator, creative) => {
+      if (!creative?.adGroupId) return accumulator;
+      accumulator[creative.adGroupId] = (accumulator[creative.adGroupId] || 0) + 1;
+      return accumulator;
+    }, {})
+  ), [creatives]);
+
+  const replacementCreativesByAdGroup = useMemo(() => (
+    replacementCreatives.reduce((accumulator, creative) => {
+      const key = creative?.adGroupId || "programmatic-folder";
+      accumulator[key] = (accumulator[key] || 0) + 1;
+      return accumulator;
+    }, {})
+  ), [replacementCreatives]);
+
+  const step2FolderCreatives = useMemo(() => {
+    if (isProgrammaticCreativeReplacementFlow) return replacementCreatives;
+    return creatives;
+  }, [creatives, replacementCreatives, isProgrammaticCreativeReplacementFlow]);
+
+  const groupedCreatives = useMemo(() => {
+    const sourceCreatives = isProgrammaticCreativeReplacementFlow
+      ? replacementCreatives
+      : creatives;
+    if (!programmaticUsesMultiFolder) {
+      return [{ id: "all", label: "Creatives", creatives: sourceCreatives }];
+    }
+    return activeProgrammaticAdGroups
+      .map((group) => ({
+        id: group.id,
+        label: getProgrammaticAdGroupDisplayName(group),
+        creatives: sourceCreatives.filter((creative) => creative.adGroupId === group.id),
+      }))
+      .filter((group) => group.creatives.length > 0);
+  }, [programmaticUsesMultiFolder, isProgrammaticCreativeReplacementFlow, activeProgrammaticAdGroups, creatives, replacementCreatives]);
 
   useEffect(() => {
     lastSessionPayloadRef.current = null;
@@ -1200,12 +2830,32 @@ export default function PreviewTool() {
   );
 
   const goNext = useCallback(async () => {
-    if (step === 1 && !isConfigComplete) return;
+    if (step === 1 && !isConfigComplete) {
+      setSetupPromptHighlighted(true);
+      missingSetupPanelRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+      addToast(
+        missingSetupFields.length === 1
+          ? "Complete the required setup item below to continue."
+          : `Complete ${missingSetupFields.length} required setup items below to continue.`,
+        "error",
+      );
+      return;
+    }
     if (step === 2 && !canAdvanceToAnalysis) return;
 
+    if (step === 1 && platform === "programmatic" && isProgrammaticCampaignSetup(programmaticTaskType)) {
+      if (!activeCampaignId) {
+        const newCampaignId = generateProgrammaticCampaignId();
+        setActiveCampaignId(newCampaignId);
+        localStorage.setItem(ACTIVE_CAMPAIGN_STORAGE_KEY, newCampaignId);
+      }
+      await persistProgrammaticCampaignSnapshot();
+    }
+
     if (step === 2 && landingUrl.trim()) {
+      const cleanLandingUrl = stripUtmFromUrl(landingUrl.trim());
       const needsRefresh = !activeUrlValidation
-        || activeUrlValidation.submitted_url !== landingUrl.trim()
+        || stripUtmFromUrl(activeUrlValidation.submitted_url || "") !== cleanLandingUrl
         || activeUrlValidation.status === "pending";
       if (needsRefresh && !urlValidationRunning) {
         await runUrlValidation();
@@ -1244,6 +2894,15 @@ export default function PreviewTool() {
     activeUrlValidation,
     urlValidationRunning,
     runUrlValidation,
+    activeCampaignId,
+    isProgrammaticCreativeAdditionFlow,
+    isProgrammaticCreativeReplacementFlow,
+    isProgrammaticRenewalFlow,
+    isProgrammaticUrlUtmFlow,
+    programmaticTaskType,
+    persistProgrammaticCampaignSnapshot,
+    missingSetupFields.length,
+    addToast,
   ]);
 
   const goBack = useCallback(() => {
@@ -1358,6 +3017,10 @@ export default function PreviewTool() {
   }, [step, isConfigComplete, pathname, router]);
 
   useEffect(() => {
+    if (isConfigComplete) setSetupPromptHighlighted(false);
+  }, [isConfigComplete]);
+
+  useEffect(() => {
     if (!mountRef.current) return;
     trackUserActivity("page_visit", {
       action_label: `Preview tool step ${step}`,
@@ -1460,7 +3123,7 @@ export default function PreviewTool() {
       });
 
       if (result.error) {
-        if (!result.skipped && !result.schemaUnavailable) {
+        if (!result.skipped && !result.schemaUnavailable && !result.authExpired) {
           console.error("saveCreative error:", result.error.message || result.error);
         }
         return null;
@@ -1497,110 +3160,194 @@ export default function PreviewTool() {
     }
   }, [platform]);
 
-  const handleFiles = async (files) => {
+  const schedulePersistCreative = useCallback((creative) => {
+    if (!creative?.id) return;
+    const timers = persistCreativeTimersRef.current;
+    const existing = timers.get(creative.id);
+    if (existing) clearTimeout(existing);
+    timers.set(creative.id, setTimeout(() => {
+      timers.delete(creative.id);
+      void persistCreative(creative);
+    }, 1200));
+  }, [persistCreative]);
+
+  const handleFiles = useCallback(async (files, options = {}) => {
     if (!platform) { addToast("Please select a platform first.", "error"); return; }
-    const fileList = Array.from(files || []);
-    if (fileList.length === 0) return;
-
-    setIsLoading(true);
-    try {
-      const preparedCreatives = await mapWithConcurrency(fileList, 2, async (file, fileIndex) => {
-        const dimensions = await readImageDimensionsFromBlob(file, { fileName: file.name });
-        const validation = await validateCreativeAsset({
-          file,
-          image: { width: dimensions.width, height: dimensions.height },
-          platform,
-        });
-        const size = dimensions.size;
-        const normalizedValidation = finalizeValidationForPlatform(validation, platform, size);
-
-        const creativeId = `${Date.now()}-${fileIndex}-${file.name}-${size}`;
-        const { displayUrl, fullUrl } = await storeUploadedCreativeFile(creativeId, file);
-        const contentHash = await hashFileContent(file);
-
-        return attachSourceDimensions({
-          id: creativeId,
-          name: file.name.replace(/\.[^/.]+$/, ""),
-          url: displayUrl,
-          fullUrl,
-          hasStoredAssets: true,
-          size,
-          contentHash,
-          valid: normalizedValidation.valid && normalizedValidation.status !== "CRITICAL",
-          originalFile: file.name,
-          mimeType: file.type || "image/jpeg",
-          fileSizeBytes: file.size,
-          fileSizeKB: Math.round(file.size / 1024),
-          validation: normalizedValidation,
-          placementType: normalizedValidation.intelligence?.placementType,
-          deviceClassification: normalizedValidation.intelligence?.deviceClassification,
-          iabCompatibility: normalizedValidation.intelligence?.iabCompatibility,
-          dspCompatibility: normalizedValidation.intelligence?.dspCompatibility,
-          inventoryAvailability: normalizedValidation.intelligence?.inventory,
-          auctionReadiness: normalizedValidation.intelligence?.auctionReadiness,
-          premiumPlacementPotential: normalizedValidation.intelligence?.premiumPlacement,
-        }, dimensions.width, dimensions.height);
-      });
-
-      startTransition(() => {
-        setCreatives((prev) => [...prev, ...preparedCreatives]);
-      });
-
-      window.setTimeout(() => {
-        preparedCreatives.forEach((creative) => {
-          void persistCreative(creative);
-        });
-      }, 0);
-
-      const uploadSummary = buildValidationSummary(preparedCreatives.map((c) => c.validation));
-      void trackUserActivity("upload", {
-        action_label: "Creative uploaded",
-        platform,
-        campaign_goal: campaignGoal,
-        vertical: campaignVertical,
-        metadata: {
-          count: preparedCreatives.length,
-          creative_ids: preparedCreatives.map((c) => c.id),
-          creative_outcomes: preparedCreatives.map((c) => ({
-            id: c.id,
-            name: c.name,
-            is_valid: Boolean(c.valid),
-          })),
-          creative_names: preparedCreatives.map((c) => c.name),
-          sizes: preparedCreatives.map((c) => c.size),
-          ad_sizes: preparedCreatives.map((c) => c.size),
-          valid_count: preparedCreatives.filter((c) => c.valid).length,
-          invalid_count: preparedCreatives.filter((c) => !c.valid).length,
-          audience_stage: campaignAudienceStage,
-        },
-      }, { dedupeKey: `upload-${platform}-${preparedCreatives.length}-${preparedCreatives[0]?.name || "batch"}` });
-
-      preparedCreatives.forEach((creative) => {
-        void trackValidationOutcome({
-          creativeId: creative.id,
-          creativeName: creative.name,
-          isValid: Boolean(creative.valid),
-          platform,
-          metadata: {
-            ad_size: creative.size || null,
-            validation_status: creative.validation?.status || null,
-            source: "upload",
-          },
-        });
-      });
-      if (uploadSummary.criticalCount > 0) {
-        addToast(`Uploaded ${preparedCreatives.length} creatives: ${uploadSummary.warningCount} warning(s), ${uploadSummary.criticalCount} critical.`, "error");
-      } else if (uploadSummary.warningCount > 0) {
-        addToast(`Uploaded ${preparedCreatives.length} creatives with ${uploadSummary.warningCount} warning(s).`, "info");
-      } else {
-        addToast(`Uploaded ${preparedCreatives.length} creatives. All checks passed.`, "success");
-      }
-    } catch (err) {
-      addToast(err?.message || "Failed to validate uploaded files.", "error");
-    } finally {
-      setIsLoading(false);
+    const fileList = filterImageFiles(files);
+    if (fileList.length === 0) {
+      addToast("No image files found in the selected folder.", "error");
+      return;
     }
-  };
+
+    const runUpload = async () => {
+      const {
+        adGroupId = null,
+        adGroupName = null,
+        adGroupObjective = null,
+        replaceAdGroup = false,
+        creativeRole = null,
+        replaceCreativeRole = null,
+      } = options;
+
+      if (replaceAdGroup && adGroupId) {
+        startTransition(() => {
+          setCreatives((prev) => prev.filter((creative) => creative.adGroupId !== adGroupId));
+        });
+      } else if (replaceCreativeRole) {
+        startTransition(() => {
+          setCreatives((prev) => prev.filter((creative) => creative.creativeRole !== replaceCreativeRole));
+        });
+      }
+
+      setIsLoading(true);
+      setUploadProgress({ completed: 0, total: fileList.length });
+
+      const preparedCreatives = [];
+      const uploadBatchId = Date.now();
+
+      try {
+        await mapWithConcurrency(fileList, 3, async (file, fileIndex) => {
+          const dimensions = await readImageDimensionsFromBlob(file, { fileName: file.name });
+          const validation = await validateCreativeAsset({
+            file,
+            image: { width: dimensions.width, height: dimensions.height },
+            platform,
+          });
+          const normalizedValidation = finalizeValidationForPlatform(
+            validation,
+            platform,
+            validation.size,
+          );
+          const sourceWidth = validation.dimensions?.detectedWidth || dimensions.width;
+          const sourceHeight = validation.dimensions?.detectedHeight || dimensions.height;
+
+          const creativeId = `${uploadBatchId}-${fileIndex}-${file.name}-${sourceWidth}x${sourceHeight}`;
+          const { displayUrl, fullUrl } = await storeUploadedCreativeFile(creativeId, file);
+          const contentHash = await hashFileContent(file);
+
+          const creative = attachSourceDimensions({
+            id: creativeId,
+            name: file.name.replace(/\.[^/.]+$/, ""),
+            url: displayUrl,
+            fullUrl,
+            hasStoredAssets: true,
+            contentHash,
+            valid: normalizedValidation.valid && normalizedValidation.status !== "CRITICAL",
+            originalFile: file.name,
+            mimeType: file.type || "image/jpeg",
+            fileSizeBytes: file.size,
+            fileSizeKB: Math.round(file.size / 1024),
+            validation: normalizedValidation,
+            placementType: normalizedValidation.intelligence?.placementType,
+            deviceClassification: normalizedValidation.intelligence?.deviceClassification,
+            iabCompatibility: normalizedValidation.intelligence?.iabCompatibility,
+            dspCompatibility: normalizedValidation.intelligence?.dspCompatibility,
+            inventoryAvailability: normalizedValidation.intelligence?.inventory,
+            auctionReadiness: normalizedValidation.intelligence?.auctionReadiness,
+            premiumPlacementPotential: normalizedValidation.intelligence?.premiumPlacement,
+            adGroupId,
+            adGroupName,
+            adGroupObjective,
+            creativeRole,
+          }, sourceWidth, sourceHeight);
+
+          preparedCreatives.push(creative);
+          startTransition(() => {
+            setCreatives((prev) => [...prev, creative]);
+          });
+          setUploadProgress({ completed: preparedCreatives.length, total: fileList.length });
+          window.setTimeout(() => {
+            schedulePersistCreative(creative);
+          }, 0);
+
+          return creative;
+        });
+
+        if (creativeRole === CREATIVE_ROLE_REPLACEMENT) {
+          setAnalysisResult(null);
+          setReplacementComparisonReport(null);
+          writeStoredAnalysisResult(null);
+        } else if (programmaticTaskType === "campaign_renewal") {
+          setAnalysisResult(null);
+          setRenewalComparisonReport(null);
+          writeStoredAnalysisResult(null);
+        }
+
+        const uploadSummary = buildValidationSummary(preparedCreatives.map((c) => c.validation));
+        void trackUserActivity("upload", {
+          action_label: "Creative uploaded",
+          platform,
+          campaign_goal: campaignGoal,
+          vertical: campaignVertical,
+          metadata: {
+            count: preparedCreatives.length,
+            creative_ids: preparedCreatives.map((c) => c.id),
+            creative_outcomes: preparedCreatives.map((c) => ({
+              id: c.id,
+              name: c.name,
+              is_valid: Boolean(c.valid),
+            })),
+            creative_names: preparedCreatives.map((c) => c.name),
+            sizes: preparedCreatives.map((c) => c.size),
+            ad_sizes: preparedCreatives.map((c) => c.size),
+            valid_count: preparedCreatives.filter((c) => c.valid).length,
+            invalid_count: preparedCreatives.filter((c) => !c.valid).length,
+            audience_stage: campaignAudienceStage,
+          },
+        }, { dedupeKey: `upload-${platform}-${preparedCreatives.length}-${preparedCreatives[0]?.name || "batch"}` });
+
+        preparedCreatives.forEach((creative) => {
+          void trackValidationOutcome({
+            creativeId: creative.id,
+            creativeName: creative.name,
+            isValid: Boolean(creative.valid),
+            platform,
+            metadata: {
+              ad_size: creative.size || null,
+              validation_status: creative.validation?.status || null,
+              source: "upload",
+            },
+          });
+        });
+        if (uploadSummary.criticalCount > 0) {
+          addToast(`Uploaded ${preparedCreatives.length} creatives${adGroupName ? ` for ${adGroupName}` : ""}: ${uploadSummary.warningCount} warning(s), ${uploadSummary.criticalCount} critical.`, "error");
+        } else if (uploadSummary.warningCount > 0) {
+          addToast(`Uploaded ${preparedCreatives.length} creatives${adGroupName ? ` for ${adGroupName}` : ""} with ${uploadSummary.warningCount} warning(s).`, "info");
+        } else {
+          addToast(`Uploaded ${preparedCreatives.length} creatives${adGroupName ? ` for ${adGroupName}` : ""}. All checks passed.`, "success");
+        }
+      } catch (err) {
+        addToast(err?.message || "Failed to validate uploaded files.", "error");
+      } finally {
+        setIsLoading(false);
+        setUploadProgress(null);
+      }
+    };
+
+    uploadQueueRef.current = uploadQueueRef.current.then(runUpload, runUpload);
+    await uploadQueueRef.current;
+  }, [
+    platform,
+    addToast,
+    programmaticTaskType,
+    campaignGoal,
+    campaignVertical,
+    campaignAudienceStage,
+    schedulePersistCreative,
+  ]);
+
+  const handleProgrammaticFolderSelect = useCallback((files, adGroup) => {
+    if (!adGroup) return;
+    const displayName = getProgrammaticAdGroupDisplayName(adGroup);
+    void handleFiles(files, {
+      adGroupId: adGroup.id,
+      adGroupName: displayName,
+      adGroupObjective: adGroup.objective || campaignGoal || null,
+      replaceAdGroup: isProgrammaticSetup || creativeAdditionMode === "new_setup" || renewalUsesAdGroups || creativeSwapUsesAdGroups,
+      creativeRole: isProgrammaticCreativeReplacementFlow ? CREATIVE_ROLE_REPLACEMENT : null,
+      replaceCreativeRole: isProgrammaticCreativeReplacementFlow ? CREATIVE_ROLE_REPLACEMENT : null,
+    });
+  }, [handleFiles, campaignGoal, creativeAdditionMode, isProgrammaticSetup, isProgrammaticCreativeReplacementFlow, renewalUsesAdGroups, creativeSwapUsesAdGroups]);
 
   const compressCreative = useCallback(async (creativeId, options = {}) => {
     const {
@@ -1609,6 +3356,7 @@ export default function PreviewTool() {
       silent = false,
       reencodeOnly = false,
       forceOutputType = null,
+      preserveDimensions = true,
     } = options;
 
     const notify = (message, type = "info") => {
@@ -1676,6 +3424,15 @@ export default function PreviewTool() {
       const imageSource = await loadImageSource(sourceBlob);
       let reachedTarget = false;
 
+      const originalDims = {
+        width: Number(creative.sourceWidth) > 0
+          ? Math.round(Number(creative.sourceWidth))
+          : imageSource.width,
+        height: Number(creative.sourceHeight) > 0
+          ? Math.round(Number(creative.sourceHeight))
+          : imageSource.height,
+      };
+
       let bestCandidate;
       try {
         if (reencodeOnly) {
@@ -1683,16 +3440,17 @@ export default function PreviewTool() {
             outputType,
             quality: outputType === "image/png" ? 1 : 0.92,
             scale: 1,
-            sourceWidth: imageSource.width,
-            sourceHeight: imageSource.height,
+            sourceWidth: originalDims.width,
+            sourceHeight: originalDims.height,
             includeDataUrl: false,
           });
         } else {
           bestCandidate = await compressImageToTarget(imageSource.drawable, {
             outputType,
             targetBytes: sizeThresholdBytes,
-            sourceWidth: imageSource.width,
-            sourceHeight: imageSource.height,
+            sourceWidth: originalDims.width,
+            sourceHeight: originalDims.height,
+            preserveDimensions,
           });
         }
       } finally {
@@ -1717,20 +3475,21 @@ export default function PreviewTool() {
       revokeCreativeObjectUrls(creative);
       const { displayUrl, fullUrl } = await storeCompressedCreativeBlobs(creative.id, finalBlob);
 
-      const sourceDims = {
-        width: imageSource.width,
-        height: imageSource.height,
-      };
-      const scaledDown = (bestCandidate.scale ?? 1) < 0.999;
-      const outputWidth = scaledDown ? bestCandidate.width : sourceDims.width;
-      const outputHeight = scaledDown ? bestCandidate.height : sourceDims.height;
+      const outputWidth = preserveDimensions
+        ? originalDims.width
+        : ((bestCandidate.scale ?? 1) < 0.999 ? bestCandidate.width : originalDims.width);
+      const outputHeight = preserveDimensions
+        ? originalDims.height
+        : ((bestCandidate.scale ?? 1) < 0.999 ? bestCandidate.height : originalDims.height);
 
       const validation = await validateCreativeAsset({
         file: finalFile,
         image: { width: outputWidth, height: outputHeight },
         platform,
       });
-      const finalSize = `${outputWidth}x${outputHeight}`;
+      const finalSize = validation.size || `${outputWidth}x${outputHeight}`;
+      const storedWidth = validation.dimensions?.width || outputWidth;
+      const storedHeight = validation.dimensions?.height || outputHeight;
 
       let finalValidation = finalizeValidationForPlatform(validation, platform, finalSize);
 
@@ -1759,12 +3518,12 @@ export default function PreviewTool() {
         inventoryAvailability: finalValidation.intelligence?.inventory,
         auctionReadiness: finalValidation.intelligence?.auctionReadiness,
         premiumPlacementPotential: finalValidation.intelligence?.premiumPlacement,
-      }, outputWidth, outputHeight);
+      }, storedWidth, storedHeight);
 
       startTransition(() => {
         setCreatives((prev) => prev.map((entry) => (entry.id === creativeId ? updatedCreative : entry)));
       });
-      void persistCreative(updatedCreative);
+      schedulePersistCreative(updatedCreative);
 
       const reduction = originalBytes > 0
         ? Math.round(((originalBytes - finalCompressedBytes) / originalBytes) * 100)
@@ -1843,7 +3602,7 @@ export default function PreviewTool() {
       compressingIdsRef.current.delete(creativeId);
       setCompressingCreativeIds((prev) => prev.filter((id) => id !== creativeId));
     }
-  }, [platform, addToast, persistCreative]);
+  }, [platform, addToast, schedulePersistCreative]);
 
   const applyCreativeFix = useCallback(async (creativeId, fixAction) => {
     if (!fixAction?.id) return;
@@ -1928,6 +3687,7 @@ export default function PreviewTool() {
         const result = await compressCreative(creative.id, {
           enforceSizeCompliance: true,
           targetSizeKB: target,
+          preserveDimensions: true,
           silent: true,
         });
 
@@ -1988,11 +3748,29 @@ export default function PreviewTool() {
 
     const nextCreatives = creativesRef.current.filter((c) => c.id !== id);
     setCreatives(nextCreatives);
-    if (nextCreatives.length === 0) {
+    const filterAnalysisEntries = (entries) => (
+      Array.isArray(entries)
+        ? entries.filter((entry) => entry?.creative?.id !== id)
+        : []
+    );
+    const nextAnalysisResult = filterAnalysisEntries(analysisResult);
+    const nextBaselineAnalysisResult = filterAnalysisEntries(baselineAnalysisResult);
+
+    if (nextCreatives.length === 0 || nextAnalysisResult.length === 0) {
       setAnalysisResult(null);
       writeStoredAnalysisResult(null);
       setUrlValidation(null);
       clearStoredUrlValidation();
+    } else {
+      setAnalysisResult(nextAnalysisResult);
+      writeStoredAnalysisResult(nextAnalysisResult);
+    }
+
+    if (isProgrammaticCreativeReplacementFlow) {
+      setBaselineAnalysisResult(nextBaselineAnalysisResult.length > 0 ? nextBaselineAnalysisResult : null);
+      setReplacementComparisonReport(null);
+    } else if (programmaticTaskType === "campaign_renewal") {
+      setRenewalComparisonReport(null);
     }
     setTargetSizeByCreative((prev) => {
       const next = { ...prev };
@@ -2008,6 +3786,12 @@ export default function PreviewTool() {
         await deleteCreativeRecord(existing.supabaseCreativeId);
       }
     } catch (e) { console.error("removeCreative error:", e); }
+
+    if (platform === "programmatic" && campaignVertical) {
+      void persistProgrammaticCampaignSnapshot(
+        nextAnalysisResult.length > 0 ? nextAnalysisResult : null,
+      );
+    }
   };
 
   const handleTargetSizeChange = useCallback((creativeId, nextValue) => {
@@ -2033,11 +3817,11 @@ export default function PreviewTool() {
         const updated = nextW > 0 && nextH > 0
           ? attachSourceDimensions(merged, nextW, nextH)
           : merged;
-        void persistCreative(updated);
+        schedulePersistCreative(updated);
         return updated;
       });
     });
-  }, [originalBackups, allowedSizes, persistCreative]);
+  }, [originalBackups, allowedSizes, schedulePersistCreative]);
 
   const startEdit = (id, currentName) => { setEditingId(id); setEditingName(currentName); };
   const saveEdit = (id) => {
@@ -2050,39 +3834,112 @@ export default function PreviewTool() {
     setEditingId(null);
   };
 
-  const runAnalysis = useCallback(async () => {
-    if (validCreatives.length === 0) { addToast("No valid creatives to analyze.", "error"); return; }
-    if (!campaignGoal || !platform || !campaignVertical) { addToast("Missing configuration.", "error"); return; }
+  const runAnalysisInternal = useCallback(async (analysisContextOverride = null) => {
+    if (creativesForAnalysis.length === 0) { addToast("No valid creatives to analyze.", "error"); return; }
 
-    setAnalysisLoading(true); setAnalysisResult(null);
+    const resolvedGoal = analysisContextOverride?.campaignGoal || effectiveCampaignGoal || campaignGoal;
+    const resolvedVertical = analysisContextOverride?.campaignVertical || campaignVertical;
+    const resolvedBrief = analysisContextOverride?.campaignBrief ?? campaignBrief;
+    const resolvedProductFocus = analysisContextOverride?.campaignProductFocus ?? campaignProductFocus;
+    const resolvedAudienceStage = analysisContextOverride?.campaignAudienceStage ?? campaignAudienceStage;
+    const resolvedLandingUrl = stripUtmFromUrl(
+      analysisContextOverride?.landingUrl ?? effectiveDestinationUrl ?? landingUrl,
+    );
+
+    if (!resolvedGoal || !platform || !resolvedVertical) { addToast("Missing configuration.", "error"); return; }
+
+    const storedAnalysis = Array.isArray(analysisResult) && analysisResult.length
+      ? analysisResult
+      : Array.isArray(baselineAnalysisResult) && baselineAnalysisResult.length
+        ? baselineAnalysisResult
+        : [];
+
+    const existingAnalysis = storedAnalysis.length
+      ? filterAnalysisForCreatives(storedAnalysis, creativesForAnalysis)
+      : [];
+
+    const shouldMergeAnalysis = isCreativeAdditionAdditionFlow
+      || (platform === "programmatic"
+        && isProgrammaticCampaignUpdateTask(programmaticTaskType)
+        && existingAnalysis.length > 0);
+
+    const creativesToAnalyze = shouldMergeAnalysis
+      ? getCreativesMissingAnalysis(creativesForAnalysis, existingAnalysis)
+      : creativesForAnalysis;
+
+    if (creativesToAnalyze.length === 0) {
+      if (existingAnalysis.length > 0) {
+        setAnalysisResult(existingAnalysis);
+        writeStoredAnalysisResult(existingAnalysis);
+        addToast("All creatives already analyzed. Review results in Overview.", "success");
+      }
+      return;
+    }
+
+    setAnalysisLoading(true);
+    if (shouldMergeAnalysis) {
+      setAnalysisResult(existingAnalysis.length > 0 ? existingAnalysis : null);
+    } else if (!isCreativeAdditionAdditionFlow) {
+      setAnalysisResult(null);
+    } else {
+      setAnalysisResult(existingAnalysis.length > 0 ? existingAnalysis : null);
+    }
+    setAnalysisProgress({ completed: 0, total: creativesToAnalyze.length, label: "" });
+    if (isProgrammaticCreativeReplacementFlow) {
+      setReplacementComparisonReport(null);
+    }
+    if (isProgrammaticRenewalFlow) {
+      setRenewalComparisonReport(null);
+    }
     try {
       void trackUserActivity("analyzer_usage", {
         action_label: "Analysis started",
         platform,
-        campaign_goal: campaignGoal,
-        vertical: campaignVertical,
+        campaign_goal: resolvedGoal,
+        vertical: resolvedVertical,
         metadata: {
-          creative_count: validCreatives.length,
-          audience_stage: campaignAudienceStage,
-          ad_sizes: validCreatives.map((c) => c.size),
+          creative_count: creativesToAnalyze.length,
+          total_creatives: creativesForAnalysis.length,
+          addition_flow: isCreativeAdditionAdditionFlow,
+          audience_stage: resolvedAudienceStage,
+          ad_sizes: creativesForAnalysis.map((c) => c.size),
           placements: platform ? Object.keys(PLATFORM_SIZES[platform] || {}) : [],
+          replacement_flow: isProgrammaticCreativeReplacementFlow,
+          renewal_flow: isProgrammaticRenewalFlow,
         },
-      }, { dedupeKey: `analyzer-start-${platform}-${campaignGoal}-${validCreatives.length}` });
+      }, { dedupeKey: `analyzer-start-${platform}-${effectiveCampaignGoal}-${creativesForAnalysis.length}` });
 
       const results = await analyzeAllCreatives(
-        validCreatives,
-        campaignGoal,
+        creativesToAnalyze,
+        resolvedGoal,
         platform,
-        campaignVertical,
-        campaignAudienceStage,
-        campaignBrief,
-        campaignProductFocus,
-        landingUrl,
+        resolvedVertical,
+        resolvedAudienceStage,
+        resolvedBrief,
+        resolvedProductFocus,
+        resolvedLandingUrl,
+        (completed, total, label) => {
+          setAnalysisProgress({ completed, total, label });
+        },
+        {
+          useOrchestrator: isCreativeAdditionAdditionFlow && Boolean(campaignAccessToken) && Boolean(activeCampaignId || lookupCampaignId),
+          campaignId: activeCampaignId || lookupCampaignId,
+          accessToken: campaignAccessToken,
+          taskType: programmaticTaskType,
+        },
       );
-      setAnalysisResult(results);
+      const reusedCount = results.filter((entry) => entry.brainReused).length;
+      const analyzedCount = results.length - reusedCount;
+      const mergedResults = shouldMergeAnalysis && existingAnalysis.length
+        ? [...existingAnalysis, ...results]
+        : isCreativeAdditionAdditionFlow
+          ? [...existingAnalysis, ...results]
+          : results;
+      setAnalysisResult(mergedResults);
+      writeStoredAnalysisResult(mergedResults);
 
       const linkedCreatives = await Promise.all(
-        validCreatives.map(async (creative) => {
+        creativesToAnalyze.map(async (creative) => {
           const supabaseCreativeId = creative.supabaseCreativeId || await persistCreative(creative);
           return { creative, supabaseCreativeId };
         }),
@@ -2095,7 +3952,7 @@ export default function PreviewTool() {
           await saveAnalyzerResult({
             creativeId: supabaseCreativeId,
             platform,
-            goal: campaignGoal,
+            goal: linkedCreatives[index]?.creative?.adGroupObjective || effectiveCampaignGoal,
             resultJson: getEntryPayload(entry) || {},
           });
         }),
@@ -2104,49 +3961,379 @@ export default function PreviewTool() {
       await trackUserActivity("analyzer_usage", {
         action_label: "Analysis completed",
         platform,
-        campaign_goal: campaignGoal,
-        vertical: campaignVertical,
+        campaign_goal: resolvedGoal,
+        vertical: resolvedVertical,
         metadata: {
           creative_count: results.length,
-          audience_stage: campaignAudienceStage,
-          creative_names: validCreatives.map((c) => c.name).filter(Boolean),
-          ad_sizes: validCreatives.map((c) => c.size),
+          audience_stage: resolvedAudienceStage,
+          creative_names: creativesForAnalysis.map((c) => c.name).filter(Boolean),
+          ad_sizes: creativesForAnalysis.map((c) => c.size),
+          replacement_flow: isProgrammaticCreativeReplacementFlow,
+          renewal_flow: isProgrammaticRenewalFlow,
         },
-      }, { dedupeKey: `analyzer-complete-${platform}-${campaignGoal}-${results.length}` });
+      }, { dedupeKey: `analyzer-complete-${platform}-${effectiveCampaignGoal}-${results.length}` });
 
       const authed = await isAuthenticatedUser();
       if (!authed) { /* guest demo already consumed on entry */ }
 
-      const goalMisaligned = results.filter((entry) => getEntryPayload(entry)?.goal_alignment?.is_aligned === false);
-      const verticalMisaligned = results.filter((entry) => getEntryPayload(entry)?.vertical_alignment?.is_aligned === false);
+      const goalMisaligned = mergedResults.filter((entry) => getEntryPayload(entry)?.goal_alignment?.is_aligned === false);
+      const verticalMisaligned = mergedResults.filter((entry) => getEntryPayload(entry)?.vertical_alignment?.is_aligned === false);
 
       if (goalMisaligned.length === 0 && verticalMisaligned.length === 0) {
-        addToast(`Analyzed ${results.length} creative${results.length !== 1 ? "s" : ""}. All creatives align with selected goal and vertical.`, "success");
+        const reuseNote = reusedCount > 0
+          ? ` ${reusedCount} reused from stored brains, ${analyzedCount} newly analyzed.`
+          : "";
+        addToast(`Analyzed ${creativesToAnalyze.length} creative${creativesToAnalyze.length !== 1 ? "s" : ""}.${reuseNote} All creatives align with selected goal and vertical.`, "success");
       } else {
         addToast(
-          `Analyzed ${results.length} creative${results.length !== 1 ? "s" : ""}. Goal mismatches: ${goalMisaligned.length}, Vertical mismatches: ${verticalMisaligned.length}.`,
+          `Analyzed ${creativesToAnalyze.length} creative${creativesToAnalyze.length !== 1 ? "s" : ""}. Goal mismatches: ${goalMisaligned.length}, Vertical mismatches: ${verticalMisaligned.length}.`,
           "error"
         );
+      }
+
+      if (isProgrammaticCreativeReplacementFlow) {
+        const report = buildReplacementComparisonReport({
+          baselineCreatives,
+          replacementCreatives: creativesForAnalysis,
+          baselineAnalysis: baselineAnalysisResult,
+          replacementAnalysis: results,
+        });
+        setReplacementComparisonReport(report);
+      }
+
+      if (isProgrammaticRenewalFlow && renewalReferenceSnapshot) {
+        const report = buildCampaignRenewalReport({
+          referenceSnapshot: renewalReferenceSnapshot,
+          currentConfig: {
+            campaignName,
+            campaignBrief,
+            vertical: campaignVertical || "",
+            landingUrl,
+            campaignGoal: effectiveCampaignGoal || campaignGoal || "",
+            programmaticAdGroupCount,
+          },
+          currentCreatives: creativesForAnalysis,
+          currentAnalysis: results,
+        });
+        setRenewalComparisonReport(report);
+      }
+
+      const analysisToPersist = isProgrammaticCreativeReplacementFlow && Array.isArray(baselineAnalysisResult)
+        ? [...baselineAnalysisResult, ...results]
+        : isCreativeAdditionAdditionFlow
+          ? mergedResults
+          : results;
+      const savedCampaign = await persistProgrammaticCampaignSnapshot(analysisToPersist);
+      if (savedCampaign) {
+        addToast(`Campaign saved as ${savedCampaign.id}.`, "info");
+      } else if (platform !== "programmatic" && advertiserId && advertiserName.trim() && campaignOwnerId) {
+        syncAdvertiserFromGenericSession({
+          ownerId: campaignOwnerId,
+          advertiserId,
+          advertiserName: advertiserName.trim(),
+          campaignId: activeCampaignId || analysisSessionId || `CMP-${Date.now()}`,
+          campaignName: campaignName.trim() || "Untitled Campaign",
+          platform,
+          campaignGoal: effectiveCampaignGoal || campaignGoal || "",
+          validated: true,
+          creatives: creativesForAnalysis.map((creative) => ({
+            id: creative.id,
+            name: creative.name,
+            size: creative.size,
+            valid: creative.valid,
+            url: getPersistableCreativeUrl(creative) || creative.url,
+            adGroupId: creative.adGroupId,
+            adGroupName: creative.adGroupName,
+            adGroupObjective: creative.adGroupObjective,
+          })),
+        });
       }
     } catch (err) {
       addToast(err.message || "Analysis failed.", "error");
     } finally {
       setAnalysisLoading(false);
+      setAnalysisProgress({ completed: 0, total: 0, label: "" });
     }
-  }, [validCreatives, campaignGoal, platform, campaignVertical, campaignAudienceStage, campaignBrief, campaignProductFocus, landingUrl, addToast, persistCreative]);
+  }, [
+    creativesForAnalysis,
+    effectiveCampaignGoal,
+    platform,
+    campaignVertical,
+    campaignAudienceStage,
+    campaignBrief,
+    campaignProductFocus,
+    landingUrl,
+    addToast,
+    persistCreative,
+    persistProgrammaticCampaignSnapshot,
+    isProgrammaticCreativeReplacementFlow,
+    isProgrammaticRenewalFlow,
+    isCreativeAdditionAdditionFlow,
+    baselineCreatives,
+    baselineAnalysisResult,
+    analysisResult,
+    renewalReferenceSnapshot,
+    campaignName,
+    programmaticAdGroupCount,
+    activeCampaignId,
+    campaignAccessToken,
+    programmaticTaskType,
+    advertiserId,
+    advertiserName,
+    campaignOwnerId,
+    analysisSessionId,
+  ]);
+
+  const buildAssistantFingerprint = useCallback(() => (
+    buildCampaignAssistantFingerprint({
+      advertiserId,
+      advertiserName,
+      campaignId: activeCampaignId || loadedCampaignSnapshot?.id || "",
+      campaignName,
+      campaignBrief,
+      campaignGoal: effectiveCampaignGoal || campaignGoal,
+      campaignVertical,
+      campaignProductFocus,
+      landingUrl,
+      programmaticTaskType,
+      creativeFingerprint,
+    })
+  ), [
+    advertiserId,
+    advertiserName,
+    activeCampaignId,
+    loadedCampaignSnapshot?.id,
+    campaignName,
+    campaignBrief,
+    effectiveCampaignGoal,
+    campaignGoal,
+    campaignVertical,
+    campaignProductFocus,
+    landingUrl,
+    programmaticTaskType,
+    creativeFingerprint,
+  ]);
+
+  const assessAndRunAnalysis = useCallback(async () => {
+    if (creativesForAnalysis.length === 0) { addToast("No valid creatives to analyze.", "error"); return; }
+    if (!effectiveCampaignGoal || !platform || !campaignVertical) { addToast("Missing configuration.", "error"); return; }
+
+    const fingerprint = buildAssistantFingerprint();
+    if (isCampaignAssistantContextValid(campaignAssistantContext, fingerprint)) {
+      await runAnalysisInternal();
+      return;
+    }
+
+    setAssistantChecking(true);
+    try {
+      const response = await fetch("/api/campaign-context-assessment", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          platform,
+          campaignName,
+          advertiserName,
+          campaignBrief,
+          campaignGoal: effectiveCampaignGoal || campaignGoal,
+          campaignVertical,
+          campaignAudienceStage,
+          campaignProductFocus,
+          landingUrl,
+          programmaticTaskType,
+          creativeCount: creativesForAnalysis.length,
+          creativeNames: creativesForAnalysis.map((creative) => creative.name).filter(Boolean),
+          hasPriorClarifications: isCampaignAssistantContextValid(campaignAssistantContext, fingerprint),
+        }),
+      });
+
+      if (!response.ok) {
+        await runAnalysisInternal();
+        return;
+      }
+
+      const assessment = await response.json();
+      if (!assessment?.shouldAsk || !Array.isArray(assessment.questions) || assessment.questions.length === 0) {
+        await runAnalysisInternal();
+        return;
+      }
+
+      setAssistantQuestions(assessment.questions);
+      setAssistantReasoning(assessment.reasoning || "");
+      setAssistantProvider(assessment.provider || "");
+      setAssistantModalOpen(true);
+    } catch {
+      await runAnalysisInternal();
+    } finally {
+      setAssistantChecking(false);
+    }
+  }, [
+    creativesForAnalysis,
+    effectiveCampaignGoal,
+    platform,
+    campaignVertical,
+    buildAssistantFingerprint,
+    campaignAssistantContext,
+    addToast,
+    runAnalysisInternal,
+    campaignName,
+    advertiserName,
+    campaignBrief,
+    campaignGoal,
+    campaignAudienceStage,
+    campaignProductFocus,
+    landingUrl,
+    programmaticTaskType,
+  ]);
+
+  const handleAssistantSubmit = useCallback(async (answers) => {
+    setAssistantSubmitting(true);
+    try {
+      const fingerprint = buildAssistantFingerprint();
+      const merged = mergeAssistantAnswers({
+        campaignBrief,
+        campaignProductFocus,
+        campaignAudienceStage,
+        campaignGoal: effectiveCampaignGoal || campaignGoal,
+        campaignVertical,
+        landingUrl,
+        advertiserName,
+        questions: assistantQuestions,
+        answers,
+      });
+
+      setCampaignBrief(merged.campaignBrief);
+      if (merged.campaignProductFocus) setCampaignProductFocus(merged.campaignProductFocus);
+      if (merged.campaignAudienceStage) setCampaignAudienceStage(merged.campaignAudienceStage);
+      if (merged.landingUrl && !landingUrl.trim()) setLandingUrl(merged.landingUrl);
+      if (merged.advertiserName && !advertiserName.trim()) setAdvertiserName(merged.advertiserName);
+      if (merged.campaignGoal && merged.campaignGoal !== campaignGoal) setCampaignGoal(merged.campaignGoal);
+      if (merged.campaignVertical && merged.campaignVertical !== campaignVertical) setCampaignVertical(merged.campaignVertical);
+
+      setCampaignAssistantContext({
+        sourceFingerprint: fingerprint,
+        answers,
+        mergedBriefSupplement: merged.supplement,
+        resolvedAt: new Date().toISOString(),
+        provider: assistantProvider || undefined,
+      });
+      setAssistantModalOpen(false);
+      await runAnalysisInternal({
+        campaignBrief: merged.campaignBrief,
+        campaignProductFocus: merged.campaignProductFocus,
+        campaignAudienceStage: merged.campaignAudienceStage,
+        campaignGoal: merged.campaignGoal || effectiveCampaignGoal || campaignGoal,
+        campaignVertical: merged.campaignVertical || campaignVertical,
+        landingUrl: merged.landingUrl || landingUrl,
+      });
+    } finally {
+      setAssistantSubmitting(false);
+    }
+  }, [
+    buildAssistantFingerprint,
+    campaignBrief,
+    campaignProductFocus,
+    campaignAudienceStage,
+    effectiveCampaignGoal,
+    campaignGoal,
+    campaignVertical,
+    landingUrl,
+    advertiserName,
+    assistantQuestions,
+    assistantProvider,
+    runAnalysisInternal,
+  ]);
+
+  useEffect(() => {
+    if (step !== 2) return;
+    if (urlValidationRunning || readinessLoading) return;
+    if (creatives.length === 0 || !platform || !effectiveCampaignGoal) return;
+
+    const trimmed = stripUtmFromUrl(displayValidationUrl);
+    const urlRequired = platform !== "meta_ads";
+    if (urlRequired && !trimmed) return;
+
+    const fingerprint = getCreativeValidationFingerprint(creatives);
+    if (trimmed && urlValidation) {
+      const validatedUrl = stripUtmFromUrl(urlValidation.submitted_url || "");
+      if (validatedUrl === trimmed && urlValidation.creative_fingerprint === fingerprint) {
+        return;
+      }
+    }
+
+    const timer = window.setTimeout(() => {
+      void runUrlValidation(trimmed || null);
+    }, 500);
+
+    return () => window.clearTimeout(timer);
+  }, [
+    step,
+    displayValidationUrl,
+    creatives,
+    platform,
+    effectiveCampaignGoal,
+    urlValidationRunning,
+    readinessLoading,
+    urlValidation,
+    runUrlValidation,
+  ]);
 
   useEffect(() => {
     if (step !== 3) return;
-    if (isHydratingCreatives) return;
-    if (analysisLoading || analysisResult) return;
-    if (uploadedCreatives.length === 0) return;
+    if (!isProgrammaticUrlUtmFlow) return;
+    if (urlValidationRunning || readinessLoading) return;
+    if (!effectiveDestinationUrl.trim()) return;
+
+    const cleanUrl = stripUtmFromUrl(effectiveDestinationUrl);
+    const validationKey = `${cleanUrl}|${getCreativeValidationFingerprint(creatives)}`;
+    if (urlUtmValidationReport && lastUrlUtmAutoValidationKeyRef.current === validationKey) {
+      return;
+    }
 
     const timer = window.setTimeout(() => {
-      void runAnalysis();
+      lastUrlUtmAutoValidationKeyRef.current = validationKey;
+      void runUrlUtmValidation();
+    }, 500);
+
+    return () => window.clearTimeout(timer);
+  }, [
+    step,
+    isProgrammaticUrlUtmFlow,
+    effectiveDestinationUrl,
+    urlValidationRunning,
+    readinessLoading,
+    urlUtmValidationReport,
+    creatives,
+    runUrlUtmValidation,
+  ]);
+
+  useEffect(() => {
+    if (step !== 3) return;
+    if (isProgrammaticUrlUtmFlow) return;
+    if (isHydratingCreatives) return;
+    if (analysisLoading) return;
+    if (uploadedCreatives.length === 0) return;
+
+    if (assistantModalOpen || assistantChecking) return;
+
+    const missingCreatives = getCreativesMissingAnalysis(uploadedCreatives, analysisResult);
+    if (missingCreatives.length === 0) return;
+
+    const timer = window.setTimeout(() => {
+      void assessAndRunAnalysis();
     }, 0);
 
     return () => window.clearTimeout(timer);
-  }, [step, isHydratingCreatives, analysisLoading, analysisResult, uploadedCreatives.length, runAnalysis]);
+  }, [
+    step,
+    isProgrammaticUrlUtmFlow,
+    isHydratingCreatives,
+    analysisLoading,
+    analysisResult,
+    uploadedCreatives,
+    assessAndRunAnalysis,
+    assistantModalOpen,
+    assistantChecking,
+  ]);
 
   useEffect(() => {
     if (!analysisSessionId) return;
@@ -2157,169 +4344,155 @@ export default function PreviewTool() {
     });
   }, [analysisSessionId, analysisResult, updateAnalysisSession]);
 
-  const handleDownloadReport = useCallback(async () => {
-    if (!analysisResult) return;
+  const handlePreviewExportContextChange = useCallback((context) => {
+    previewExportContextRef.current = {
+      ...previewExportContextRef.current,
+      ...context,
+    };
+  }, []);
+
+  const handleDownloadReport = useCallback(async (context = {}) => {
+    if (!analysisResult?.length) return;
+    if (!wysiwygExportRef.current) {
+      addToast("Report exporter is still loading. Please try again in a moment.", "error");
+      return;
+    }
+    if (isDownloadingReport) return;
+
+    const exportScope = context?.tab || "overview";
+    const selectedCreativeId = context?.selectedCreativeId ?? null;
+    const reportTypeLabel = exportScope === "overview"
+      ? "Overview Report (PDF)"
+      : exportScope === "qa"
+        ? "QA Report (PDF)"
+        : "Creative Analysis Report (PDF)";
+
+    setIsDownloadingReport(true);
     try {
-      const { jsPDF } = await import("jspdf");
-      const doc = new jsPDF({ format: 'a4', unit: 'pt' });
-
-      const setBg = () => { doc.setFillColor(15, 23, 42); doc.rect(0, 0, 595.28, 841.89, 'F'); };
-      setBg();
-
-      doc.setTextColor(255, 255, 255); doc.setFontSize(22); doc.text("Adigator Creative Analysis Report", 40, 55);
-
-      doc.setFontSize(12); doc.setTextColor(203, 213, 225);
-      doc.text(`Platform: ${(platform || '').toUpperCase()} | Goal: ${(campaignGoal || '').toUpperCase()}`, 40, 80);
-      doc.text(`Date: ${new Date().toLocaleString()}`, 40, 98);
-
-      const sorted = [...analysisResult].sort(compareStrategicEntries);
-
-      doc.setFontSize(16); doc.setTextColor(255, 255, 255); doc.text("Creative Ranking", 40, 130);
-
-      let currentY = 152;
-      sorted.forEach((res, rank) => {
-        const payload = getEntryPayload(res) || {};
-        const score = getStrategicAlignmentScore(payload) ?? 0;
-        const flow = getStrategicFlow(payload);
-        if (score >= 70) doc.setTextColor(74, 222, 128);
-        else if (score >= 45) doc.setTextColor(250, 204, 21);
-        else doc.setTextColor(248, 113, 113);
-
-        doc.setFontSize(13);
-        doc.text(`${rank === 0 ? "1st" : rank === 1 ? "2nd" : rank === 2 ? "3rd" : `#${rank + 1}`}. ${res.creative.name}: ${score}/100`, 40, currentY);
-        currentY += 16;
-
-        doc.setFontSize(10); doc.setTextColor(148, 163, 184);
-        let verdict = "";
-        if (score >= 80) verdict = `"${res.creative.name}" is perfect and strongly aligned with all standards.`;
-        else if (score >= 65) verdict = `"${res.creative.name}" meets most standards. Minor improvements suggested.`;
-        else if (score >= 45) verdict = `"${res.creative.name}" needs work. CTA alignment and visibility require attention.`;
-        else verdict = `"${res.creative.name}" has critical issues. Align strategic message before scaling spend.`;
-
-        const lines = doc.splitTextToSize(verdict, 515);
-        doc.text(lines, 50, currentY);
-        currentY += lines.length * 14 + 4;
-
-        const summaryLines = doc.splitTextToSize(`Strategic summary: ${flow.strategicAlignmentSummary}`, 515);
-        doc.text(summaryLines, 50, currentY);
-        currentY += summaryLines.length * 14 + 6;
-
-        if (currentY > 760) { doc.addPage(); setBg(); currentY = 40; }
-      });
-
-      for (const res of analysisResult) {
-        doc.addPage(); setBg();
-        doc.setTextColor(255, 255, 255); doc.setFontSize(18); doc.text(`Creative: ${res.creative.name}`, 40, 48);
-
-        let cy = 72;
-        try { doc.addImage(res.creative.url, 40, cy, 200, 130); cy += 145; } catch { }
-
-        const payload = getEntryPayload(res) || {};
-        const flow = getStrategicFlow(payload);
-        const recommendations = getValidatedRecommendations(payload);
-        const s = getStrategicAlignmentScore(payload) ?? 0;
-        if (s >= 70) doc.setTextColor(74, 222, 128);
-        else if (s >= 45) doc.setTextColor(250, 204, 21);
-        else doc.setTextColor(248, 113, 113);
-
-        doc.setFontSize(15); doc.text(`Strategic Alignment: ${s}/100`, 40, cy); cy += 20;
-
-        doc.setTextColor(148, 163, 184); doc.setFontSize(11);
-        const problemLines = doc.splitTextToSize(`Main strategic problem: ${flow.mainStrategicProblem}`, 515);
-        doc.text(problemLines, 40, cy); cy += problemLines.length * 14 + 6;
-        const consequenceLines = doc.splitTextToSize(`Business consequence: ${flow.businessConsequence}`, 515);
-        doc.text(consequenceLines, 40, cy); cy += consequenceLines.length * 14 + 10;
-
-        doc.setTextColor(255, 255, 255); doc.setFontSize(13); doc.text("Top Interventions:", 40, cy); cy += 18;
-        doc.setTextColor(203, 213, 225); doc.setFontSize(11);
-        recommendations.slice(0, 3).forEach((rec) => {
-          const lines = doc.splitTextToSize(`• ${rec.recommended_change}`, 515);
-          doc.text(lines, 40, cy); cy += lines.length * 14;
-        });
-      }
-
-      doc.save("Campaign_Analysis_Report.pdf");
+      if (campaignOwnerId) setReportExportStorageScope(campaignOwnerId);
+      addToast("Preparing analysis report…", "info");
+      const result = await wysiwygExportRef.current.generateAnalysisReport({
+        analysisResult,
+        creatives: uploadedCreatives.map((c) => ({
+          id: c.id,
+          url: c.url,
+          fullUrl: c.fullUrl,
+        })),
+        platform,
+        campaignGoal,
+        campaignVertical,
+        campaignId: activeCampaignId || loadedCampaignSnapshot?.id || lookupCampaignId || "",
+        creativeFingerprint,
+        viewerName,
+        urlValidation,
+        campaignBrief,
+        campaignProductFocus,
+        campaignIntent: resolvedCampaignIntent,
+        programmaticTaskType,
+        replacementComparisonReport,
+        renewalComparisonReport,
+        exportScope,
+        selectedCreativeId,
+      }, { useCache: false });
+      downloadBlob(result.blob, result.filename);
       void trackUserActivity("download", {
         action_label: "PDF report downloaded",
         platform,
         campaign_goal: campaignGoal,
         metadata: {
           format: "pdf",
+          wysiwyg: true,
+          from_cache: result.fromCache,
+          export_scope: exportScope,
           creative_count: Array.isArray(analysisResult) ? analysisResult.length : 0,
         },
-      }, { dedupeKey: `download-pdf-${platform}-${campaignGoal}` });
-    } catch (err) { console.error(err); addToast("Failed to generate PDF", "error"); }
-  }, [analysisResult, campaignGoal, platform, addToast]);
-
-  const handleExportPptx = useCallback(async () => {
-    if (isExporting) return;
-    setIsExporting(true); addToast("Generating PPTX...", "info");
-    try {
-      const { exportToPptx } = await import("../lib/exportPptx");
-      const { computeCampaignOverview } = await import("../lib/analyzerInsights");
-      const templateName = TEMPLATES.find((t) => t.id === selectedTemplate)?.name || "Template";
-      const exportCreatives = validCreatives.map((creative, index) => ({
-        ...creative,
-        analysisData: getEntryPayload(analysisResult?.[index]) || null,
-      }));
-      const overview = analysisResult?.length
-        ? computeCampaignOverview(
-          analysisResult,
-          platform,
-          campaignGoal,
-          campaignVertical,
-          (v) => VERTICAL_TITLE_MAP[v] || v,
-          (g) => g?.replace(/_/g, " "),
-        )
-        : null;
-      const filename = await exportToPptx(
-        exportCreatives,
-        viewMode,
-        templateName,
-        {
-          goal: campaignGoal,
-          platform,
-          vertical: campaignVertical,
-          verticalLabel: VERTICAL_TITLE_MAP[campaignVertical] || campaignVertical,
-          overview,
-        },
+      }, { dedupeKey: `download-pdf-${platform}-${campaignGoal}-${exportScope}` });
+      void recordAndStoreDownloadReport({
+        ownerId: campaignOwnerId || "",
+        reportType: reportTypeLabel,
+        campaignName: campaignName.trim() || "Untitled Campaign",
+        campaignId: activeCampaignId || loadedCampaignSnapshot?.id || lookupCampaignId || "",
+        advertiserName: advertiserName.trim() || "—",
+        advertiserId: advertiserId || "",
+        targetStep: 3,
+        downloadedBy: viewerName || "User",
+        status: "Completed",
+        filename: result.filename,
+        exportFingerprint: result.fingerprint,
+        exportKind: "analysis",
+        analysisTab: exportScope,
+        selectedCreativeId: selectedCreativeId || undefined,
+        platform: platform || undefined,
+        blob: result.blob,
+      });
+      addToast(
+        result.fromCache ? "Analysis report downloaded." : "Analysis report generated and downloaded.",
+        "success",
       );
-      void trackUserActivity("generate_action", {
-        action_label: "PPTX export generated",
-        platform,
-        campaign_goal: campaignGoal,
-        metadata: {
-          format: "pptx",
-          template: templateName,
-          view_mode: viewMode,
-          creative_count: creatives.filter((c) => c.valid).length,
-        },
-      }, { dedupeKey: `generate-pptx-${platform}-${selectedTemplate}` });
-      void trackUserActivity("download", {
-        action_label: "PPTX downloaded",
-        platform,
-        campaign_goal: campaignGoal,
-        metadata: { format: "pptx", filename },
-      }, { dedupeKey: `download-pptx-${filename}` });
-      addToast(`Downloaded: ${filename}`, "success");
-    } catch { addToast("Export failed.", "error"); }
-    finally { setIsExporting(false); }
-  }, [isExporting, validCreatives, analysisResult, viewMode, selectedTemplate, addToast, campaignGoal, platform, campaignVertical]);
+    } catch (err) {
+      console.error(err);
+      void recordAndStoreDownloadReport({
+        ownerId: campaignOwnerId || "",
+        reportType: reportTypeLabel,
+        campaignName: campaignName.trim() || "Untitled Campaign",
+        campaignId: activeCampaignId || loadedCampaignSnapshot?.id || lookupCampaignId || "",
+        advertiserName: advertiserName.trim() || "—",
+        advertiserId: advertiserId || "",
+        targetStep: 3,
+        downloadedBy: viewerName || "User",
+        status: "Failed",
+      });
+      addToast("Failed to generate analysis report.", "error");
+    } finally {
+      setIsDownloadingReport(false);
+    }
+  }, [
+    analysisResult,
+    isDownloadingReport,
+    campaignGoal,
+    platform,
+    addToast,
+    campaignOwnerId,
+    campaignName,
+    advertiserName,
+    advertiserId,
+    viewerName,
+    campaignVertical,
+    campaignBrief,
+    campaignProductFocus,
+    activeCampaignId,
+    loadedCampaignSnapshot?.id,
+    lookupCampaignId,
+    uploadedCreatives,
+    creativeFingerprint,
+    urlValidation,
+    resolvedCampaignIntent,
+    programmaticTaskType,
+    replacementComparisonReport,
+    renewalComparisonReport,
+  ]);
 
   const previewEngineCreatives = useMemo(
-    () => validCreatives.map((creative, index) => ({
-      id: creative.id,
-      name: creative.name,
-      url: creative.url || creative.imageDataUrl || creative.image || "",
-      size: creative.size,
-      analyzerOutput: getEntryPayload(analysisResult?.[index]) || {},
-      ctaText: getEntryPayload(analysisResult?.[index])?.signals?.cta || "",
-      headline: getEntryPayload(analysisResult?.[index])?.signals?.headline
-        || getEntryPayload(analysisResult?.[index])?.main_strategic_problem
-        || creative.name
-        || "",
-    })),
-    [validCreatives, analysisResult],
+    () => validCreatives.map((creative, index) => {
+      const payload = getEntryPayload(analysisResult?.[index]) || {};
+      const previewContext = resolveCreativePreviewContext(payload, campaignVertical || "general");
+      return {
+        id: creative.id,
+        name: creative.name,
+        url: creative.url || creative.imageDataUrl || creative.image || "",
+        size: creative.size,
+        analyzerOutput: payload,
+        ctaText: payload?.signals?.cta || payload?.extraction_signals?.cta || "",
+        headline: payload?.signals?.headline
+          || payload?.extraction_signals?.headline
+          || payload?.main_strategic_problem
+          || creative.name
+          || "",
+        previewVertical: previewContext.creativeVertical,
+        previewTemplate: previewContext.templateId,
+      };
+    }),
+    [validCreatives, analysisResult, campaignVertical],
   );
 
   const previewTemplateContext = useMemo(() => {
@@ -2339,6 +4512,261 @@ export default function PreviewTool() {
         .filter(Boolean),
     };
   }, [analysisResult, validCreatives, campaignAudienceStage, campaignGoal]);
+
+  const handleExportPptx = useCallback(async () => {
+    if (isExporting || !wysiwygExportRef.current) return;
+    setIsExporting(true);
+    addToast("Preparing preview studio report…", "info");
+    try {
+      if (campaignOwnerId) setReportExportStorageScope(campaignOwnerId);
+      const exportContext = previewExportContextRef.current || {};
+      const isProgrammatic = platform === "programmatic";
+      let result;
+
+      if (isProgrammatic) {
+        result = await wysiwygExportRef.current.generatePreviewStudioReport({
+          previewEngineCreatives,
+          previewStudioCache,
+          vertical: campaignVertical || "general",
+          goal: campaignGoal || "awareness",
+          campaignId: activeCampaignId || loadedCampaignSnapshot?.id || lookupCampaignId || "",
+          creativeFingerprint,
+          campaignBrief,
+          campaignIntent: resolvedCampaignIntent,
+          campaignIntentFingerprint: resolvedCampaignIntentFingerprint,
+          advertiserName,
+          brandName: previewTemplateContext.brandName,
+          campaignName,
+          campaignProductFocus,
+          advertiserId,
+          templateId: exportContext.templateId,
+          device: exportContext.device || "desktop",
+          creativeId: exportContext.creativeId,
+        }, { useCache: false });
+      } else {
+        const previewElement = exportContext.getPreviewElement?.();
+        if (!previewElement) {
+          addToast("No preview template is ready to export. Select a placement preview first.", "error");
+          return;
+        }
+        const placementLabel = exportContext.placement || exportContext.templateId || "placement";
+        const templateId = exportContext.templateId || exportContext.placement || "placement";
+        const exportDevice = exportContext.device || "desktop";
+        const exportCreativeId = exportContext.creativeId || null;
+        const previewFingerprint = buildPreviewStudioReportFingerprint({
+          campaignId: activeCampaignId || loadedCampaignSnapshot?.id || lookupCampaignId || "",
+          previewStudioUpdatedAt: previewStudioCache?.updatedAt,
+          creativeFingerprint,
+          templateId,
+          device: exportDevice,
+          creativeId: exportCreativeId || "",
+        });
+
+        result = await wysiwygExportRef.current.captureLivePreviewElement(previewElement, {
+          title: `Preview ${placementLabel}`,
+          filename: `Preview_${String(placementLabel).replace(/[^a-zA-Z0-9._-]+/g, "_")}.pdf`,
+        });
+        result = { ...result, fromCache: false, fingerprint: previewFingerprint };
+
+        if (campaignOwnerId && result.blob) {
+          setReportExportStorageScope(campaignOwnerId);
+          await saveCachedReportExport({
+            fingerprint: previewFingerprint,
+            kind: "preview_studio",
+            filename: result.filename,
+            generatedAt: new Date().toISOString(),
+            blob: result.blob,
+          });
+        }
+
+        exportContext.templateId = templateId;
+        exportContext.device = exportDevice;
+        exportContext.creativeId = exportCreativeId;
+      }
+
+      downloadBlob(result.blob, result.filename);
+      void trackUserActivity("generate_action", {
+        action_label: "Preview studio report generated",
+        platform,
+        campaign_goal: campaignGoal,
+        metadata: {
+          format: "pdf",
+          wysiwyg: true,
+          from_cache: result.fromCache,
+        },
+      }, { dedupeKey: `generate-preview-pdf-${platform}` });
+      void trackUserActivity("download", {
+        action_label: "Preview studio report downloaded",
+        platform,
+        campaign_goal: campaignGoal,
+        metadata: { format: "pdf", filename: result.filename },
+      }, { dedupeKey: `download-preview-pdf-${result.filename}` });
+      void recordAndStoreDownloadReport({
+        ownerId: campaignOwnerId || "",
+        reportType: "Preview Studio (PDF)",
+        campaignName: campaignName.trim() || "Untitled Campaign",
+        campaignId: activeCampaignId || loadedCampaignSnapshot?.id || lookupCampaignId || "",
+        advertiserName: advertiserName.trim() || "—",
+        advertiserId: advertiserId || "",
+        targetStep: 4,
+        downloadedBy: viewerName || "User",
+        status: "Completed",
+        filename: result.filename,
+        exportFingerprint: result.fingerprint,
+        exportKind: "preview_studio",
+        templateId: exportContext.templateId || undefined,
+        device: exportContext.device || "desktop",
+        previewCreativeId: exportContext.creativeId ? String(exportContext.creativeId) : undefined,
+        platform: platform || undefined,
+        blob: result.blob,
+      });
+      addToast(
+        result.fromCache ? `Preview report downloaded: ${result.filename}` : `Preview report generated: ${result.filename}`,
+        "success",
+      );
+    } catch (err) {
+      console.error(err);
+      void recordAndStoreDownloadReport({
+        ownerId: campaignOwnerId || "",
+        reportType: "Preview Studio (PDF)",
+        campaignName: campaignName.trim() || "Untitled Campaign",
+        campaignId: activeCampaignId || loadedCampaignSnapshot?.id || lookupCampaignId || "",
+        advertiserName: advertiserName.trim() || "—",
+        advertiserId: advertiserId || "",
+        targetStep: 4,
+        downloadedBy: viewerName || "User",
+        status: "Failed",
+      });
+      addToast("Preview studio export failed.", "error");
+    } finally {
+      setIsExporting(false);
+    }
+  }, [
+    isExporting,
+    previewEngineCreatives,
+    previewStudioCache,
+    addToast,
+    campaignGoal,
+    platform,
+    campaignVertical,
+    campaignOwnerId,
+    campaignName,
+    advertiserName,
+    advertiserId,
+    viewerName,
+    activeCampaignId,
+    loadedCampaignSnapshot?.id,
+    lookupCampaignId,
+    creativeFingerprint,
+    campaignBrief,
+    resolvedCampaignIntent,
+    resolvedCampaignIntentFingerprint,
+    previewTemplateContext.brandName,
+    campaignProductFocus,
+  ]);
+
+  const previewPrewarmFingerprintRef = useRef("");
+  const previewStudioCacheRef = useRef(null);
+
+  useEffect(() => {
+    previewStudioCacheRef.current = previewStudioCache;
+  }, [previewStudioCache]);
+
+  useEffect(() => {
+    if (platform !== "programmatic" || !analysisResult?.length || !previewEngineCreatives.length) return;
+    if (analysisLoading || step < 3) return;
+    const campaignId = activeCampaignId || loadedCampaignSnapshot?.id;
+    if (!campaignId || !campaignOwnerId || !campaignVertical) return;
+
+    const sourceFingerprint = buildPreviewStudioSourceFingerprint({
+      advertiserId,
+      advertiserName,
+      campaignId,
+      campaignName,
+      campaignBrief,
+      campaignIntentFingerprint: resolvedCampaignIntentFingerprint,
+      campaignIntent: resolvedCampaignIntent,
+      vertical: campaignVertical,
+      creativeFingerprint,
+    });
+
+    const prewarmKey = `${sourceFingerprint}|${previewEngineCreatives.length}`;
+    if (previewPrewarmFingerprintRef.current === prewarmKey) return;
+    previewPrewarmFingerprintRef.current = prewarmKey;
+
+    let cancelled = false;
+
+    const runPrewarm = () => {
+      if (cancelled || document.hidden) return;
+
+      setPreviewStudioStorageScope(campaignOwnerId);
+      void prewarmPreviewStudioCache({
+        advertiserId,
+        advertiserName,
+        campaignId,
+        campaignName,
+        campaignBrief,
+        campaignIntentFingerprint: resolvedCampaignIntentFingerprint,
+        campaignIntent: resolvedCampaignIntent,
+        vertical: campaignVertical,
+        creativeFingerprint,
+        goal: campaignGoal || "awareness",
+        campaignVertical: campaignVertical || "general",
+        creatives: previewEngineCreatives,
+        devices: ["desktop"],
+        previewStudioCache: previewStudioCacheRef.current,
+        campaignProductFocus,
+        brandName: previewTemplateContext.brandName,
+      }).then((cache) => {
+        if (!cache || cancelled) return;
+        setPreviewStudioCache((previous) => {
+          const merged = mergePreviewStudioCaches(previous, cache) || cache;
+          void savePreviewStudioCacheToStorage(campaignId, merged);
+          return merged;
+        });
+        window.setTimeout(() => {
+          if (!cancelled) {
+            void persistProgrammaticCampaignSnapshot(null, { syncRemote: false });
+          }
+        }, 0);
+      });
+    };
+
+    const idleId = typeof requestIdleCallback === "function"
+      ? requestIdleCallback(runPrewarm, { timeout: 8000 })
+      : null;
+    const timerId = idleId == null ? window.setTimeout(runPrewarm, 1500) : null;
+
+    return () => {
+      cancelled = true;
+      if (idleId != null && typeof cancelIdleCallback === "function") {
+        cancelIdleCallback(idleId);
+      }
+      if (timerId != null) {
+        window.clearTimeout(timerId);
+      }
+    };
+  }, [
+    platform,
+    analysisResult,
+    previewEngineCreatives,
+    activeCampaignId,
+    loadedCampaignSnapshot?.id,
+    campaignOwnerId,
+    campaignVertical,
+    campaignGoal,
+    advertiserId,
+    advertiserName,
+    campaignName,
+    campaignBrief,
+    resolvedCampaignIntent,
+    resolvedCampaignIntentFingerprint,
+    creativeFingerprint,
+    campaignProductFocus,
+    previewTemplateContext.brandName,
+    analysisLoading,
+    step,
+  ]);
 
   const handleCopyPreviewCreative = useCallback(async (creative) => {
     try {
@@ -2375,12 +4803,20 @@ export default function PreviewTool() {
       const targetStep = Number(targetId);
       if (!Number.isFinite(targetStep) || targetStep < 1 || targetStep > TOTAL_STEPS) return;
       if (targetStep === step) return;
-      if (targetStep > 1 && !isConfigComplete) return;
-      if (targetStep > 2 && !canAdvanceToAnalysis) return;
+      if (targetStep > 1 && !isConfigComplete) {
+        setSetupPromptHighlighted(true);
+        addToast("Complete required setup fields on Step 1 before continuing.", "error");
+        router.push(`${pathname}?step=1`, { scroll: true });
+        return;
+      }
+      if (targetStep > 2 && !canAdvanceToAnalysis) {
+        addToast("Upload and validate at least one creative before continuing.", "error");
+        return;
+      }
       if (targetStep >= 3 && uploadedCreatives.length === 0) return;
       router.push(`${pathname}?step=${targetStep}`, { scroll: true });
     },
-    [step, isConfigComplete, canAdvanceToAnalysis, uploadedCreatives.length, pathname, router],
+    [step, isConfigComplete, canAdvanceToAnalysis, uploadedCreatives.length, pathname, router, addToast],
   );
 
 
@@ -2416,6 +4852,13 @@ export default function PreviewTool() {
       </header>
 
       <main className="relative z-10 mx-auto max-w-7xl px-6 py-10 md:px-10 md:py-12">
+        <div className="mb-6">
+          <WorkflowStatusBar
+            status={workflowStatus}
+            analysisLoading={analysisLoading}
+            analysisProgress={analysisProgress}
+          />
+        </div>
         <AnimatePresence mode="wait">
 
           {/* STEP 1: SETUP CAMPAIGN */}
@@ -2427,14 +4870,15 @@ export default function PreviewTool() {
                   title="Campaign Setup"
                   description="Configure platform, goal, and vertical before uploading creatives."
                 />
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
                   <ToolSummaryChip label="Platform" value={selectedPlatformConfig?.title || "Not selected"} />
                   <ToolSummaryChip label="Campaign Goal" value={campaignGoal ? getGoalTitle(campaignGoal, platform) : "Not selected"} />
                   <ToolSummaryChip label="Industry Vertical" value={campaignVertical ? (VERTICAL_TITLE_MAP[campaignVertical] || campaignVertical) : "Not selected"} />
+                  {activeCampaignId ? <ToolSummaryChip label="Campaign ID" value={activeCampaignId} /> : null}
                 </div>
               </motion.section>
 
-              <motion.section variants={itemVariants} className="space-y-5">
+              <motion.section variants={itemVariants} id="setup-platform-section" className="space-y-5">
                 <div>
                   <h3 className="studio-heading text-2xl font-bold tracking-tight text-studio-text">Choose Advertising Platform</h3>
                   <p className="mt-1 text-studio-muted">Select where this campaign will run.</p>
@@ -2450,23 +4894,111 @@ export default function PreviewTool() {
                 </div>
               </motion.section>
 
-              <motion.section ref={goalSectionRef} variants={itemVariants} className="space-y-5">
-                <div>
-                  <h3 className="studio-heading text-2xl font-bold tracking-tight text-studio-text">What is the campaign objective?</h3>
-                  <p className="mt-1 text-studio-muted">Select the marketing intent. This directly changes analysis priorities and scoring behavior.</p>
-                </div>
-                <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
-                  {availableGoals.map((g) => (
-                    <ToolSelectionCard key={g.id} selected={campaignGoal === g.id} onClick={() => handleGoalSelect(g.id)}>
-                      <div className="mb-4 text-5xl">{g.emoji}</div>
-                      <p className="mb-1 text-xs font-bold uppercase tracking-widest text-studio-accent">{g.subtitle}</p>
-                      <h3 className={`studio-heading mb-2 text-xl font-extrabold leading-snug ${campaignGoal === g.id ? "text-studio-accent" : "text-studio-text"}`}>{g.title}</h3>
-                      <p className="mb-6 text-sm leading-relaxed text-studio-muted">{g.desc}</p>
-                    </ToolSelectionCard>
-                  ))}
-                </div>
+              <motion.section variants={itemVariants} className="space-y-5">
+                <AdvertiserStep1Field
+                  advertiserName={advertiserName}
+                  advertiserId={advertiserId}
+                  existingAdvertisers={existingAdvertisers}
+                  platform={platform}
+                  onAdvertiserNameChange={setAdvertiserName}
+                />
               </motion.section>
 
+              {platform ? (
+              <motion.section ref={goalSectionRef} id="setup-goal-section" variants={itemVariants} className="space-y-5">
+                {isProgrammatic ? (
+                  <>
+                    <ProgrammaticStep1Fields
+                      taskType={programmaticTaskType}
+                      adGroupCount={programmaticAdGroupCount}
+                      adGroups={programmaticAdGroups}
+                      selectedAdGroupIds={selectedProgrammaticAdGroupIds}
+                      applyAdGroupsToAll={applyProgrammaticAdGroupsToAll}
+                      campaignName={campaignName}
+                      campaignBrief={campaignBrief}
+                      campaignVertical={campaignVertical}
+                      landingUrl={landingUrl}
+                      lookupCampaignId={lookupCampaignId}
+                      campaignId={activeCampaignId}
+                      campaignOwnerId={campaignOwnerId}
+                      campaignAccessToken={campaignAccessToken}
+                      advertiserId={advertiserId}
+                      advertiserName={advertiserName}
+                      loadedCampaign={loadedCampaignSnapshot}
+                      creativeAdditionMode={creativeAdditionMode}
+                      creativeAdditionFindError={creativeAdditionFindError}
+                      verticals={VERTICALS}
+                      onTaskTypeChange={handleProgrammaticTaskTypeChange}
+                      onAdGroupCountChange={handleProgrammaticAdGroupCountChange}
+                      onAdGroupNameChange={handleProgrammaticAdGroupNameChange}
+                      onAdGroupObjectiveChange={handleProgrammaticAdGroupObjectiveChange}
+                      onAdGroupCustomObjectiveChange={handleProgrammaticAdGroupCustomObjectiveChange}
+                      onAddAdGroup={handleAddProgrammaticAdGroup}
+                      onRemoveAdGroup={handleRemoveProgrammaticAdGroup}
+                      onSelectedAdGroupIdsChange={handleSelectedProgrammaticAdGroupIdsChange}
+                      onApplyAdGroupsToAllChange={handleApplyProgrammaticAdGroupsToAllChange}
+                      onCampaignNameChange={setCampaignName}
+                      onCampaignBriefChange={setCampaignBrief}
+                      onLandingUrlChange={handleLandingUrlChange}
+                      onVerticalChange={handleVerticalSelect}
+                      onLookupCampaignIdChange={setLookupCampaignId}
+                      onFindCampaign={handleFindProgrammaticCampaign}
+                      onAdvertiserCampaignSelect={handleAdvertiserCampaignSelect}
+                      onCreativeAdditionModeChange={handleCreativeAdditionModeChange}
+                    />
+                    {programmaticTaskType && !isProgrammaticSetup && !isProgrammaticCreativeAdditionFlow && !isProgrammaticCreativeReplacementFlow && !isProgrammaticUrlUtmFlow && (!isProgrammaticRenewalFlow || (renewalReferenceSnapshot && programmaticAdGroups.length === 0)) ? (
+                      <div className="space-y-5">
+                        <div>
+                          <h3 className="studio-heading text-2xl font-bold tracking-tight text-studio-text">What is the campaign objective?</h3>
+                          <p className="mt-1 text-studio-muted">Select the marketing intent for this programmatic task.</p>
+                        </div>
+                        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+                          {availableGoals.map((g) => (
+                            <ToolSelectionCard key={g.id} selected={campaignGoal === g.id} onClick={() => handleGoalSelect(g.id)}>
+                              <div className="mb-4 text-5xl">{g.emoji}</div>
+                              <p className="mb-1 text-xs font-bold uppercase tracking-widest text-studio-accent">{g.subtitle}</p>
+                              <h3 className={`studio-heading mb-2 text-xl font-extrabold leading-snug ${campaignGoal === g.id ? "text-studio-accent" : "text-studio-text"}`}>{g.title}</h3>
+                              <p className="mb-6 text-sm leading-relaxed text-studio-muted">{g.desc}</p>
+                            </ToolSelectionCard>
+                          ))}
+                        </div>
+                      </div>
+                    ) : null}
+                  </>
+                ) : (
+                  <>
+                    <PlatformStep1Fields
+                      platform={platform}
+                      taskType={programmaticTaskType}
+                      onTaskTypeChange={handleProgrammaticTaskTypeChange}
+                    />
+                    {programmaticTaskType && isPlatformSetup ? (
+                    <>
+                    <div>
+                      <h3 className="studio-heading text-2xl font-bold tracking-tight text-studio-text">What is the campaign objective?</h3>
+                      <p className="mt-1 text-studio-muted">
+                        Select the {platformAdapter.shortLabel} marketing intent. This directly changes analysis priorities and scoring behavior.
+                      </p>
+                    </div>
+                    <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
+                      {availableGoals.map((g) => (
+                        <ToolSelectionCard key={g.id} selected={campaignGoal === g.id} onClick={() => handleGoalSelect(g.id)}>
+                          <div className="mb-4 text-5xl">{g.emoji}</div>
+                          <p className="mb-1 text-xs font-bold uppercase tracking-widest text-studio-accent">{g.subtitle}</p>
+                          <h3 className={`studio-heading mb-2 text-xl font-extrabold leading-snug ${campaignGoal === g.id ? "text-studio-accent" : "text-studio-text"}`}>{g.title}</h3>
+                          <p className="mb-6 text-sm leading-relaxed text-studio-muted">{g.desc}</p>
+                        </ToolSelectionCard>
+                      ))}
+                    </div>
+                    </>
+                    ) : null}
+                  </>
+                )}
+              </motion.section>
+              ) : null}
+
+              {!isProgrammatic ? (
+              <>
               <motion.section variants={itemVariants} className="space-y-5">
                 <div>
                   <h3 className="studio-heading text-2xl font-bold tracking-tight text-studio-text">Campaign Details</h3>
@@ -2496,25 +5028,6 @@ export default function PreviewTool() {
                     />
                     <p className="mt-2 text-xs text-[#9a9aad]">
                       Used in analysis to check whether creatives match your stated product and campaign intent.
-                    </p>
-                  </div>
-                  <div>
-                    <label htmlFor="campaign-product-focus" className="mb-2 block text-xs font-semibold uppercase tracking-wide text-studio-tertiary">
-                      Product Focus (optional)
-                    </label>
-                    <ToolSelect
-                      id="campaign-product-focus"
-                      value={campaignProductFocus}
-                      onChange={(e) => setCampaignProductFocus(e.target.value)}
-                    >
-                      {PRODUCT_FOCUS_OPTIONS.map((option) => (
-                        <option key={option.id || "auto"} value={option.id}>
-                          {option.label}
-                        </option>
-                      ))}
-                    </ToolSelect>
-                    <p className="mt-2 text-xs text-[#9a9aad]">
-                      Narrow automotive campaigns to bike, car, or truck so analysis does not mark mismatched creatives as aligned.
                     </p>
                   </div>
                 </div>
@@ -2548,15 +5061,43 @@ export default function PreviewTool() {
                   </ToolSelect>
                 </div>
               </motion.section>
+              </>
+              ) : null}
+
+              {missingSetupFields.length > 0 ? (
+                <div ref={missingSetupPanelRef}>
+                  <MissingSetupFieldsPanel
+                    fields={missingSetupFields}
+                    values={{
+                      advertiserName,
+                      campaignName,
+                      campaignBrief,
+                      landingUrl,
+                      programmaticTaskType,
+                      programmaticAdGroupCount,
+                      lookupCampaignId,
+                      campaignVertical,
+                    }}
+                    highlighted={setupPromptHighlighted}
+                    verticalOptions={VERTICALS}
+                    onAdvertiserNameChange={setAdvertiserName}
+                    onCampaignNameChange={setCampaignName}
+                    onCampaignBriefChange={setCampaignBrief}
+                    onLandingUrlChange={handleLandingUrlChange}
+                    onProgrammaticTaskTypeChange={handleProgrammaticTaskTypeChange}
+                    onProgrammaticAdGroupCountChange={handleProgrammaticAdGroupCountChange}
+                    onLookupCampaignIdChange={setLookupCampaignId}
+                    onVerticalChange={handleVerticalSelect}
+                    onFindCampaign={() => { void handleFindProgrammaticCampaign(); }}
+                  />
+                </div>
+              ) : null}
 
               <ToolFooterBar>
                 <ToolNavBtn variant="back" onClick={goBack}>
                   ← Back
                 </ToolNavBtn>
-                <ToolNavBtn
-                  onClick={goNext}
-                  disabled={!platform || !campaignGoal || !campaignVertical}
-                >
+                <ToolNavBtn onClick={goNext}>
                   Upload Creatives →
                 </ToolNavBtn>
               </ToolFooterBar>
@@ -2621,24 +5162,147 @@ export default function PreviewTool() {
                 </div>
               </ToolSurface>
 
+              {isProgrammaticUrlUtmFlow && creatives.length > 0 ? (
+                <ToolSurface className="space-y-4">
+                  <div>
+                    <h3 className="studio-heading text-xl font-bold text-studio-text">Loaded Creatives</h3>
+                    <p className="mt-1 text-sm text-studio-muted">
+                      Existing creatives remain available for alignment checks while you update URLs and UTM parameters.
+                    </p>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+                    {creatives.slice(0, 8).map((creative) => (
+                      <div key={creative.id} className="space-y-2">
+                        <CreativeCard creative={creative} disableLayoutAnimation />
+                        <p className="truncate text-xs text-studio-muted">{creative.name}</p>
+                      </div>
+                    ))}
+                  </div>
+                  {creatives.length > 8 ? (
+                    <p className="text-xs text-studio-tertiary">+{creatives.length - 8} more creative(s) loaded</p>
+                  ) : null}
+                </ToolSurface>
+              ) : null}
+
+              {isProgrammaticRenewalFlow && renewalReferenceSnapshot ? (
+                <ToolSurface className="space-y-3">
+                  <div>
+                    <h3 className="studio-heading text-lg font-bold text-studio-text">Previous Campaign Reference</h3>
+                    <p className="mt-1 text-sm text-studio-muted">
+                      Loaded from {renewalReferenceSnapshot.campaignName} ({renewalReferenceSnapshot.id}). Edit creatives and settings above for the renewed campaign.
+                    </p>
+                  </div>
+                  <div className="grid gap-3 text-xs text-studio-muted md:grid-cols-4">
+                    <div className="rounded-xl border border-studio-border bg-black/20 p-3">
+                      <p className="font-semibold text-studio-text">{renewalReferenceSnapshot.creatives?.length || 0}</p>
+                      <p className="mt-1">Previous creatives</p>
+                    </div>
+                    <div className="rounded-xl border border-studio-border bg-black/20 p-3">
+                      <p className="font-semibold text-studio-text">{renewalReferenceSnapshot.analysisResult?.length || 0}</p>
+                      <p className="mt-1">Previous analysis results</p>
+                    </div>
+                    <div className="rounded-xl border border-studio-border bg-black/20 p-3">
+                      <p className="truncate font-semibold text-studio-text">{renewalReferenceSnapshot.vertical || "—"}</p>
+                      <p className="mt-1">Previous vertical</p>
+                    </div>
+                    <div className="rounded-xl border border-studio-border bg-black/20 p-3">
+                      <p className="truncate font-semibold text-studio-text">{renewalReferenceSnapshot.campaignGoal || "—"}</p>
+                      <p className="mt-1">Previous objective</p>
+                    </div>
+                  </div>
+                </ToolSurface>
+              ) : null}
+
+              {isProgrammaticCreativeReplacementFlow && baselineCreatives.length > 0 ? (
+                <ToolSurface className="space-y-4">
+                  <div>
+                    <h3 className="studio-heading text-xl font-bold text-studio-text">Previous Creatives</h3>
+                    <p className="mt-1 text-sm text-studio-muted">
+                      Baseline creatives from your saved campaign. Remove any baseline creative to exclude it from swap validation, analysis, and comparison.
+                    </p>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+                    {baselineCreatives.map((creative) => (
+                      <div key={creative.id} className="space-y-2">
+                        <CreativeCard creative={creative} onRemove={removeCreative} disableLayoutAnimation />
+                        <p className="truncate text-xs text-studio-muted">{creative.name}</p>
+                        <span className="inline-flex rounded-full border border-studio-border bg-black/20 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-studio-tertiary">
+                          Baseline
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </ToolSurface>
+              ) : null}
+
+              {usesProgrammaticFolderSections ? (
+                <ProgrammaticFolderSections
+                  folders={activeProgrammaticAdGroups}
+                  singleFolder={!programmaticUsesMultiFolder}
+                  singleFolderLabel={isProgrammaticCreativeReplacementFlow ? "Upload Replacement Creatives" : "Upload Creative Folder"}
+                  creatives={step2FolderCreatives}
+                  isLoading={isLoading}
+                  editingId={editingId}
+                  editingName={editingName}
+                  targetSizeByCreative={targetSizeByCreative}
+                  compressingCreativeIds={compressingCreativeIds}
+                  fixingCreativeIds={fixingCreativeIds}
+                  isBulkCompressing={isBulkCompressing}
+                  onFolderSelect={handleProgrammaticFolderSelect}
+                  onRemoveCreative={removeCreative}
+                  onStartEdit={startEdit}
+                  onEditingNameChange={setEditingName}
+                  onSaveEdit={saveEdit}
+                  onCancelEdit={() => setEditingId(null)}
+                  onDownloadCreative={downloadCreative}
+                  onTargetSizeChange={handleTargetSizeChange}
+                  onCompressCreative={compressCreative}
+                  onEditCreative={setEditModalCreative}
+                  onApplyFix={applyCreativeFix}
+                />
+              ) : !isProgrammatic ? (
               <ToolDropzone
                 active={drag}
                 onClick={() => fileRef.current?.click()}
-                onDragOver={(e) => { e.preventDefault(); setDrag(true); }}
-                onDragLeave={() => setDrag(false)}
-                onDrop={(e) => { e.preventDefault(); setDrag(false); handleFiles(e.dataTransfer.files); }}
+                onDragEnter={(e) => {
+                  preventDropDefaults(e);
+                  setDrag(true);
+                }}
+                onDragOver={(e) => {
+                  preventDropDefaults(e);
+                  setDrag(true);
+                }}
+                onDragLeave={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  const related = e.relatedTarget;
+                  if (related && e.currentTarget.contains(related)) return;
+                  setDrag(false);
+                }}
+                onDrop={(e) => {
+                  preventDropDefaults(e);
+                  setDrag(false);
+                  void getImageFilesFromDataTransfer(e.dataTransfer).then((files) => {
+                    if (files.length) handleFiles(files);
+                  });
+                }}
               >
                 <UploadCloud size={48} className="mx-auto mb-4 text-studio-accent" />
                 <h3 className="studio-heading mb-2 text-2xl font-bold text-studio-text">{drag ? "Drop files here" : "Upload Creatives"}</h3>
                 <p className="mb-6 text-sm text-studio-muted">or click to browse your computer</p>
                 <input ref={fileRef} type="file" multiple hidden accept="image/*" onChange={(e) => { handleFiles(e.target.files); e.target.value = ""; }} />
               </ToolDropzone>
+              ) : null}
 
               {(isLoading || isHydratingCreatives) && (
                 <div className="py-4 text-center">
                   <div className="inline-block h-6 w-6 animate-spin rounded-full border-4 border-studio-accent border-t-transparent" />
                   <p className="mt-2 text-xs text-studio-muted">
-                    {isHydratingCreatives ? "Restoring creatives…" : "Validating uploads…"}
+                    {isHydratingCreatives
+                      ? "Restoring creatives…"
+                      : uploadProgress
+                        ? `Validating uploads… ${uploadProgress.completed} of ${uploadProgress.total}`
+                        : "Validating uploads…"}
                   </p>
                 </div>
               )}
@@ -2668,7 +5332,7 @@ export default function PreviewTool() {
                   <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                     <div>
                       <p className="text-sm font-semibold text-studio-text">Bulk Compression</p>
-                      <p className="text-xs text-studio-muted">Set one target size and apply compression to all creatives at once.</p>
+                      <p className="text-xs text-studio-muted">Reduce file weight for all creatives while keeping each banner&apos;s pixel dimensions unchanged.</p>
                     </div>
                     <div className="flex items-center gap-2">
                       <ToolInput
@@ -2713,15 +5377,24 @@ export default function PreviewTool() {
                 </ToolSurface>
               )}
 
-              {/* Valid List */}
-              {validCreatives.length > 0 && (
-                <div className="space-y-4">
-                  <h3 className="flex items-center gap-2 text-xl font-semibold text-studio-text"><CheckCircle2 className="text-studio-success" /> Valid Creatives</h3>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    {validCreatives.map((creative) => (
+              {/* Unified Creative List */}
+              {!usesProgrammaticFolderSections && groupedCreatives.length > 0 && (
+                <div className="space-y-6">
+                  <h3 className="flex items-center gap-2 text-xl font-semibold text-studio-text">
+                    <CheckCircle2 className="text-studio-success" />
+                    {isProgrammaticCreativeReplacementFlow ? "Replacement Creatives" : "Creatives"}
+                  </h3>
+                  {groupedCreatives.map((group) => (
+                    <div key={group.id} className="space-y-3">
+                      {programmaticUsesMultiFolder ? (
+                        <p className="text-sm font-semibold uppercase tracking-[0.14em] text-studio-accent">{group.label}</p>
+                      ) : null}
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    {group.creatives.map((creative) => (
                       <div key={creative.id} className="flex flex-col gap-1">
                         <CreativeCard
                           creative={creative}
+                          onEdit={!creative.valid ? (c) => setEditModalCreative(c) : undefined}
                           onRemove={removeCreative}
                           disableLayoutAnimation={isBulkCompressing || compressingCreativeIds.length > 0}
                         />
@@ -2770,7 +5443,7 @@ export default function PreviewTool() {
                               : "Compress Size"}
                         </button>
                         {creative.validation?.issues?.length > 0 && (
-                          <div className="mt-2 rounded-lg border border-amber-500/25 bg-amber-500/10 p-2">
+                          <div className={`mt-2 rounded-lg border p-2 ${creative.valid ? "border-amber-500/25 bg-amber-500/10" : "border-red-500/25 bg-red-500/10"}`}>
                             <p className="text-[11px] font-semibold text-amber-300">
                               {creative.validation.status} • {creative.validation.issues.length} issue{creative.validation.issues.length > 1 ? "s" : ""}
                             </p>
@@ -2785,7 +5458,7 @@ export default function PreviewTool() {
                                     fixingCreativeIds.includes(creative.id)
                                     || compressingCreativeIds.includes(creative.id)
                                   }
-                                  variant="warning"
+                                  variant={creative.valid ? "warning" : "critical"}
                                 />
                               ))}
                               {creative.validation.issues.length > 3 && (
@@ -2797,73 +5470,11 @@ export default function PreviewTool() {
                       </div>
                     ))}
                   </div>
+                    </div>
+                  ))}
                 </div>
               )}
 
-              {/* Invalid List */}
-              {invalidCreatives.length > 0 && (
-                <div className="space-y-4">
-                  <h3 className="flex items-center gap-2 text-xl font-semibold text-studio-text"><XCircle className="text-studio-error" /> Critical Creatives (Fix Before Analysis)</h3>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    {invalidCreatives.map((creative) => {
-                      return (
-                        <div key={creative.id} className="space-y-2">
-                          <CreativeCard
-                            creative={creative}
-                            onEdit={(c) => setEditModalCreative(c)}
-                            onRemove={removeCreative}
-                            disableLayoutAnimation={isBulkCompressing || compressingCreativeIds.length > 0}
-                          />
-                          <div className="mt-1 flex items-center gap-2">
-                            <input
-                              type="number"
-                              min={1}
-                              step={1}
-                              inputMode="numeric"
-                              value={targetSizeByCreative[creative.id] ?? ""}
-                              onChange={(e) => handleTargetSizeChange(creative.id, e.target.value)}
-                              placeholder="Target KB"
-                              className="w-full rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-xs text-slate-700 outline-none focus:border-sky-500"
-                            />
-                            <span className="text-[10px] text-slate-500 font-semibold">KB</span>
-                          </div>
-                          <button
-                            onClick={() => compressCreative(creative.id, {
-                              enforceSizeCompliance: true,
-                              targetSizeKB: targetSizeByCreative[creative.id],
-                            })}
-                            disabled={compressingCreativeIds.includes(creative.id) || String(creative.mimeType || "").toLowerCase() === "image/gif"}
-                            className="w-full flex items-center justify-center gap-1.5 text-xs text-sky-700 hover:text-sky-800 transition bg-sky-100 hover:bg-sky-200 border border-sky-300 rounded-lg px-2 py-1.5 mt-1 font-medium disabled:opacity-60 disabled:cursor-not-allowed"
-                          >
-                            {compressingCreativeIds.includes(creative.id)
-                              ? "Compressing..."
-                              : String(creative.mimeType || "").toLowerCase() === "image/gif"
-                                ? "GIF Unsupported"
-                                : "Compress Size"}
-                          </button>
-                          {creative.validation?.issues?.length > 0 && (
-                            <div className="rounded-lg border border-red-500/25 bg-red-500/10 p-2">
-                              {creative.validation.issues.slice(0, 3).map((issue, idx) => (
-                                <ValidationIssueRow
-                                  key={`${creative.id}-critical-issue-${idx}`}
-                                  issue={issue}
-                                  creativeId={creative.id}
-                                  onApplyFix={applyCreativeFix}
-                                  isFixing={
-                                    fixingCreativeIds.includes(creative.id)
-                                    || compressingCreativeIds.includes(creative.id)
-                                  }
-                                  variant="critical"
-                                />
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
 
               {validationSummary.warningCount > 0 && (
                 <div className="rounded-2xl border border-amber-500/25 bg-amber-500/10 px-4 py-3 flex items-start gap-3">
@@ -2878,31 +5489,43 @@ export default function PreviewTool() {
                 <div>
                   <h3 className="studio-heading text-lg font-bold text-studio-text">URL & Campaign Readiness</h3>
                   <p className="mt-1 text-sm text-studio-muted">
-                    Validate your landing page and run readiness checks together. Results appear below and in Step 3 Overview.
+                    Enter your landing page URL to validate accessibility and campaign alignment.
+                    Readiness checks run alongside URL validation.
                     {platform === "meta_ads" ? " URL is optional for Meta." : " URL is required for Google Ads and Programmatic."}
                   </p>
                 </div>
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                {recommendedDetailFields.length > 0 ? (
+                  <MissingSetupFieldsPanel
+                    title="Recommended campaign details"
+                    description="Add any missing details below to improve readiness scoring and validation quality."
+                    fields={recommendedDetailFields}
+                    values={{
+                      campaignName,
+                      campaignBrief,
+                      landingUrl: displayValidationUrl,
+                    }}
+                    onCampaignNameChange={setCampaignName}
+                    onCampaignBriefChange={setCampaignBrief}
+                    onLandingUrlChange={handleLandingUrlChange}
+                  />
+                ) : null}
+                <div className="grid grid-cols-1 gap-4">
                   <div>
                     <label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-[#9a9aad]">
                       Landing Page URL {platform !== "meta_ads" ? "(required)" : "(optional)"}
                     </label>
                     <ToolInput
                       type="url"
-                      value={landingUrl}
-                      onChange={(e) => setLandingUrl(e.target.value)}
+                      value={displayValidationUrl}
+                      onChange={(e) => handleLandingUrlChange(e.target.value)}
                       placeholder="https://www.example.com/landing"
                     />
-                  </div>
-                  <div className="flex items-end">
-                    <button
-                      type="button"
-                      onClick={runUrlValidation}
-                      disabled={urlValidationRunning || !landingUrl.trim() || creatives.length === 0 || !platform || !campaignGoal}
-                      className="studio-btn-primary studio-focus-ring w-full rounded-xl px-4 py-2.5 text-sm font-bold disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      {urlValidationRunning || readinessLoading ? "Validating…" : "Validate URL & Readiness"}
-                    </button>
+                    <p className="mt-2 text-xs text-studio-tertiary">
+                      UTM parameters are detected and removed automatically — only the clean URL is validated.
+                      {displayValidationUrl.trim() && creatives.length > 0 && platform && effectiveCampaignGoal
+                        ? " Validation runs automatically when you enter this step or change the URL."
+                        : null}
+                    </p>
                   </div>
                 </div>
                 {urlValidationRunning || readinessLoading ? (
@@ -2926,7 +5549,9 @@ export default function PreviewTool() {
                     />
                   </div>
                 ) : null}
-                {activeUrlValidation?.submitted_url && activeUrlValidation.submitted_url === landingUrl.trim() && !urlValidationRunning ? (
+                {activeUrlValidation?.submitted_url
+                  && stripUtmFromUrl(activeUrlValidation.submitted_url) === stripUtmFromUrl(landingUrl.trim())
+                  && !urlValidationRunning ? (
                   <p className="text-xs text-studio-tertiary">
                     URL check complete. Open Step 3 Overview for alignment details.
                   </p>
@@ -2965,30 +5590,98 @@ export default function PreviewTool() {
             <motion.div key="step-3" variants={stepPanelVariants} initial="hidden" animate="visible" exit="exit" className="space-y-6">
               <ToolSectionHeader
                 step={3}
-                title="Analysis"
-                description={`Analyze your creatives against ${PLATFORMS.find(p => p.id === platform)?.title} standards.`}
+                title={isProgrammaticUrlUtmFlow ? "URL Validation" : "Analysis"}
+                description={isProgrammaticUrlUtmFlow
+                  ? "Review URL accessibility and campaign alignment against your setup."
+                  : `Analyze your creatives against ${PLATFORMS.find(p => p.id === platform)?.title} standards.`}
               />
               <p className="-mt-4 text-sm text-studio-muted">
                 Selected goal: <span className="font-semibold capitalize text-studio-text">{campaignGoal}</span> · Selected vertical: <span className="font-semibold text-studio-text">{VERTICAL_TITLE_MAP[campaignVertical] || campaignVertical}</span>
                 {campaignBrief?.trim() ? <> · Brief provided</> : null}
               </p>
 
-              {!analysisResult && !analysisLoading && (
+              {isProgrammaticUrlUtmFlow ? (
+                <>
+                  {(urlValidationRunning || readinessLoading) && !urlUtmValidationReport ? (
+                    <div className="space-y-4 py-10">
+                      <p className="text-sm text-studio-muted">Validating landing page URL…</p>
+                      <div className="studio-card animate-pulse rounded-2xl p-4">
+                        <div className="mb-4 h-5 w-56 rounded bg-white/10" />
+                        <div className="mb-3 h-24 rounded-xl bg-white/10" />
+                        <div className="h-32 rounded-xl bg-white/10" />
+                      </div>
+                    </div>
+                  ) : null}
+
+                  {urlUtmValidationReport ? (
+                    <UrlUtmValidationReportPanel report={urlUtmValidationReport} />
+                  ) : null}
+
+                  {baselineAnalysisResult && Array.isArray(baselineAnalysisResult) && baselineAnalysisResult.length > 0 ? (
+                    <ToolSurface className="space-y-3">
+                      <p className="text-sm font-semibold text-studio-text">Previous Analysis Reference</p>
+                      <p className="text-sm text-studio-muted">
+                        {baselineAnalysisResult.length} prior analysis result{baselineAnalysisResult.length === 1 ? "" : "s"} loaded from the saved campaign for comparison context.
+                      </p>
+                    </ToolSurface>
+                  ) : null}
+                </>
+              ) : (
+                <>
+              {!analysisResult && !analysisLoading && !assistantChecking && (
                 <ToolSurface className="flex flex-col items-center justify-center p-12 text-center">
                   <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-full border border-studio-accent/30 bg-studio-accent/10">
                     <span className="text-4xl">🧠</span>
                   </div>
                   <h3 className="studio-heading mb-3 text-xl font-bold text-studio-text">Ready to Analyze</h3>
                   <p className="mb-8 max-w-md text-sm text-studio-muted">
-                    Run analysis for <strong className="text-studio-text">{validCreatives.length} valid creative(s)</strong> when you are ready.
+                    Run analysis for <strong className="text-studio-text">{creativesForAnalysis.length} valid creative(s)</strong> when you are ready.
                   </p>
-                  <ToolNavBtn onClick={runAnalysis} className="max-w-xs shadow-studio-glow">Start Analysis</ToolNavBtn>
+                  <ToolNavBtn onClick={assessAndRunAnalysis} className="max-w-xs shadow-studio-glow">Start Analysis</ToolNavBtn>
+                </ToolSurface>
+              )}
+
+              {assistantChecking && !analysisLoading && (
+                <ToolSurface className="flex flex-col items-center justify-center p-10 text-center">
+                  <p className="text-sm font-semibold text-studio-text">Checking campaign context…</p>
+                  <p className="mt-2 max-w-md text-sm text-studio-muted">
+                    The assistant is reviewing your brief and settings to decide whether any clarifications are needed.
+                  </p>
                 </ToolSurface>
               )}
 
               {analysisLoading && (
                 <div className="space-y-4 py-10">
-                  <p className="text-sm text-studio-muted">Analyzing {validCreatives.length} creatives…</p>
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <p className="text-sm text-studio-muted">
+                        Analyzing {analysisProgress.total || creativesForAnalysis.length} creative{(analysisProgress.total || creativesForAnalysis.length) !== 1 ? "s" : ""} in parallel…
+                      </p>
+                      {isCreativeAdditionAdditionFlow && campaignAccessToken && activeCampaignId ? (
+                        <p className="mt-1 text-xs text-studio-tertiary">
+                          Stored brains are reused automatically when creatives have not changed.
+                        </p>
+                      ) : null}
+                    </div>
+                    {analysisProgress.total > 0 ? (
+                      <p className="text-sm font-semibold tabular-nums text-studio-text">
+                        {analysisProgress.completed}/{analysisProgress.total}
+                      </p>
+                    ) : null}
+                  </div>
+                  {analysisProgress.total > 0 ? (
+                    <div className="h-2 overflow-hidden rounded-full bg-white/10">
+                      <div
+                        className="h-full rounded-full bg-studio-accent transition-all duration-300"
+                        style={{ width: `${Math.round((analysisProgress.completed / analysisProgress.total) * 100)}%` }}
+                      />
+                    </div>
+                  ) : null}
+                  {analysisProgress.label ? (
+                    <p className="text-xs text-studio-tertiary">
+                      Latest: {analysisProgress.label}
+                    </p>
+                  ) : null}
                   <div className="studio-card animate-pulse rounded-2xl p-4">
                     <div className="mb-4 h-5 w-40 rounded bg-white/10" />
                     <div className="mb-4 grid grid-cols-2 gap-3 md:grid-cols-4">
@@ -3011,17 +5704,26 @@ export default function PreviewTool() {
                 <div className="studio-shell rounded-3xl p-4 shadow-studio md:p-6">
                   <AnalysisPanel
                     analysisResult={analysisResult}
-                    campaignGoal={campaignGoal}
+                    campaignGoal={effectiveCampaignGoal || campaignGoal}
                     campaignVertical={campaignVertical}
                     platform={platform}
                     viewerName={viewerName}
-                    creatives={validCreatives}
+                    creatives={creativesForAnalysis}
                     urlValidation={activeUrlValidation}
                     campaignBrief={campaignBrief}
                     campaignProductFocus={campaignProductFocus}
+                    campaignIntent={resolvedCampaignIntent}
                     onDownloadReport={handleDownloadReport}
+                    downloadLoading={isDownloadingReport}
+                    programmaticTaskType={programmaticTaskType}
+                    replacementComparisonReport={replacementComparisonReport}
+                    renewalComparisonReport={renewalComparisonReport}
+                    initialAnalysisTab={reportDeepLink?.analysisTab}
+                    initialSelectedCreativeId={reportDeepLink?.selectedCreativeId}
                   />
                 </div>
+              )}
+                </>
               )}
 
               <div className="flex gap-4 pt-6">
@@ -3038,20 +5740,14 @@ export default function PreviewTool() {
                 <ToolSectionHeader
                   step={4}
                   title="Preview Studio"
-                  description={
-                    platform === "google_ads"
-                      ? "Preview Google Search, Display, Shopping, and App Install templates."
-                      : platform === "meta_ads"
-                        ? "Preview Facebook, Instagram, Stories, Reels, Carousel, and Messenger templates."
-                        : "See your creatives in realistic interactive website contexts."
-                  }
+                  description={platformAdapter.previewStudioDescription}
                 />
                 <div className="flex flex-wrap items-center gap-3">
                 <ToolNavBtn variant="secondary" onClick={handleStartNewAnalysis} className="flex max-w-none flex-none items-center gap-2 px-6">
                   <RotateCcw size={18} /> Start New Analysis
                 </ToolNavBtn>
                 <ToolNavBtn variant="success" onClick={handleExportPptx} disabled={isExporting} className="flex max-w-none flex-none items-center gap-2 px-8">
-                  <Download size={20} /> {isExporting ? "Exporting..." : "Export PPTX"}
+                  <Download size={20} /> {isExporting ? "Exporting..." : "Download Preview Report"}
                 </ToolNavBtn>
               </div>
               </div>
@@ -3076,6 +5772,21 @@ export default function PreviewTool() {
                   keyMessage={previewTemplateContext.keyMessage}
                   imageUrls={previewTemplateContext.imageUrls}
                   onCopyCreative={handleCopyPreviewCreative}
+                  campaignBrief={campaignBrief}
+                  campaignIntent={resolvedCampaignIntent}
+                  campaignIntentFingerprint={resolvedCampaignIntentFingerprint}
+                  advertiserName={advertiserName}
+                  campaignName={campaignName}
+                  campaignProductFocus={campaignProductFocus}
+                  advertiserId={advertiserId}
+                  campaignId={activeCampaignId || loadedCampaignSnapshot?.id || ""}
+                  creativeFingerprint={creativeFingerprint}
+                  previewStudioCache={previewStudioCache}
+                  onPreviewCacheUpdate={handlePreviewStudioCacheUpdate}
+                  onExportContextChange={handlePreviewExportContextChange}
+                  initialTemplateId={reportDeepLink?.templateId}
+                  initialPreviewDevice={reportDeepLink?.device}
+                  initialPreviewCreativeId={reportDeepLink?.previewCreativeId}
                 />
                 </div>
               )}
@@ -3094,7 +5805,7 @@ export default function PreviewTool() {
                   <RotateCcw size={16} /> Start New Analysis
                 </ToolNavBtn>
                 <ToolNavBtn variant="success" onClick={handleExportPptx} disabled={isExporting} className="flex justify-center items-center gap-2">
-                  <Download size={20} /> {isExporting ? "Generating..." : "Download PPTX"}
+                  <Download size={20} /> {isExporting ? "Generating..." : "Download Preview Report"}
                 </ToolNavBtn>
               </div>
             </motion.div>
@@ -3112,7 +5823,20 @@ export default function PreviewTool() {
         />
       )}
 
-      <Toast toasts={toasts} />
+      <CampaignAssistantModal
+        open={assistantModalOpen}
+        reasoning={assistantReasoning}
+        questions={assistantQuestions}
+        submitting={assistantSubmitting}
+        onClose={() => {
+          if (assistantSubmitting) return;
+          setAssistantModalOpen(false);
+        }}
+        onSubmit={handleAssistantSubmit}
+      />
+
+      <WysiwygExportHost ref={wysiwygExportRef} />
+
     </div>
   );
 }

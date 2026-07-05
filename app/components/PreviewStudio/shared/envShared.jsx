@@ -208,15 +208,17 @@ export function EnvironmentPreviewCard({
   deviceMode,
   fitNotice,
   hideSizeLabel = false,
+  exportMode = false,
   onCopy,
   onEdit,
   children,
+  ...rest
 }) {
   const sourceSize = getCreativeSourceSize(creative);
   const deviceLabel = deviceMode === "desktop" ? "Desktop view" : deviceMode === "mobile" ? "Mobile view" : null;
 
   return (
-    <article className="rounded-2xl border border-white/10 bg-[#0b1020] overflow-hidden shadow-2xl">
+    <article className={`rounded-2xl border border-white/10 bg-[#0b1020] ${exportMode ? "overflow-visible" : "overflow-hidden"} shadow-2xl`} {...rest}>
       <div className="flex items-center justify-between gap-3 border-b border-white/10 px-4 py-3 bg-black/30">
         <div className="min-w-0 flex flex-wrap items-center gap-2">
           <span className={`rounded-full border px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${badgeClassName}`}>

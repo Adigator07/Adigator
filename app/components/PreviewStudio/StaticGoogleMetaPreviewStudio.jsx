@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   DeviceToggle,
   PreviewDeviceIncompatibleState,
@@ -33,8 +33,10 @@ export default function StaticGoogleMetaPreviewStudio({
   sourceCreatives = [],
   onCopyCreative,
   onEditCreative,
+  onExportContextChange,
 }) {
   const [studioMode, setStudioMode] = useState("previews");
+  const previewCaptureRef = useRef(null);
   const isGoogle = platform === "google_ads";
 
   const studio = useStaticPlacementPreviewStudio({
@@ -79,6 +81,25 @@ export default function StaticGoogleMetaPreviewStudio({
   const analysisReady = creativeAnalysis.status === "ready" && creativeAnalysis.imageUrl;
 
   const primaryTemplate = templates[0] || null;
+
+  useEffect(() => {
+    onExportContextChange?.({
+      platform,
+      templateId: activePlacement,
+      placement: activePlacement,
+      device,
+      creativeId: selectedSourceId,
+      studioMode,
+      getPreviewElement: () => previewCaptureRef.current,
+    });
+  }, [
+    platform,
+    activePlacement,
+    device,
+    selectedSourceId,
+    studioMode,
+    onExportContextChange,
+  ]);
 
   return (
     <div className="space-y-6">
@@ -156,7 +177,11 @@ export default function StaticGoogleMetaPreviewStudio({
               />
             ) : primaryTemplate ? (
               <div className="mx-auto w-full max-w-5xl">
-                <div className="preview-environment-root studio-card overflow-hidden rounded-2xl shadow-studio [&_img]:h-auto [&_img]:max-w-none [&_img]:object-contain [&_img]:image-rendering-auto">
+                <div
+                  ref={previewCaptureRef}
+                  data-export-capture-root
+                  className="preview-environment-root studio-card overflow-visible rounded-2xl shadow-studio [&_img]:h-auto [&_img]:max-w-none [&_img]:object-contain [&_img]:image-rendering-auto"
+                >
                   {renderEnvironmentCreative(primaryTemplate, handlers, device)}
                 </div>
               </div>

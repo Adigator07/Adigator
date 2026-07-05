@@ -1,5 +1,4 @@
--- =============================================================================
--- ADIGATOR COMMUNICATION PLATFORM — RUN THIS IN SUPABASE SQL EDITOR
+ ADIGATOR COMMUNICATION PLATFORM — RUN THIS IN SUPABASE SQL EDITOR
 -- =============================================================================
 -- HOW TO RUN:
 --   1. Open Supabase Dashboard → SQL Editor → New query

@@ -1,9 +1,10 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Download } from "lucide-react";
 import AnalyzerOverview from "./AnalyzerOverview";
+import AnalyzerQaTab from "./AnalyzerQaTab";
 import AnalyzerCreativeSection from "./AnalyzerCreativeSection";
 import {
   compareStrategicEntries,
@@ -65,7 +66,14 @@ export default function AnalysisPanel({
   urlValidation = null,
   campaignBrief = "",
   campaignProductFocus = "",
+  campaignIntent = "",
   onDownloadReport,
+  downloadLoading = false,
+  programmaticTaskType = "",
+  replacementComparisonReport = null,
+  renewalComparisonReport = null,
+  initialAnalysisTab = "overview",
+  initialSelectedCreativeId = null,
 }) {
   const strategicEntries = useMemo(() => {
     return Array.isArray(analysisResult) ? analysisResult : [];
@@ -82,8 +90,23 @@ export default function AnalysisPanel({
     return map;
   }, [creatives]);
 
-  const [analysisTab, setAnalysisTab] = useState("overview");
-  const [selectedId, setSelectedId] = useState(() => sorted[0]?.creative?.id || null);
+  const [analysisTab, setAnalysisTab] = useState(initialAnalysisTab || "overview");
+  const [selectedId, setSelectedId] = useState(
+    () => initialSelectedCreativeId || sorted[0]?.creative?.id || null,
+  );
+
+  useEffect(() => {
+    if (initialAnalysisTab) setAnalysisTab(initialAnalysisTab);
+  }, [initialAnalysisTab]);
+
+  useEffect(() => {
+    if (initialSelectedCreativeId) {
+      setSelectedId(initialSelectedCreativeId);
+      if (initialAnalysisTab === "creative-analysis" || !initialAnalysisTab) {
+        setAnalysisTab("creative-analysis");
+      }
+    }
+  }, [initialSelectedCreativeId, initialAnalysisTab]);
 
   const goalText = labelGoal(campaignGoal || "awareness");
   const verticalText = labelVertical(campaignVertical || "unknown");
@@ -99,9 +122,9 @@ export default function AnalysisPanel({
       campaignVertical,
       labelVertical,
       labelGoal,
-      { campaignBrief, campaignProductFocus },
+      { campaignBrief, campaignProductFocus, campaignIntent, urlValidation },
     );
-  }, [sorted, activePlatform, campaignGoal, campaignVertical, campaignBrief, campaignProductFocus]);
+  }, [sorted, activePlatform, campaignGoal, campaignVertical, campaignBrief, campaignProductFocus, campaignIntent, urlValidation]);
 
   const insights = overview?.insights || [];
 
@@ -135,6 +158,17 @@ export default function AnalysisPanel({
         </button>
         <button
           type="button"
+          onClick={() => setAnalysisTab("qa")}
+          className={`studio-focus-ring rounded-lg px-3 py-2 text-sm font-semibold transition-all duration-200 ${
+            analysisTab === "qa"
+              ? "bg-studio-accent text-white shadow-studio-glow"
+              : "border border-transparent text-studio-muted hover:bg-white/[0.05] hover:text-studio-text"
+          }`}
+        >
+          Technical &amp; Placement QA
+        </button>
+        <button
+          type="button"
           onClick={() => setAnalysisTab("creative-analysis")}
           className={`studio-focus-ring rounded-lg px-3 py-2 text-sm font-semibold transition-all duration-200 ${
             analysisTab === "creative-analysis"
@@ -155,7 +189,12 @@ export default function AnalysisPanel({
           platform={activePlatform}
           urlValidation={urlValidation}
           campaignBrief={campaignBrief}
+          programmaticTaskType={programmaticTaskType}
+          replacementComparisonReport={replacementComparisonReport}
+          renewalComparisonReport={renewalComparisonReport}
         />
+      ) : analysisTab === "qa" ? (
+        <AnalyzerQaTab overview={overview} platform={activePlatform} />
       ) : (
         <AnalyzerCreativeSection
           insights={insights}
@@ -173,12 +212,20 @@ export default function AnalysisPanel({
       )}
 
       <motion.button
-        whileHover={{ scale: 1.01 }}
-        whileTap={{ scale: 0.99 }}
-        onClick={onDownloadReport}
-        className="studio-btn-primary studio-focus-ring flex w-full items-center justify-center gap-2 rounded-xl py-3 text-sm font-semibold"
+        whileHover={{ scale: downloadLoading ? 1 : 1.01 }}
+        whileTap={{ scale: downloadLoading ? 1 : 0.99 }}
+        onClick={() => onDownloadReport?.({ tab: analysisTab, selectedCreativeId: selectedId })}
+        disabled={downloadLoading}
+        className="studio-btn-primary studio-focus-ring flex w-full items-center justify-center gap-2 rounded-xl py-3 text-sm font-semibold disabled:cursor-wait disabled:opacity-70"
       >
-        <Download size={16} /> Download Strategic Report
+        <Download size={16} />{" "}
+        {downloadLoading
+          ? "Generating Report…"
+          : analysisTab === "overview"
+            ? "Download Overview Report"
+            : analysisTab === "qa"
+              ? "Download QA Report"
+              : "Download Creative Analysis Report"}
       </motion.button>
     </div>
   );

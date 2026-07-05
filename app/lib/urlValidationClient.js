@@ -1,3 +1,5 @@
+import { stripUtmFromUrl } from "./utmManagement";
+
 const URL_VALIDATION_STORAGE_KEY = "adigator_url_validation";
 
 export { URL_VALIDATION_STORAGE_KEY };
@@ -59,8 +61,8 @@ export function createSkippedUrlValidation() {
 export function resolveActiveUrlValidation(landingUrl, urlValidation, creatives) {
   if (!urlValidation || typeof urlValidation !== "object") return null;
 
-  const trimmedUrl = String(landingUrl || "").trim();
-  const submittedUrl = String(urlValidation.submitted_url || "").trim();
+  const trimmedUrl = stripUtmFromUrl(String(landingUrl || "").trim());
+  const submittedUrl = stripUtmFromUrl(String(urlValidation.submitted_url || "").trim());
 
   if (!trimmedUrl) {
     return null;
@@ -108,7 +110,7 @@ export async function runUrlValidationRequest({
   creatives,
   getCreativeBlob,
 }) {
-  const trimmedUrl = String(url || "").trim();
+  const trimmedUrl = stripUtmFromUrl(String(url || "").trim());
   if (!trimmedUrl) {
     return {
       status: "skipped",

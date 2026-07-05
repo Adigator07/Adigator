@@ -1,10 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import html2canvas from "html2canvas";
 import { Download } from "lucide-react";
+import { captureDomToCanvas } from "@/app/lib/domCapture";
 
-export default function DownloadButton({ previewRef, platform, placement, brandName }) {
+export default function DownloadButton({ previewRef, platform, placement, brandName, onDownloadComplete }) {
   const [exporting, setExporting] = useState(false);
 
   const handleDownload = async () => {
@@ -21,10 +21,8 @@ export default function DownloadButton({ previewRef, platform, placement, brandN
       el.style.height = "auto";
       el.style.maxHeight = "none";
 
-      const canvas = await html2canvas(el, {
+      const canvas = await captureDomToCanvas(el, {
         scale: 2,
-        useCORS: true,
-        allowTaint: false,
         backgroundColor: "#ffffff",
         scrollY: -window.scrollY,
         windowWidth: el.scrollWidth,
@@ -41,8 +39,10 @@ export default function DownloadButton({ previewRef, platform, placement, brandN
       link.download = filename;
       link.href = canvas.toDataURL("image/png");
       link.click();
+      onDownloadComplete?.({ filename, status: "Completed" });
     } catch (err) {
       console.error("Preview export failed:", err);
+      onDownloadComplete?.({ filename: "", status: "Failed" });
     } finally {
       el.style.overflow = prevOverflow;
       el.style.height = prevHeight;

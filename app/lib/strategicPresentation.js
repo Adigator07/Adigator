@@ -249,40 +249,46 @@ export function resolveGoalAlignmentStatus(goalAlignment) {
 export function resolveVerticalAlignmentStatus(verticalAlignment) {
   const va = verticalAlignment || {};
   const selected = va.selected_vertical;
+  const detectedCategoryId = va.detected_category_id;
+  const suggested = va.suggested_vertical;
   const detected = va.detected_vertical;
   const fitScore = typeof va.fit_score === "number" ? va.fit_score : null;
-  const detectedDiffers = detected && detected !== "unknown" && selected && detected !== selected;
-  const categoryDiffers = va.detected_category_id
-    && va.detected_category_id !== "unknown"
-    && selected
-    && va.detected_category_id !== selected;
-  const categoryMismatch = categoryDiffers || detectedDiffers;
 
-  if (va.is_aligned === true) {
+  const categoryMatchesSelected = Boolean(
+    selected
+    && detectedCategoryId
+    && detectedCategoryId !== "unknown"
+    && (detectedCategoryId === selected || suggested === selected),
+  );
+  const detectedMatchesSelected = Boolean(
+    selected
+    && detected
+    && detected !== "unknown"
+    && detected === selected,
+  );
+
+  if (va.is_aligned === true || categoryMatchesSelected || detectedMatchesSelected) {
     return { key: "aligned", label: "Aligned", emoji: "🟢", tone: "emerald" };
   }
 
   if (va.is_aligned === false) {
-    if (categoryMismatch) {
-      return { key: "misaligned", label: "Misaligned", emoji: "🔴", tone: "red" };
+    if (categoryMatchesSelected || detectedMatchesSelected) {
+      return { key: "aligned", label: "Aligned", emoji: "🟢", tone: "emerald" };
     }
-    if (fitScore !== null && fitScore >= 55) {
-      return { key: "review", label: "Needs Review", emoji: "🟡", tone: "amber" };
-    }
-    if (!detectedDiffers && fitScore !== null && fitScore >= 45) {
+    if (fitScore !== null && fitScore >= 55 && !detectedMatchesSelected) {
       return { key: "review", label: "Needs Review", emoji: "🟡", tone: "amber" };
     }
     return { key: "misaligned", label: "Misaligned", emoji: "🔴", tone: "red" };
   }
 
   if (fitScore !== null) {
-    if (fitScore >= 65 && !detectedDiffers) {
+    if (fitScore >= 65 && (categoryMatchesSelected || !detected || detected === selected)) {
       return { key: "aligned", label: "Aligned", emoji: "🟢", tone: "emerald" };
     }
     if (fitScore >= 55) {
-      return detectedDiffers
-        ? { key: "review", label: "Needs Review", emoji: "🟡", tone: "amber" }
-        : { key: "aligned", label: "Aligned", emoji: "🟢", tone: "emerald" };
+      return categoryMatchesSelected
+        ? { key: "aligned", label: "Aligned", emoji: "🟢", tone: "emerald" }
+        : { key: "review", label: "Needs Review", emoji: "🟡", tone: "amber" };
     }
     if (fitScore >= 45) {
       return { key: "review", label: "Needs Review", emoji: "🟡", tone: "amber" };
@@ -290,11 +296,23 @@ export function resolveVerticalAlignmentStatus(verticalAlignment) {
     return { key: "misaligned", label: "Misaligned", emoji: "🔴", tone: "red" };
   }
 
-  if (detectedDiffers) {
+  if (detected && detected !== "unknown" && selected && detected !== selected && !categoryMatchesSelected) {
     return { key: "review", label: "Needs Review", emoji: "🟡", tone: "amber" };
   }
 
   return { key: "review", label: "Needs Review", emoji: "🟡", tone: "amber" };
+}
+
+/** UI badge for vertical alignment (distinct from launch readiness). */
+export function getVerticalAlignmentDisplay(verticalAlignment) {
+  const status = resolveVerticalAlignmentStatus(verticalAlignment);
+  if (status.key === "aligned") {
+    return { emoji: "🟢", label: "Aligned", tone: "emerald", key: "aligned" };
+  }
+  if (status.key === "misaligned") {
+    return { emoji: "🔴", label: "Misaligned", tone: "red", key: "misaligned" };
+  }
+  return { emoji: "🟡", label: "Needs Review", tone: "amber", key: "review" };
 }
 
 export function getExtractionSignals(payload) {

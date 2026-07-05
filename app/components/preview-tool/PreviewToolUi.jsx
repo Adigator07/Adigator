@@ -288,10 +288,11 @@ export function ToolFooterBar({ children }) {
   );
 }
 
-export function ToolDropzone({ active, onClick, onDragOver, onDragLeave, onDrop, children }) {
+export function ToolDropzone({ active, onClick, onDragEnter, onDragOver, onDragLeave, onDrop, children }) {
   return (
     <motion.div
       onClick={onClick}
+      onDragEnter={onDragEnter}
       onDragOver={onDragOver}
       onDragLeave={onDragLeave}
       onDrop={onDrop}
@@ -306,7 +307,7 @@ export function ToolDropzone({ active, onClick, onDragOver, onDragLeave, onDrop,
               boxShadow: "0 0 24px -8px rgba(129, 140, 248, 0.2)",
             }
       }
-      whileHover={{ scale: 1.005 }}
+      whileHover={active ? undefined : { scale: 1.005 }}
       className="studio-focus-ring neon-card relative cursor-pointer rounded-3xl border-2 border-dashed p-10 text-center transition-shadow duration-300 md:p-12"
     >
       {children}

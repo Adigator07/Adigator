@@ -15,7 +15,7 @@ function AlignmentBadge({ status }) {
   );
 }
 
-function CampaignBriefAlignmentPanel({ briefAlignment, campaignBrief, labelGoal }) {
+function CampaignBriefAlignmentPanel({ briefAlignment, campaignBrief, labelGoal, exportMode = false }) {
   const hasBrief = campaignBrief?.trim() || briefAlignment?.brief_provided;
   if (!hasBrief) return null;
 
@@ -101,7 +101,7 @@ function CampaignBriefAlignmentPanel({ briefAlignment, campaignBrief, labelGoal 
         <div className="mt-3">
           <p className="text-[10px] font-semibold uppercase tracking-wider text-emerald-800 mb-1">Aligned with brief</p>
           <ul className="text-sm text-slate-800 space-y-1">
-            {aligned.slice(0, 5).map((item) => <li key={item}>• {item}</li>)}
+            {(exportMode ? aligned : aligned.slice(0, 5)).map((item) => <li key={item}>• {item}</li>)}
           </ul>
         </div>
       ) : null}
@@ -126,7 +126,7 @@ function CampaignBriefAlignmentPanel({ briefAlignment, campaignBrief, labelGoal 
         </div>
       ) : null}
 
-      {status.key === "misaligned" ? (
+      {status.key === "misaligned" && !exportMode ? (
         <p className="mt-3 text-xs text-slate-700">
           Update the creative, revise the Campaign Brief in Step 1, or align your goal/vertical settings — then click <strong>Reanalyze</strong>.
         </p>
@@ -292,6 +292,7 @@ export default function AnalyzerCreativeSection({
   campaignBrief = "",
   campaignProductFocus = "",
   platform,
+  exportMode = false,
 }) {
   const insight = selectedInsight;
   if (!insight) return null;
@@ -314,7 +315,8 @@ export default function AnalyzerCreativeSection({
   const platformLabel = isMeta ? "Meta Ads" : isGoogle ? "Google Ads" : isProgrammatic ? "Programmatic Ads" : "";
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-5 items-start">
+    <div className={exportMode ? "space-y-4" : "grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-5 items-start"}>
+      {!exportMode ? (
       <div className="space-y-2">
         <p className={`${PANEL.label} px-1 mb-2`}>
           Creatives: select for status
@@ -330,6 +332,7 @@ export default function AnalyzerCreativeSection({
           />
         ))}
       </div>
+      ) : null}
 
       <div className="space-y-4">
         <div className={`${PANEL.section} flex items-center justify-between gap-3`}>
@@ -392,21 +395,37 @@ export default function AnalyzerCreativeSection({
             {verticalStatus.key === "review" ? ". Creative partially matches the selected vertical." : null}
             {verticalStatus.key === "aligned" ? ". Creative matches the selected vertical." : null}
           </div>
-          <div className={`space-y-2 ${PANEL.body}`}>
-            <p>
-              Selected vertical: <span className="font-semibold text-[#f4f4f8]">{labelVertical(verticalAlignment?.selected_vertical || campaignVertical)}</span>
-            </p>
-            {detectedCategoryLabel ? (
-              <p>
-                Creative category detected: <span className={`font-semibold ${
-                  verticalStatus.tone === "red"
-                    ? "text-rose-200"
-                    : verticalStatus.tone === "amber"
-                      ? "text-amber-200"
-                      : "text-emerald-200"
-                }`}>{detectedCategoryLabel}</span>
+          <div className="mb-3 grid grid-cols-1 gap-2 sm:grid-cols-3">
+            <div className="rounded-lg border border-white/10 bg-black/20 px-3 py-2.5 text-center">
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-[#9a9aad]">Detected category</p>
+              <p className={`mt-1 text-sm font-bold ${
+                verticalStatus.tone === "red" ? "text-rose-200" : verticalStatus.tone === "amber" ? "text-amber-200" : "text-emerald-200"
+              }`}>
+                {detectedCategoryLabel || "Unclear"}
               </p>
-            ) : null}
+            </div>
+            <div className="rounded-lg border border-violet-400/30 bg-violet-500/10 px-3 py-2.5 text-center">
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-violet-200">Selected vertical</p>
+              <p className="mt-1 text-sm font-bold text-[#f4f4f8]">
+                {labelVertical(verticalAlignment?.selected_vertical || campaignVertical)}
+              </p>
+            </div>
+            <div className={`rounded-lg border px-3 py-2.5 text-center ${
+              verticalStatus.tone === "emerald"
+                ? "border-emerald-400/35 bg-emerald-500/10"
+                : verticalStatus.tone === "red"
+                  ? "border-rose-400/35 bg-rose-500/10"
+                  : "border-amber-400/35 bg-amber-500/10"
+            }`}>
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-[#9a9aad]">Status</p>
+              <p className={`mt-1 text-sm font-bold ${
+                verticalStatus.tone === "emerald" ? "text-emerald-200" : verticalStatus.tone === "red" ? "text-rose-200" : "text-amber-200"
+              }`}>
+                {verticalStatus.label}
+              </p>
+            </div>
+          </div>
+          <div className={`space-y-2 ${PANEL.body}`}>
             {verticalStatus.key === "misaligned" && suggestedVerticalLabel ? (
               <p>
                 Suggested vertical: <span className="font-semibold text-cyan-200">{suggestedVerticalLabel}</span>
@@ -438,6 +457,7 @@ export default function AnalyzerCreativeSection({
           briefAlignment={insight.briefAlignment}
           campaignBrief={campaignBrief}
           labelGoal={labelGoal}
+          exportMode={exportMode}
         />
 
         {extractionSignals ? (

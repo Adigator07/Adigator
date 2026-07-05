@@ -221,6 +221,22 @@ export default function PreviewStudio({
   imageUrls = [],
   onCopyCreative,
   onEditCreative,
+  campaignBrief = "",
+  campaignIntent = "",
+  campaignIntentFingerprint = "",
+  advertiserName = "",
+  campaignName = "",
+  campaignProductFocus = "",
+  advertiserId = "",
+  campaignId = "",
+  creativeFingerprint = "",
+  previewStudioCache = null,
+  onPreviewCacheUpdate,
+  onExportContextChange,
+  cacheOnly = false,
+  initialTemplateId = null,
+  initialPreviewDevice = null,
+  initialPreviewCreativeId = null,
 }) {
   const mappedPlatform = mapExternalPlatform(externalPlatform);
   const [platform, setPlatform] = useState(mappedPlatform);
@@ -254,6 +270,19 @@ export default function PreviewStudio({
       setSelectedSourceId(compatibleSourceCreatives[0].id);
     }
   }, [compatibleSourceCreatives, selectedSourceId]);
+
+  useEffect(() => {
+    if (externalPlatform === "programmatic") return;
+    onExportContextChange?.({
+      platform: externalPlatform,
+      templateId: placement,
+      placement,
+      device: "desktop",
+      creativeId: selectedSourceId,
+      studioMode,
+      getPreviewElement: () => previewRef.current,
+    });
+  }, [externalPlatform, placement, selectedSourceId, studioMode, onExportContextChange]);
 
   const adCreative = useMemo(
     () =>
@@ -301,6 +330,23 @@ export default function PreviewStudio({
         goal={goal}
         onCopyCreative={onCopyCreative}
         onEditCreative={onEditCreative}
+        campaignBrief={campaignBrief}
+        campaignIntent={campaignIntent}
+        campaignIntentFingerprint={campaignIntentFingerprint}
+        advertiserName={advertiserName}
+        brandName={brandName}
+        campaignName={campaignName}
+        campaignProductFocus={campaignProductFocus}
+        advertiserId={advertiserId}
+        campaignId={campaignId}
+        creativeFingerprint={creativeFingerprint}
+        previewStudioCache={previewStudioCache}
+        onPreviewCacheUpdate={onPreviewCacheUpdate}
+        onExportContextChange={onExportContextChange}
+        cacheOnly={cacheOnly}
+        initialTemplateId={initialTemplateId}
+        initialPreviewDevice={initialPreviewDevice}
+        initialPreviewCreativeId={initialPreviewCreativeId}
       />
     );
   }
@@ -316,6 +362,7 @@ export default function PreviewStudio({
         sourceCreatives={sourceCreatives}
         onCopyCreative={onCopyCreative}
         onEditCreative={onEditCreative}
+        onExportContextChange={onExportContextChange}
       />
     );
   }
