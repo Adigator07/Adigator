@@ -105,7 +105,23 @@ export default function CampaignTaskValidationSection() {
 
   return (
     <section className="marketing-section marketing-section-compact mx-auto w-[min(1280px,92vw)]">
-      <div className="relative overflow-hidden rounded-[28px] border border-[#2A2A2A] bg-[#0A0A0A] px-5 py-10 sm:px-8 sm:py-12 lg:px-10 lg:py-14">
+      <motion.div
+        initial={reduceMotion ? false : { opacity: 0, y: 20 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true, margin: "-40px" }}
+        transition={{ duration: 0.6 }}
+        className="max-w-3xl"
+      >
+        <h2 className="text-[clamp(1.75rem,3.5vw,2.75rem)] font-black leading-[1.12] tracking-[-0.035em]">
+          Every Campaign Task Deserves Validation
+        </h2>
+        <p className="mt-5 text-lg leading-relaxed text-[#5A5A55] sm:text-xl">
+          Whether you&apos;re launching a new campaign, adding creatives, updating landing pages, or renewing an
+          existing campaign, every task should be validated before execution to reduce rework and operational risk.
+        </p>
+      </motion.div>
+
+      <div className="relative mt-10 overflow-hidden rounded-[28px] border border-[#2A2A2A] bg-[#0A0A0A] px-5 py-10 sm:px-8 sm:py-12 lg:px-10 lg:py-14">
         <div
           className="pointer-events-none absolute inset-0 opacity-20"
           style={{
@@ -115,24 +131,15 @@ export default function CampaignTaskValidationSection() {
           }}
           aria-hidden
         />
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_30%_0%,rgba(14,165,233,0.08),transparent_50%),radial-gradient(ellipse_at_70%_100%,rgba(200,240,77,0.06),transparent_50%)]" aria-hidden />
+        <div
+          className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_30%_0%,rgba(14,165,233,0.08),transparent_50%),radial-gradient(ellipse_at_70%_100%,rgba(200,240,77,0.06),transparent_50%)]"
+          aria-hidden
+        />
 
-        <div className="relative">
-          <div className="max-w-3xl">
-            <h2 className="text-3xl font-black leading-tight tracking-tight text-white sm:text-4xl lg:text-5xl">
-              Every Campaign Task Deserves Validation
-            </h2>
-            <p className="mt-3 text-base leading-relaxed text-white/70 sm:text-lg">
-              Whether you&apos;re launching a new campaign, adding creatives, updating landing pages, or renewing an
-              existing campaign, every task should be validated before execution to reduce rework and operational risk.
-            </p>
-          </div>
-
-          <div className="mt-10 grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-3">
-            {CAMPAIGN_TASKS.map((task, index) => (
-              <TaskCard key={task.id} task={task} index={index} reduceMotion={!!reduceMotion} />
-            ))}
-          </div>
+        <div className="relative grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-3">
+          {CAMPAIGN_TASKS.map((task, index) => (
+            <TaskCard key={task.id} task={task} index={index} reduceMotion={!!reduceMotion} />
+          ))}
         </div>
       </div>
     </section>

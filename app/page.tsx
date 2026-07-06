@@ -64,6 +64,10 @@ const ValidationReportSection = dynamic(
   () => import("@/app/components/marketing/ValidationReportSection"),
   { ssr: false },
 );
+const AdigatorPlatformSection = dynamic(
+  () => import("@/app/components/marketing/AdigatorPlatformSection"),
+  { ssr: false },
+);
 
 const TICKER_BENEFITS = [
   "Campaign Validation",
@@ -99,7 +103,7 @@ const HOW_IT_WORKS = [
   {
     step: "Step 1",
     title: "Understand Campaign",
-    items: ["Goal", "Vertical", "Description", "Landing Page", "Platform"],
+    items: ["Campaign Goal", "Ad Group Objective", "Vertical", "Description", "Landing Page", "Platform"],
     tag: "Brief",
   },
   {
@@ -111,7 +115,14 @@ const HOW_IT_WORKS = [
   {
     step: "Step 3",
     title: "Campaign Intelligence",
-    items: ["Intent", "Landing Page Match", "Creative Match", "Placement Checks", "Objective/Vertical Alignment"],
+    items: [
+      "Campaign Intent",
+      "Understands Ad Group Objectives",
+      "Campaign Vertical",
+      "Creative Messaging",
+      "Landing Page Match",
+      "Placement Checks",
+    ],
     tag: "Align",
   },
   {
@@ -270,6 +281,7 @@ export default function HomePage() {
           </div>
 
           <ValidationLayerDiagram embedded />
+          <AdigatorPlatformSection />
           <HeroLiveCards />
         </section>
 
