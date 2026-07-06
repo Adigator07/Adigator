@@ -671,8 +671,11 @@ export default function ProductPage() {
         <div className="mx-auto mt-10 flex w-[min(1320px,92vw)] flex-col gap-4 border-t border-white/10 pt-6 text-sm text-white/55 md:flex-row md:items-center md:justify-between">
           <div className="flex flex-wrap items-center gap-4">
             <span>© 2026 Adigator</span>
-            <Link href="/about" className="transition hover:text-white">
+            <Link href="/privacy" className="transition hover:text-white">
               Privacy Policy
+            </Link>
+            <Link href="/terms" className="transition hover:text-white">
+              Terms of Service
             </Link>
           </div>
           <div className="flex flex-wrap items-center gap-3">

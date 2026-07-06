@@ -200,12 +200,12 @@ export default function ContactPage() {
                     />
                     <span>
                       I agree to Adigator&apos;s{" "}
-                      <Link href="/about" className="font-semibold text-[#0D0D0D] underline underline-offset-2">
+                      <Link href="/privacy" className="font-semibold text-[#0D0D0D] underline underline-offset-2">
                         Privacy Policy
                       </Link>{" "}
                       and{" "}
-                      <Link href="/about" className="font-semibold text-[#0D0D0D] underline underline-offset-2">
-                        Terms of Use
+                      <Link href="/terms" className="font-semibold text-[#0D0D0D] underline underline-offset-2">
+                        Terms of Service
                       </Link>
                       .
                     </span>

@@ -15,9 +15,6 @@ import {
   Users,
   X,
 } from "lucide-react";
-import {
-  MARKETING_CTA,
-} from "@/app/lib/siteNavigation";
 import MarketingNav from "@/app/components/MarketingNav";
 import MarketingFooter from "@/app/components/MarketingFooter";
 import { IllustrationSkeleton } from "@/app/components/illustrations/IllustrationWrapper";
@@ -27,8 +24,12 @@ const IllustrationWrapper = dynamic(
   () => import("@/app/components/illustrations/IllustrationWrapper"),
   { loading: () => <IllustrationSkeleton /> },
 );
-const ValidationLayerDiagram = dynamic(
-  () => import("@/app/components/marketing/ValidationLayerDiagram"),
+const AboutWorkflowComparison = dynamic(
+  () => import("@/app/components/marketing/AboutWorkflowComparison"),
+  { ssr: false },
+);
+const AboutPlatformRoadmap = dynamic(
+  () => import("@/app/components/marketing/AboutPlatformRoadmap"),
   { ssr: false },
 );
 
@@ -75,11 +76,12 @@ const CAMPAIGN_TEAM_PAIN_POINTS = [
 ];
 
 const BELIEFS = [
-  "Campaign quality starts before launch.",
-  "Small operational mistakes become expensive.",
-  "Better validation creates better campaigns.",
-  "Every campaign deserves one final review.",
-  "Technology should reduce operational complexity, not add to it.",
+  "Campaign Quality Starts Before Execution",
+  "Validation Is Better Than Rework",
+  "Campaign Knowledge Should Never Be Lost",
+  "Every Campaign Task Deserves Validation",
+  "Technology Should Reduce Operational Complexity",
+  "Enterprise Teams Need One Source of Truth",
 ];
 
 const FOUR_PILLARS = [
@@ -144,9 +146,7 @@ export default function AboutPage() {
         {/* Hero */}
         <section className="marketing-section marketing-section-compact mx-auto w-[min(980px,92vw)]">
           <h1 className="mx-auto max-w-4xl text-center text-[clamp(2rem,5.5vw,4rem)] font-black leading-[1.02] tracking-[-0.04em]">
-            We Didn&apos;t Build Another AI Tool.
-            <br />
-            <span className="text-[#2D2D27]">We Built the Validation Layer Every Campaign Needs Before Setup.</span>
+            We Built the Intelligence &amp; Validation Layer Behind Every Successful Campaign.
           </h1>
 
           <p className="mx-auto mt-7 max-w-3xl text-center text-lg leading-relaxed text-[#5C5C56] sm:text-xl">
@@ -169,35 +169,24 @@ export default function AboutPage() {
             Why I Built Adigator
           </h1>
 
-          <div className="mt-8 space-y-5 text-lg leading-relaxed text-[#5A5A55]">
+          <div className="mt-8 space-y-4 text-lg leading-relaxed text-[#5A5A55]">
+            <p>I worked across Ad Operations, Campaign Management, and Account Management.</p>
+            <p>Different teams.</p>
+            <p>Different tools.</p>
+            <p>One recurring problem.</p>
             <p>
-              I&apos;ve worked across AdOps, campaign management, and account management in digital advertising.
+              Campaigns kept reaching execution before anyone verified whether everything actually aligned.
             </p>
-            <p>The same problems appeared in every role:</p>
-            <ul className="space-y-2 pl-1">
-              <li className="flex items-start gap-3">
-                <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-[#0D0D0D]" />
-                Campaigns launched with the wrong creative.
-              </li>
-              <li className="flex items-start gap-3">
-                <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-[#0D0D0D]" />
-                Landing pages that didn&apos;t match the ad.
-              </li>
-              <li className="flex items-start gap-3">
-                <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-[#0D0D0D]" />
-                Budgets were spent before anyone caught the mismatch.
-              </li>
-              <li className="flex items-start gap-3">
-                <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-[#0D0D0D]" />
-                Escalations occurred that could have been avoided if someone had validated everything together before launch.
-              </li>
-            </ul>
-            <p>The frustrating part was never the complexity. These were preventable mistakes.</p>
-            <p>
-              Every time, the validation step was either skipped, split across too many people, or happened too late.
+            <p>Wrong creatives.</p>
+            <p>Landing pages that didn&apos;t match.</p>
+            <p>Tracking issues.</p>
+            <p>Late discoveries.</p>
+            <p>Everyone worked hard.</p>
+            <p>Nobody owned validation.</p>
+            <p className="text-xl font-black text-[#0D0D0D] sm:text-2xl">So I built Adigator.</p>
+            <p className="font-semibold text-[#0D0D0D]">
+              One platform that validates every campaign task before execution.
             </p>
-            <p>Nobody owned it.</p>
-            <p className="text-xl font-black text-[#0D0D0D] sm:text-2xl">So I built the layer that does.</p>
           </div>
         </section>
 
@@ -211,7 +200,7 @@ export default function AboutPage() {
             transition={{ duration: 12, repeat: Infinity, ease: "easeInOut" }}
           />
           <div className="relative mx-auto w-[min(1280px,92vw)]">
-            <SectionHeader title="The creative wasn't always the problem" />
+            <SectionHeader title="Campaigns Didn't Fail Because of Creatives. They Failed Because Nothing Was Validated Together." />
 
             <div className="grid gap-10 lg:grid-cols-2 lg:gap-16">
               <div>
@@ -349,16 +338,48 @@ export default function AboutPage() {
           </div>
         </section>
 
-        {/* Campaign Validation Gap */}
-        <ValidationLayerDiagram
-          title="Traditional workflows launch campaigns. They don't validate them."
-          gapLabel="No validation"
-        />
+        {/* Our Mission */}
+        <section id="mission" className="marketing-section marketing-section-compact mx-auto w-[min(900px,92vw)]">
+          <h2 className="text-3xl font-black leading-tight tracking-tight sm:text-4xl lg:text-5xl">Our Mission</h2>
+          <div className="mt-6 space-y-5 text-lg leading-relaxed text-[#5A5A55] sm:text-xl">
+            <p className="font-semibold text-[#0D0D0D]">
+              To make campaign validation a standard part of every advertising workflow.
+            </p>
+            <p>
+              We believe campaigns should never reach execution until every asset, requirement, and operational
+              dependency has been validated.
+            </p>
+            <p>
+              Just as software is tested before deployment, campaigns should be validated before execution.
+            </p>
+          </div>
+        </section>
+
+        {/* Our Vision */}
+        <section id="vision" className="border-y border-[#DEDDD5] bg-[#FAFAF7] marketing-section-compact">
+          <div className="mx-auto w-[min(900px,92vw)]">
+            <h2 className="text-3xl font-black leading-tight tracking-tight sm:text-4xl lg:text-5xl">Our Vision</h2>
+            <div className="mt-6 space-y-5 text-lg leading-relaxed text-[#5A5A55] sm:text-xl">
+              <p className="font-semibold text-[#0D0D0D]">
+                To become the intelligence and validation layer for digital advertising.
+              </p>
+              <p>
+                We envision a future where every campaign task—from setup to creative updates, landing page changes,
+                renewals, and optimizations—is validated, documented, and understood before execution.
+              </p>
+              <p>Campaign quality shouldn&apos;t depend on memory, spreadsheets, or manual reviews.</p>
+              <p className="font-semibold text-[#0D0D0D]">It should be built into the workflow.</p>
+            </div>
+          </div>
+        </section>
+
+        {/* Without / With Adigator */}
+        <AboutWorkflowComparison />
 
         {/* Campaign Reality */}
-        <section id="reality" className="bg-[#0D0D0D] py-10 text-white sm:py-12 md:py-14">
+        <section id="reality" className="border-y border-[#DEDDD5] bg-[#FAFAF7] py-10 sm:py-12 md:py-14">
           <div className="mx-auto w-[min(1280px,92vw)]">
-            <SectionHeader dark center title="One campaign. Multiple teams. One opportunity to get it right." />
+            <SectionHeader center title="Campaign Quality Is a Shared Responsibility." />
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {CAMPAIGN_TEAM_PAIN_POINTS.map((team, i) => (
                 <motion.article
@@ -367,39 +388,19 @@ export default function AboutPage() {
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true }}
                   transition={{ delay: i * 0.04 }}
-                  className="saas-hover rounded-2xl border border-[#2A2A2A] bg-[#151515] p-6"
+                  className="saas-hover rounded-2xl border border-[#DEDDD5] bg-white p-6 shadow-[0_8px_24px_rgba(15,23,42,0.04)]"
                 >
-                  <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-[#1F1F1F] text-[#C8F04D]">
+                  <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-[#F7FCE8] text-[#5A7A00]">
                     <team.icon size={20} />
                   </div>
-                  <h3 className="text-lg font-black tracking-tight">{team.title}</h3>
-                  <p className="mt-2 text-sm leading-relaxed text-[#A3A3A3]">{team.description}</p>
+                  <h3 className="text-lg font-black tracking-tight text-[#0D0D0D]">{team.title}</h3>
+                  <p className="mt-2 text-sm leading-relaxed text-[#5A5A55]">{team.description}</p>
                 </motion.article>
               ))}
             </div>
-            <p className="mx-auto mt-10 max-w-2xl text-center text-lg font-semibold text-[#D4D4D4]">
+            <p className="mx-auto mt-10 max-w-2xl text-center text-lg font-semibold text-[#0D0D0D]">
               Adigator is where all of these parts are validated together before launch.
             </p>
-          </div>
-        </section>
-
-        {/* Our Mission */}
-        <section id="mission" className="marketing-section marketing-section-compact mx-auto w-[min(1280px,92vw)]">
-          <div className="grid items-center gap-10 lg:grid-cols-2 lg:gap-14">
-            <div className="text-center lg:text-left">
-              <h2 className="text-3xl font-black leading-tight tracking-tight sm:text-4xl lg:text-5xl">
-                To make campaign validation a standard part of every advertising workflow.
-              </h2>
-              <p className="mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-[#5A5A55] lg:mx-0">
-                Just as developers don&apos;t deploy code without testing, campaigns shouldn&apos;t launch without
-                validation.
-              </p>
-            </div>
-            <IllustrationWrapper
-              src={STORYSET_ILLUSTRATIONS.teamGoalsRafiki}
-              alt="Team united around shared campaign validation goals"
-              animation="fade-left"
-            />
           </div>
         </section>
 
@@ -427,7 +428,7 @@ export default function AboutPage() {
         {/* What We Believe */}
         <section id="beliefs" className="border-y border-[#DEDDD5] bg-[#FAFAF7] marketing-section-compact">
           <div className="mx-auto w-[min(1280px,92vw)]">
-            <SectionHeader title="Principles that guide how we build" />
+            <SectionHeader title="What We Believe" />
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {BELIEFS.map((belief, i) => (
                 <motion.div
@@ -503,24 +504,37 @@ export default function AboutPage() {
           </div>
         </section>
 
-        {/* Final CTA */}
-        <section className="marketing-section marketing-section-compact mx-auto w-[min(980px,92vw)]">
-          <div className="saas-hover rounded-[32px] border border-[#DBDAD2] bg-white px-8 py-10 text-center shadow-[0_20px_50px_rgba(15,23,42,0.08)] sm:px-12 sm:py-12">
-            <h2 className="mx-auto max-w-3xl text-[clamp(1.75rem,4vw,3rem)] font-black leading-tight tracking-tight">
-              Every Campaign Deserves One Final Validation Before Launch.
+        {/* Advertising Changed */}
+        <section className="marketing-section marketing-section-compact mx-auto w-[min(900px,92vw)]">
+          <motion.div
+            initial={reduceMotion ? false : { opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, margin: "-40px" }}
+            transition={{ duration: 0.6 }}
+          >
+            <h2 className="text-[clamp(1.75rem,3.5vw,2.75rem)] font-black leading-[1.12] tracking-[-0.035em]">
+              Advertising Changed. Validation Didn&apos;t.
             </h2>
-            <p className="mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-[#5A5A55]">
-              Whether you&apos;re launching five creatives or five thousand campaigns, Adigator helps your team validate
-              with confidence.
-            </p>
-            <Link
-              href={MARKETING_CTA.href}
-              className="marketing-btn-lime saas-hover mt-10 inline-flex rounded-full px-10 py-4 text-base font-bold"
-            >
-              {MARKETING_CTA.label}
-            </Link>
-          </div>
+            <div className="mt-6 space-y-5 text-lg leading-relaxed text-[#5A5A55] sm:text-xl">
+              <p>
+                Digital advertising has become faster, more collaborative, and significantly more complex. A single
+                campaign now spans multiple platforms, creatives, landing pages, tracking requirements, approvals, and
+                continuous updates.
+              </p>
+              <p>
+                Yet many teams still rely on spreadsheets, email threads, and manual reviews to validate campaign
+                changes.
+              </p>
+              <p>As campaign operations evolved, validation did not.</p>
+              <p className="font-semibold text-[#0D0D0D]">
+                Adigator was built to close that gap—helping teams validate every campaign task before execution.
+              </p>
+            </div>
+          </motion.div>
         </section>
+
+        {/* Where We Are Going */}
+        <AboutPlatformRoadmap />
       </main>
 
       <MarketingFooter />

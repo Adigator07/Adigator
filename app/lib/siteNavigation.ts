@@ -29,7 +29,7 @@ export const MARKETING_FOOTER_DESCRIPTION =
   "The pre launch campaign validation layer for agencies and brands who refuse to waste media spend on preventable errors.";
 
 export const MARKETING_FOOTER_LEGAL_LINKS = [
-  { label: "Privacy Policy", href: "/about" },
-  { label: "Terms of Service", href: "/about" },
+  { label: "Privacy Policy", href: "/privacy" },
+  { label: "Terms of Service", href: "/terms" },
   { label: "Contact Us", href: "/contact" },
 ] as const;
