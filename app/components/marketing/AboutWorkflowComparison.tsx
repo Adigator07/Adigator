@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { CheckCircle2, XCircle } from "lucide-react";
 
@@ -14,16 +14,31 @@ const COMPARISON_ITEMS = [
   { without: "Preventable operational mistakes", with: "Consistent campaign quality" },
 ];
 
+const ROWS_PER_VIEW = 3;
+const PAGE_COUNT = Math.ceil(COMPARISON_ITEMS.length / ROWS_PER_VIEW);
+const SCROLL_INTERVAL_MS = 3200;
+
+function getPageItems(pageIndex: number) {
+  return Array.from({ length: ROWS_PER_VIEW }, (_, offset) => {
+    const index = (pageIndex * ROWS_PER_VIEW + offset) % COMPARISON_ITEMS.length;
+    return { ...COMPARISON_ITEMS[index], index };
+  });
+}
+
 export default function AboutWorkflowComparison() {
   const reduceMotion = useReducedMotion();
-  const [index, setIndex] = useState(0);
-  const item = COMPARISON_ITEMS[index];
+  const [pageIndex, setPageIndex] = useState(0);
+  const visibleRows = useMemo(() => getPageItems(pageIndex), [pageIndex]);
+  const activeDotIndexes = useMemo(
+    () => visibleRows.map((row) => row.index),
+    [visibleRows],
+  );
 
   useEffect(() => {
     if (reduceMotion) return;
     const id = window.setInterval(() => {
-      setIndex((prev) => (prev + 1) % COMPARISON_ITEMS.length);
-    }, 3200);
+      setPageIndex((prev) => (prev + 1) % PAGE_COUNT);
+    }, SCROLL_INTERVAL_MS);
     return () => window.clearInterval(id);
   }, [reduceMotion]);
 
@@ -61,22 +76,33 @@ export default function AboutWorkflowComparison() {
           </div>
         </div>
 
-        <div className="relative h-[96px] overflow-hidden sm:h-[104px]" aria-live="polite">
+        <div className="relative h-[288px] overflow-hidden sm:h-[312px]" aria-live="polite">
           <AnimatePresence mode="wait">
             <motion.div
-              key={index}
+              key={pageIndex}
               initial={reduceMotion ? false : { opacity: 0, y: 18 }}
               animate={{ opacity: 1, y: 0 }}
               exit={reduceMotion ? undefined : { opacity: 0, y: -18 }}
               transition={{ duration: 0.45, ease: "easeInOut" }}
-              className="absolute inset-0 grid grid-cols-2"
+              className="absolute inset-0 flex flex-col"
             >
-              <div className="flex items-center border-r border-white/8 bg-rose-950/20 px-4 py-4 sm:px-6">
-                <p className="text-sm font-semibold leading-snug text-rose-100/90 sm:text-[15px]">{item.without}</p>
-              </div>
-              <div className="flex items-center bg-[#C8F04D]/5 px-4 py-4 sm:px-6">
-                <p className="text-sm font-semibold leading-snug text-white sm:text-[15px]">{item.with}</p>
-              </div>
+              {visibleRows.map((item, rowOffset) => (
+                <div
+                  key={`${pageIndex}-${item.index}`}
+                  className={`grid min-h-0 flex-1 grid-cols-2 ${
+                    rowOffset < ROWS_PER_VIEW - 1 ? "border-b border-white/8" : ""
+                  }`}
+                >
+                  <div className="flex items-center border-r border-white/8 bg-rose-950/20 px-4 py-4 sm:px-6">
+                    <p className="text-sm font-semibold leading-snug text-rose-100/90 sm:text-[15px]">
+                      {item.without}
+                    </p>
+                  </div>
+                  <div className="flex items-center bg-[#C8F04D]/5 px-4 py-4 sm:px-6">
+                    <p className="text-sm font-semibold leading-snug text-white sm:text-[15px]">{item.with}</p>
+                  </div>
+                </div>
+              ))}
             </motion.div>
           </AnimatePresence>
         </div>
@@ -86,7 +112,7 @@ export default function AboutWorkflowComparison() {
             <span
               key={dotIndex}
               className={`h-1.5 rounded-full transition-all duration-300 ${
-                dotIndex === index ? "w-5 bg-[#C8F04D]" : "w-1.5 bg-white/20"
+                activeDotIndexes.includes(dotIndex) ? "w-5 bg-[#C8F04D]" : "w-1.5 bg-white/20"
               }`}
             />
           ))}
