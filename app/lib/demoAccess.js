@@ -24,7 +24,15 @@ export async function isAuthenticatedUser() {
 
     const { data: { session } } = await supabase.auth.getSession();
 
-    return Boolean(session?.user);
+    if (!session?.user) return false;
+
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("status")
+      .eq("id", session.user.id)
+      .maybeSingle();
+
+    return profile?.status === "active";
 
   } catch {
 

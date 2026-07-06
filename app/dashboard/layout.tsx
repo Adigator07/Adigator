@@ -20,12 +20,42 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
     const getUser = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) { router.push("/login"); return; }
+
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("status")
+        .eq("id", session.user.id)
+        .maybeSingle();
+
+      if (profile?.status && profile.status !== "active") {
+        await supabase.auth.signOut();
+        router.push(profile.status === "pending_verification" ? "/login?pending=1" : "/login?disabled=1");
+        return;
+      }
+
       setUser(session.user);
     };
     getUser();
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, session) => {
-      if (!session) router.push("/login");
-      else setUser(session.user);
+      if (!session) {
+        router.push("/login");
+        return;
+      }
+      void (async () => {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("status")
+          .eq("id", session.user.id)
+          .maybeSingle();
+
+        if (profile?.status && profile.status !== "active") {
+          await supabase.auth.signOut();
+          router.push(profile.status === "pending_verification" ? "/login?pending=1" : "/login?disabled=1");
+          return;
+        }
+
+        setUser(session.user);
+      })();
     });
     return () => subscription.unsubscribe();
   }, [router]);

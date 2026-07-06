@@ -14,9 +14,16 @@ import {
   recordFailedLogin,
   sleep,
 } from "@/app/lib/auth/loginProtection";
+import {
+  getLoginBlockMessage,
+  getProfileAccountStatus,
+  isAccountLoginAllowed,
+  revokeAllUserSessions,
+} from "@/app/lib/auth/accountStatus";
 import { signInWithSecurePassword } from "@/app/lib/auth/authService";
 import type { RegisterRole } from "@/app/lib/auth/types";
 import { parseLoginBody } from "@/app/lib/auth/validation";
+import { createAdminSupabaseClient } from "@/app/lib/supabaseServer";
 
 export const runtime = "nodejs";
 
@@ -76,6 +83,26 @@ export async function POST(request: NextRequest) {
     }
 
     await clearLoginFailures(email);
+
+    const admin = createAdminSupabaseClient();
+    const accountStatus = await getProfileAccountStatus(admin, data.session.user.id);
+
+    if (!isAccountLoginAllowed(accountStatus)) {
+      await revokeAllUserSessions(admin, data.session.user.id);
+      logAuthValidationFailure("login", {
+        reason: "account_status",
+        email,
+        status: accountStatus,
+        ...meta,
+      });
+      return NextResponse.json(
+        {
+          error: getLoginBlockMessage(accountStatus),
+          code: accountStatus === "pending_verification" ? "pending_approval" : "account_disabled",
+        },
+        { status: 403 },
+      );
+    }
 
     const metaRole = data.session.user.user_metadata?.role as RegisterRole | undefined;
     if (metaRole && data.session.user.id) {

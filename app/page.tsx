@@ -4,13 +4,16 @@ import dynamic from "next/dynamic";
 import Link from "next/link";
 import { motion, useReducedMotion } from "framer-motion";
 import {
+  Activity,
   BarChart3,
   Briefcase,
   Check,
+  Flag,
   Globe,
   Image,
   Link2,
   Megaphone,
+  MessageSquare,
   Monitor,
   Shield,
   Smartphone,
@@ -53,6 +56,14 @@ const PipelineCoreEngine = dynamic(() => import("@/app/components/marketing/Pipe
   ssr: false,
   loading: () => <div className="min-h-[420px] animate-pulse rounded-3xl bg-[#111111]/80" aria-hidden />,
 });
+const CampaignTaskValidationSection = dynamic(
+  () => import("@/app/components/marketing/CampaignTaskValidationSection"),
+  { ssr: false },
+);
+const ValidationReportSection = dynamic(
+  () => import("@/app/components/marketing/ValidationReportSection"),
+  { ssr: false },
+);
 
 const TICKER_BENEFITS = [
   "Campaign Validation",
@@ -78,9 +89,10 @@ const TICKER_BENEFITS = [
 const WHY_CAMPAIGNS_FAIL = [
   "Creative doesn't match campaign objective",
   "Landing page doesn't match creative",
-  "Wrong placements waste impressions",
+  "Campaign assets become misaligned during handoffs",
   "Technical issues delay launch",
   "Nobody validates everything together",
+  "Missing tracking breaks measurement",
 ];
 
 const HOW_IT_WORKS = [
@@ -112,16 +124,20 @@ const HOW_IT_WORKS = [
 
 const VALIDATES_ITEMS = [
   { label: "Campaign Brief", icon: Briefcase },
+  { label: "Campaign Goal", icon: Flag },
   { label: "Creative", icon: Image },
+  { label: "Messaging Alignment", icon: MessageSquare },
   { label: "Landing Page", icon: Globe },
   { label: "URL", icon: Link2 },
   { label: "UTM", icon: Target },
+  { label: "Tracking", icon: Activity },
   { label: "Technical QA", icon: Shield },
   { label: "Safe Zones", icon: Monitor },
   { label: "Platform Specs", icon: BarChart3 },
   { label: "Placements", icon: Zap },
   { label: "Device", icon: Smartphone },
   { label: "Preview", icon: Monitor },
+  { label: "Audience (Coming Soon)", icon: Users },
 ];
 
 const PLATFORMS = [
@@ -138,7 +154,7 @@ const PLATFORMS = [
 
 const FEATURES = [
   {
-    title: "Campaign Risk Score",
+    title: "Campaign Readiness Report",
     description:
       "Know your campaign's health before a single impression is served. Adigator surfaces every mismatch across creative, landing page, platform, and objective in one report before launch.",
   },
@@ -168,6 +184,7 @@ const BUILT_FOR = [
 
 const AGENCY_BENEFITS = [
   "Reduce campaign rework",
+  "Reduce operational back-and-forth",
   "Catch issues before media spend",
   "Reduce QA time",
   "Protect campaign quality",
@@ -180,7 +197,7 @@ const WORKFLOW_STEPS = [
   "Validate display creatives against platform specifications.",
   "Check landing page alignment with creatives and messaging.",
   "Validate URLs and UTM parameters.",
-  "Catch every mismatch before campaign setup begins.",
+  "Catch every mismatch before campaign tasks are executed.",
 ];
 
 export default function HomePage() {
@@ -206,8 +223,9 @@ export default function HomePage() {
                 transition={{ duration: 0.6, delay: 0.25 }}
                 className="mt-6 max-w-2xl text-lg leading-relaxed text-[#5A5A55] sm:text-xl"
               >
-                Adigator validates your campaign brief, display creatives, landing page, URLs, and platform
-                requirements, then shows you exactly what&apos;s misaligned before your campaign goes live.
+                Adigator validates campaign briefs, creatives, landing pages, URLs, tracking, and platform
+                requirements before execution, helping teams reduce back and forth, prevent costly mistakes, and
+                launch or update campaigns with confidence.
               </motion.p>
 
               <motion.div
@@ -368,6 +386,8 @@ export default function HomePage() {
           </div>
         </section>
 
+        <CampaignTaskValidationSection />
+
         {/* Platform coverage */}
         <section className="border-y border-[#DEDDD5] bg-[#FAFAF7] marketing-section-compact">
           <div className="mx-auto w-[min(1280px,92vw)]">
@@ -390,6 +410,9 @@ export default function HomePage() {
                 </motion.article>
               ))}
             </div>
+            <p className="mt-6 text-center text-sm font-semibold text-[#6B7280] sm:text-base">
+              More platform-specific validations coming soon
+            </p>
           </div>
         </section>
 
@@ -397,12 +420,14 @@ export default function HomePage() {
         <section className="marketing-section marketing-section-compact mx-auto w-[min(1280px,92vw)]">
           <div className="mb-6 max-w-3xl">
             <h2 className="text-3xl font-black leading-tight tracking-tight sm:text-4xl lg:text-5xl">
-              Your campaign path, validated end to end
+              Your Campaign Journey, Validated End-to-End
             </h2>
           </div>
 
           <PipelineCoreEngine />
         </section>
+
+        <ValidationReportSection />
 
         {/* Features */}
         <section className="marketing-section marketing-section-compact mx-auto w-[min(1280px,92vw)]">
@@ -416,7 +441,7 @@ export default function HomePage() {
             <div className="order-1 lg:order-2">
           <div className="mb-6">
             <h2 className="text-3xl font-black tracking-tight sm:text-4xl lg:text-5xl">
-              Built for operational teams, not tool collectors
+              Built for teams that own campaign quality.
             </h2>
           </div>
 
@@ -439,7 +464,7 @@ export default function HomePage() {
         <section className="marketing-section marketing-section-compact mx-auto grid w-[min(1280px,92vw)] gap-8 md:grid-cols-2 md:items-center lg:gap-12">
           <div>
             <h2 className="text-3xl font-black leading-tight tracking-tight sm:text-4xl lg:text-5xl">
-              Stop paying for launch mistakes after media is live
+              Stop Paying for Preventable Campaign Errors
             </h2>
             <ul className="mt-6 space-y-3 text-base text-[#4B4B45] sm:mt-8 sm:space-y-4 sm:text-lg">
               {WORKFLOW_STEPS.map((item) => (
@@ -456,7 +481,7 @@ export default function HomePage() {
           <div className="saas-hover relative overflow-hidden rounded-2xl border border-[#DEDDD5] bg-[#0D0D0D] p-6 shadow-[0_25px_70px_rgba(15,23,42,0.12)] sm:rounded-[32px] sm:p-8">
             <div className="relative space-y-6">
               <p className="text-2xl font-black leading-tight text-white sm:text-3xl">
-                One validation pass. Before spend. Not after complaints.
+                Validate Once. Execute With Confidence.
               </p>
             </div>
           </div>

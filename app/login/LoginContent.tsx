@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowRight, Eye, EyeOff, Loader2, Check } from "lucide-react";
@@ -9,10 +9,13 @@ import { supabase } from "@/app/lib/supabase";
 import {
   GENERIC_AUTH_VALIDATION_ERROR,
   GENERIC_SIGNUP_RESPONSE_MESSAGE,
+  LOGIN_ACCOUNT_DISABLED_ERROR,
   LOGIN_INCORRECT_CREDENTIALS_ERROR,
+  LOGIN_PENDING_APPROVAL_ERROR,
   LOGIN_SERVER_ERROR,
   LOGIN_SERVICE_UNAVAILABLE_ERROR,
   PASSWORD_RESET_REQUEST_MESSAGE,
+  SIGNUP_PENDING_APPROVAL_MESSAGE,
 } from "@/app/lib/auth/constants";
 import { logUserActivity } from "@/app/lib/userActivity";
 import { REGISTRATION_ROLES, getPostAuthRedirect } from "@/app/lib/communications/roleLabels";
@@ -70,6 +73,8 @@ export default function LoginContent() {
   const searchParams = useSearchParams();
   const isRegisterMode = searchParams.get("mode") === "register";
   const isResetMode = searchParams.get("reset") === "1";
+  const isPendingQuery = searchParams.get("pending") === "1";
+  const isDisabledQuery = searchParams.get("disabled") === "1";
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -81,6 +86,15 @@ export default function LoginContent() {
   const [success, setSuccess] = useState(false);
   const [resetEmail, setResetEmail] = useState("");
   const [resetMessage, setResetMessage] = useState<string | null>(null);
+  const [signupSuccessMessage, setSignupSuccessMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (isPendingQuery) {
+      setErrors({ form: LOGIN_PENDING_APPROVAL_ERROR });
+    } else if (isDisabledQuery) {
+      setErrors({ form: LOGIN_ACCOUNT_DISABLED_ERROR });
+    }
+  }, [isPendingQuery, isDisabledQuery]);
 
   const leftEyebrow = isResetMode ? "Password recovery" : isRegisterMode ? "Create account" : "Welcome back";
   const leftTitle = isResetMode
@@ -138,6 +152,7 @@ export default function LoginContent() {
 
     setLoading(true);
     setErrors({});
+    setSignupSuccessMessage(null);
 
     try {
       const endpoint = isRegisterMode ? "/api/auth/signup" : "/api/auth/login";
@@ -166,6 +181,8 @@ export default function LoginContent() {
           message = response.status === 400
             ? (result.error || GENERIC_AUTH_VALIDATION_ERROR)
             : GENERIC_SIGNUP_RESPONSE_MESSAGE;
+        } else if (response.status === 403) {
+          message = result.error || LOGIN_PENDING_APPROVAL_ERROR;
         } else if (response.status === 401) {
           message = LOGIN_INCORRECT_CREDENTIALS_ERROR;
         } else if (response.status === 404 || response.status === 405) {
@@ -179,8 +196,15 @@ export default function LoginContent() {
         return;
       }
 
+      if (isRegisterMode && result.pendingApproval) {
+        setSignupSuccessMessage(result.message || SIGNUP_PENDING_APPROVAL_MESSAGE);
+        setPassword("");
+        setConfirmPassword("");
+        return;
+      }
+
       if (isRegisterMode && (result.requiresEmailConfirmation || !result.session)) {
-        setErrors({ form: result.message || GENERIC_SIGNUP_RESPONSE_MESSAGE });
+        setSignupSuccessMessage(result.message || SIGNUP_PENDING_APPROVAL_MESSAGE);
         return;
       }
 
@@ -448,6 +472,12 @@ export default function LoginContent() {
                         Forgot password?
                       </Link>
                     </div>
+                  ) : null}
+
+                  {signupSuccessMessage ? (
+                    <p className="rounded-xl border border-emerald-200/80 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+                      {signupSuccessMessage}
+                    </p>
                   ) : null}
 
                   {errors.form ? (

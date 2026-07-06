@@ -35,6 +35,7 @@ export async function POST(request: Request, { params }: RouteParams) {
         break;
 
       case "activate":
+      case "approve":
         await updateUserStatus(gate.ctx.supabase, targetUserId, "active");
         await writeAuditLog(gate.ctx.supabase, {
           adminId: gate.ctx.auth.userId,

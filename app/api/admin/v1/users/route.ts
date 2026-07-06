@@ -15,7 +15,7 @@ export async function GET(request: Request) {
       limit: Number(url.searchParams.get("limit") || 20),
       search: url.searchParams.get("search") || undefined,
       role: url.searchParams.get("role") || undefined,
-      status: (url.searchParams.get("status") as "active" | "suspended" | "banned") || undefined,
+      status: (url.searchParams.get("status") as "active" | "suspended" | "banned" | "pending_verification") || undefined,
       sortBy: (url.searchParams.get("sortBy") as "created_at" | "last_login_at" | "email") || "created_at",
       sortDir: url.searchParams.get("sortDir") === "asc" ? "asc" : "desc",
     });

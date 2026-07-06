@@ -3,15 +3,20 @@
 import { useEffect, useState } from "react";
 import { motion, useReducedMotion } from "framer-motion";
 import {
+  Activity,
   BarChart3,
   Brain,
+  Briefcase,
+  ClipboardList,
+  Download,
   FileText,
   Globe,
+  History,
   LayoutGrid,
   Lightbulb,
   Link2,
+  Monitor,
   Rocket,
-  Sparkles,
   Target,
   User,
 } from "lucide-react";
@@ -24,40 +29,41 @@ type FlowNode = {
 };
 
 const INPUTS: FlowNode[] = [
-  { id: "platforms", label: "Platforms", icon: LayoutGrid },
+  { id: "platform", label: "Platform", icon: LayoutGrid },
+  { id: "advertiser", label: "Advertiser", icon: Briefcase },
+  { id: "brief", label: "Campaign Brief", icon: FileText },
   { id: "objective", label: "Campaign Objective", icon: Target },
-  { id: "vertical", label: "Vertical", icon: Globe },
-  { id: "brief", label: "Brief", icon: FileText },
-  { id: "url", label: "URL", icon: Link2 },
+  { id: "vertical", label: "Business Vertical", icon: Globe },
+  { id: "url", label: "Landing Page / URL & UTM", icon: Link2 },
 ];
 
-const OUTPUTS: FlowNode[] = [
-  { id: "overview", label: "Overview", icon: BarChart3 },
-  { id: "recommendations", label: "Recommendations", icon: Lightbulb },
-  { id: "analysis", label: "Creative Analysis", icon: Sparkles },
-  { id: "preview", label: "Preview", icon: Globe },
-  { id: "pptx", label: "PPTX", icon: FileText },
+const ENGINE_FEATURES: FlowNode[] = [
+  { id: "activity", label: "Campaign Activity", icon: Activity },
+  { id: "lifecycle", label: "Campaign Lifecycle", icon: History },
+  { id: "history", label: "Campaign History", icon: ClipboardList },
 ];
 
-type FlowPhase = "user" | "input" | "engine" | "output" | "launch";
+const INTELLIGENCE_ITEMS: FlowNode[] = [
+  { id: "overview", label: "Campaign Overview", icon: BarChart3 },
+  { id: "recommendations", label: "AI Recommendations", icon: Lightbulb },
+  { id: "task-analysis", label: "Task Analysis", icon: ClipboardList },
+  { id: "preview", label: "Campaign Preview", icon: Monitor },
+  { id: "downloads", label: "Downloads", icon: Download },
+  { id: "reporting", label: "Reporting", icon: FileText },
+];
 
-function getPhase(step: number): FlowPhase {
-  if (step === 0) return "user";
-  if (step <= INPUTS.length) return "input";
-  if (step === INPUTS.length + 1) return "engine";
-  if (step <= INPUTS.length + 1 + OUTPUTS.length) return "output";
-  return "launch";
+const LEFT_BRAIN: FlowNode[] = INTELLIGENCE_ITEMS.slice(0, 3);
+const RIGHT_BRAIN: FlowNode[] = INTELLIGENCE_ITEMS.slice(3);
+
+function SectionLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <p className="mb-2 text-center text-[10px] font-bold uppercase tracking-[0.18em] text-[#C8F04D]/80">
+      {children}
+    </p>
+  );
 }
 
-function FlowNodeCard({
-  node,
-  active,
-  compact = false,
-}: {
-  node: FlowNode;
-  active: boolean;
-  compact?: boolean;
-}) {
+function FlowNodeCard({ node, active, compact = false }: { node: FlowNode; active: boolean; compact?: boolean }) {
   const Icon = node.icon;
   return (
     <div
@@ -83,77 +89,164 @@ function FlowNodeCard({
   );
 }
 
-function UserIllustration({ active }: { active: boolean }) {
+function BrainPanel({
+  title,
+  nodes,
+  activeIndex,
+  side,
+}: {
+  title: string;
+  nodes: FlowNode[];
+  activeIndex: number;
+  side: "left" | "right";
+}) {
   return (
-    <div
-      className={`flex flex-col items-center rounded-2xl border p-4 transition-all duration-300 ${
-        active
-          ? "border-[#C8F04D]/40 bg-[#C8F04D]/5 shadow-[0_0_24px_rgba(200,240,77,0.12)]"
-          : "border-white/10 bg-[#141414]"
-      }`}
-    >
-      <div className="relative flex h-16 w-16 items-center justify-center rounded-full border border-white/15 bg-gradient-to-b from-[#2A2A2A] to-[#111111]">
-        <User size={28} className="text-white/80" strokeWidth={1.5} />
-        {active ? (
-          <motion.span
-            className="absolute -right-0.5 -top-0.5 h-3 w-3 rounded-full bg-[#C8F04D]"
-            animate={{ scale: [1, 1.2, 1] }}
-            transition={{ duration: 1.2, repeat: Infinity }}
-          />
-        ) : null}
+    <div className={`relative z-10 w-full max-w-[220px] ${side === "left" ? "lg:mr-0" : "lg:ml-0"}`}>
+      <SectionLabel>{title}</SectionLabel>
+      <div className="flex flex-col gap-2">
+        {nodes.map((node, i) => (
+          <FlowNodeCard key={node.id} node={node} active={i <= activeIndex} />
+        ))}
       </div>
-      <p className="mt-2 text-[10px] font-bold uppercase tracking-wider text-white/50">Campaign Team</p>
     </div>
   );
 }
 
-function FlowArrow({ active, horizontal = true }: { active: boolean; horizontal?: boolean }) {
+function HubConnections({ reduceMotion }: { reduceMotion: boolean }) {
   return (
-    <div
-      className={`relative flex shrink-0 items-center justify-center ${
-        horizontal ? "h-8 w-6 sm:w-10" : "h-6 w-full"
-      }`}
+    <svg
+      className="pointer-events-none absolute inset-0 z-0 hidden h-full w-full lg:block"
+      viewBox="0 0 900 420"
+      preserveAspectRatio="xMidYMid meet"
+      aria-hidden
     >
-      <div
-        className={`${horizontal ? "h-px w-full" : "h-full w-px"} ${
-          active ? "bg-[#C8F04D]/60" : "bg-white/10"
-        }`}
+      <motion.path
+        d="M450 118 L450 168"
+        stroke="url(#hubLineVert)"
+        strokeWidth="2"
+        fill="none"
+        strokeLinecap="round"
+        initial={reduceMotion ? undefined : { pathLength: 0 }}
+        animate={{ pathLength: 1 }}
+        transition={{ duration: 0.8, delay: 0.1 }}
       />
-      {active ? (
-        <motion.div
-          className={`absolute h-2 w-2 rounded-full bg-[#C8F04D] shadow-[0_0_8px_rgba(200,240,77,0.8)] ${
-            horizontal ? "" : ""
-          }`}
-          animate={horizontal ? { left: ["0%", "100%"], opacity: [0, 1, 1, 0] } : { top: ["0%", "100%"], opacity: [0, 1, 1, 0] }}
-          transition={{ duration: 1.4, repeat: Infinity, ease: "easeInOut" }}
-          style={horizontal ? { top: "50%", transform: "translateY(-50%)" } : { left: "50%", transform: "translateX(-50%)" }}
-        />
+      <motion.path
+        d="M200 248 L340 248"
+        stroke="url(#hubLineHoriz)"
+        strokeWidth="2"
+        fill="none"
+        strokeLinecap="round"
+        initial={reduceMotion ? undefined : { pathLength: 0 }}
+        animate={{ pathLength: 1 }}
+        transition={{ duration: 0.8, delay: 0.25 }}
+      />
+      <motion.path
+        d="M560 248 L700 248"
+        stroke="url(#hubLineHoriz)"
+        strokeWidth="2"
+        fill="none"
+        strokeLinecap="round"
+        initial={reduceMotion ? undefined : { pathLength: 0 }}
+        animate={{ pathLength: 1 }}
+        transition={{ duration: 0.8, delay: 0.35 }}
+      />
+      {!reduceMotion ? (
+        <>
+          <motion.circle
+            r="4"
+            fill="#C8F04D"
+            animate={{ cx: [450, 450], cy: [118, 168], opacity: [0, 1, 0] }}
+            transition={{ duration: 1.8, repeat: Infinity, ease: "easeInOut" }}
+          />
+          <motion.circle
+            r="4"
+            fill="#C8F04D"
+            animate={{ cx: [200, 340], cy: [248, 248], opacity: [0, 1, 0] }}
+            transition={{ duration: 1.8, repeat: Infinity, ease: "easeInOut", delay: 0.4 }}
+          />
+          <motion.circle
+            r="4"
+            fill="#C8F04D"
+            animate={{ cx: [700, 560], cy: [248, 248], opacity: [0, 1, 0] }}
+            transition={{ duration: 1.8, repeat: Infinity, ease: "easeInOut", delay: 0.8 }}
+          />
+        </>
       ) : null}
-    </div>
+      <defs>
+        <linearGradient id="hubLineVert" x1="0" y1="0" x2="0" y2="1">
+          <stop stopColor="#C8F04D" stopOpacity="0.9" />
+          <stop offset="1" stopColor="#C8F04D" stopOpacity="0.2" />
+        </linearGradient>
+        <linearGradient id="hubLineHoriz" x1="0" y1="0" x2="1" y2="0">
+          <stop stopColor="#C8F04D" stopOpacity="0.2" />
+          <stop offset="0.5" stopColor="#C8F04D" stopOpacity="0.9" />
+          <stop offset="1" stopColor="#C8F04D" stopOpacity="0.2" />
+        </linearGradient>
+      </defs>
+    </svg>
   );
 }
 
 function CoreEngineHub({ active }: { active: boolean }) {
   return (
-    <div className="flex flex-col items-center">
+    <div className="relative z-10 flex flex-col items-center">
       <div
-        className={`relative flex h-20 w-20 items-center justify-center rounded-2xl border transition-all duration-300 sm:h-24 sm:w-24 ${
+        className={`relative flex h-24 w-24 items-center justify-center rounded-2xl border transition-all duration-300 sm:h-28 sm:w-28 ${
           active
-            ? "border-[#C8F04D]/50 bg-[#1A1A1A] shadow-[0_0_32px_rgba(200,240,77,0.2)]"
+            ? "border-[#C8F04D]/55 bg-[#1A1A1A] shadow-[0_0_40px_rgba(200,240,77,0.25)]"
             : "border-white/15 bg-[#0D0D0D]"
         }`}
       >
         {!active ? null : (
           <motion.div
-            className="absolute inset-0 rounded-2xl bg-[#C8F04D]/5"
-            animate={{ opacity: [0.3, 0.6, 0.3] }}
+            className="absolute inset-0 rounded-2xl bg-[#C8F04D]/8"
+            animate={{ opacity: [0.3, 0.65, 0.3] }}
             transition={{ duration: 2, repeat: Infinity }}
           />
         )}
-        <Brain className={active ? "text-[#C8F04D]" : "text-white/60"} size={32} strokeWidth={1.5} />
+        <Brain className={active ? "text-[#C8F04D]" : "text-white/60"} size={36} strokeWidth={1.5} />
       </div>
-      <p className="mt-2 text-center text-[10px] font-bold uppercase tracking-[0.16em] text-white/70">
-        Core Engine
+      <p className="mt-2 max-w-[160px] text-center text-[11px] font-bold uppercase leading-snug tracking-[0.1em] text-white/85">
+        AI Validation Engine
+      </p>
+      <p className="text-center text-[9px] font-semibold uppercase tracking-wider text-white/45">Core Engine</p>
+      <div className="mt-2 space-y-0.5">
+        {ENGINE_FEATURES.map((feature) => (
+          <p key={feature.id} className={`text-center text-[9px] ${active ? "text-[#C8F04D]/80" : "text-white/35"}`}>
+            {feature.label}
+          </p>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function CampaignIntelligenceBar({ activeIndex }: { activeIndex: number }) {
+  return (
+    <div className="relative z-10 mx-auto w-full max-w-3xl">
+      <SectionLabel>Campaign Intelligence</SectionLabel>
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
+        {INTELLIGENCE_ITEMS.map((node, i) => (
+          <FlowNodeCard key={node.id} node={node} active={i <= activeIndex} compact />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function UserIllustration({ active }: { active: boolean }) {
+  return (
+    <div
+      className={`flex flex-col items-center rounded-2xl border p-3 transition-all duration-300 sm:p-4 ${
+        active ? "border-[#C8F04D]/40 bg-[#C8F04D]/5" : "border-white/10 bg-[#141414]"
+      }`}
+    >
+      <div className="flex h-14 w-14 items-center justify-center rounded-full border border-white/15 bg-gradient-to-b from-[#2A2A2A] to-[#111111]">
+        <User size={24} className="text-white/80" strokeWidth={1.5} />
+      </div>
+      <p className="mt-2 text-center text-[10px] font-bold uppercase tracking-wider text-white/70">Campaign Team</p>
+      <p className="mt-1 max-w-[96px] text-center text-[9px] leading-snug text-white/40">
+        User starts the campaign setup.
       </p>
     </div>
   );
@@ -162,22 +255,15 @@ function CoreEngineHub({ active }: { active: boolean }) {
 function LaunchNode({ active }: { active: boolean }) {
   return (
     <div
-      className={`flex flex-col items-center rounded-2xl border px-4 py-5 transition-all duration-300 sm:px-5 ${
-        active
-          ? "border-emerald-500/40 bg-emerald-500/10 shadow-[0_0_28px_rgba(16,185,129,0.15)]"
-          : "border-white/10 bg-[#141414]"
+      className={`flex flex-col items-center rounded-2xl border px-4 py-4 transition-all duration-300 sm:px-5 ${
+        active ? "border-emerald-500/40 bg-emerald-500/10" : "border-white/10 bg-[#141414]"
       }`}
     >
-      <div
-        className={`flex h-12 w-12 items-center justify-center rounded-full ${
-          active ? "bg-emerald-500/20 text-emerald-400" : "bg-white/5 text-white/40"
-        }`}
-      >
-        <Rocket size={22} />
+      <p className="mb-2 text-[9px] font-bold uppercase tracking-[0.16em] text-white/45">Final Outcome</p>
+      <div className={`flex h-11 w-11 items-center justify-center rounded-full ${active ? "bg-emerald-500/20 text-emerald-400" : "bg-white/5 text-white/40"}`}>
+        <Rocket size={20} />
       </div>
-      <p className="mt-3 max-w-[120px] text-center text-xs font-black leading-tight text-white sm:text-sm">
-        Campaign Launch with Perfection
-      </p>
+      <p className="mt-2 text-center text-xs font-black leading-tight text-white sm:text-sm">Launch with Confidence</p>
     </div>
   );
 }
@@ -186,50 +272,31 @@ export default function PipelineCoreEngine() {
   const reduceMotion = useReducedMotion();
   const [tick, setTick] = useState(0);
 
-  const totalSteps = 1 + INPUTS.length + 1 + OUTPUTS.length + 1;
-  const step = tick % totalSteps;
+  const phases = ["setup", "intelligence", "engine", "brains", "launch"] as const;
+  const phaseIndex = tick % phases.length;
+  const phase = phases[phaseIndex];
+  const subTick = Math.floor(tick / phases.length);
 
-  let activeInput = -1;
-  let activeOutput = -1;
-  let userActive = false;
-  let engineActive = false;
-  let launchActive = false;
-  let arrowUserToInput = false;
-  let arrowInputToEngine = false;
-  let arrowEngineToOutput = false;
-  let arrowOutputToLaunch = false;
+  const setupActive = phase === "setup";
+  const intelligenceActive = phase === "intelligence" || phase === "engine" || phase === "brains" || phase === "launch";
+  const engineActive = phase === "engine" || phase === "brains" || phase === "launch";
+  const brainsActive = phase === "brains" || phase === "launch";
+  const launchActive = phase === "launch";
 
-  if (step === 0) {
-    userActive = true;
-    arrowUserToInput = true;
-  } else if (step <= INPUTS.length) {
-    activeInput = step - 1;
-    arrowInputToEngine = activeInput === INPUTS.length - 1;
-  } else if (step === INPUTS.length + 1) {
-    engineActive = true;
-    arrowEngineToOutput = true;
-  } else if (step <= INPUTS.length + 1 + OUTPUTS.length) {
-    activeOutput = step - INPUTS.length - 2;
-    arrowOutputToLaunch = activeOutput === OUTPUTS.length - 1;
-  } else {
-    launchActive = true;
-  }
+  const activeInput = setupActive ? subTick % INPUTS.length : INPUTS.length - 1;
+  const activeIntel = !intelligenceActive
+    ? -1
+    : phase === "intelligence"
+      ? subTick % INTELLIGENCE_ITEMS.length
+      : INTELLIGENCE_ITEMS.length - 1;
+  const activeLeftBrain = brainsActive ? subTick % LEFT_BRAIN.length : -1;
+  const activeRightBrain = brainsActive ? subTick % RIGHT_BRAIN.length : -1;
 
   useEffect(() => {
     if (reduceMotion) return;
-    const id = window.setInterval(() => setTick((t) => t + 1), 1400);
+    const id = window.setInterval(() => setTick((t) => t + 1), 1600);
     return () => window.clearInterval(id);
   }, [reduceMotion]);
-
-  const phase = getPhase(step);
-
-  if (reduceMotion) {
-    userActive = false;
-    engineActive = true;
-    launchActive = false;
-    activeInput = INPUTS.length - 1;
-    activeOutput = OUTPUTS.length - 1;
-  }
 
   return (
     <div className="pipeline-core-engine relative overflow-hidden rounded-2xl border border-[#2A2A2A] bg-[#0A0A0A] shadow-[0_16px_48px_rgba(0,0,0,0.35)] sm:rounded-3xl">
@@ -240,75 +307,55 @@ export default function PipelineCoreEngine() {
             "linear-gradient(rgba(255,255,255,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.04) 1px, transparent 1px)",
           backgroundSize: "28px 28px",
         }}
+        aria-hidden
       />
 
-      {/* Desktop horizontal flow */}
-      <div className="relative hidden p-6 lg:block xl:p-8">
-        <div className="flex items-center gap-2 xl:gap-3">
-          <UserIllustration active={userActive || (phase === "input" && activeInput === 0)} />
-          <FlowArrow active={arrowUserToInput || activeInput >= 0} />
-
-          <div className="flex min-w-0 flex-1 flex-col gap-2">
-            {INPUTS.map((node, i) => (
-              <FlowNodeCard key={node.id} node={node} active={i <= activeInput && phase !== "user"} />
-            ))}
+      <div className="relative p-4 sm:p-6 lg:p-8">
+        {/* Top: Campaign Team + Setup */}
+        <div className="mb-6 flex flex-col gap-4 lg:mb-8 lg:flex-row lg:items-start lg:gap-6">
+          <UserIllustration active={setupActive} />
+          <div className="min-w-0 flex-1">
+            <SectionLabel>Campaign Setup</SectionLabel>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+              {INPUTS.map((node, i) => (
+                <FlowNodeCard key={node.id} node={node} active={i <= activeInput && setupActive} compact />
+              ))}
+            </div>
           </div>
+        </div>
 
-          <FlowArrow active={arrowInputToEngine || engineActive || phase === "output" || phase === "launch"} />
+        {/* Hub: Intelligence top → Engine center → Brains left/right */}
+        <div className="relative mx-auto min-h-[320px] max-w-4xl lg:min-h-[380px]">
+          <HubConnections reduceMotion={!!reduceMotion} />
 
-          <CoreEngineHub active={engineActive || phase === "output" || phase === "launch"} />
+          <div className="relative z-10 flex flex-col items-center gap-6 lg:gap-8">
+            <CampaignIntelligenceBar activeIndex={activeIntel} />
 
-          <FlowArrow active={arrowEngineToOutput || activeOutput >= 0 || launchActive} />
+            <div className="hidden h-6 w-px bg-gradient-to-b from-[#C8F04D]/70 to-[#C8F04D]/10 lg:block" aria-hidden />
 
-          <div className="flex min-w-0 flex-1 flex-col gap-2">
-            {OUTPUTS.map((node, i) => (
-              <FlowNodeCard key={node.id} node={node} active={i <= activeOutput && (phase === "output" || phase === "launch")} />
-            ))}
+            <div className="grid w-full items-center gap-6 lg:grid-cols-[1fr_auto_1fr] lg:gap-4">
+              <div className="flex justify-center lg:justify-end">
+                <BrainPanel title="Left Brain" nodes={LEFT_BRAIN} activeIndex={activeLeftBrain} side="left" />
+              </div>
+
+              <CoreEngineHub active={engineActive} />
+
+              <div className="flex justify-center lg:justify-start">
+                <BrainPanel title="Right Brain" nodes={RIGHT_BRAIN} activeIndex={activeRightBrain} side="right" />
+              </div>
+            </div>
           </div>
-
-          <FlowArrow active={arrowOutputToLaunch || launchActive} />
-
-          <LaunchNode active={launchActive} />
-        </div>
-      </div>
-
-      {/* Mobile / tablet vertical flow */}
-      <div className="space-y-2 p-4 sm:p-5 lg:hidden">
-        <div className="flex justify-center">
-          <UserIllustration active={userActive} />
-        </div>
-        <FlowArrow active={arrowUserToInput} horizontal={false} />
-
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-          {INPUTS.map((node, i) => (
-            <FlowNodeCard key={node.id} node={node} active={i <= activeInput} compact />
-          ))}
         </div>
 
-        <FlowArrow active={arrowInputToEngine || engineActive} horizontal={false} />
-
-        <div className="flex justify-center">
-          <CoreEngineHub active={engineActive || phase === "output" || phase === "launch"} />
-        </div>
-
-        <FlowArrow active={arrowEngineToOutput || activeOutput >= 0} horizontal={false} />
-
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-          {OUTPUTS.map((node, i) => (
-            <FlowNodeCard key={node.id} node={node} active={i <= activeOutput} compact />
-          ))}
-        </div>
-
-        <FlowArrow active={arrowOutputToLaunch || launchActive} horizontal={false} />
-
-        <div className="flex justify-center">
+        {/* Bottom outcome */}
+        <div className="mt-6 flex justify-center lg:mt-8">
           <LaunchNode active={launchActive} />
         </div>
       </div>
 
       <div className="border-t border-white/5 bg-[#111111]/90 px-4 py-2.5 backdrop-blur-sm sm:px-5">
         <p className="text-center text-[11px] text-white/45 sm:text-xs">
-          Campaign team → inputs → validation engine → outputs → launch ready
+          Campaign Team → Campaign Setup → AI Validation Engine → Campaign Intelligence → Launch with Confidence
         </p>
       </div>
     </div>

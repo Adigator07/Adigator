@@ -2,10 +2,11 @@ type AuthValidationContext = "login" | "signup" | "change_password" | "reset_pas
 
 type AuthValidationLog = {
   context: AuthValidationContext;
-  reason: "schema" | "auth" | "signup" | "unexpected" | "rate_limit" | "locked";
+  reason: "schema" | "auth" | "signup" | "unexpected" | "rate_limit" | "locked" | "account_status";
   issueCount?: number;
   ip?: string | null;
   userAgent?: string | null;
+  status?: string | null;
 };
 
 function redactEmail(email: string): string {

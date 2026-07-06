@@ -12,14 +12,21 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/app/components/ui/ca
 
 function statusVariant(status: string): "success" | "warning" | "danger" | "default" {
   if (status === "active") return "success";
+  if (status === "pending_verification") return "warning";
   if (status === "suspended") return "warning";
   if (status === "banned") return "danger";
   return "default";
 }
 
+function statusLabel(status: string): string {
+  if (status === "pending_verification") return "Pending approval";
+  return status.replace(/_/g, " ");
+}
+
 export default function AdminUsersPage() {
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(true);
@@ -28,7 +35,12 @@ export default function AdminUsersPage() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await adminApi.listUsers({ page, limit: 20, search });
+      const res = await adminApi.listUsers({
+        page,
+        limit: 20,
+        search,
+        ...(statusFilter ? { status: statusFilter } : {}),
+      });
       setUsers(res.users);
       setTotalPages(res.totalPages);
       setError("");
@@ -37,7 +49,7 @@ export default function AdminUsersPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, search]);
+  }, [page, search, statusFilter]);
 
   useEffect(() => {
     const t = setTimeout(load, 300);
@@ -79,6 +91,17 @@ export default function AdminUsersPage() {
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-white/30" size={16} />
               <Input className="pl-9" placeholder="Search name, email, phone…" value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} />
             </div>
+            <select
+              value={statusFilter}
+              onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
+              className="h-10 rounded-md border border-white/10 bg-[#111827] px-3 text-sm text-white"
+            >
+              <option value="">All statuses</option>
+              <option value="pending_verification">Pending approval</option>
+              <option value="active">Active</option>
+              <option value="suspended">Suspended</option>
+              <option value="banned">Banned</option>
+            </select>
           </div>
         </CardHeader>
         <CardContent className="overflow-x-auto">
@@ -107,16 +130,19 @@ export default function AdminUsersPage() {
                       <p className="text-xs text-white/40">{u.email}</p>
                     </td>
                     <td className="px-2 py-3">{u.adminRole || u.role}</td>
-                    <td className="px-2 py-3"><Badge variant={statusVariant(u.status)}>{u.status}</Badge></td>
+                    <td className="px-2 py-3"><Badge variant={statusVariant(u.status)}>{statusLabel(u.status)}</Badge></td>
                     <td className="px-2 py-3 whitespace-nowrap">{new Date(u.createdAt).toLocaleDateString()}</td>
                     <td className="px-2 py-3 whitespace-nowrap">{u.lastLoginAt ? new Date(u.lastLoginAt).toLocaleString() : "None"}</td>
                     <td className="px-2 py-3">
                       <div className="flex flex-wrap gap-1">
-                        {u.status !== "suspended" ? (
+                        {u.status === "pending_verification" ? (
+                          <Button size="sm" variant="ghost" onClick={() => runAction(u.id, "activate")}>Approve</Button>
+                        ) : null}
+                        {u.status !== "suspended" && u.status !== "pending_verification" ? (
                           <Button size="sm" variant="ghost" onClick={() => runAction(u.id, "suspend")}>Suspend</Button>
-                        ) : (
+                        ) : u.status === "suspended" ? (
                           <Button size="sm" variant="ghost" onClick={() => runAction(u.id, "activate")}>Activate</Button>
-                        )}
+                        ) : null}
                         <Button size="sm" variant="ghost" onClick={() => runAction(u.id, "ban")}>Ban</Button>
                       </div>
                     </td>

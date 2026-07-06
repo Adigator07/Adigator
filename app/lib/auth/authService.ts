@@ -1,5 +1,6 @@
 import type { Session, User } from "@supabase/supabase-js";
 import { createAdminSupabaseClient } from "@/app/lib/supabaseServer";
+import { markProfilePendingApproval } from "./accountStatus";
 import { syncUserProfile } from "./handlers";
 import { migrateLegacyPasswordOnLogin } from "./legacyPasswordMigration";
 import { createServerAuthClient } from "./serverClient";
@@ -46,13 +47,18 @@ export async function signUpWithSecurePassword(input: SignUpInput) {
 
   const admin = createAdminSupabaseClient();
   if (admin) {
+    await markProfilePendingApproval(admin, data.user.id);
     await admin
       .from("profiles")
       .update({ password_hash_version: "supabase_bcrypt" })
       .eq("id", data.user.id);
   }
 
-  return { data, error: null };
+  if (data.session) {
+    await supabase.auth.signOut();
+  }
+
+  return { data: { ...data, session: null }, error: null };
 }
 
 /**

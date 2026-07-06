@@ -1,6 +1,18 @@
 /** Login failure — wrong email OR wrong password OR lockout OR rate limit (never distinguish). */
 export const LOGIN_INCORRECT_CREDENTIALS_ERROR = "Incorrect email or password";
 
+/** Account registered but not yet approved by an administrator. */
+export const LOGIN_PENDING_APPROVAL_ERROR =
+  "Your account is pending approval. You can sign in after an administrator approves your registration.";
+
+/** Suspended or banned accounts. */
+export const LOGIN_ACCOUNT_DISABLED_ERROR =
+  "Your account has been disabled. Please contact support if you believe this is a mistake.";
+
+/** Shown after successful signup — no session is issued until approval. */
+export const SIGNUP_PENDING_APPROVAL_MESSAGE =
+  "Registration received. Your account is pending approval. You'll be able to sign in once an administrator approves your request.";
+
 /** Auth API unreachable (dev server stale, missing route, or network). */
 export const LOGIN_SERVICE_UNAVAILABLE_ERROR =
   "Sign-in is temporarily unavailable. Refresh the page or restart the app server, then try again.";

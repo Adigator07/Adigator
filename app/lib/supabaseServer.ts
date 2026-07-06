@@ -1,5 +1,10 @@
 import { createClient, SupabaseClient, User } from "@supabase/supabase-js";
 import { NextRequest } from "next/server";
+import {
+  getLoginBlockMessage,
+  getProfileAccountStatus,
+  isAccountLoginAllowed,
+} from "@/app/lib/auth/accountStatus";
 
 function getSupabaseEnv(): { url: string; anonKey: string } {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -89,7 +94,18 @@ export async function getAuthenticatedUser(accessToken: string): Promise<{ user:
       return { user: null, error: "Unauthorized" };
     }
 
-    return { user: data.user ?? null, error: null };
+    const user = data.user ?? null;
+    if (!user) {
+      return { user: null, error: "Unauthorized" };
+    }
+
+    const admin = createAdminSupabaseClient();
+    const accountStatus = await getProfileAccountStatus(admin, user.id);
+    if (!isAccountLoginAllowed(accountStatus)) {
+      return { user: null, error: getLoginBlockMessage(accountStatus) };
+    }
+
+    return { user, error: null };
   } catch {
     return { user: null, error: "Unauthorized" };
   }

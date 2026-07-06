@@ -1,8 +1,12 @@
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
-import { MARKETING_CTA } from "@/app/lib/siteNavigation";
 
 const PLATFORMS = ["Meta", "Google", "Programmatic"];
+
+const LIVE_PREVIEW_CTA = {
+  label: "Learn More",
+  href: "/product",
+};
 
 export default function HeroPreviewShowcase({ className = "" }: { className?: string }) {
   return (
@@ -24,10 +28,10 @@ export default function HeroPreviewShowcase({ className = "" }: { className?: st
         </div>
 
         <Link
-          href={MARKETING_CTA.href}
+          href={LIVE_PREVIEW_CTA.href}
           className="inline-flex shrink-0 items-center gap-1.5 self-start rounded-full border border-[#D0D0C8] bg-[#F5F5F0] px-4 py-2 text-sm font-semibold text-[#0D0D0D] transition hover:border-[#C8F04D] hover:bg-[#EEF5D4] sm:self-center"
         >
-          {MARKETING_CTA.label}
+          {LIVE_PREVIEW_CTA.label}
           <ArrowRight size={14} aria-hidden />
         </Link>
       </div>

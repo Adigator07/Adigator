@@ -2,12 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import {
   GENERIC_AUTH_VALIDATION_ERROR,
   GENERIC_SIGNUP_RESPONSE_MESSAGE,
+  SIGNUP_PENDING_APPROVAL_MESSAGE,
 } from "@/app/lib/auth/constants";
 import { isDuplicateSignupError } from "@/app/lib/auth/authErrors";
-import {
-  getRequestMeta,
-  sessionPayload,
-} from "@/app/lib/auth/handlers";
+import { getRequestMeta } from "@/app/lib/auth/handlers";
 import { logAuthValidationFailure } from "@/app/lib/auth/logValidationFailure";
 import { signUpWithSecurePassword } from "@/app/lib/auth/authService";
 import type { RegisterRole } from "@/app/lib/auth/types";
@@ -59,21 +57,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ message: GENERIC_SIGNUP_RESPONSE_MESSAGE });
     }
 
-    if (!data.session) {
-      return NextResponse.json({
-        message: GENERIC_SIGNUP_RESPONSE_MESSAGE,
-        requiresEmailConfirmation: true,
-      });
-    }
-
     return NextResponse.json({
-      message: GENERIC_SIGNUP_RESPONSE_MESSAGE,
-      session: sessionPayload(data.session),
-      user: {
-        id: data.user.id,
-        email: data.user.email,
-        role,
-      },
+      message: SIGNUP_PENDING_APPROVAL_MESSAGE,
+      pendingApproval: true,
     });
   } catch {
     logAuthValidationFailure("signup", { reason: "unexpected", ...meta });
