@@ -17,7 +17,7 @@ const VALIDATION_CHECKS = [
   "Brand & Vertical Alignment",
 ] as const;
 
-const FLOW_STEPS_AFTER = ["Ad Operations", "Campaign Setup", "Launch"] as const;
+const FLOW_STEPS_AFTER = ["Ad Operations"] as const;
 
 function FlowNode({ label, reduceMotion }: { label: string; reduceMotion: boolean }) {
   return (
