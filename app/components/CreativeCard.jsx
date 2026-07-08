@@ -3,7 +3,7 @@
 import { memo } from "react";
 import { motion } from "framer-motion";
 import {
-  Trash2, Edit2, Wand2, CheckCircle2, AlertTriangle,
+  Trash2, Edit2, Wand2, CheckCircle2, AlertTriangle, PlayCircle,
 } from "lucide-react";
 
 const cardVariants = {
@@ -19,6 +19,7 @@ function CreativeCard({
   compact = false,
   disableLayoutAnimation = false,
 }) {
+  const isVideo = creative?.mediaType === "video";
   const validationStatus = creative?.validation?.status || (creative.valid ? "PASS" : "CRITICAL");
   const readinessScore = creative?.auctionReadiness?.score ?? creative?.validation?.intelligence?.auctionReadiness?.score ?? 0;
   const readinessClass = readinessScore >= 85
@@ -53,6 +54,13 @@ function CreativeCard({
           decoding="async"
           className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
         />
+
+        {/* Video poster indicator */}
+        {isVideo && (
+          <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+            <PlayCircle size={40} className="text-white/90 drop-shadow-lg" />
+          </div>
+        )}
 
         {/* Hover overlay with action buttons */}
         <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-all duration-300 flex items-end justify-center pb-3 gap-2">
@@ -110,20 +118,34 @@ function CreativeCard({
           <p className="text-xs font-semibold text-white truncate flex-1">
             {creative.name}
           </p>
-          <span
-            className={`text-[11px] font-bold px-2 py-0.5 rounded-md ${
-              creative.valid
-                ? "bg-green-500/20 text-green-400"
-                : "bg-red-500/20 text-red-400"
-            }`}
-          >
-            {creative.size}
-          </span>
+          {isVideo ? (
+            creative.durationSeconds ? (
+              <span className="text-[11px] font-bold px-2 py-0.5 rounded-md bg-white/10 text-gray-200">
+                {formatDuration(creative.durationSeconds)}
+              </span>
+            ) : null
+          ) : (
+            <span
+              className={`text-[11px] font-bold px-2 py-0.5 rounded-md ${
+                creative.valid
+                  ? "bg-green-500/20 text-green-400"
+                  : "bg-red-500/20 text-red-400"
+              }`}
+            >
+              {creative.size}
+            </span>
+          )}
         </div>
         <p className="text-[10px] text-gray-400 mt-1 font-medium">
           File Size: {formatFileSize(creative.fileSizeKB)}
         </p>
 
+        {isVideo ? (
+          <div className="mt-2 space-y-1.5 text-[10px]">
+            <InfoRow label="Type" value="Video" />
+            <InfoRow label="Duration" value={creative.durationSeconds ? formatDuration(creative.durationSeconds) : "—"} />
+          </div>
+        ) : (
         <div className="mt-2 space-y-1.5 text-[10px]">
           <InfoRow label="Placement" value={formatLabel(creative.placementType)} />
           <InfoRow label="Device" value={creative.deviceClassification || "Unknown"} />
@@ -154,6 +176,7 @@ function CreativeCard({
             />
           )}
         </div>
+        )}
       </div>
     </motion.div>
   );
@@ -180,6 +203,14 @@ const formatFileSize = (kb) => {
   if (!kb || kb <= 0) return "0 KB";
   if (kb < 1024) return `${kb} KB`;
   return `${(kb / 1024).toFixed(2)} MB`;
+};
+
+const formatDuration = (seconds) => {
+  const total = Math.round(Number(seconds) || 0);
+  if (total <= 0) return "0:00";
+  const mm = Math.floor(total / 60);
+  const ss = total % 60;
+  return `${mm}:${String(ss).padStart(2, "0")}`;
 };
 
 export default memo(CreativeCard);

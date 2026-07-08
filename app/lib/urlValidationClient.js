@@ -107,9 +107,11 @@ export async function runUrlValidationRequest({
   objective,
   vertical,
   campaignName,
+  adType = "display",
   creatives,
   getCreativeBlob,
 }) {
+  const isVideoAd = adType === "video";
   const trimmedUrl = stripUtmFromUrl(String(url || "").trim());
   if (!trimmedUrl) {
     return {
@@ -125,16 +127,24 @@ export async function runUrlValidationRequest({
     };
   }
 
+  // Keep well under the server's per-image limit (2.5M chars). Oversized images
+  // (e.g. large banners or video source bytes) are dropped so validation still runs.
+  const MAX_IMAGE_BASE64_CHARS = 2_000_000;
   const payloadCreatives = [];
   const sourceCreatives = Array.isArray(creatives) ? creatives.slice(0, 3) : [];
 
   for (const creative of sourceCreatives) {
     let imageBase64 = "";
-    if (typeof getCreativeBlob === "function") {
+    // For video ads, getCreativeBlob returns a lightweight poster frame (image) — safe to send.
+    // Never send raw video bytes (guarded by the type check below) — they are far too large.
+    if (typeof getCreativeBlob === "function" && (isVideoAd || creative?.mediaType !== "video")) {
       try {
         const blob = await getCreativeBlob(creative);
-        if (blob) {
-          imageBase64 = await blobToBase64(blob);
+        if (blob && !String(blob.type || "").startsWith("video/")) {
+          const encoded = await blobToBase64(blob);
+          if (encoded && encoded.length <= MAX_IMAGE_BASE64_CHARS) {
+            imageBase64 = encoded;
+          }
         }
       } catch {
         // Continue without image for this creative.
@@ -145,6 +155,7 @@ export async function runUrlValidationRequest({
       id: creative.id,
       name: creative.name,
       size: creative.size,
+      mediaType: creative.mediaType,
       ...(imageBase64 ? { imageBase64 } : {}),
     });
   }
@@ -158,6 +169,7 @@ export async function runUrlValidationRequest({
       objective,
       vertical,
       campaignName,
+      adType,
       creatives: payloadCreatives,
     }),
   });

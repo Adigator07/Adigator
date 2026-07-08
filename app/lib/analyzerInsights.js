@@ -49,6 +49,22 @@ import {
   getCreativeVerticalAlignment,
   getAdigatorAnalysis,
 } from "./strategicPresentation";
+import {
+  buildVideoValidationChecklist,
+  getVideoValidationLevelLabel,
+} from "./video/videoValidationQa";
+import {
+  formatVideoFileSize,
+  getVideoFileSizeTier,
+  GOOGLE_VIDEO_SPECS,
+  META_VIDEO_SPECS,
+} from "./video/videoSpecs";
+
+function getVideoPlatformMaxBytes(platform) {
+  if (platform === "google_ads") return GOOGLE_VIDEO_SPECS.maxFileSizeBytes;
+  if (platform === "meta_ads") return META_VIDEO_SPECS.maxFileSizeBytes;
+  return Math.min(GOOGLE_VIDEO_SPECS.maxFileSizeBytes, META_VIDEO_SPECS.maxFileSizeBytes);
+}
 
 export const LAUNCH_STATUS = {
   ready: { emoji: "🟢", label: "Aligned / Launch Ready", tone: "emerald" },
@@ -156,12 +172,17 @@ function hasLaunchBlockingValidation(creative, platform) {
       if (severity !== "high" && severity !== "critical") return false;
       const type = String(issue?.type || "");
       if (nonBlockingTypes.has(type)) return false;
+      if (type === "file_size" && creative?.mediaType === "video" && severity !== "high") return false;
       if (type === "weight" && isNativeCreativeSize(creative?.size, platform)) return false;
       return true;
     });
   }
 
   if (validation.status === "CRITICAL" && validation.valid === false) {
+    if (creative?.mediaType === "video") {
+      return Array.isArray(validation.issues)
+        && validation.issues.some((issue) => issue?.severity === "high" || issue?.severity === "critical");
+    }
     return !isNativeCreativeSize(creative?.size, platform);
   }
 
@@ -338,6 +359,7 @@ function deriveGoogleMainRisk(creative, payload, campaignVertical) {
   if (
     creative?.fileSizeKB
     && creative.fileSizeKB > 150
+    && creative?.mediaType !== "video"
     && !isNativeCreativeSize(size, "google_ads")
     && sizeInGroups(size, PLATFORM_SUPPORTED_SIZE_GROUPS.google_ads)
   ) {
@@ -391,6 +413,7 @@ function deriveProgrammaticMainRisk(creative, payload, campaignVertical) {
   if (
     creative?.fileSizeKB
     && creative.fileSizeKB > 150
+    && creative?.mediaType !== "video"
     && !isNativeCreativeSize(size, "programmatic")
   ) {
     return "150KB+ payload slows first render. viewability providers may score below threshold, reducing bid competitiveness in DV360/TTD.";
@@ -576,7 +599,7 @@ function deriveRecommendedFix(creative, payload, platform) {
     if (scores.responsive_display === "bad") {
       return "Export a 600×314+ landscape or 300×300+ square asset for Responsive Display Ads.";
     }
-    if (creative?.fileSizeKB && creative.fileSizeKB > 150) {
+    if (creative?.fileSizeKB && creative.fileSizeKB > 150 && creative?.mediaType !== "video") {
       return "Compress the asset below 150KB to meet Google Display load-speed and viewability standards.";
     }
   }
@@ -586,7 +609,7 @@ function deriveRecommendedFix(creative, payload, platform) {
     if (scores.display_banners === "bad") {
       return "Re-export to 300×250 or 728×90 for maximum open-exchange fill before launching programmatic line items.";
     }
-    if (creative?.fileSizeKB && creative.fileSizeKB > 150) {
+    if (creative?.fileSizeKB && creative.fileSizeKB > 150 && creative?.mediaType !== "video") {
       return "Compress below 150KB to protect viewability metrics and improve RTB win rates across DSPs.";
     }
     if (scores.native_ads === "bad") {
@@ -621,14 +644,17 @@ function deriveRecommendedFix(creative, payload, platform) {
 }
 
 function deriveLaunchStatus(creative, payload, platform, verticalOverride = null) {
+  const isVideoCreative =
+    creative?.mediaType === "video"
+    || payload?.media_type === "video"
+    || Boolean(payload?.video_analysis);
+
   const goal = getGoalAlignment(payload);
   const vertical = verticalOverride || getVerticalAlignment(payload);
   const brief = getBriefAlignment(payload);
   const campaign = getCampaignAlignment(payload);
   const campaignStatus = String(campaign.alignment_status || "unknown").toLowerCase();
   const campaignSeverity = String(campaign.severity || "low").toLowerCase();
-  const signals = getExtractionSignals(payload) || {};
-  const strategicallyAligned = isStrategicallyAligned(goal, vertical);
 
   if (hasLaunchBlockingValidation(creative, platform)) return "misaligned";
   const verticalStatus = resolveVerticalAlignmentStatus(verticalOverride || vertical);
@@ -636,6 +662,32 @@ function deriveLaunchStatus(creative, payload, platform, verticalOverride = null
   if (brief?.brief_provided && brief?.creative_matches_brief === false) return "misaligned";
   if (brief?.brief_provided && brief?.alignment_status === "misaligned") return "misaligned";
   if (brief?.brief_provided && brief?.goal_settings_check?.is_aligned === false) return "misaligned";
+
+  if (isVideoCreative) {
+    const validation = creative?.validation;
+    const hasReviewValidation =
+      validation?.status === "REVIEW"
+      || validation?.sizeTier === "review"
+      || (Array.isArray(validation?.issues)
+        && validation.issues.some((issue) => issue?.severity === "medium"));
+    const videoScore = Number(payload?.video_analysis?.final_score);
+    const hasVideoReview = Number.isFinite(videoScore) && videoScore > 0 && videoScore < 70;
+
+    if (
+      !isStrategicallyAligned(goal, vertical)
+      && campaignStatus === "misaligned"
+      && campaignSeverity !== "low"
+    ) {
+      return "misaligned";
+    }
+    if (hasReviewValidation || hasVideoReview) return "review";
+    if (isStrategicallyAligned(goal, vertical)) return "ready";
+    if (goal?.is_aligned !== false && verticalStatus.key !== "misaligned") return "ready";
+    return "review";
+  }
+
+  const signals = getExtractionSignals(payload) || {};
+  const strategicallyAligned = isStrategicallyAligned(goal, vertical);
 
   const scores = computePlacementCompatibility(creative, platform, payload);
   const primaryKeys = getPrimaryPlacementKeys(platform, creative);
@@ -713,8 +765,12 @@ export function computeCreativeInsight(
     placementScores,
   );
 
+  // Creative-category detection is driven by image extraction signals. Video creatives have
+  // none, so skip it — vertical alignment for video comes from the video analysis payload.
+  const isVideoEntry = creative?.mediaType === "video" || payload?.media_type === "video" || Boolean(payload?.video_analysis);
+
   let creativeVerticalAlignment = getCreativeVerticalAlignment(payload);
-  if (campaignVertical) {
+  if (campaignVertical && !isVideoEntry && extractionSignals) {
     creativeVerticalAlignment = evaluateCreativeVerticalAlignment({
       selectedVertical: campaignVertical,
       extraction: extractionSignals,
@@ -777,12 +833,16 @@ export function computeCreativeInsight(
         status: resolveBriefAlignmentStatus(briefAlignmentFromApi),
       }
     : (() => {
-        const productEval = evaluateBriefProductAlignment({
-          campaignBrief: context.campaignBrief,
-          productFocus: context.campaignProductFocus,
-          signals: extractionSignals,
-          payload,
-        });
+        // Product-from-creative detection is image-extraction based; video creatives skip it
+        // (the video analysis payload already scores brief_alignment).
+        const productEval = isVideoEntry
+          ? { expected_focus: "", detected_product: "unknown", is_aligned: null, reason: "" }
+          : evaluateBriefProductAlignment({
+              campaignBrief: context.campaignBrief,
+              productFocus: context.campaignProductFocus,
+              signals: extractionSignals,
+              payload,
+            });
         if (!context.campaignBrief?.trim()) {
           return {
             brief_provided: false,
@@ -835,6 +895,74 @@ export function computeCreativeInsight(
     }
   }
 
+  // Video creatives never surface display/RDA/banner QA, placement scores, or device
+  // compatibility — those are image-ad concepts. The dedicated VideoAnalysisSection renders
+  // the video report instead. We only keep alignment + video-derived risk/fix.
+  const videoAnalysis = payload?.video_analysis || null;
+  const isVideoCreative = isVideoEntry || Boolean(videoAnalysis);
+
+  if (isVideoCreative) {
+    const videoMainRisk =
+      videoAnalysis?.timestamped_issues?.find((i) => i.severity === "High")?.issue
+      || videoAnalysis?.timestamped_issues?.[0]?.issue
+      || payload?.main_strategic_problem
+      || null;
+    const videoFix =
+      videoAnalysis?.recommendations?.[0]
+      || payload?.strategic_recommendations?.[0]?.recommendation
+      || null;
+
+    const fileSizeBytes = Number(creative.fileSizeBytes || (creative.fileSizeKB || 0) * 1024);
+    const platformMaxBytes = getVideoPlatformMaxBytes(platform);
+    const sizeTier = creative?.validation?.sizeTier || getVideoFileSizeTier(fileSizeBytes, platformMaxBytes);
+    const videoValidationMeta = {
+      sizeTier,
+      sizeLabel: getVideoValidationLevelLabel(sizeTier),
+      fileSizeLabel: creative?.validation?.fileSizeLabel || formatVideoFileSize(fileSizeBytes),
+      checklist: buildVideoValidationChecklist({
+        issues: Array.isArray(creative?.validation?.issues) ? creative.validation.issues : [],
+        fileSizeBytes,
+        platform,
+        frameRate: creative?.validation?.frameRate ?? null,
+        validationResults: videoAnalysis?.validation_results || creative?.validation?.validation_results || {},
+      }),
+    };
+
+    return {
+      creativeId: creative.id,
+      creativeName: creative.name || "Untitled Creative",
+      creativeSize: "",
+      creativeUrl: creative.url,
+      mediaType: "video",
+      launchStatus: LAUNCH_STATUS[launchStatusKey],
+      launchStatusKey,
+      goalAlignment: {
+        ...goalAlignment,
+        enrichedReason: buildEnrichedGoalReason(goalAlignment, extractionSignals, campaignGoal),
+      },
+      verticalAlignment: {
+        ...verticalAlignment,
+        enrichedReason: briefAlignment.brief_override || briefAlignment.enrichedReason
+          ? (briefAlignment.enrichedReason || briefAlignment.reason)
+          : creativeVerticalAlignment?.mismatch_reason
+            || buildEnrichedVerticalReasonForInsight(verticalAlignment, extractionSignals),
+      },
+      creativeVerticalAlignment,
+      verticalStatus: getVerticalAlignmentDisplay(verticalAlignment),
+      briefAlignment,
+      extractionSignals: null,
+      technicalQa: [],
+      placementQa: [],
+      mainRisk: launchStatusKey === "ready" ? null : videoMainRisk,
+      recommendedFix: launchStatusKey === "ready" ? null : videoFix,
+      videoAnalysis,
+      videoValidationMeta,
+      riskAssessment: deriveCreativeRiskAssessment(creative, payload, platform),
+      placementScores: {},
+      deviceScores: {},
+    };
+  }
+
   return {
     creativeId: creative.id,
     creativeName: creative.name || "Untitled Creative",
@@ -861,6 +989,7 @@ export function computeCreativeInsight(
     placementQa: derivePlacementQa(creative, payload, platform),
     mainRisk,
     recommendedFix,
+    videoAnalysis,
     riskAssessment: deriveCreativeRiskAssessment(creative, payload, platform),
     placementScores,
     deviceScores: computeDeviceCompatibility(creative, platform, payload),
@@ -1070,14 +1199,30 @@ export function computeCampaignOverview(
     qaSummary.push({ status: "warn", text: "CTA visibility weak in Stories placements" });
   }
 
-  const optimizedFiles = insights.filter((i) => {
-    const kb = entries.find((e) => e.creative?.id === i.creativeId)?.creative?.fileSizeKB;
-    return kb && kb <= 150;
-  }).length;
+  const isVideoCampaign = insights.every((i) => i.mediaType === "video");
+
+  const optimizedFiles = isVideoCampaign
+    ? insights.filter((i) => {
+      const bytes = entries.find((e) => e.creative?.id === i.creativeId)?.creative?.fileSizeBytes
+        || (entries.find((e) => e.creative?.id === i.creativeId)?.creative?.fileSizeKB || 0) * 1024;
+      return bytes > 0 && bytes <= 100 * 1024 * 1024;
+    }).length
+    : insights.filter((i) => {
+      const kb = entries.find((e) => e.creative?.id === i.creativeId)?.creative?.fileSizeKB;
+      return kb && kb <= 150;
+    }).length;
   if (optimizedFiles === insights.length && insights.length > 0) {
-    qaSummary.push({ status: "pass", text: "File sizes optimized" });
+    qaSummary.push({
+      status: "pass",
+      text: isVideoCampaign ? "Video file sizes within launch-ready target (≤100 MB)" : "File sizes optimized",
+    });
   } else if (optimizedFiles > 0) {
-    qaSummary.push({ status: "warn", text: `${optimizedFiles}/${insights.length} creatives under 150KB` });
+    qaSummary.push({
+      status: "warn",
+      text: isVideoCampaign
+        ? `${optimizedFiles}/${insights.length} videos within ≤100 MB launch-ready target`
+        : `${optimizedFiles}/${insights.length} creatives under 150KB`,
+    });
   }
 
   const misalignedCount = insights.filter((i) => i.launchStatusKey === "misaligned").length;

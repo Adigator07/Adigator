@@ -59,6 +59,18 @@ export type CampaignIdOption = {
   updatedAt?: string;
 };
 
+export function generateCampaignId(platform: AnalyzerPlatform = "programmatic"): string {
+  const stamp = Date.now().toString(36);
+  const random = Math.random().toString(36).slice(2, 8);
+  const prefix =
+    platform === "google_ads"
+      ? "GGL"
+      : platform === "meta_ads"
+        ? "META"
+        : "PGM";
+  return `${prefix}-${stamp}-${random}`.toUpperCase();
+}
+
 export function resolveCampaignId(input: {
   platform: AnalyzerPlatform;
   taskType: string;
@@ -74,10 +86,5 @@ export function resolveCampaignId(input: {
     || "";
   if (existing) return existing;
   if (input.taskType && input.taskType !== "campaign_setup") return "";
-  const prefix = input.platform === "google_ads"
-    ? "google"
-    : input.platform === "meta_ads"
-      ? "meta"
-      : "prog";
-  return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+  return generateCampaignId(input.platform);
 }

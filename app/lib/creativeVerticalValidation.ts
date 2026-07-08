@@ -183,17 +183,18 @@ export interface CreativeVerticalAlignment {
   ai_category_feedback?: string;
 }
 
-function buildCorpus(extraction: ExtractionSignalsLike) {
-  const textCorpus = [extraction.headline, extraction.primary_message, extraction.cta]
+function buildCorpus(extraction: ExtractionSignalsLike | null | undefined) {
+  const safe = extraction || {};
+  const textCorpus = [safe.headline, safe.primary_message, safe.cta]
     .filter(Boolean)
     .join(" ")
     .toLowerCase();
   const visualCorpus = [
-    ...(extraction.visual_elements || []),
-    ...(extraction.audience_clues || []),
-    ...(extraction.urgency_signals || []),
-    ...(extraction.trust_markers || []),
-    ...(extraction.emotional_cues || []),
+    ...(safe.visual_elements || []),
+    ...(safe.audience_clues || []),
+    ...(safe.urgency_signals || []),
+    ...(safe.trust_markers || []),
+    ...(safe.emotional_cues || []),
   ].join(" ").toLowerCase();
   return { textCorpus, visualCorpus, fullCorpus: `${textCorpus} ${visualCorpus}`.trim() };
 }
@@ -206,7 +207,7 @@ function scoreConfidence(score: number): "high" | "moderate" | "low" {
 
 /** Detect creative category without biasing toward the user's selected vertical. */
 export function detectCreativeCategoryUnbiased(
-  extraction: ExtractionSignalsLike,
+  extraction: ExtractionSignalsLike | null | undefined,
   aiInferredVertical?: string | null,
   aiCreativeCategory?: string | null,
 ): CreativeCategoryDetection {
@@ -319,7 +320,7 @@ function buildRecommendation(
 
 export function evaluateCreativeVerticalAlignment(params: {
   selectedVertical: string;
-  extraction: ExtractionSignalsLike;
+  extraction: ExtractionSignalsLike | null | undefined;
   aiInferredVertical?: string | null;
   aiCreativeCategory?: string | null;
   aiVerticalFeedback?: string | null;

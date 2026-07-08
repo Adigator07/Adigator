@@ -1,4 +1,10 @@
 import { filterImageFiles } from "@/app/lib/programmaticWorkflow";
+import { filterMediaFiles } from "@/app/lib/video/videoClient";
+
+/** Filter dropped/selected files to images (default) or images + videos when allowVideo is set. */
+function filterUploadFiles(files: FileList | File[] | null | undefined, allowVideo: boolean): File[] {
+  return allowVideo ? filterMediaFiles(files, { allowVideo: true }) : filterImageFiles(files);
+}
 
 type DirectoryPickerWindow = Window & {
   showDirectoryPicker?: (options?: { mode?: "read" | "readwrite" }) => Promise<FileSystemDirectoryHandle>;
@@ -78,12 +84,12 @@ async function readDirectoryHandle(handle: FileSystemDirectoryHandle): Promise<F
   return files;
 }
 
-export async function pickFolderImageFiles(): Promise<File[] | null> {
+export async function pickFolderImageFiles(allowVideo = false): Promise<File[] | null> {
   if (!supportsFolderPicker()) return null;
 
   try {
     const handle = await (window as DirectoryPickerWindow).showDirectoryPicker!({ mode: "read" });
-    const files = filterImageFiles(await readDirectoryHandle(handle));
+    const files = filterUploadFiles(await readDirectoryHandle(handle), allowVideo);
     return files;
   } catch (error) {
     if (error instanceof DOMException && error.name === "AbortError") return null;
@@ -118,8 +124,11 @@ async function traverseFileTree(entry: FileSystemEntry, files: File[]): Promise<
   }
 }
 
-export async function getImageFilesFromDataTransfer(dataTransfer: DataTransfer): Promise<File[]> {
-  const directFiles = filterImageFiles(dataTransfer.files);
+export async function getImageFilesFromDataTransfer(
+  dataTransfer: DataTransfer,
+  allowVideo = false,
+): Promise<File[]> {
+  const directFiles = filterUploadFiles(dataTransfer.files, allowVideo);
   const items = dataTransfer.items;
 
   if (!items?.length) {
@@ -135,7 +144,7 @@ export async function getImageFilesFromDataTransfer(dataTransfer: DataTransfer):
     }
   }
 
-  // Fast path for dragged image files (no folder traversal needed).
+  // Fast path for dragged files (no folder traversal needed).
   if (!hasDirectoryEntry && directFiles.length > 0) {
     return directFiles;
   }
@@ -150,7 +159,7 @@ export async function getImageFilesFromDataTransfer(dataTransfer: DataTransfer):
   }
 
   if (collected.length > 0) {
-    return filterImageFiles(collected);
+    return filterUploadFiles(collected, allowVideo);
   }
 
   return directFiles;
@@ -184,7 +193,7 @@ function configureDirectoryInput(input: HTMLInputElement, directory: boolean): v
 /** Open a hidden file input and resolve when the user picks or cancels. */
 export function promptForInputFiles(
   input: HTMLInputElement,
-  options: { directory?: boolean } = {},
+  options: { directory?: boolean; allowVideo?: boolean } = {},
 ): Promise<File[]> {
   return new Promise((resolve) => {
     configureDirectoryInput(input, Boolean(options.directory));
@@ -200,7 +209,7 @@ export function promptForInputFiles(
     };
 
     const onChange = () => {
-      finish(filterImageFiles(input.files));
+      finish(filterUploadFiles(input.files, Boolean(options.allowVideo)));
     };
 
     const onWindowFocus = () => {
@@ -217,10 +226,12 @@ export function promptForInputFiles(
 
 export async function selectFolderFiles(
   input: HTMLInputElement | null,
+  options: { allowVideo?: boolean } = {},
 ): Promise<File[] | null> {
+  const allowVideo = Boolean(options.allowVideo);
   if (supportsFolderPicker()) {
     try {
-      const picked = await pickFolderImageFiles();
+      const picked = await pickFolderImageFiles(allowVideo);
       if (picked && picked.length > 0) return picked;
     } catch (error) {
       if (error instanceof DOMException && error.name === "AbortError") return null;
@@ -230,15 +241,16 @@ export async function selectFolderFiles(
 
   if (!input) return null;
 
-  const files = await promptForInputFiles(input, { directory: true });
+  const files = await promptForInputFiles(input, { directory: true, allowVideo });
   return files.length > 0 ? files : null;
 }
 
 export async function selectImageFiles(
   input: HTMLInputElement | null,
+  options: { allowVideo?: boolean } = {},
 ): Promise<File[] | null> {
   if (!input) return null;
 
-  const files = await promptForInputFiles(input, { directory: false });
+  const files = await promptForInputFiles(input, { directory: false, allowVideo: Boolean(options.allowVideo) });
   return files.length > 0 ? files : null;
 }

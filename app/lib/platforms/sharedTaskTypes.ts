@@ -1,4 +1,10 @@
 import type { CampaignTaskType, CampaignTaskTypeId } from "@/app/lib/platforms/types";
+import type { SetupFieldContext, SetupMissingField } from "@/app/lib/setupRequiredFields";
+import {
+  PROGRAMMATIC_AD_GROUP_COUNT_OPTIONS,
+  getProgrammaticAdGroupDisplayName,
+  isProgrammaticAdGroupConfigComplete,
+} from "@/app/lib/programmaticWorkflow";
 
 export const CAMPAIGN_SETUP_TASK: CampaignTaskType = {
   id: "campaign_setup",
@@ -65,4 +71,46 @@ export function isUrlUtmUpdateTask(taskType: string): boolean {
 export function labelCampaignTaskType(taskType: CampaignTaskTypeId | string): string {
   const match = STANDARD_CAMPAIGN_TASK_TYPES.find((item) => item.id === taskType);
   return match?.label || String(taskType || "Campaign Setup").replace(/_/g, " ");
+}
+
+function describeIncompleteAdGroups(groups: SetupFieldContext["programmaticAdGroups"]): string {
+  const issues = groups.flatMap((group) => {
+    const name = getProgrammaticAdGroupDisplayName(group);
+    if (!group.name?.trim()) return [`${name}: add a name`];
+    if (!group.objective) return [`${name}: select an objective`];
+    return [];
+  });
+  return issues.length ? issues.join(" · ") : "Complete each ad group name and objective.";
+}
+
+/**
+ * Shared ad-group setup validation for standard platforms (Google/Meta) so they mirror
+ * the programmatic multi-ad-group flow: pick a count, then name + set an objective per group.
+ */
+export function getAdGroupSetupMissingFields(context: SetupFieldContext): SetupMissingField[] {
+  const missing: SetupMissingField[] = [];
+
+  if (context.programmaticAdGroupCount === "") {
+    missing.push({
+      key: "programmaticAdGroupCount",
+      label: "Number of ad groups",
+      prompt: "How many ad groups will this campaign use?",
+      inputType: "select",
+      options: PROGRAMMATIC_AD_GROUP_COUNT_OPTIONS.map((count) => ({
+        value: String(count),
+        label: `${count} ad group${count === 1 ? "" : "s"}`,
+      })),
+      scrollTargetId: "programmatic-ad-groups",
+    });
+  } else if (!isProgrammaticAdGroupConfigComplete(context.programmaticAdGroups)) {
+    missing.push({
+      key: "adGroupConfig",
+      label: "Ad group configuration",
+      prompt: describeIncompleteAdGroups(context.programmaticAdGroups),
+      inputType: "info",
+      scrollTargetId: "programmatic-ad-groups",
+    });
+  }
+
+  return missing;
 }

@@ -1,6 +1,7 @@
 import type { ProgrammaticAdGroup, ProgrammaticTaskTypeId } from "@/app/lib/programmaticWorkflow";
+import { generateCampaignId } from "@/app/lib/campaignSnapshot";
 import { notifyAdvertisersUpdated } from "@/app/lib/downloadHistoryStore";
-import { readCachedJson, writeCachedJson } from "@/app/lib/clientStorageCache";
+import { readCachedJson, writeCachedJson, serializeWithoutHeavyFields } from "@/app/lib/clientStorageCache";
 
 const PROGRAMMATIC_CAMPAIGNS_STORAGE_KEY = "adigator_programmatic_campaigns_v1";
 
@@ -137,7 +138,7 @@ function writeAllCampaigns(
 
   if (typeof window === "undefined") return;
 
-  writeCachedJson(PROGRAMMATIC_CAMPAIGNS_STORAGE_KEY, campaigns, (data) => JSON.stringify(data));
+  writeCachedJson(PROGRAMMATIC_CAMPAIGNS_STORAGE_KEY, campaigns, serializeWithoutHeavyFields);
   if (options?.notify !== false) {
     notifyAdvertisersUpdated();
   }
@@ -157,16 +158,8 @@ function belongsToOwner(campaign: ProgrammaticCampaignSnapshot, ownerId: string)
 
 
 export function generateProgrammaticCampaignId(): string {
-
-  const stamp = Date.now().toString(36);
-
-  const random = Math.random().toString(36).slice(2, 8);
-
-  return `PGM-${stamp}-${random}`.toUpperCase();
-
+  return generateCampaignId("programmatic");
 }
-
-
 
 /** Reuse an existing campaign ID for update flows; only mint a new ID for campaign setup. */
 export function resolveProgrammaticCampaignId(options: {
@@ -188,7 +181,7 @@ export function resolveProgrammaticCampaignId(options: {
   if (existingId) return existingId;
 
   if (options.taskType === "campaign_setup") {
-    return generateProgrammaticCampaignId();
+    return generateCampaignId("programmatic");
   }
 
   return "";

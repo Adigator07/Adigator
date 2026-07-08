@@ -14,16 +14,20 @@ export interface UrlAlignmentResult {
   checked_at: string;
 }
 
+export type AdType = "display" | "video";
+
 export interface UrlValidationRequestBody {
   url: string;
   platform: "programmatic" | "google_ads" | "meta_ads";
   objective?: string;
   vertical?: string;
   campaignName?: string;
+  adType?: AdType;
   creatives?: Array<{
     id: string;
     name: string;
     size?: string;
+    mediaType?: string;
     imageBase64?: string;
   }>;
 }

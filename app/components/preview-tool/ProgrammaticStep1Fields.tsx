@@ -5,27 +5,19 @@
 import type { ChangeEvent } from "react";
 
 import {
-
-  PROGRAMMATIC_TASK_TYPES,
-
   isProgrammaticCampaignSetup,
-
   isProgrammaticCreativeAddition,
-
   isProgrammaticCreativeReplacement,
-
   isProgrammaticCampaignRenewal,
-
   isProgrammaticUrlValidationUtmUpdate,
-
   type ProgrammaticAdGroup,
-
   type ProgrammaticTaskTypeId,
-
 } from "@/app/lib/programmaticWorkflow";
 
 import type { AdvertiserCampaign } from "@/app/lib/advertiserStore";
 import type { ProgrammaticCampaignSnapshot } from "@/app/lib/programmaticCampaignStore";
+import type { AnalyzerPlatform } from "@/app/lib/platforms/types";
+import { getPlatformAdapter } from "@/app/lib/platforms/registry";
 
 import ProgrammaticCreativeAdditionPanel, {
 
@@ -39,14 +31,16 @@ import ProgrammaticCampaignRenewalPanel from "@/app/components/preview-tool/Prog
 
 import ProgrammaticUrlValidationUtmPanel from "@/app/components/preview-tool/ProgrammaticUrlValidationUtmPanel";
 
-import ProgrammaticAdGroupConfiguration from "@/app/components/preview-tool/ProgrammaticAdGroupConfiguration";
+import ProgrammaticAdGroupConfiguration, {
+  type AdGroupObjectiveOption,
+} from "@/app/components/preview-tool/ProgrammaticAdGroupConfiguration";
 
 import { ToolInput, ToolSelect, ToolTextarea } from "@/app/components/preview-tool/PreviewToolUi";
 
 
 
 type ProgrammaticStep1FieldsProps = {
-
+  platform: AnalyzerPlatform | "";
   taskType: ProgrammaticTaskTypeId | "";
 
   adGroupCount: number | "";
@@ -84,7 +78,11 @@ type ProgrammaticStep1FieldsProps = {
   creativeAdditionFindError: string;
 
   verticals: Array<{ id: string; title: string }>;
-
+  /** Google / Meta display vs video ads (campaign setup only). */
+  adType?: "display" | "video";
+  onAdTypeChange?: (value: "display" | "video") => void;
+  objectiveOptions?: AdGroupObjectiveOption[];
+  supportsCustomObjective?: boolean;
   onTaskTypeChange: (value: ProgrammaticTaskTypeId) => void;
 
   onAdGroupCountChange: (value: number) => void;
@@ -124,7 +122,7 @@ type ProgrammaticStep1FieldsProps = {
 
 
 export default function ProgrammaticStep1Fields({
-
+  platform,
   taskType,
 
   adGroupCount,
@@ -162,7 +160,10 @@ export default function ProgrammaticStep1Fields({
   creativeAdditionFindError,
 
   verticals,
-
+  adType = "display",
+  onAdTypeChange,
+  objectiveOptions,
+  supportsCustomObjective,
   onTaskTypeChange,
 
   onAdGroupCountChange,
@@ -198,6 +199,15 @@ export default function ProgrammaticStep1Fields({
   onCreativeAdditionModeChange,
 
 }: ProgrammaticStep1FieldsProps) {
+  const platformAdapter = getPlatformAdapter(platform || "programmatic");
+  const taskTypeOptions = platformAdapter.taskTypes;
+  const isProgrammatic = platform === "programmatic";
+  const showAdTypeSelector = !isProgrammatic && isProgrammaticCampaignSetup(taskType);
+  const adGroupObjectiveOptions = objectiveOptions;
+  const adGroupSupportsCustomObjective = supportsCustomObjective ?? isProgrammatic;
+  const adGroupDescription = isProgrammatic
+    ? "Name each ad group and set its objective. You can add more ad groups after choosing an initial count."
+    : `Name each ad group and set its ${platformAdapter.shortLabel} objective. Each ad group gets its own creative folder and objective-specific analysis.`;
 
   const isCampaignSetup = isProgrammaticCampaignSetup(taskType);
 
@@ -264,11 +274,12 @@ export default function ProgrammaticStep1Fields({
       <section className="space-y-5">
 
         <div>
-
           <h3 className="studio-heading text-2xl font-bold tracking-tight text-studio-text">Task Type</h3>
-
-          <p className="mt-1 text-studio-muted">Choose the programmatic workflow you are running.</p>
-
+          <p className="mt-1 text-studio-muted">
+            {isProgrammatic
+              ? "Choose the programmatic workflow you are running."
+              : `Choose the ${platformAdapter.shortLabel} workflow you are running.`}
+          </p>
         </div>
 
         <div className="max-w-xl">
@@ -295,14 +306,10 @@ export default function ProgrammaticStep1Fields({
 
             </option>
 
-            {PROGRAMMATIC_TASK_TYPES.map((option) => (
-
+            {taskTypeOptions.map((option) => (
               <option key={option.id} value={option.id}>
-
                 {option.label}
-
               </option>
-
             ))}
 
           </ToolSelect>
@@ -456,15 +463,12 @@ export default function ProgrammaticStep1Fields({
       {showAdGroupSetup ? (
 
         <ProgrammaticAdGroupConfiguration
-
           mode="setup"
-
           adGroupCount={adGroupCount}
-
           adGroups={adGroups}
-
-          description="Name each ad group and set its objective. You can add more ad groups after choosing an initial count."
-
+          description={adGroupDescription}
+          objectiveOptions={adGroupObjectiveOptions}
+          supportsCustomObjective={adGroupSupportsCustomObjective}
           onAdGroupCountChange={onAdGroupCountChange}
 
           onAdGroupNameChange={onAdGroupNameChange}
@@ -486,21 +490,15 @@ export default function ProgrammaticStep1Fields({
       {showAdGroupSelection ? (
 
         <ProgrammaticAdGroupConfiguration
-
           mode="select"
-
           adGroupCount={adGroupCount}
-
           adGroups={adGroups}
-
           selectedGroupIds={selectedAdGroupIds}
-
           applyToAll={applyAdGroupsToAll}
-
           allowEditStructure
-
           description={`${adGroupSelectionDescription} You can add new ad groups for additional creatives without affecting existing groups.`}
-
+          objectiveOptions={adGroupObjectiveOptions}
+          supportsCustomObjective={adGroupSupportsCustomObjective}
           onAdGroupNameChange={onAdGroupNameChange}
 
           onAdGroupObjectiveChange={onAdGroupObjectiveChange}
@@ -689,6 +687,44 @@ export default function ProgrammaticStep1Fields({
 
               </div>
 
+            ) : null}
+
+            {showAdTypeSelector ? (
+              <div>
+                <label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-[#9a9aad]">
+                  Ad Type
+                </label>
+                <div className="grid grid-cols-2 gap-3">
+                  {[
+                    { id: "display" as const, title: "Display Ads", desc: "Image / banner creatives" },
+                    { id: "video" as const, title: "Video Ads", desc: "MP4 / MOV / WebM creatives" },
+                  ].map((option) => {
+                    const selected = adType === option.id;
+                    return (
+                      <button
+                        key={option.id}
+                        type="button"
+                        onClick={() => onAdTypeChange?.(option.id)}
+                        className={`rounded-xl border px-4 py-3 text-left transition ${
+                          selected
+                            ? "border-studio-accent bg-studio-accent/10 ring-1 ring-studio-accent"
+                            : "border-white/10 bg-white/[0.03] hover:border-white/25"
+                        }`}
+                      >
+                        <span className={`block text-sm font-semibold ${selected ? "text-studio-text" : "text-studio-text/90"}`}>
+                          {option.title}
+                        </span>
+                        <span className="mt-0.5 block text-xs text-studio-muted">{option.desc}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+                <p className="mt-2 text-xs text-[#9a9aad]">
+                  {adType === "video"
+                    ? "Uploads and URL validation switch to video ad–specific checks."
+                    : "Uploads and URL validation use display (image) ad checks."}
+                </p>
+              </div>
             ) : null}
 
             <div>

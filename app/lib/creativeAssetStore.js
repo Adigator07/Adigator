@@ -9,6 +9,7 @@ import { compressDrawable, yieldToMain } from "./imageCompression";
 import { attachSourceDimensions } from "./creativeValidation";
 import { readImageDimensionsFromBlob, isPlausibleCreativeDimension } from "./imageDimensions";
 import { resolvePersistedDimensions } from "./creativeFitAnalysis";
+import { isVideoFile, createVideoPreviewBlob } from "./video/videoClient";
 
 const DB_NAME = "adigator-creative-assets";
 const DB_VERSION = 1;
@@ -134,7 +135,10 @@ export async function createPreviewBlob(source, maxEdge = 420) {
 }
 
 export async function storeUploadedCreativeFile(creativeId, file) {
-  const previewBlob = await createPreviewBlob(file);
+  // Videos can't be decoded with createImageBitmap — capture a poster frame instead.
+  const previewBlob = isVideoFile(file)
+    ? await createVideoPreviewBlob(file)
+    : await createPreviewBlob(file);
   await putCreativeBlob(creativeId, file);
   await putCreativeBlob(previewKey(creativeId), previewBlob);
   return {
@@ -199,6 +203,32 @@ export async function getCreativeFullBlob(creative) {
     const blob = await fetchBlobFromUrlSafely(creative.url);
     if (blob) {
       await putCreativeBlob(creative.id, blob);
+      return blob;
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Small display/preview blob (scaled image or video poster frame). Never returns the
+ * full-resolution asset or raw video — safe for lightweight payloads like URL validation.
+ */
+export async function getCreativePreviewBlob(creative) {
+  if (!creative) return null;
+
+  const previewFromDb = await getCreativeBlob(previewKey(creative.id));
+  if (previewFromDb) return previewFromDb;
+
+  // Fall back to the full blob only for images — never send raw video bytes.
+  const fullBlob = await getCreativeBlob(creative.id);
+  if (fullBlob && !String(fullBlob.type || "").startsWith("video/")) {
+    return fullBlob;
+  }
+
+  if (creative.url) {
+    const blob = await fetchBlobFromUrlSafely(creative.url);
+    if (blob && !String(blob.type || "").startsWith("video/")) {
       return blob;
     }
   }

@@ -11,6 +11,7 @@ export interface UrlAlignmentInput {
   objective?: string;
   vertical?: string;
   campaignName?: string;
+  adType?: "display" | "video";
   creatives?: Array<{ id: string; name: string; size?: string; imageBase64?: string }>;
 }
 
@@ -200,9 +201,32 @@ export async function evaluateUrlAlignment(input: UrlAlignmentInput): Promise<Ur
     .filter((c) => c.imageBase64)
     .slice(0, 2);
 
-  const userText = [
-    "Evaluate whether the user's landing page URL is ALIGNED or MISALIGNED with their ad campaign.",
+  const isVideoAd = input.adType === "video";
+
+  const videoRules = [
+    "This is a VIDEO ad campaign. Any attached images are POSTER/KEY FRAMES sampled from the video creative.",
     "",
+    "Evaluate the landing page for a VIDEO ad across ALL of the following dimensions:",
+    "- Product/service match: the page promotes the same product/service featured in the video",
+    "- Campaign brief match: the page supports the stated campaign brief and objective/goal",
+    "- Creative match: the page continues the story, offer, and message shown in the video frames",
+    "- CTA consistency: the page's primary CTA matches the video's call-to-action",
+    "- Branding consistency: logo, brand name, and visual identity match the video branding",
+    "- Messaging & offer consistency: headline/offer/pricing on the page match what the video promises",
+    "- Audience consistency: page tone and content fit the same target audience as the video",
+    "- Technical quality: HTTPS enabled, no broken links, minimal/for-purpose redirects, fast page load, mobile-friendly (viewport), overall landing page quality",
+    "",
+    "Mark MISALIGNED if ANY apply:",
+    "- Submitted URL is broken, invalid, or unreachable (4xx/5xx)",
+    "- Final URL after redirects differs materially from the video ad's story, offer, or CTA",
+    "- Landing page product/brand/offer/audience does not match the video creative",
+    "- Not served over HTTPS, not mobile-friendly, or page load is poor",
+    "",
+    "Mark ALIGNED only when the URL is reachable, secure, mobile-friendly, AND the page clearly continues the video ad's product, message, branding, and CTA.",
+    "Do NOT evaluate image dimensions, file weight, banner ad sizing, or Responsive Display specs — those are irrelevant for video ads.",
+  ];
+
+  const displayRules = [
     "Mark MISALIGNED if ANY of these apply:",
     "- Submitted URL is broken, invalid, or unreachable",
     "- Final URL after redirects differs materially from user intent or creative offer",
@@ -210,8 +234,15 @@ export async function evaluateUrlAlignment(input: UrlAlignmentInput): Promise<Ur
     "- Page vertical or goal mismatch (e.g. finance ad → unrelated blog page)",
     "",
     "Mark ALIGNED only when the URL is reachable AND the landing page clearly supports the creative message and campaign context.",
+  ];
+
+  const userText = [
+    `Evaluate whether the user's landing page URL is ALIGNED or MISALIGNED with their ${isVideoAd ? "video" : "display"} ad campaign.`,
+    "",
+    ...(isVideoAd ? videoRules : displayRules),
     "",
     `Platform: ${input.platform}`,
+    `Ad type: ${isVideoAd ? "Video ads" : "Display ads"}`,
     `Campaign objective: ${input.objective || "awareness"}`,
     `Industry vertical: ${input.vertical || "general"}`,
     `Campaign name: ${input.campaignName || "Campaign"}`,
@@ -221,7 +252,15 @@ export async function evaluateUrlAlignment(input: UrlAlignmentInput): Promise<Ur
     `Page title: ${health?.pageTitle || "n/a"}`,
     `H1: ${health?.h1 || "n/a"}`,
     `CTA texts on page: ${(health?.ctaTexts || []).slice(0, 8).join(" | ") || "n/a"}`,
-    `Creatives: ${creativeSummaries || "none named"}`,
+    ...(isVideoAd
+      ? [
+          `HTTPS/SSL: ${health?.hasSsl ? "yes" : "no"}`,
+          `Mobile viewport meta: ${health?.hasViewport ? "yes" : "no"}`,
+          `Page load time (ms): ${health?.loadTimeMs ?? "unknown"}`,
+          `Redirect count: ${health?.redirectCount ?? 0}`,
+        ]
+      : []),
+    `${isVideoAd ? "Video creatives" : "Creatives"}: ${creativeSummaries || "none named"}`,
     "",
     "Return JSON only:",
     '{ "status": "aligned"|"misaligned", "confidence": 0-100, "summary": "one sentence", "page_about": "brief what the landing page is about", "misalignment_reason": "short why misaligned if applicable", "reasons": ["..."], "suggestions": ["actionable fix 1", "..."] }',

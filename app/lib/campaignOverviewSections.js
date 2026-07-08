@@ -745,12 +745,18 @@ export function buildPlatformOverviewSections({
   const briefingFn = briefingBuilders[platform] || buildProgrammaticBriefing;
   const healthFn = healthBuilders[platform] || buildProgrammaticCampaignHealth;
 
+  // Video campaigns don't use display/RDA placement or banner technical QA — the dedicated
+  // video report covers platform compliance. Suppress those display-only overview sections.
+  const isVideoCampaign =
+    insights.length > 0
+    && insights.every((i) => i.mediaType === "video" || Boolean(i.videoAnalysis));
+
   return {
     briefing: briefingFn(overview, goalText, verticalText, insights),
     campaignHealth: healthFn(insights, overview),
     creativeAnalysis: buildCreativeAnalysisSection(insights, platform, verticalText),
-    technicalQa: buildTechnicalQaSection(insights, platform),
-    placementQa: buildPlacementQaSection(insights, platform, overview),
+    technicalQa: isVideoCampaign ? null : buildTechnicalQaSection(insights, platform),
+    placementQa: isVideoCampaign ? null : buildPlacementQaSection(insights, platform, overview),
     creativeRiskSummary: buildCreativeRiskSection(insights, overview),
     platform,
   };

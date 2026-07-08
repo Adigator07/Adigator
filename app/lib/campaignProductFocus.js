@@ -68,23 +68,25 @@ export function resolveProductFocus(explicitFocus, brief = "") {
   return scores[0].id;
 }
 
-function buildCreativeCorpus(signals = {}, payload = {}) {
+function buildCreativeCorpus(signals, payload) {
+  const s = signals || {};
+  const p = payload || {};
   return [
-    signals.headline,
-    signals.primary_message,
-    signals.dominant_visual_cue,
-    signals.offer_type,
-    payload?.vertical_alignment?.product_category,
-    payload?.adigator_analysis?.main_risk,
-    ...(Array.isArray(signals.detected_objects) ? signals.detected_objects : []),
-    ...(Array.isArray(signals.visual_elements) ? signals.visual_elements : []),
+    s.headline,
+    s.primary_message,
+    s.dominant_visual_cue,
+    s.offer_type,
+    p?.vertical_alignment?.product_category,
+    p?.adigator_analysis?.main_risk,
+    ...(Array.isArray(s.detected_objects) ? s.detected_objects : []),
+    ...(Array.isArray(s.visual_elements) ? s.visual_elements : []),
   ]
     .filter(Boolean)
     .join(" ");
 }
 
 /** Detect dominant product type shown in the creative. */
-export function detectProductFromCreative(signals = {}, payload = {}) {
+export function detectProductFromCreative(signals, payload) {
   const corpus = buildCreativeCorpus(signals, payload);
   if (!corpus.trim()) return "unknown";
 
@@ -118,9 +120,9 @@ export function evaluateBriefProductAlignment({
   productFocus = "",
   signals = {},
   payload = {},
-}) {
+} = {}) {
   const expected = resolveProductFocus(productFocus, campaignBrief);
-  const detected = detectProductFromCreative(signals, payload);
+  const detected = detectProductFromCreative(signals || {}, payload || {});
 
   if (!expected) {
     return {

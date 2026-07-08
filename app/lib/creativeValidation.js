@@ -839,6 +839,10 @@ export function attachSourceDimensions(creative, width, height) {
 export async function revalidateCreativeForPlatform(creative, platform, options = {}) {
   if (!platform) return creative;
 
+  // Video creatives are validated by the video pipeline (buildVideoUploadValidation).
+  // Never run image validation on them — it produces irrelevant dimension/format/weight issues.
+  if (creative?.mediaType === "video") return creative;
+
   const dims = resolveCreativeImageDimensions(creative, options.image);
   if (!dims) return creative;
 

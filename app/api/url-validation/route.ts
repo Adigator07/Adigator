@@ -40,6 +40,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Landing page URL is required." }, { status: 400 });
     }
 
+    const adType = body.adType === "video" ? "video" : "display";
     const urlHealth = await checkUrlHealth(cleanUrl);
     const result = await evaluateUrlAlignment({
       submittedUrl: cleanUrl,
@@ -48,6 +49,7 @@ export async function POST(request: Request) {
       objective: body.objective,
       vertical: body.vertical,
       campaignName: body.campaignName,
+      adType,
       creatives: creatives.map((c) => ({
         id: c.id,
         name: c.name,

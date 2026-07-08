@@ -5,6 +5,7 @@ import { qaItemIcon } from "@/app/lib/analyzerInsights";
 import { resolveGoalAlignmentStatus, resolveVerticalAlignmentStatus, resolveBriefAlignmentStatus } from "@/app/lib/strategicPresentation";
 import { ALIGNMENT_BADGE, INSIGHT_TONES, PANEL, PRESENCE_TONES, RISK_TONES } from "./analyzer/analyzerTheme";
 import AnalyzerCreativeThumbnail from "./AnalyzerCreativeThumbnail";
+import VideoAnalysisSection from "./analyzer/VideoAnalysisSection";
 
 function AlignmentBadge({ status }) {
   const resolved = status || { emoji: "🟡", label: "Needs Review", tone: "amber" };
@@ -298,6 +299,7 @@ export default function AnalyzerCreativeSection({
   if (!insight) return null;
 
   const { goalAlignment, verticalAlignment, creativeVerticalAlignment, extractionSignals } = insight;
+  const isVideoCreative = insight.mediaType === "video" || Boolean(insight.videoAnalysis);
   const verticalStatus = resolveVerticalAlignmentStatus(verticalAlignment);
   const detectedCategoryLabel = creativeVerticalAlignment?.detected_category_label
     || verticalAlignment?.detected_category_label
@@ -395,15 +397,17 @@ export default function AnalyzerCreativeSection({
             {verticalStatus.key === "review" ? ". Creative partially matches the selected vertical." : null}
             {verticalStatus.key === "aligned" ? ". Creative matches the selected vertical." : null}
           </div>
-          <div className="mb-3 grid grid-cols-1 gap-2 sm:grid-cols-3">
-            <div className="rounded-lg border border-white/10 bg-black/20 px-3 py-2.5 text-center">
-              <p className="text-[10px] font-semibold uppercase tracking-wider text-[#9a9aad]">Detected category</p>
-              <p className={`mt-1 text-sm font-bold ${
-                verticalStatus.tone === "red" ? "text-rose-200" : verticalStatus.tone === "amber" ? "text-amber-200" : "text-emerald-200"
-              }`}>
-                {detectedCategoryLabel || "Unclear"}
-              </p>
-            </div>
+          <div className={`mb-3 grid grid-cols-1 gap-2 ${isVideoCreative ? "sm:grid-cols-2" : "sm:grid-cols-3"}`}>
+            {!isVideoCreative ? (
+              <div className="rounded-lg border border-white/10 bg-black/20 px-3 py-2.5 text-center">
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-[#9a9aad]">Detected category</p>
+                <p className={`mt-1 text-sm font-bold ${
+                  verticalStatus.tone === "red" ? "text-rose-200" : verticalStatus.tone === "amber" ? "text-amber-200" : "text-emerald-200"
+                }`}>
+                  {detectedCategoryLabel || "Unclear"}
+                </p>
+              </div>
+            ) : null}
             <div className="rounded-lg border border-violet-400/30 bg-violet-500/10 px-3 py-2.5 text-center">
               <p className="text-[10px] font-semibold uppercase tracking-wider text-violet-200">Selected vertical</p>
               <p className="mt-1 text-sm font-bold text-[#f4f4f8]">
@@ -510,8 +514,12 @@ export default function AnalyzerCreativeSection({
           </div>
         ) : null}
 
-        <QaList title={platformLabel ? `Technical QA · ${platformLabel}` : "Technical QA"} icon={Wrench} items={insight.technicalQa} accent="cyan" />
-        <QaList title={platformLabel ? `Placement QA ${platformLabel}` : "Placement QA"} icon={Target} items={insight.placementQa} accent="purple" />
+        {!isVideoCreative && insight.technicalQa?.length ? (
+          <QaList title={platformLabel ? `Technical QA · ${platformLabel}` : "Technical QA"} icon={Wrench} items={insight.technicalQa} accent="cyan" />
+        ) : null}
+        {!isVideoCreative && insight.placementQa?.length ? (
+          <QaList title={platformLabel ? `Placement QA ${platformLabel}` : "Placement QA"} icon={Target} items={insight.placementQa} accent="purple" />
+        ) : null}
 
         {insight.mainRisk ? (
           <div className={`${PANEL.sectionSm} ${INSIGHT_TONES.amber}`}>
@@ -525,6 +533,13 @@ export default function AnalyzerCreativeSection({
             <p className="text-[10px] font-semibold uppercase tracking-wider text-emerald-200 mb-1">Recommended Fix</p>
             <p className={`text-sm ${PANEL.bodyStrong} text-emerald-50`}>{insight.recommendedFix}</p>
           </div>
+        ) : null}
+
+        {insight.videoAnalysis || insight.videoValidationMeta ? (
+          <VideoAnalysisSection
+            videoAnalysis={insight.videoAnalysis}
+            validationMeta={insight.videoValidationMeta}
+          />
         ) : null}
       </div>
     </div>

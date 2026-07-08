@@ -27,6 +27,7 @@ type CreativeItem = {
   image?: string;
   title?: string;
   mimeType?: string;
+  mediaType?: string;
   adGroupId?: string | null;
   validation?: {
     status?: string;
@@ -57,10 +58,16 @@ type ProgrammaticFolderSectionsProps = {
   onCompressCreative: (id: string, options: { enforceSizeCompliance: boolean; targetSizeKB?: string }) => void;
   onEditCreative: (creative: CreativeItem) => void;
   onApplyFix: (creativeId: string, actionId: string) => void;
+  /** Optional resolver to display a human-readable objective label (e.g. platform goal id → title). */
+  resolveObjectiveLabel?: (objective: string) => string;
+  /** Whether a given ad group accepts video uploads (e.g. Video Views objective). */
+  allowVideo?: (group: ProgrammaticAdGroup) => boolean;
 };
 
 function isRenderableCreative(creative: CreativeItem): boolean {
-  return Boolean(creative?.url || creative?.text || creative?.image || creative?.title);
+  return Boolean(
+    creative?.url || creative?.text || creative?.image || creative?.title || creative?.mediaType === "video",
+  );
 }
 
 function creativesForFolder(folderId: string, creatives: CreativeItem[], singleFolder: boolean): CreativeItem[] {
@@ -230,11 +237,18 @@ export default function ProgrammaticFolderSections({
   onCompressCreative,
   onEditCreative,
   onApplyFix,
+  resolveObjectiveLabel,
+  allowVideo,
 }: ProgrammaticFolderSectionsProps) {
   const folderInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
   const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
   const [dragActiveGroupId, setDragActiveGroupId] = useState<string | null>(null);
   const [extractingGroupId, setExtractingGroupId] = useState<string | null>(null);
+
+  const groupAllowsVideo = useCallback(
+    (group: ProgrammaticAdGroup) => (allowVideo ? allowVideo(group) : false),
+    [allowVideo],
+  );
 
   const uploadFilesForGroup = useCallback((files: UploadableFileInput, group: ProgrammaticAdGroup) => {
     if (!files || (Array.isArray(files) ? files.length === 0 : files.length === 0)) return;
@@ -245,14 +259,14 @@ export default function ProgrammaticFolderSections({
     preventDropDefaults(event);
     setDragActiveGroupId(null);
     setExtractingGroupId(group.id);
-    void getImageFilesFromDataTransfer(event.dataTransfer)
+    void getImageFilesFromDataTransfer(event.dataTransfer, groupAllowsVideo(group))
       .then((files) => {
         if (files.length) uploadFilesForGroup(files, group);
       })
       .finally(() => {
         setExtractingGroupId((current) => (current === group.id ? null : current));
       });
-  }, [uploadFilesForGroup]);
+  }, [uploadFilesForGroup, groupAllowsVideo]);
   const groups = singleFolder
     ? [{ id: "programmatic-folder", name: singleFolderLabel, objective: "" as const }]
     : folders;
@@ -261,6 +275,10 @@ export default function ProgrammaticFolderSections({
     <div className="space-y-6">
       {groups.map((group) => {
         const displayName = singleFolder ? singleFolderLabel : getProgrammaticAdGroupDisplayName(group);
+        const folderAllowsVideo = groupAllowsVideo(group);
+        const acceptTypes = folderAllowsVideo
+          ? "image/*,video/mp4,video/quicktime,video/webm,.mp4,.mov,.webm"
+          : "image/*";
         const folderCreatives = creativesForFolder(group.id, creatives, singleFolder);
         const validFolderCreatives = folderCreatives.filter((creative) => creative.valid && isRenderableCreative(creative));
         const invalidFolderCreatives = folderCreatives.filter((creative) => !creative.valid || !isRenderableCreative(creative));
@@ -280,7 +298,7 @@ export default function ProgrammaticFolderSections({
                   {folderCreatives.length > 0
                     ? `${folderCreatives.length} creative${folderCreatives.length === 1 ? "" : "s"} in this folder`
                     : "No creatives uploaded for this folder yet"}
-                  {group.objective ? ` · Objective: ${group.objective}` : ""}
+                  {group.objective ? ` · Objective: ${resolveObjectiveLabel ? resolveObjectiveLabel(group.objective) : group.objective}` : ""}
                 </p>
               </div>
               <div className="flex flex-wrap gap-2 text-xs">
@@ -300,7 +318,7 @@ export default function ProgrammaticFolderSections({
               active={dragActiveGroupId === group.id}
               onClick={() => {
                 void (async () => {
-                  const files = await selectFolderFiles(folderInputRefs.current[group.id]);
+                  const files = await selectImageFiles(fileInputRefs.current[group.id], { allowVideo: folderAllowsVideo });
                   if (files?.length) uploadFilesForGroup(files, group);
                 })();
               }}
@@ -323,10 +341,12 @@ export default function ProgrammaticFolderSections({
             >
               <UploadCloud size={32} className="mx-auto mb-2 text-studio-accent" />
               <p className="text-sm font-semibold text-studio-text">
-                {dragActiveGroupId === group.id ? "Drop creatives here" : "Upload folder or individual creatives"}
+                {dragActiveGroupId === group.id
+                  ? "Drop creatives here"
+                  : folderAllowsVideo ? "Click to select images or videos" : "Click to select creatives"}
               </p>
               <p className="mt-1 text-xs text-studio-muted">
-                Drag and drop files or folders, or use the buttons below. Changes only affect {displayName}.
+                Drag and drop {folderAllowsVideo ? "images or videos" : "files or folders"}, or use “Select folder” to upload a whole folder. Changes only affect {displayName}.
               </p>
               <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
                 <button
@@ -334,7 +354,7 @@ export default function ProgrammaticFolderSections({
                   onClick={(event) => {
                     event.stopPropagation();
                     void (async () => {
-                      const files = await selectFolderFiles(folderInputRefs.current[group.id]);
+                      const files = await selectFolderFiles(folderInputRefs.current[group.id], { allowVideo: folderAllowsVideo });
                       if (files?.length) uploadFilesForGroup(files, group);
                     })();
                   }}
@@ -348,7 +368,7 @@ export default function ProgrammaticFolderSections({
                   onClick={(event) => {
                     event.stopPropagation();
                     void (async () => {
-                      const files = await selectImageFiles(fileInputRefs.current[group.id]);
+                      const files = await selectImageFiles(fileInputRefs.current[group.id], { allowVideo: folderAllowsVideo });
                       if (files?.length) uploadFilesForGroup(files, group);
                     })();
                   }}
@@ -365,7 +385,7 @@ export default function ProgrammaticFolderSections({
                 type="file"
                 hidden
                 multiple
-                accept="image/*"
+                accept={acceptTypes}
                 tabIndex={-1}
                 aria-hidden
               />
@@ -376,7 +396,7 @@ export default function ProgrammaticFolderSections({
                 type="file"
                 hidden
                 multiple
-                accept="image/*"
+                accept={acceptTypes}
                 tabIndex={-1}
                 aria-hidden
               />

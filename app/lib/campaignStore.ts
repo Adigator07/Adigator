@@ -1,7 +1,7 @@
 import type { CampaignSnapshot, CampaignIdOption } from "@/app/lib/campaignSnapshot";
 import type { AnalyzerPlatform } from "@/app/lib/platforms/types";
 import { notifyAdvertisersUpdated } from "@/app/lib/downloadHistoryStore";
-import { readCachedJson, writeCachedJson } from "@/app/lib/clientStorageCache";
+import { readCachedJson, writeCachedJson, serializeWithoutHeavyFields } from "@/app/lib/clientStorageCache";
 import {
   getProgrammaticCampaignById,
   upsertProgrammaticCampaign,
@@ -48,13 +48,13 @@ function loadAllCampaigns(ownerId?: string): CampaignSnapshot[] {
   );
   const migrated = legacy.map(migrateProgrammaticSnapshot);
   if (migrated.length) {
-    writeCachedJson(CAMPAIGNS_STORAGE_KEY, migrated, (data) => JSON.stringify(data));
+    writeCachedJson(CAMPAIGNS_STORAGE_KEY, migrated, serializeWithoutHeavyFields);
   }
   return ownerId ? migrated.filter((item) => item.ownerId === ownerId) : migrated;
 }
 
 function saveAllCampaigns(campaigns: CampaignSnapshot[]): void {
-  writeCachedJson(CAMPAIGNS_STORAGE_KEY, campaigns, (data) => JSON.stringify(data));
+  writeCachedJson(CAMPAIGNS_STORAGE_KEY, campaigns, serializeWithoutHeavyFields);
   notifyAdvertisersUpdated();
 }
 

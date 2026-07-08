@@ -17,6 +17,8 @@ import { ToolInput, ToolSelect } from "@/app/components/preview-tool/PreviewTool
 
 export type ProgrammaticAdGroupConfigMode = "setup" | "select";
 
+export type AdGroupObjectiveOption = { id: string; label: string };
+
 type ProgrammaticAdGroupConfigurationProps = {
   mode: ProgrammaticAdGroupConfigMode;
   adGroupCount: number | "";
@@ -25,6 +27,12 @@ type ProgrammaticAdGroupConfigurationProps = {
   applyToAll?: boolean;
   allowEditStructure?: boolean;
   description?: string;
+  /** Section heading — defaults to "Ad Group Configuration". */
+  title?: string;
+  /** Objective options for the per-group dropdown. Defaults to programmatic objectives. */
+  objectiveOptions?: AdGroupObjectiveOption[];
+  /** Whether the "Custom objective" free-text option is offered. Defaults to true. */
+  supportsCustomObjective?: boolean;
   onAdGroupCountChange?: (count: number) => void;
   onAdGroupNameChange?: (groupId: string, name: string) => void;
   onAdGroupObjectiveChange?: (groupId: string, objective: string) => void;
@@ -35,12 +43,22 @@ type ProgrammaticAdGroupConfigurationProps = {
   onApplyToAllChange?: (applyToAll: boolean) => void;
 };
 
-function objectiveLabel(objective: string, group: ProgrammaticAdGroup): string {
-  if (objective === PROGRAMMATIC_OBJECTIVE_CUSTOM) {
+function objectiveLabel(
+  objective: string,
+  group: ProgrammaticAdGroup,
+  options: AdGroupObjectiveOption[],
+  supportsCustomObjective: boolean,
+): string {
+  if (supportsCustomObjective && objective === PROGRAMMATIC_OBJECTIVE_CUSTOM) {
     return getProgrammaticAdGroupObjectiveLabel(group);
   }
-  return PROGRAMMATIC_OBJECTIVES.find((item) => item.id === objective)?.label || objective || "Not set";
+  return options.find((item) => item.id === objective)?.label || objective || "Not set";
 }
+
+const DEFAULT_OBJECTIVE_OPTIONS: AdGroupObjectiveOption[] = PROGRAMMATIC_OBJECTIVES.map((item) => ({
+  id: item.id,
+  label: item.label,
+}));
 
 export default function ProgrammaticAdGroupConfiguration({
   mode,
@@ -50,6 +68,9 @@ export default function ProgrammaticAdGroupConfiguration({
   applyToAll = false,
   allowEditStructure = true,
   description,
+  title = "Ad Group Configuration",
+  objectiveOptions = DEFAULT_OBJECTIVE_OPTIONS,
+  supportsCustomObjective = true,
   onAdGroupCountChange,
   onAdGroupNameChange,
   onAdGroupObjectiveChange,
@@ -77,7 +98,7 @@ export default function ProgrammaticAdGroupConfiguration({
   return (
     <section id="programmatic-ad-groups" className="space-y-5">
       <div>
-        <h3 className="studio-heading text-2xl font-bold tracking-tight text-studio-text">Ad Group Configuration</h3>
+        <h3 className="studio-heading text-2xl font-bold tracking-tight text-studio-text">{title}</h3>
         <p className="mt-1 text-sm text-studio-muted">
           {description || (mode === "setup"
             ? "Name each ad group and set its objective. Add more groups any time before upload."
@@ -187,7 +208,7 @@ export default function ProgrammaticAdGroupConfiguration({
                     <span className="min-w-0 flex-1">
                       <span className="block text-sm font-semibold text-studio-text">{displayName}</span>
                       <span className="mt-1 block text-xs text-studio-muted">
-                        Objective: {objectiveLabel(group.objective, group)}
+                        Objective: {objectiveLabel(group.objective, group, objectiveOptions, supportsCustomObjective)}
                       </span>
                     </span>
                   </label>
@@ -229,13 +250,13 @@ export default function ProgrammaticAdGroupConfiguration({
                       <option value="" disabled>
                         Select objective
                       </option>
-                      {PROGRAMMATIC_OBJECTIVES.map((objective) => (
+                      {objectiveOptions.map((objective) => (
                         <option key={objective.id} value={objective.id}>
                           {objective.label}
                         </option>
                       ))}
                     </ToolSelect>
-                    {group.objective === PROGRAMMATIC_OBJECTIVE_CUSTOM ? (
+                    {supportsCustomObjective && group.objective === PROGRAMMATIC_OBJECTIVE_CUSTOM ? (
                       <ToolInput
                         type="text"
                         value={group.customObjective || ""}

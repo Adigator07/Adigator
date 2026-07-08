@@ -52,6 +52,8 @@ export interface CreativeValidationInput {
   size?: string;
   fileSize?: number;
   mimeType?: string;
+  /** "video" | "image" — video creatives skip display/RDA validation. */
+  mediaType?: string;
   contentHash?: string;
   perceptualHash?: string;
   validation?: {

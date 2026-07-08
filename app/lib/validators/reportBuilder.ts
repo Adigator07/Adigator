@@ -99,6 +99,42 @@ export function validateProgrammaticCreatives(
   return flags;
 }
 
+/**
+ * Video creative validation flags. Reads the video-native validation issues produced by
+ * `buildVideoUploadValidation` — NO banner/RDA/dimension/display logic is applied.
+ */
+export function validateVideoCreatives(
+  creatives: CreativeValidationInput[],
+  platform: "meta" | "google",
+): ValidationFlag[] {
+  const flags: ValidationFlag[] = [];
+  for (const creative of creatives) {
+    const issues = creative.validation?.issues || [];
+    if (!issues.length && creative.validation?.valid !== false) {
+      flags.push({
+        id: `video_ok_${creative.id}`,
+        severity: "pass",
+        module: "creative",
+        platform,
+        message: `"${creative.name}" passes ${platform === "google" ? "Google" : "Meta"} video ad specs.`,
+      });
+      continue;
+    }
+    for (const [index, issue] of issues.entries()) {
+      flags.push({
+        id: `video_${creative.id}_${index}`,
+        severity: issue.severity === "high" ? "error" : "warning",
+        module: "creative",
+        platform,
+        message: issue.message || `"${creative.name}" video validation issue`,
+        recommendation: issue.recommendation,
+        detail: issue.type,
+      });
+    }
+  }
+  return flags;
+}
+
 export function validateMetaCreatives(
   creatives: CreativeValidationInput[],
   headlines?: string[],
@@ -420,12 +456,26 @@ export function buildCampaignReadinessReport(params: {
         ? "meta"
         : "programmatic";
 
-  const creativeFlags =
-    platformKey === "google"
-      ? validateGoogleCreatives(params.creatives, params.headlines, params.descriptions)
-      : platformKey === "meta"
-        ? validateMetaCreatives(params.creatives, params.headlines, params.descriptions)
-        : validateProgrammaticCreatives(params.creatives);
+  // Video creatives are validated by the video-native pipeline and must never run through
+  // the image/display (Responsive Display) validators.
+  const videoCreatives = params.creatives.filter((c) => c.mediaType === "video");
+  const displayCreatives = params.creatives.filter((c) => c.mediaType !== "video");
+
+  const displayFlags =
+    displayCreatives.length === 0
+      ? []
+      : platformKey === "google"
+        ? validateGoogleCreatives(displayCreatives, params.headlines, params.descriptions)
+        : platformKey === "meta"
+          ? validateMetaCreatives(displayCreatives, params.headlines, params.descriptions)
+          : validateProgrammaticCreatives(displayCreatives);
+
+  const videoFlags =
+    videoCreatives.length === 0
+      ? []
+      : validateVideoCreatives(videoCreatives, platformKey === "google" ? "google" : "meta");
+
+  const creativeFlags = [...displayFlags, ...videoFlags];
 
   const { flags: dupFlags } = detectDuplicates(params.creatives);
   const wrongFlags = detectWrongCreativeFlags(

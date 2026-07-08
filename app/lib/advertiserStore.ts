@@ -447,7 +447,7 @@ export function syncAdvertiserFromGenericSession(options: {
 }): Advertiser {
   const adGroupMap = new Map<string, AdvertiserAdGroup>();
 
-  options.creatives.forEach((creative) => {
+  (options.creatives || []).forEach((creative) => {
     const groupId = creative.adGroupId || "default-ad-group";
     const groupName = creative.adGroupName?.trim() || "Creatives";
     const objective = creative.adGroupObjective || options.campaignGoal || "";
