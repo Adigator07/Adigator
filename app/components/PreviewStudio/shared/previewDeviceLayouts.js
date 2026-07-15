@@ -4,8 +4,14 @@ export function isMobileDeviceMode(deviceMode) {
   return deviceMode !== "desktop";
 }
 
-export function shouldUseFullEnvironmentLayout(deviceMode) {
-  return deviceMode === "desktop";
+export function shouldUseFullEnvironmentLayout(deviceMode, options = {}) {
+  // Video placement environments already include dedicated mobile phone layouts.
+  // Prefer those over the legacy display-only MobileEnvironmentTemplatePreview path.
+  if (options.forceFull || options.isVideoMode || options.mediaType === "video") {
+    return true;
+  }
+  // Display ads also render better via full environments for mobile when available.
+  return true;
 }
 
 export const DEVICE_FRAME_PRESETS = {

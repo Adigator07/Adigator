@@ -23,6 +23,17 @@ import FallbackEnvironment from "@/app/components/PreviewStudio/shared/FallbackE
 import MobileEnvironmentTemplatePreview from "@/app/components/PreviewStudio/shared/MobileEnvironmentTemplatePreview";
 import { shouldUseFullEnvironmentLayout } from "@/app/components/PreviewStudio/shared/previewDeviceLayouts";
 import {
+  GoogleVideoPartnersEnvironment,
+  MetaInStreamEnvironment,
+  ProgPublisherVideoEnvironment,
+  ProgMobileAppVideoEnvironment,
+  ProgInStreamEnvironment,
+  ProgOutStreamEnvironment,
+  ProgCtvEnvironment,
+  ProgOttEnvironment,
+  ProgDoohEnvironment,
+} from "@/app/components/PreviewStudio/video/VideoPlacementEnvironments";
+import {
   getPreviewPlacementTabs,
   PREVIEW_PLACEMENT_REGISTRY,
 } from "./previewPlacementRegistry";
@@ -36,6 +47,7 @@ export const environmentRegistry = {
   google_discover: GoogleDiscoverEnvironment,
   gmail: GmailEnvironment,
   google_maps: GoogleMapsEnvironment,
+  google_video_partners: GoogleVideoPartnersEnvironment,
 
   facebook_feed: FacebookFeedEnvironment,
   facebook_feed_desktop: FacebookFeedDesktopEnvironment,
@@ -47,6 +59,15 @@ export const environmentRegistry = {
   facebook_marketplace: FacebookMarketplaceEnvironment,
   messenger: MessengerEnvironment,
   audience_network: AudienceNetworkEnvironment,
+  meta_in_stream: MetaInStreamEnvironment,
+
+  prog_publisher_video: ProgPublisherVideoEnvironment,
+  prog_mobile_app_video: ProgMobileAppVideoEnvironment,
+  prog_in_stream: ProgInStreamEnvironment,
+  prog_out_stream: ProgOutStreamEnvironment,
+  prog_ctv: ProgCtvEnvironment,
+  prog_ott: ProgOttEnvironment,
+  prog_dooh: ProgDoohEnvironment,
 };
 
 const TYPE_TO_ENVIRONMENT = {
@@ -91,8 +112,17 @@ export function resolveCreativeEnvironment(creative, deviceMode = "desktop") {
 
 export function renderEnvironmentCreative(creative, handlers = {}, deviceMode = "desktop") {
   const environmentKey = resolveCreativeEnvironment(creative, deviceMode);
+  const isVideo =
+    creative?.mediaType === "video"
+    || Boolean(creative?.videoUrl)
+    || String(environmentKey || "").includes("video")
+    || ["youtube", "instagram_reels", "instagram_story", "facebook_story", "meta_in_stream"].includes(environmentKey || "");
 
-  if (!shouldUseFullEnvironmentLayout(deviceMode)) {
+  if (!shouldUseFullEnvironmentLayout(deviceMode, {
+    isVideoMode: isVideo,
+    mediaType: creative?.mediaType,
+    forceFull: true,
+  })) {
     return (
       <MobileEnvironmentTemplatePreview
         creative={{ ...creative, environment: environmentKey || creative.environment }}

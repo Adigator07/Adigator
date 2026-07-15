@@ -91,93 +91,104 @@ const TICKER_BENEFITS = [
 ];
 
 const WHY_CAMPAIGNS_FAIL = [
-  "Creative doesn't match campaign objective",
-  "Landing page doesn't match creative",
-  "Campaign assets become misaligned during handoffs",
-  "Technical issues delay launch",
-  "Nobody validates everything together",
-  "Missing tracking breaks measurement",
+  {
+    title: "Handoffs hide the truth",
+    body: "Brief, creative, landing page, and tracking live in different tools, so nobody sees the full picture until launch day.",
+  },
+  {
+    title: "Assets pass alone and fail together",
+    body: "A creative can look perfect and still contradict the offer, destination, or objective.",
+  },
+  {
+    title: "Technical blockers show up late",
+    body: "Wrong sizes, broken URLs, and missing UTMs become emergencies only after trafficking begins.",
+  },
+  {
+    title: "Swaps and renewals skip re-validation",
+    body: "Mid-flight changes inherit yesterday's assumptions and quietly reintroduce known failures.",
+  },
+  {
+    title: "Manual QA does not scale",
+    body: "Checklists drift by team, market, and deadline. Enterprise operations need a system, not folklore.",
+  },
+  {
+    title: "Spend starts before readiness is proven",
+    body: "Once media is live, every mismatch becomes wasted budget, escalation, or both.",
+  },
 ];
 
 const HOW_IT_WORKS = [
   {
     step: "Step 1",
-    title: "Understand Campaign",
-    items: ["Campaign Goal", "Ad Group Objective", "Vertical", "Description", "Landing Page", "Platform"],
-    tag: "Brief",
+    title: "Capture campaign intelligence",
+    items: ["Campaign Goal", "Ad Group Objective", "Vertical", "Offer Context", "Landing Page", "Platform"],
+    tag: "Intelligence",
   },
   {
     step: "Step 2",
-    title: "Validate Assets",
-    items: ["Creative", "Sizes", "Formats", "URLs", "Technical QA"],
+    title: "Validate the package",
+    items: ["Creative Alignment", "Landing Continuity", "Sizes & Formats", "URLs", "UTMs & Tracking"],
     tag: "Validate",
   },
   {
     step: "Step 3",
-    title: "Campaign Intelligence",
-    items: [
-      "Campaign Intent",
-      "Understands Ad Group Objectives",
-      "Campaign Vertical",
-      "Creative Messaging",
-      "Landing Page Match",
-      "Placement Checks",
-    ],
-    tag: "Align",
+    title: "Gate every operational task",
+    items: ["Setup", "Creative Swap", "Landing Update", "Renewal", "Handoff"],
+    tag: "Operate",
   },
   {
     step: "Step 4",
-    title: "Launch Ready",
-    items: ["Preview", "Report", "PPTX", "Launch Recommendation"],
+    title: "Ship launch-ready",
+    items: ["Preview", "Readiness Report", "PPTX Export", "Execution Confidence"],
     tag: "Launch",
   },
 ];
 
-const VALIDATES_ITEMS = [
+const UNDERSTANDS_ITEMS = [
   { label: "Campaign Brief", icon: Briefcase },
   { label: "Campaign Goal", icon: Flag },
-  { label: "Creative", icon: Image },
+  { label: "Creative Intent", icon: Image },
   { label: "Messaging Alignment", icon: MessageSquare },
-  { label: "Landing Page", icon: Globe },
-  { label: "URL", icon: Link2 },
-  { label: "UTM", icon: Target },
-  { label: "Tracking", icon: Activity },
+  { label: "Landing Experience", icon: Globe },
+  { label: "Destination URLs", icon: Link2 },
+  { label: "UTM Structure", icon: Target },
+  { label: "Tracking Readiness", icon: Activity },
   { label: "Technical QA", icon: Shield },
   { label: "Safe Zones", icon: Monitor },
   { label: "Platform Specs", icon: BarChart3 },
   { label: "Placements", icon: Zap },
-  { label: "Device", icon: Smartphone },
-  { label: "Preview", icon: Monitor },
+  { label: "Device Fit", icon: Smartphone },
+  { label: "Operational Tasks", icon: Megaphone },
   { label: "Audience (Coming Soon)", icon: Users },
 ];
 
 const PLATFORMS = [
-  { name: "Meta Ads", desc: "Feed, Story, Reels, and safe zone validation.", icon: Megaphone },
-  { name: "Google Ads", desc: "Display, RDA, and Demand Gen requirements.", icon: Target },
-  { name: "Programmatic Display", desc: "RTB sizes, file weight, and placement fit.", icon: BarChart3 },
+  { name: "Meta Ads", desc: "Feed, Story, Reels, and safe-zone validation before trafficking.", icon: Megaphone },
+  { name: "Google Ads", desc: "Display, RDA, and Demand Gen requirements in one readiness pass.", icon: Target },
+  { name: "Programmatic Display", desc: "RTB sizes, file weight, and placement compatibility.", icon: BarChart3 },
   {
     name: "Responsive Display",
-    desc: "Landscape and square ratio checks for Google Responsive Display Ads.",
+    desc: "Ratio and asset-set checks for Google Responsive Display Ads.",
     icon: Monitor,
   },
-  { name: "Cross device placements", desc: "Desktop, mobile, and tablet compatibility.", icon: Smartphone },
+  { name: "Cross-device placements", desc: "Desktop, mobile, and tablet fit across the package.", icon: Smartphone },
 ];
 
-const FEATURES = [
+const OPERATIONAL_VALUE = [
   {
-    title: "Campaign Readiness Report",
+    title: "One readiness signal",
     description:
-      "Know your campaign's health before a single impression is served. Adigator surfaces every mismatch across creative, landing page, platform, and objective in one report before launch.",
+      "Replace fragmented QA threads with a shared campaign readiness report your creative, planning, and AdOps teams can trust.",
   },
   {
-    title: "Stop Escalations Before They Start",
+    title: "Validate the change, not just the launch",
     description:
-      "A misaligned creative or broken URL caught before launch is an escalation that never happens. Your validation report becomes your paper trail.",
+      "Treat swaps, landing updates, renewals, and handoffs as first-class validation events so quality does not reset mid-flight.",
   },
   {
-    title: "Small Errors. Big Losses.",
+    title: "Prevent the expensive failures",
     description:
-      "A wrong placement. A mismatched landing page. An oversized file. Individually minor, but collectively they drain media budgets, delay campaigns, and damage client relationships. Adigator catches them all before the spend begins.",
+      "Wrong destinations, expired offers, and spec rejects are cheap to catch before spend, and expensive afterward.",
   },
 ];
 
@@ -188,27 +199,27 @@ const BUILT_FOR = [
   "Ad Operations",
   "QA Teams",
   "Media Buyers",
-  "Brands",
-  "Outsourcing Teams",
+  "Brand Teams",
+  "Outsourcing Partners",
   "Enterprise Marketing",
 ];
 
-const AGENCY_BENEFITS = [
-  "Reduce campaign rework",
-  "Reduce operational back-and-forth",
-  "Catch issues before media spend",
-  "Reduce QA time",
-  "Protect campaign quality",
-  "Reduce client escalations",
-  "Standardize campaign validation",
+const TEAM_OUTCOMES = [
+  "Standardize pre-launch validation across pods",
+  "Reduce rework between creative and AdOps",
+  "Catch destination and tracking issues early",
+  "Shorten QA cycles without lowering the bar",
+  "Protect client trust with auditable readiness",
+  "Keep renewals and swaps from inheriting defects",
+  "Scale quality without adding headcount folklore",
 ];
 
 const WORKFLOW_STEPS = [
-  "Understand the campaign brief, vertical, and objective.",
-  "Validate display creatives against platform specifications.",
-  "Check landing page alignment with creatives and messaging.",
-  "Validate URLs and UTM parameters.",
-  "Catch every mismatch before campaign tasks are executed.",
+  "Anchor validation in campaign intelligence, not isolated assets.",
+  "Align creative, offer, and landing experience before trafficking.",
+  "Confirm platform specs, URLs, and tracking integrity.",
+  "Gate mid-flight tasks the same way you gate launches.",
+  "Leave a readiness trail your next renewal can reuse.",
 ];
 
 export default function HomePage() {
@@ -234,9 +245,8 @@ export default function HomePage() {
                 transition={{ duration: 0.6, delay: 0.25 }}
                 className="mt-6 max-w-2xl text-lg leading-relaxed text-[#5A5A55] sm:text-xl"
               >
-                Adigator validates campaign briefs, creatives, landing pages, URLs, tracking, and platform
-                requirements before execution, helping teams reduce back and forth, prevent costly mistakes, and
-                launch or update campaigns with confidence.
+                The operational validation layer for modern AdOps. Catch misalignment across brief, creative,
+                landing page, URLs, and platform requirements before media spend begins.
               </motion.p>
 
               <motion.div
@@ -306,32 +316,40 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* Why campaigns fail */}
+        {/* Operational failure modes */}
         <section className="marketing-section marketing-section-compact mx-auto w-[min(1280px,92vw)]">
           <div className="mb-6 max-w-3xl">
-            <h2 className="text-3xl font-black leading-tight tracking-tight sm:text-4xl lg:text-5xl">
-              Why campaigns fail before they even launch
+            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#8A8A82]">
+              Operational reality
+            </p>
+            <h2 className="mt-3 text-3xl font-black leading-tight tracking-tight sm:text-4xl lg:text-5xl">
+              Where campaign operations break
             </h2>
+            <p className="mt-4 text-lg leading-relaxed text-[#5A5A55]">
+              Most failures are not creative talent problems. They are system problems: seams, assumptions, and
+              missing gates between teams.
+            </p>
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {WHY_CAMPAIGNS_FAIL.map((item, i) => (
               <motion.article
-                key={item}
+                key={item.title}
                 initial={{ opacity: 0, y: 12 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: i * 0.06 }}
                 className="saas-hover rounded-2xl border border-[#DEDDD5] bg-white p-6 shadow-[0_12px_24px_rgba(15,23,42,0.05)] sm:p-7"
               >
-                <span className="text-2xl font-black text-[#C8F04D]/80">↓</span>
-                <p className="mt-3 text-lg font-bold leading-snug tracking-tight">{item}</p>
+                <span className="text-xs font-bold uppercase tracking-[0.16em] text-[#8A8A82]">0{i + 1}</span>
+                <p className="mt-3 text-lg font-bold leading-snug tracking-tight">{item.title}</p>
+                <p className="mt-3 text-sm leading-relaxed text-[#5A5A55]">{item.body}</p>
               </motion.article>
             ))}
           </div>
 
           <p className="mt-8 text-center text-xl font-black tracking-tight sm:text-2xl">
-            Stop wasting media budget on preventable mistakes.
+            Validate the system before you fund the spend.
           </p>
         </section>
 
@@ -339,8 +357,11 @@ export default function HomePage() {
         <section className="bg-[#0D0D0D] py-10 text-white sm:py-12 md:py-14">
           <div className="mx-auto w-[min(1280px,92vw)]">
             <div className="mb-6 lg:mb-8">
-              <h2 className="text-3xl font-black tracking-tight sm:text-4xl lg:text-5xl">
-                Four steps from brief to launch ready
+              <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-white/45">
+                Validation workflow
+              </p>
+              <h2 className="mt-3 text-3xl font-black tracking-tight sm:text-4xl lg:text-5xl">
+                From intelligence to execution confidence
               </h2>
             </div>
 
@@ -375,16 +396,23 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* What Adigator validates */}
+        {/* What Adigator understands */}
         <section className="marketing-section marketing-section-compact mx-auto w-[min(1280px,92vw)]">
           <div className="mb-6 max-w-3xl">
-            <h2 className="text-3xl font-black leading-tight tracking-tight sm:text-4xl lg:text-5xl">
-              What Adigator validates
+            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#8A8A82]">
+              Campaign intelligence
+            </p>
+            <h2 className="mt-3 text-3xl font-black leading-tight tracking-tight sm:text-4xl lg:text-5xl">
+              What Adigator understands
             </h2>
+            <p className="mt-4 text-lg leading-relaxed text-[#5A5A55]">
+              Validation only works when the system understands campaign intent, then checks every asset and task
+              against that truth.
+            </p>
           </div>
 
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
-            {VALIDATES_ITEMS.map(({ label, icon: Icon }) => (
+            {UNDERSTANDS_ITEMS.map(({ label, icon: Icon }) => (
               <div
                 key={label}
                 className="saas-hover flex flex-col items-center rounded-2xl border border-[#DEDDD5] bg-white p-5 text-center shadow-[0_8px_20px_rgba(15,23,42,0.04)]"
@@ -403,7 +431,16 @@ export default function HomePage() {
         {/* Platform coverage */}
         <section className="border-y border-[#DEDDD5] bg-[#FAFAF7] marketing-section-compact">
           <div className="mx-auto w-[min(1280px,92vw)]">
-            <h2 className="text-3xl font-black tracking-tight sm:text-4xl">Platform coverage</h2>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#8A8A82]">
+              The Adigator platform
+            </p>
+            <h2 className="mt-3 text-3xl font-black tracking-tight sm:text-4xl">
+              Built for the channels you already run
+            </h2>
+            <p className="mt-4 max-w-2xl text-base leading-relaxed text-[#5A5A55]">
+              Specs, placements, and creative constraints differ by channel. Adigator validates against the
+              environments your campaigns actually traffic into.
+            </p>
             <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               {PLATFORMS.map((platform, i) => (
                 <motion.article
@@ -452,13 +489,16 @@ export default function HomePage() {
             />
             <div className="order-1 lg:order-2">
           <div className="mb-6">
-            <h2 className="text-3xl font-black tracking-tight sm:text-4xl lg:text-5xl">
-              Built for teams that own campaign quality.
+            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#8A8A82]">
+              Operational outcomes
+            </p>
+            <h2 className="mt-3 text-3xl font-black tracking-tight sm:text-4xl lg:text-5xl">
+              Built for operational teams
             </h2>
           </div>
 
           <div className="grid gap-5 sm:gap-6">
-            {FEATURES.map((feature) => (
+            {OPERATIONAL_VALUE.map((feature) => (
               <article
                 key={feature.title}
                 className="saas-hover rounded-2xl border border-[#DEDDD5] bg-white p-6 shadow-[0_12px_24px_rgba(15,23,42,0.05)] sm:rounded-3xl sm:p-8"
@@ -504,7 +544,7 @@ export default function HomePage() {
           <div className="mx-auto w-[min(1280px,92vw)]">
             <div className="grid gap-10 lg:grid-cols-2">
               <div>
-                <h2 className="text-3xl font-black tracking-tight sm:text-4xl">Teams who own launch quality</h2>
+                <h2 className="text-3xl font-black tracking-tight sm:text-4xl">Who runs on Adigator</h2>
                 <div className="mt-6 flex flex-wrap gap-2">
                   {BUILT_FOR.map((role) => (
                     <span
@@ -519,11 +559,11 @@ export default function HomePage() {
               </div>
 
               <div>
-                <h2 className="text-3xl font-black tracking-tight sm:text-4xl">Why agencies choose Adigator</h2>
+                <h2 className="text-3xl font-black tracking-tight sm:text-4xl">What operational teams unlock</h2>
                 <ul className="mt-6 space-y-3">
-                  {AGENCY_BENEFITS.map((benefit) => (
+                  {TEAM_OUTCOMES.map((benefit) => (
                     <li key={benefit} className="flex items-start gap-3 text-base font-semibold text-[#0D0D0D] sm:text-lg">
-                      <span className="text-xl text-[#C8F04D]/80">↓</span>
+                      <span className="text-[#C8F04D]">✓</span>
                       {benefit}
                     </li>
                   ))}
@@ -537,10 +577,10 @@ export default function HomePage() {
         <section className="bg-[#0D0D0D] py-10 text-white sm:py-12 md:py-14">
           <div className="mx-auto flex w-[min(1100px,92vw)] flex-col items-center text-center">
             <h2 className="text-[clamp(2.2rem,6vw,4.5rem)] font-black leading-tight tracking-tight">
-              Launch with confidence.
+              Validate before you spend.
             </h2>
             <p className="mt-4 max-w-xl text-base text-white/60">
-              Validate every campaign before it reaches your audience.
+              Give AdOps a readiness gate, not another after-the-fact escalation.
             </p>
             <Link
               href={MARKETING_CTA.href}

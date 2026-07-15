@@ -43,6 +43,12 @@ const ENVIRONMENT_BADGES = {
   audience_network: { label: "Audience Network", className: "bg-violet-500/20 text-violet-100 border-violet-400/30" },
   facebook_marketplace: { label: "Facebook Marketplace", className: "bg-[#1877F2]/20 text-blue-100 border-blue-400/30" },
   instagram_explore: { label: "Instagram Explore", className: "bg-gradient-to-r from-pink-500/20 to-purple-500/20 text-pink-100 border-pink-400/30" },
+  google_video_partners: { label: "Google Video Partners", className: "bg-blue-500/20 text-blue-100 border-blue-400/30" },
+  meta_in_stream: { label: "Meta In-Stream", className: "bg-indigo-500/20 text-indigo-100 border-indigo-400/30" },
+  prog_publisher_video: { label: "Publisher Website", className: "bg-slate-500/20 text-slate-100 border-slate-400/30" },
+  prog_mobile_app_video: { label: "Mobile App", className: "bg-emerald-500/20 text-emerald-100 border-emerald-400/30" },
+  prog_in_stream: { label: "In-Stream Video", className: "bg-rose-500/20 text-rose-100 border-rose-400/30" },
+  prog_out_stream: { label: "Out-Stream Video", className: "bg-amber-500/20 text-amber-100 border-amber-400/30" },
 };
 
 function MobileTemplateFrame({ children }) {
@@ -225,6 +231,22 @@ function renderMobileTemplate(environmentKey, creative) {
           </button>
         </div>
       );
+    case "google_video_partners":
+    case "meta_in_stream":
+    case "prog_publisher_video":
+    case "prog_in_stream":
+    case "prog_out_stream":
+      return (
+        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-black text-white shadow-sm">
+          <MediaFrame creative={creative} aspectRatio="9 / 16" fit="contain" />
+          <div className="flex items-center justify-between bg-slate-900 px-3 py-2.5 text-[11px]">
+            <span>Sponsored</span>
+            <span className="font-semibold">{creative.cta || "Learn More"}</span>
+          </div>
+        </div>
+      );
+    case "prog_mobile_app_video":
+      return <StoryReelTemplate creative={creative} />;
     default:
       return <GenericDisplayTemplate creative={creative} />;
   }

@@ -237,6 +237,7 @@ export default function PreviewStudio({
   initialTemplateId = null,
   initialPreviewDevice = null,
   initialPreviewCreativeId = null,
+  isVideoMode = false,
 }) {
   const mappedPlatform = mapExternalPlatform(externalPlatform);
   const [platform, setPlatform] = useState(mappedPlatform);
@@ -248,6 +249,10 @@ export default function PreviewStudio({
   const previewRef = useRef(null);
 
   const isGoogleMeta = externalPlatform === "google_ads" || externalPlatform === "meta_ads";
+  const useVideoPlacementStudio = Boolean(
+    isVideoMode
+    || sourceCreatives.some((creative) => creative?.mediaType === "video"),
+  );
 
   useEffect(() => {
     const next = mapExternalPlatform(externalPlatform);
@@ -321,6 +326,23 @@ export default function PreviewStudio({
     );
   }
 
+  if (useVideoPlacementStudio && (externalPlatform === "programmatic" || externalPlatform === "google_ads" || externalPlatform === "meta_ads")) {
+    return (
+      <StaticGoogleMetaPreviewStudio
+        platform={externalPlatform}
+        vertical={vertical}
+        goal={goal}
+        brandName={brandName}
+        keyMessage=""
+        sourceCreatives={sourceCreatives}
+        onCopyCreative={onCopyCreative}
+        onEditCreative={onEditCreative}
+        onExportContextChange={onExportContextChange}
+        isVideoMode
+      />
+    );
+  }
+
   if (externalPlatform === "programmatic") {
     return (
       <ProgrammaticPreviewStudio
@@ -363,6 +385,7 @@ export default function PreviewStudio({
         onCopyCreative={onCopyCreative}
         onEditCreative={onEditCreative}
         onExportContextChange={onExportContextChange}
+        isVideoMode={false}
       />
     );
   }

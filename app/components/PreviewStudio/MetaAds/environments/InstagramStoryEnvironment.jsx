@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import {
-  AdImage,
+  AdMedia,
   BrandAvatar,
   EnvironmentPreviewCard,
   PhoneFrame,
@@ -24,7 +24,7 @@ export default function InstagramStoryEnvironment({ creative, onCopy, onEdit }) 
       <ScaledEnvironment naturalWidth={375} naturalHeight={812} onScaleChange={(s) => setScaleLabel(s < 0.995 ? `Scaled ${Math.round(s * 100)}%` : null)}>
         <PhoneFrame width={375} height={812} className="border-[8px] bg-black">
           <div className="relative h-full w-full overflow-hidden text-white">
-            <AdImage creative={creative} className="absolute inset-0" />
+            <AdMedia creative={creative} className="absolute inset-0" />
             <div className="absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-black/75 to-transparent" />
             <div className="absolute inset-x-0 bottom-0 h-48 bg-gradient-to-t from-black/85 to-transparent" />
             <div className="absolute inset-x-3 top-3 flex gap-1">

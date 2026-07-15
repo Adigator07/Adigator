@@ -54,17 +54,17 @@ function ValidationChecklist({ items }) {
   return (
     <div className="rounded-2xl border border-studio-border bg-studio-surface p-5">
       <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">What to Validate</p>
-      <div className="mt-4 space-y-2">
+      <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {items.map((item) => (
           <div
             key={item.key}
-            className={`rounded-xl border px-4 py-3 ${checklistTone(item.status)}`}
+            className={`rounded-xl border px-3 py-3 ${checklistTone(item.status)}`}
           >
             <div className="flex items-start gap-2">
-              <span className="mt-0.5 text-sm">{qaItemIcon(item.status)}</span>
-              <div>
-                <p className="text-sm font-semibold">{item.label}</p>
-                <p className="mt-1 text-sm opacity-85">{item.text}</p>
+              <span className="mt-0.5 shrink-0 text-sm">{qaItemIcon(item.status)}</span>
+              <div className="min-w-0">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.14em] opacity-80">{item.label}</p>
+                <p className="mt-1 text-sm font-semibold leading-snug">{item.text}</p>
               </div>
             </div>
           </div>
@@ -81,7 +81,7 @@ function ValidationLevels({ activeTier, fileSizeLabel }) {
         <div>
           <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">Validation Levels</p>
           <p className="mt-1 text-sm text-slate-300">
-            Video file-size guidance — images still use the 150 KB optimization target.
+            Video file-size guidance. Images still use the 150 KB optimization target.
           </p>
         </div>
         {fileSizeLabel ? (

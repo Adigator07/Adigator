@@ -97,6 +97,15 @@ export default function MarketingNav({ activePath, showCta = true }: MarketingNa
                 {item.label}
               </Link>
             ))}
+            <Link href="/methodology" className="block rounded-lg px-3 py-2 text-sm font-semibold text-[#0D0D0D] hover:bg-[#F5F5F0]">
+              Methodology
+            </Link>
+            <Link href="/operational-scenarios" className="block rounded-lg px-3 py-2 text-sm font-semibold text-[#0D0D0D] hover:bg-[#F5F5F0]">
+              Scenarios
+            </Link>
+            <Link href="/campaign-error-library" className="block rounded-lg px-3 py-2 text-sm font-semibold text-[#0D0D0D] hover:bg-[#F5F5F0]">
+              Error Library
+            </Link>
             <Link href={MARKETING_DEMO_VIDEO.href} className="block rounded-lg px-3 py-2 text-sm font-semibold text-[#0D0D0D] hover:bg-[#F5F5F0]">
               {MARKETING_DEMO_VIDEO.label}
             </Link>

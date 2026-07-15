@@ -35,7 +35,7 @@ export default function DemoPage() {
             See how Adigator works
           </h1>
           <p className="mt-4 max-w-3xl text-lg leading-relaxed text-[#5E5E58]">
-            Watch the platform overview, then launch the interactive Preview Tool to experience the full workflow yourself.
+            Watch the platform overview, then launch Campaign Intelligence Studio to experience the full workflow yourself.
           </p>
 
           <div className="mt-8 overflow-hidden rounded-2xl border border-[#E7E6DF] bg-[#0D0D0D]">

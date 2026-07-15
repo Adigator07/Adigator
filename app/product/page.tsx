@@ -132,7 +132,7 @@ const FOOTER_COLUMNS = [
     title: "Solutions",
     items: [
       { label: "Solutions", href: "/solutions" },
-      { label: "Preview Tool", href: "/preview-tool" },
+      { label: "Campaign Intelligence Studio", href: "/preview-tool" },
       { label: "Dashboard", href: "/dashboard" },
     ],
   },

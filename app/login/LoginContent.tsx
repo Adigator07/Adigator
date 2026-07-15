@@ -3,7 +3,7 @@
 import { FormEvent, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ArrowRight, Eye, EyeOff, Loader2, Check } from "lucide-react";
+import { ArrowRight, Loader2, Check } from "lucide-react";
 import { MARKETING_CTA } from "@/app/lib/siteNavigation";
 import { supabase } from "@/app/lib/supabase";
 import {
@@ -13,10 +13,14 @@ import {
   LOGIN_INCORRECT_CREDENTIALS_ERROR,
   LOGIN_PENDING_APPROVAL_ERROR,
   LOGIN_SERVER_ERROR,
-  LOGIN_SERVICE_UNAVAILABLE_ERROR,
   PASSWORD_RESET_REQUEST_MESSAGE,
   SIGNUP_PENDING_APPROVAL_MESSAGE,
 } from "@/app/lib/auth/constants";
+import {
+  getLoginBlockMessage,
+  isAccountLoginAllowed,
+  type AccountStatus,
+} from "@/app/lib/auth/accountStatus";
 import { logUserActivity } from "@/app/lib/userActivity";
 import { REGISTRATION_ROLES, getPostAuthRedirect } from "@/app/lib/communications/roleLabels";
 import type { UserRole } from "@/app/lib/communications/types";
@@ -56,17 +60,6 @@ const VALIDATION_STATS = [
 
 const inputClassName =
   "h-[3.25rem] w-full rounded-xl border border-[#E8E6DF] bg-white/90 px-4 text-[15px] text-[#0D0D0D] shadow-[inset_0_1px_2px_rgba(15,23,42,0.04)] outline-none transition placeholder:text-[#9CA3AF] focus:border-[#0D0D0D]/30 focus:bg-white focus:shadow-[0_0_0_3px_rgba(13,13,13,0.06)]";
-
-function GoogleIcon() {
-  return (
-    <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5 shrink-0" fill="none">
-      <path d="M21.35 12.25c0-.78-.07-1.52-.2-2.24H12v4.24h5.23c-.22 1.2-.9 2.22-1.9 2.9v2.41h3.08c1.81-1.67 2.94-4.12 2.94-7.31Z" fill="#4285F4" />
-      <path d="M12 21.75c2.63 0 4.84-.87 6.45-2.36l-3.08-2.41c-.87.58-1.98.93-3.37.93-2.58 0-4.77-1.74-5.56-4.08H3.26v2.49A9.74 9.74 0 0 0 12 21.75Z" fill="#34A853" />
-      <path d="M6.44 13.83a5.86 5.86 0 0 1 0-3.66V7.68H3.26a9.74 9.74 0 0 0 0 8.64l3.18-2.49Z" fill="#FBBC05" />
-      <path d="M12 6.09c1.4 0 2.65.48 3.64 1.43l2.73-2.73C16.84 3.38 14.63 2.5 12 2.5 8.2 2.5 4.93 4.68 3.26 7.68l3.18 2.49C7.23 7.83 9.42 6.09 12 6.09Z" fill="#EA4335" />
-    </svg>
-  );
-}
 
 export default function LoginContent() {
   const router = useRouter();
@@ -117,13 +110,15 @@ export default function LoginContent() {
     setErrors({});
 
     try {
-      const response = await fetch("/api/auth/reset-password", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: resetEmail.trim() }),
+      const trimmed = resetEmail.trim();
+      if (!trimmed) {
+        setErrors({ form: GENERIC_AUTH_VALIDATION_ERROR });
+        return;
+      }
+      await supabase.auth.resetPasswordForEmail(trimmed, {
+        redirectTo: `${window.location.origin}/login?reset=1`,
       });
-      const result = await response.json().catch(() => ({}));
-      setResetMessage(result.message || PASSWORD_RESET_REQUEST_MESSAGE);
+      setResetMessage(PASSWORD_RESET_REQUEST_MESSAGE);
     } catch {
       setResetMessage(PASSWORD_RESET_REQUEST_MESSAGE);
     } finally {
@@ -134,14 +129,16 @@ export default function LoginContent() {
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const nextErrors: FieldErrors = {};
+    const trimmedEmail = email.trim();
+    const trimmedUsername = username.trim();
 
     if (isRegisterMode) {
-      if (!username.trim() || !email.trim() || !password.trim() || !confirmPassword.trim() || !selectedRole) {
+      if (!trimmedUsername || !trimmedEmail || !password.trim() || !confirmPassword.trim() || !selectedRole) {
         nextErrors.form = GENERIC_AUTH_VALIDATION_ERROR;
       } else if (password.trim() !== confirmPassword.trim()) {
         nextErrors.form = GENERIC_AUTH_VALIDATION_ERROR;
       }
-    } else if (!email.trim() || !password.trim()) {
+    } else if (!trimmedEmail || !password.trim()) {
       nextErrors.form = LOGIN_INCORRECT_CREDENTIALS_ERROR;
     }
 
@@ -155,104 +152,72 @@ export default function LoginContent() {
     setSignupSuccessMessage(null);
 
     try {
-      const endpoint = isRegisterMode ? "/api/auth/signup" : "/api/auth/login";
-      const payload = isRegisterMode
-        ? {
-            email: email.trim(),
-            password,
-            confirmPassword,
-            username: username.trim(),
-            displayName: username.trim(),
-            role: selectedRole,
-          }
-        : { email: email.trim(), password };
+      if (isRegisterMode) {
+        const { data, error } = await supabase.auth.signUp({
+          email: trimmedEmail,
+          password,
+          options: {
+            data: {
+              full_name: trimmedUsername,
+              username: trimmedUsername,
+              display_name: trimmedUsername,
+              role: selectedRole,
+            },
+          },
+        });
 
-      const response = await fetch(endpoint, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-
-      const result = await response.json().catch(() => ({}));
-
-      if (!response.ok) {
-        let message: string;
-        if (isRegisterMode) {
-          message = response.status === 400
-            ? (result.error || GENERIC_AUTH_VALIDATION_ERROR)
-            : GENERIC_SIGNUP_RESPONSE_MESSAGE;
-        } else if (response.status === 403) {
-          message = result.error || LOGIN_PENDING_APPROVAL_ERROR;
-        } else if (response.status === 401) {
-          message = LOGIN_INCORRECT_CREDENTIALS_ERROR;
-        } else if (response.status === 404 || response.status === 405) {
-          message = LOGIN_SERVICE_UNAVAILABLE_ERROR;
-        } else if (response.status >= 500) {
-          message = LOGIN_SERVER_ERROR;
-        } else {
-          message = result.error || LOGIN_INCORRECT_CREDENTIALS_ERROR;
+        if (error) {
+          setErrors({ form: GENERIC_SIGNUP_RESPONSE_MESSAGE });
+          return;
         }
-        setErrors({ form: message });
-        return;
-      }
 
-      if (isRegisterMode && result.pendingApproval) {
-        setSignupSuccessMessage(result.message || SIGNUP_PENDING_APPROVAL_MESSAGE);
+        if (data.session) {
+          await supabase.auth.signOut();
+        }
+
+        setSignupSuccessMessage(SIGNUP_PENDING_APPROVAL_MESSAGE);
         setPassword("");
         setConfirmPassword("");
         return;
       }
 
-      if (isRegisterMode && (result.requiresEmailConfirmation || !result.session)) {
-        setSignupSuccessMessage(result.message || SIGNUP_PENDING_APPROVAL_MESSAGE);
-        return;
-      }
-
-      if (!result.session?.access_token || !result.session?.refresh_token) {
-        setErrors({ form: isRegisterMode ? (result.message || GENERIC_SIGNUP_RESPONSE_MESSAGE) : LOGIN_INCORRECT_CREDENTIALS_ERROR });
-        return;
-      }
-
-      const { error: sessionError } = await supabase.auth.setSession({
-        access_token: result.session.access_token,
-        refresh_token: result.session.refresh_token,
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: trimmedEmail,
+        password,
       });
-      if (sessionError) throw sessionError;
 
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
+      if (error || !data.session?.user) {
         setErrors({ form: LOGIN_INCORRECT_CREDENTIALS_ERROR });
         return;
       }
 
+      const user = data.session.user;
       const metaRole = user.user_metadata?.role as RegisterRole | undefined;
       const { data: profile } = await supabase
         .from("profiles")
-        .select("role")
+        .select("role, status")
         .eq("id", user.id)
         .maybeSingle();
 
-      const resolvedRole = (profile?.role || metaRole || selectedRole || "end_client") as RegisterRole;
-
-      if (isRegisterMode) {
-        await logUserActivity("user_registered", {
-          event_label: "User registered and signed in",
-          metadata: { email: user.email || email.trim(), role: resolvedRole },
-        });
-      } else {
-        await logUserActivity("user_login", {
-          event_label: "User logged in",
-          metadata: { email: user.email || email.trim(), role: resolvedRole },
-        });
+      const accountStatus = (profile?.status as AccountStatus | null | undefined) ?? null;
+      if (accountStatus && !isAccountLoginAllowed(accountStatus)) {
+        await supabase.auth.signOut();
+        setErrors({ form: getLoginBlockMessage(accountStatus) });
+        return;
       }
+
+      const resolvedRole = (profile?.role || metaRole || "end_client") as RegisterRole;
+
+      await logUserActivity("user_login", {
+        event_label: "User logged in",
+        metadata: { email: user.email || trimmedEmail, role: resolvedRole },
+      });
 
       setSuccess(true);
       setTimeout(() => router.replace(getPostAuthRedirect(resolvedRole)), 500);
     } catch {
       setErrors({
-        form: isRegisterMode
-          ? GENERIC_SIGNUP_RESPONSE_MESSAGE
-          : LOGIN_SERVICE_UNAVAILABLE_ERROR,
+        form: isRegisterMode ? GENERIC_SIGNUP_RESPONSE_MESSAGE : LOGIN_SERVER_ERROR,
       });
     } finally {
       setLoading(false);
@@ -374,23 +339,7 @@ export default function LoginContent() {
               </form>
             ) : (
               <>
-                <button
-                  type="button"
-                  className="mt-10 flex h-[3.25rem] w-full items-center justify-center gap-3 rounded-xl border border-[#E8E6DF] bg-white text-[15px] font-medium text-[#0D0D0D] shadow-[0_2px_12px_rgba(15,23,42,0.04)] transition hover:border-[#D5D2C8] hover:bg-[#FDFCFA]"
-                >
-                  <GoogleIcon />
-                  Continue with Google
-                </button>
-
-                <div className="my-8 flex items-center gap-4">
-                  <span className="h-px flex-1 bg-[#E8E6DF]" />
-                  <span className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#9CA3AF]">
-                    or continue with email
-                  </span>
-                  <span className="h-px flex-1 bg-[#E8E6DF]" />
-                </div>
-
-                <form onSubmit={handleSubmit} noValidate className="space-y-4">
+                <form onSubmit={handleSubmit} noValidate className="mt-10 space-y-4">
                   {isRegisterMode ? (
                     <div className="grid grid-cols-2 gap-2 rounded-xl border border-[#E8E6DF] bg-[#FAFAF7] p-1">
                       {REGISTRATION_ROLES.map((option) => {

@@ -201,6 +201,15 @@ import {
   writeStoredUrlValidation,
 } from "../lib/urlValidationClient";
 import {
+  TOTAL_WORKFLOW_STEPS as TOTAL_STEPS,
+  WORKFLOW_STEPS,
+  resolveWorkflowStep,
+  getWorkflowStepSlug,
+  buildWorkflowStepHref,
+} from "../lib/workflowSteps";
+import { readinessMatchesSession } from "../lib/campaignReadinessStore";
+import { recordPreviewStudioVideo } from "../lib/previewStudioVideoExport";
+import {
   WizardStepNav,
   ToolNavBtn,
   ToolSelectionCard,
@@ -228,18 +237,78 @@ const GROUP_LABELS = PLATFORM_SIZE_GROUP_LABELS;
 
 const ANALYSIS_SESSION_STORAGE_KEY = "adigator_analysis_session_id";
 const ACTIVE_CAMPAIGN_STORAGE_KEY = "adigator_active_campaign_id";
-
-function clampStep(value) {
-  const numeric = Number.parseInt(String(value || "1"), 10);
-  if (!Number.isFinite(numeric)) return 1;
-  return Math.min(Math.max(numeric, 1), TOTAL_STEPS);
-}
+const STEP_LABELS = WORKFLOW_STEPS.map((step) => step.label);
 import {
-  UploadCloud, CheckCircle2, AlertCircle,
+  UploadCloud, CheckCircle2, AlertCircle, AlertTriangle, ExternalLink, ChevronDown,
   Download, LayoutGrid, Square, CheckSquare, RotateCcw,
   Newspaper, ShoppingCart, Coffee, Activity, Laptop, Briefcase, GraduationCap, Gamepad2, Film,
   Monitor, Smartphone,
 } from "lucide-react";
+
+function UrlAlignmentSummaryCard({ urlValidation }) {
+  if (!urlValidation || urlValidation.status === "pending" || urlValidation.status === "skipped") {
+    return null;
+  }
+
+  const isAligned = urlValidation.status === "aligned";
+  const Icon = isAligned ? CheckCircle2 : AlertTriangle;
+  const tone = isAligned
+    ? "border-emerald-400/35 bg-emerald-500/10 text-emerald-100"
+    : "border-amber-400/35 bg-amber-500/10 text-amber-100";
+
+  return (
+    <div className={`rounded-2xl border px-4 py-4 ${tone}`}>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="flex items-start gap-2.5 min-w-0">
+          <Icon size={18} className="mt-0.5 shrink-0" />
+          <div className="min-w-0">
+            <p className="text-sm font-semibold text-studio-text">
+              {isAligned ? "Landing page matches this campaign" : "Landing page needs attention"}
+            </p>
+            <p className="mt-1 text-sm text-studio-muted leading-relaxed">
+              {urlValidation.summary
+                || (isAligned
+                  ? "URL health and content look consistent with your setup."
+                  : "Review the destination against your creative and campaign details.")}
+            </p>
+          </div>
+        </div>
+        <span className="rounded-full border border-white/15 bg-black/20 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-studio-text">
+          {isAligned ? "Aligned" : "Misaligned"}
+        </span>
+      </div>
+
+      {urlValidation.page_about ? (
+        <p className="mt-3 text-sm text-studio-muted leading-relaxed">
+          <span className="font-semibold text-studio-text">About the page: </span>
+          {urlValidation.page_about}
+        </p>
+      ) : null}
+
+      {!isAligned && urlValidation.misalignment_reason ? (
+        <p className="mt-2 text-sm text-studio-muted leading-relaxed">
+          <span className="font-semibold text-studio-text">Why: </span>
+          {urlValidation.misalignment_reason}
+        </p>
+      ) : null}
+
+      {urlValidation.submitted_url ? (
+        <p className="mt-3 flex items-center gap-1.5 break-all text-xs text-studio-tertiary">
+          <ExternalLink size={12} className="shrink-0" />
+          {urlValidation.submitted_url}
+        </p>
+      ) : null}
+
+      {!isAligned && Array.isArray(urlValidation.suggestions) && urlValidation.suggestions.length > 0 ? (
+        <ul className="mt-3 space-y-1 text-xs text-studio-muted">
+          {urlValidation.suggestions.slice(0, 3).map((suggestion) => (
+            <li key={suggestion}>• {suggestion}</li>
+          ))}
+        </ul>
+      ) : null}
+    </div>
+  );
+}
 
 // ── Inline workflow status (replaces popup toasts) ─────────────────────────────
 function WorkflowStatusBar({ status, analysisLoading, analysisProgress }) {
@@ -285,9 +354,6 @@ const TEMPLATES = [
   { id: "entertainment", name: "Video platform preview", icon: Film, desc: "Awareness top funnel", slots: 6 },
 ];
 
-const TOTAL_STEPS = 4;
-const STEP_LABELS = ["Setup", "Upload", "Analysis", "Preview Studio"];
-
 const PLATFORMS = [
   {
     id: "google_ads", icon: "🟦", title: "Google Ads", desc: "Display inventory and responsive placements optimized for intent-rich contexts",
@@ -332,6 +398,7 @@ const PROGRAMMATIC_GOALS = [
   { id: "awareness", title: "Awareness", subtitle: "Introduce Brand", emoji: "📣", apiGoal: "awareness", color: "from-blue-600/30 to-blue-800/20", border: "border-blue-500/50", desc: "Maximize reach, visual clarity, and brand recognition." },
   { id: "consideration", title: "Consideration", subtitle: "Evaluate Product", emoji: "🤔", apiGoal: "consideration", color: "from-purple-600/30 to-purple-800/20", border: "border-purple-500/50", desc: "Balance information, value proposition, and moderate CTA." },
   { id: "conversion", title: "Conversion", subtitle: "Drive Action", emoji: "⚡", apiGoal: "conversion", color: "from-orange-600/30 to-orange-800/20", border: "border-orange-500/50", desc: "Strong CTA, high contrast, urgent direct messaging." },
+  { id: "programmatic_video_views", title: "Video Views", subtitle: "Promote video ads", emoji: "🎬", apiGoal: "video_views", color: "from-rose-600/30 to-rose-800/20", border: "border-rose-500/50", desc: "Validate VAST in-stream and out-stream video packs for duration, codecs, ratios, and exchange-friendly specs." },
 ];
 
 const PLATFORM_GOAL_SETS = {
@@ -484,6 +551,19 @@ async function analyzeSingleCreative(
     formData.append("height", String(creative.sourceHeight || creative.validation?.dimensions?.height || 0));
     formData.append("duration_seconds", String(creative.durationSeconds || creative.validation?.durationSeconds || 0));
     formData.append("file_name", creative.originalFile || creative.name || "video.mp4");
+    formData.append("readable", String(creative.validation?.readable !== false));
+    if (creative.validation?.frameRate != null || creative.frameRate != null) {
+      formData.append("frame_rate", String(creative.frameRate ?? creative.validation?.frameRate));
+    }
+    if (creative.validation?.hasAudio != null || creative.hasAudio != null) {
+      formData.append("has_audio", String(Boolean(creative.hasAudio ?? creative.validation?.hasAudio)));
+    }
+    if (creative.videoCodec || creative.validation?.videoCodec) {
+      formData.append("video_codec", String(creative.videoCodec || creative.validation?.videoCodec));
+    }
+    if (creative.audioCodec || creative.validation?.audioCodec) {
+      formData.append("audio_codec", String(creative.audioCodec || creative.validation?.audioCodec));
+    }
     if (campaignBrief?.trim()) formData.append("campaign_brief", campaignBrief.trim());
     if (campaignProductFocus?.trim()) formData.append("campaign_product_focus", campaignProductFocus.trim());
     if (landingUrl?.trim()) formData.append("landing_url", stripUtmFromUrl(landingUrl.trim()));
@@ -738,7 +818,14 @@ export default function PreviewTool() {
   const pathname = usePathname();
 
   const urlStepParam = searchParams.get("step");
-  const step = clampStep(urlStepParam || "1");
+  const step = resolveWorkflowStep(urlStepParam || "campaign-setup");
+  const stepHref = useCallback(
+    (targetStep, extraParams = {}) => buildWorkflowStepHref(pathname, targetStep, {
+      ...(searchParams.get("demo") ? { demo: searchParams.get("demo") } : {}),
+      ...extraParams,
+    }),
+    [pathname, searchParams],
+  );
 
   const reportDeepLink = useMemo(() => {
     const analysisTab = searchParams.get("analysis_tab");
@@ -772,6 +859,7 @@ export default function PreviewTool() {
   const [advertiserName, setAdvertiserName] = useState("");
   const [advertiserId, setAdvertiserId] = useState("");
   const [campaignBrief, setCampaignBrief] = useState("");
+  const [liveBriefInsights, setLiveBriefInsights] = useState(null);
   const [campaignProductFocus, setCampaignProductFocus] = useState("");
   const [landingUrl, setLandingUrl] = useState("");
   const [programmaticTaskType, setProgrammaticTaskType] = useState("");
@@ -811,6 +899,7 @@ export default function PreviewTool() {
   const [creatives, setCreatives] = useState([]);
   const [isHydratingCreatives, setIsHydratingCreatives] = useState(true);
   const [drag, setDrag] = useState(false);
+  const [inventoryIntelligenceOpen, setInventoryIntelligenceOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(null);
   const uploadQueueRef = useRef(Promise.resolve());
@@ -862,6 +951,8 @@ export default function PreviewTool() {
     error: readinessError,
     progressLabel: readinessProgress,
     runValidation: runReadinessValidation,
+    restoreIfMatching: restoreReadinessIfMatching,
+    reset: resetReadinessValidation,
   } = useCampaignValidation();
 
   const [selectedTemplate] = useState("newspaper");
@@ -1043,6 +1134,7 @@ export default function PreviewTool() {
     if (!trimmedUrl) {
       setUrlValidation(null);
       clearStoredUrlValidation();
+      resetReadinessValidation();
       return null;
     }
 
@@ -1051,14 +1143,14 @@ export default function PreviewTool() {
       : campaignGoal;
 
     // Video ads use the explicit Ad Type toggle (non-programmatic) or the Video Views objective.
-    const isVideoAd = (platform !== "programmatic" && adType === "video")
-      || isVideoObjective(goalForValidation, platform);
+    const isVideoAd = adType === "video" || isVideoObjective(goalForValidation, platform);
 
     if (!platform || !goalForValidation) {
       addToast("Complete campaign setup before validating.", "error");
       return null;
     }
 
+    const creativeFingerprintForValidation = getCreativeValidationFingerprint(creatives);
     setUrlValidationRunning(true);
     try {
       const validForUrlCheck = creatives.filter((c) => c?.valid && (c.url || c.image || c.title));
@@ -1069,6 +1161,7 @@ export default function PreviewTool() {
           objective: goalForValidation,
           vertical: campaignVertical,
           campaignName: campaignName.trim() || "Campaign",
+          campaignBrief: campaignBrief || "",
           adType: isVideoAd ? "video" : "display",
           creatives: validForUrlCheck.length ? validForUrlCheck : creatives,
           getCreativeBlob: getCreativePreviewBlob,
@@ -1079,6 +1172,7 @@ export default function PreviewTool() {
           objective: goalForValidation,
           campaignName: campaignName.trim() || "Campaign",
           vertical: campaignVertical || undefined,
+          creativeFingerprint: creativeFingerprintForValidation,
           creatives: creatives.map((c) => ({
             id: c.id,
             name: c.name,
@@ -1093,7 +1187,7 @@ export default function PreviewTool() {
       ]);
       const enrichedResult = {
         ...result,
-        creative_fingerprint: getCreativeValidationFingerprint(creatives),
+        creative_fingerprint: creativeFingerprintForValidation,
       };
       setUrlValidation(enrichedResult);
       writeStoredUrlValidation(enrichedResult);
@@ -1111,12 +1205,14 @@ export default function PreviewTool() {
     campaignGoal,
     campaignVertical,
     campaignName,
+    campaignBrief,
     adType,
     creatives,
     programmaticTaskType,
     programmaticAdGroups,
     addToast,
     runReadinessValidation,
+    resetReadinessValidation,
   ]);
 
   useEffect(() => {
@@ -1188,9 +1284,16 @@ export default function PreviewTool() {
 
   useEffect(() => {
     if (!mountRef.current) return;
-    if (urlStepParam) return;
-    router.replace(`${pathname}?step=1`, { scroll: false });
-  }, [urlStepParam, pathname, router]);
+    if (!urlStepParam) {
+      router.replace(stepHref(1), { scroll: false });
+      return;
+    }
+    const resolved = resolveWorkflowStep(urlStepParam);
+    const expectedSlug = getWorkflowStepSlug(resolved);
+    if (urlStepParam !== expectedSlug) {
+      router.replace(stepHref(resolved), { scroll: false });
+    }
+  }, [urlStepParam, router, stepHref]);
 
   useEffect(() => {
     if (campaignConfigPersistTimerRef.current) {
@@ -1366,14 +1469,17 @@ export default function PreviewTool() {
     : campaignGoal;
   // Video mode is driven by the explicit Ad Type toggle (non-programmatic flows)
   // or the Video Views objective (programmatic ad-group flows).
-  const isVideoAdTypeSelected = !isProgrammatic && adType === "video";
+  const isVideoAdTypeSelected = adType === "video";
   const isVideoObjectiveSelected = isVideoAdTypeSelected || isVideoObjective(effectiveCampaignGoal || campaignGoal, platform);
-  // Video Ads skip Step 4 (Preview Studio) entirely — it only renders image/display placement templates.
-  const showPreviewStudio = !isVideoObjectiveSelected;
-  const effectiveTotalSteps = showPreviewStudio ? TOTAL_STEPS : TOTAL_STEPS - 1;
+  // Preview Studio supports display and video templates (platform-specific video placements).
+  const showPreviewStudio = true;
+  const effectiveTotalSteps = TOTAL_STEPS;
   const resolvedCampaignIntent = useMemo(() => {
     const briefText = campaignBrief?.trim() || "";
     if (!briefText) return "";
+    if (liveBriefInsights?.campaignIntent?.trim()) {
+      return liveBriefInsights.campaignIntent.trim();
+    }
     const goal = effectiveCampaignGoal || campaignGoal || "";
     const resolved = resolveCampaignIntentForBrief(briefText, {
       campaignGoal: goal,
@@ -1387,6 +1493,7 @@ export default function PreviewTool() {
     campaignGoal,
     campaignVertical,
     effectiveCampaignGoal,
+    liveBriefInsights,
     loadedCampaignSnapshot?.campaignIntent,
     loadedCampaignSnapshot?.campaignIntentFingerprint,
   ]);
@@ -1468,9 +1575,10 @@ export default function PreviewTool() {
     writeStoredAnalysisResult(null);
     setUrlValidation(null);
     clearStoredUrlValidation();
+    resetReadinessValidation();
     sessionSyncInitializedRef.current = false;
     lastCreativeFingerprintRef.current = null;
-  }, []);
+  }, [resetReadinessValidation]);
 
   const clearCreativeSessionAssets = useCallback(async () => {
     const previousCreatives = [...creativesRef.current];
@@ -1916,7 +2024,7 @@ export default function PreviewTool() {
 
       sessionSyncInitializedRef.current = true;
       lastCreativeFingerprintRef.current = getCreativeValidationFingerprint(hydrated);
-      addToast(`Loaded "${linkCampaignName}" — ready to view.`, "success");
+      addToast(`Loaded "${linkCampaignName}". Ready to view.`, "success");
       return true;
     } finally {
       setIsHydratingCreatives(false);
@@ -2683,6 +2791,9 @@ export default function PreviewTool() {
     const goalIds = PLATFORM_GOAL_IDS[platform] || PLATFORM_GOAL_IDS.programmatic;
     if (!goalIds.includes(id)) return;
     setCampaignGoal(id);
+    if (isVideoObjective(id, platform)) {
+      setAdType("video");
+    }
 
     void trackUserActivity("button_click", {
       action_label: "Campaign goal selected",
@@ -2975,6 +3086,7 @@ export default function PreviewTool() {
     } else if (step === 2 && !landingUrl.trim()) {
       setUrlValidation(null);
       clearStoredUrlValidation();
+      resetReadinessValidation();
     }
 
     const nextStep = Math.min(step + 1, effectiveTotalSteps);
@@ -2991,13 +3103,13 @@ export default function PreviewTool() {
         audience_stage: campaignAudienceStage,
       },
     }, { dedupeKey: `nav-forward-${step}-${nextStep}` });
-    router.push(`${pathname}?step=${nextStep}`, { scroll: true });
+    router.push(stepHref(nextStep), { scroll: true });
   }, [
     step,
     isConfigComplete,
     canAdvanceToAnalysis,
     effectiveTotalSteps,
-    pathname,
+    stepHref,
     router,
     platform,
     campaignGoal,
@@ -3007,6 +3119,7 @@ export default function PreviewTool() {
     activeUrlValidation,
     urlValidationRunning,
     runUrlValidation,
+    resetReadinessValidation,
     activeCampaignId,
     isPlatformSetup,
     isProgrammaticCreativeAdditionFlow,
@@ -3046,8 +3159,8 @@ export default function PreviewTool() {
         audience_stage: campaignAudienceStage,
       },
     }, { dedupeKey: `nav-back-${step}-${prevStep}` });
-    router.push(`${pathname}?step=${prevStep}`, { scroll: true });
-  }, [step, router, pathname, platform, campaignGoal, campaignVertical, campaignAudienceStage]);
+    router.push(stepHref(prevStep), { scroll: true });
+  }, [step, router, stepHref, platform, campaignGoal, campaignVertical, campaignAudienceStage]);
 
   const handleStartNewAnalysis = useCallback(() => {
     const currentCreatives = creativesRef.current;
@@ -3068,6 +3181,7 @@ export default function PreviewTool() {
     setUrlValidation(null);
     setUrlValidationRunning(false);
     clearStoredUrlValidation();
+    resetReadinessValidation();
     setAnalysisResult(null);
     setAnalysisLoading(false);
     setAnalysisSessionId(null);
@@ -3122,15 +3236,15 @@ export default function PreviewTool() {
     }, { dedupeKey: "start-new-analysis" });
 
     addToast("Session cleared. Starting a new analysis.", "success");
-    router.push(`${pathname}?step=1`, { scroll: true });
-  }, [addToast, pathname, router, step, platform, campaignGoal, campaignVertical]);
+    router.push(stepHref(1), { scroll: true });
+  }, [addToast, router, step, platform, campaignGoal, campaignVertical, resetReadinessValidation, stepHref]);
 
   useEffect(() => {
     if (!mountRef.current) return;
     if (step > 1 && !isConfigComplete) {
-      router.replace(`${pathname}?step=1`, { scroll: false });
+      router.replace(stepHref(1), { scroll: false });
     }
-  }, [step, isConfigComplete, pathname, router]);
+  }, [step, isConfigComplete, router, stepHref]);
 
   useEffect(() => {
     if (isConfigComplete) setSetupPromptHighlighted(false);
@@ -3159,13 +3273,13 @@ export default function PreviewTool() {
     }
   }, [step]);
 
-  // Video Ads have no Preview Studio — bounce back to Analysis if step 4 is reached.
+  // Bounce back from Preview Studio if unavailable.
   useEffect(() => {
     if (!mountRef.current) return;
     if (step === 4 && !showPreviewStudio) {
-      router.replace(`${pathname}?step=3`, { scroll: true });
+      router.replace(stepHref(3), { scroll: true });
     }
-  }, [step, showPreviewStudio, pathname, router]);
+  }, [step, showPreviewStudio, router, stepHref]);
 
   // Warn user before they leave with unsaved progress
   useEffect(() => {
@@ -3179,13 +3293,13 @@ export default function PreviewTool() {
     return () => window.removeEventListener("beforeunload", handleBeforeUnload);
   }, [creatives.length, step]);
 
-  // Guard against entering analysis without creatives
+  // Guard against entering Campaign Intelligence without creatives
   useEffect(() => {
     if (!mountRef.current) return;
     if (step === 3 && uploadedCreatives.length === 0) {
-      router.push(`${pathname}?step=2`, { scroll: true });
+      router.push(stepHref(2), { scroll: true });
     }
-  }, [step, uploadedCreatives.length, pathname, router]);
+  }, [step, uploadedCreatives.length, router, stepHref]);
 
   useEffect(() => {
     if (!mountRef.current || sessionInitRef.current) return;
@@ -3298,8 +3412,7 @@ export default function PreviewTool() {
   const handleFiles = useCallback(async (files, options = {}) => {
     if (!platform) { addToast("Please select a platform first.", "error"); return; }
     const adGroupGoal = options.adGroupObjective || null;
-    const allowVideo = (!isProgrammatic && adType === "video")
-      || isVideoObjective(adGroupGoal || campaignGoal, platform);
+    const allowVideo = adType === "video" || isVideoObjective(adGroupGoal || campaignGoal, platform);
     const fileList = allowVideo ? filterMediaFiles(files, { allowVideo: true }) : filterImageFiles(files);
     if (fileList.length === 0) {
       addToast(allowVideo ? "No supported image or video files found." : "No image files found in the selected folder.", "error");
@@ -4424,6 +4537,37 @@ export default function PreviewTool() {
     if (trimmed && urlValidation) {
       const validatedUrl = stripUtmFromUrl(urlValidation.submitted_url || "");
       if (validatedUrl === trimmed && urlValidation.creative_fingerprint === fingerprint) {
+        const session = {
+          url: trimmed,
+          fingerprint,
+          platform,
+          objective: effectiveCampaignGoal,
+        };
+        // Already restored for this session — do not call setState again.
+        if (readinessReport && readinessMatchesSession(readinessReport, session)) {
+          return;
+        }
+        const restored = restoreReadinessIfMatching(session);
+        if (!restored) {
+          void runReadinessValidation({
+            platform,
+            url: trimmed,
+            objective: effectiveCampaignGoal,
+            campaignName: campaignName.trim() || "Campaign",
+            vertical: campaignVertical || undefined,
+            creativeFingerprint: fingerprint,
+            creatives: creatives.map((c) => ({
+              id: c.id,
+              name: c.name,
+              size: c.size,
+              fileSize: c.fileSizeBytes,
+              mimeType: c.mimeType,
+              mediaType: c.mediaType,
+              contentHash: c.contentHash,
+              validation: c.validation,
+            })),
+          });
+        }
         return;
       }
     }
@@ -4442,7 +4586,12 @@ export default function PreviewTool() {
     urlValidationRunning,
     readinessLoading,
     urlValidation,
+    readinessReport,
     runUrlValidation,
+    runReadinessValidation,
+    restoreReadinessIfMatching,
+    campaignName,
+    campaignVertical,
   ]);
 
   useEffect(() => {
@@ -4640,50 +4789,126 @@ export default function PreviewTool() {
     renewalComparisonReport,
   ]);
 
+  const isVideoPreviewStudio = isVideoAdTypeSelected
+    || isVideoObjectiveSelected
+    || validCreatives.some((c) => c.mediaType === "video");
+
   const previewEngineCreatives = useMemo(
     () => validCreatives.map((creative, index) => {
       const payload = getEntryPayload(analysisResult?.[index]) || {};
       const previewContext = resolveCreativePreviewContext(payload, campaignVertical || "general");
+      const signalHeadline = payload?.signals?.headline || payload?.extraction_signals?.headline || "";
+      const safeHeadline = isVideoPreviewStudio
+        ? (creative.name || "Sponsored video")
+        : (signalHeadline || payload?.main_strategic_problem || creative.name || "");
       return {
         id: creative.id,
         name: creative.name,
         url: creative.url || creative.imageDataUrl || creative.image || "",
         size: creative.size,
-        analyzerOutput: payload,
-        ctaText: payload?.signals?.cta || payload?.extraction_signals?.cta || "",
-        headline: payload?.signals?.headline
-          || payload?.extraction_signals?.headline
-          || payload?.main_strategic_problem
-          || creative.name
-          || "",
+        analyzerOutput: isVideoPreviewStudio ? undefined : payload,
+        ctaText: isVideoPreviewStudio
+          ? "Learn More"
+          : (payload?.signals?.cta || payload?.extraction_signals?.cta || ""),
+        headline: safeHeadline,
         previewVertical: previewContext.creativeVertical,
         previewTemplate: previewContext.templateId,
       };
     }),
-    [validCreatives, analysisResult, campaignVertical],
+    [validCreatives, analysisResult, campaignVertical, isVideoPreviewStudio],
   );
 
   const previewTemplateContext = useMemo(() => {
     const primaryPayload = getEntryPayload(analysisResult?.[0]) || {};
     const signals = primaryPayload.signals || {};
+    const brandName = signals.brand || validCreatives[0]?.name || "Brand";
+    if (isVideoPreviewStudio) {
+      return {
+        brandName,
+        targetAudience: campaignAudienceStage || "Prospective customers",
+        tone: "Clear and brand-forward",
+        keyMessage: "",
+        imageUrls: validCreatives
+          .map((creative) => creative.url || creative.imageDataUrl || creative.image || "")
+          .filter(Boolean),
+      };
+    }
+    const rawKeyMessage = signals.primary_message || signals.headline || primaryPayload.main_strategic_problem || "";
+    const looksLikeAnalysis = /cta appears|misaligned|risk|compress|review before|timestamp|too late|too small|hard to read/i.test(rawKeyMessage);
     return {
-      brandName: signals.brand || validCreatives[0]?.name || "Brand",
+      brandName,
       targetAudience: campaignAudienceStage || "Prospective customers",
       tone: campaignGoal === "awareness"
         ? "Brand-forward and scroll-stopping"
         : campaignGoal === "consideration"
           ? "Credible and persuasive"
           : "Direct and conversion-focused",
-      keyMessage: signals.primary_message || signals.headline || primaryPayload.main_strategic_problem || "",
+      keyMessage: looksLikeAnalysis ? "" : rawKeyMessage,
       imageUrls: validCreatives
         .map((creative) => creative.url || creative.imageDataUrl || creative.image || "")
         .filter(Boolean),
     };
-  }, [analysisResult, validCreatives, campaignAudienceStage, campaignGoal]);
+  }, [analysisResult, validCreatives, campaignAudienceStage, campaignGoal, isVideoPreviewStudio]);
 
   const handleExportPptx = useCallback(async () => {
-    if (isExporting || !wysiwygExportRef.current) return;
+    if (isExporting) return;
     setIsExporting(true);
+
+    if (isVideoPreviewStudio) {
+      addToast("Preparing preview video…", "info");
+      try {
+        const exportContext = previewExportContextRef.current || {};
+        const previewElement = exportContext.getPreviewElement?.();
+        if (!previewElement) {
+          addToast("No preview template is ready to export. Select a placement preview first.", "error");
+          return;
+        }
+        const placementLabel = exportContext.placement || exportContext.templateId || "placement";
+        const safeName = String(placementLabel).replace(/[^a-zA-Z0-9._-]+/g, "_");
+        const result = await recordPreviewStudioVideo({
+          previewElement,
+          filename: `Preview_${safeName}.webm`,
+          maxDurationSeconds: 6,
+          fps: 30,
+        });
+        downloadBlob(result.blob, result.filename);
+        void trackUserActivity("download", {
+          action_label: "Preview studio video downloaded",
+          platform,
+          campaign_goal: campaignGoal,
+          metadata: { format: result.mimeType || "video/webm", filename: result.filename },
+        }, { dedupeKey: `download-preview-video-${result.filename}` });
+        void recordAndStoreDownloadReport({
+          ownerId: campaignOwnerId || "",
+          reportType: "Preview Studio (Video)",
+          campaignName: campaignName.trim() || "Untitled Campaign",
+          campaignId: activeCampaignId || loadedCampaignSnapshot?.id || lookupCampaignId || "",
+          advertiserName: advertiserName.trim() || "—",
+          advertiserId: advertiserId || "",
+          targetStep: 4,
+          downloadedBy: viewerName || "User",
+          status: "Completed",
+          filename: result.filename,
+          templateId: exportContext.templateId || undefined,
+          device: exportContext.device || "desktop",
+          previewCreativeId: exportContext.creativeId ? String(exportContext.creativeId) : undefined,
+          platform: platform || undefined,
+          blob: result.blob,
+        });
+        addToast(`Preview video downloaded: ${result.filename}`, "success");
+      } catch (err) {
+        console.error(err);
+        addToast(err?.message || "Preview video export failed.", "error");
+      } finally {
+        setIsExporting(false);
+      }
+      return;
+    }
+
+    if (!wysiwygExportRef.current) {
+      setIsExporting(false);
+      return;
+    }
     addToast("Preparing preview studio report…", "info");
     try {
       if (campaignOwnerId) setReportExportStorageScope(campaignOwnerId);
@@ -4811,6 +5036,7 @@ export default function PreviewTool() {
     }
   }, [
     isExporting,
+    isVideoPreviewStudio,
     previewEngineCreatives,
     previewStudioCache,
     addToast,
@@ -4976,7 +5202,7 @@ export default function PreviewTool() {
       if (targetStep > 1 && !isConfigComplete) {
         setSetupPromptHighlighted(true);
         addToast("Complete required setup fields on Step 1 before continuing.", "error");
-        router.push(`${pathname}?step=1`, { scroll: true });
+        router.push(stepHref(1), { scroll: true });
         return;
       }
       if (targetStep > 2 && !canAdvanceToAnalysis) {
@@ -4984,9 +5210,9 @@ export default function PreviewTool() {
         return;
       }
       if (targetStep >= 3 && uploadedCreatives.length === 0) return;
-      router.push(`${pathname}?step=${targetStep}`, { scroll: true });
+      router.push(stepHref(targetStep), { scroll: true });
     },
-    [step, isConfigComplete, canAdvanceToAnalysis, uploadedCreatives.length, pathname, router, addToast],
+    [step, isConfigComplete, canAdvanceToAnalysis, uploadedCreatives.length, router, stepHref, addToast],
   );
 
 
@@ -5004,7 +5230,7 @@ export default function PreviewTool() {
                 Adigator
               </p>
               <h1 className="studio-heading text-xl font-bold tracking-tight text-[#f4f4f8] md:text-2xl">
-                Creative Studio
+                Campaign Intelligence Studio
               </h1>
             </div>
             <p className="hidden text-xs text-[#c8c8d4] sm:block">
@@ -5099,6 +5325,9 @@ export default function PreviewTool() {
                   verticals={VERTICALS}
                   adType={adType}
                   onAdTypeChange={setAdType}
+                  campaignIntent={loadedCampaignSnapshot?.campaignIntent || ""}
+                  effectiveCampaignGoal={effectiveCampaignGoal || campaignGoal || ""}
+                  onBriefInsightsChange={setLiveBriefInsights}
                   objectiveOptions={isProgrammatic ? undefined : availableGoals.map((g) => ({ id: g.id, label: g.title }))}
                   supportsCustomObjective={isProgrammatic}
                   onTaskTypeChange={handleProgrammaticTaskTypeChange}
@@ -5174,69 +5403,113 @@ export default function PreviewTool() {
                   ← Back
                 </ToolNavBtn>
                 <ToolNavBtn onClick={goNext}>
-                  Upload Creatives →
+                  Creative Validation →
                 </ToolNavBtn>
               </ToolFooterBar>
             </motion.div>
           )}
 
-          {/* STEP 2: UPLOAD & VALIDATE */}
+          {/* STEP 2: CREATIVE VALIDATION */}
           {step === 2 && (
             <motion.div key="step-2" variants={stepPanelVariants} initial="hidden" animate="visible" exit="exit" className="space-y-8 pb-8">
               <ToolSectionHeader
                 step={2}
-                title="Upload & Validate"
-                description={`${selectedPlatformConfig?.title} ${PLATFORM_INTELLIGENCE_LABEL[platform]} active: ${allowedSizes.length} supported formats across intelligent inventory clusters.`}
+                title="Creative Validation"
+                description={`Upload and validate creatives for ${selectedPlatformConfig?.title || "your platform"}. ${allowedSizes.length} supported formats across inventory clusters.`}
               />
 
-              <ToolSurface className="space-y-4">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <h3 className="studio-heading text-xl font-bold text-studio-text">{PLATFORM_INTELLIGENCE_LABEL[platform]}</h3>
-                  <p className="rounded-full border border-studio-accent/30 bg-studio-accent/10 px-3 py-1 text-xs font-semibold text-studio-accent">
-                    {selectedPlatformConfig?.title || "Platform"} • Creative Compatibility Matrix
-                  </p>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                  {Object.entries(selectedPlatformConfig?.groups || {}).map(([groupKey, sizes], index) => {
-                    const themes = [
-                      { box: "border-blue-500/25 bg-blue-500/8", title: "text-blue-300", chip: "text-blue-100" },
-                      { box: "border-purple-500/25 bg-purple-500/8", title: "text-purple-300", chip: "text-purple-100" },
-                      { box: "border-fuchsia-500/25 bg-fuchsia-500/8", title: "text-fuchsia-300", chip: "text-fuchsia-100" },
-                      { box: "border-emerald-500/25 bg-emerald-500/8", title: "text-emerald-300", chip: "text-emerald-100" },
-                    ];
-                    const theme = themes[index % themes.length];
-                    return (
-                      <div key={groupKey} className={`rounded-2xl border p-4 ${theme.box}`}>
-                        <p className={`text-xs uppercase tracking-wider font-bold mb-3 ${theme.title}`}>{GROUP_LABELS[groupKey] || groupKey}</p>
-                        <div className="flex flex-wrap gap-2">
-                          {sizes.map((size) => (
-                            <span key={`${groupKey}-${size}`} className={`px-2 py-1 rounded-md bg-white/10 text-[11px] border border-white/10 ${theme.chip}`}>
-                              {size}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-
-                <div className="mt-4 rounded-xl border border-studio-border bg-black/20 p-3">
-                  <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-studio-muted">Platform Distribution Intelligence</p>
-                  <div className="flex flex-wrap gap-2">
-                    {(platform === "programmatic"
-                      ? DSP_PARTNERS
-                      : platform === "google_ads"
-                        ? ["Google Display Network", "Responsive Display", "YouTube Companion"]
-                        : ["Meta Feed", "Meta Stories", "Meta Reels", "Meta Carousel"]
-                    ).map((channel) => (
-                      <span key={channel} className="rounded-md border border-studio-success/30 bg-studio-success/10 px-2 py-1 text-[11px] text-studio-success">
-                        {channel}
-                      </span>
-                    ))}
+              <ToolSurface className="space-y-0 overflow-hidden p-0">
+                <button
+                  type="button"
+                  onClick={() => setInventoryIntelligenceOpen((open) => !open)}
+                  className="flex w-full items-center justify-between gap-3 px-5 py-4 text-left transition hover:bg-white/[0.03]"
+                  aria-expanded={inventoryIntelligenceOpen}
+                >
+                  <div className="min-w-0">
+                    <h3 className="studio-heading text-lg font-bold text-studio-text">
+                      {PLATFORM_INTELLIGENCE_LABEL[platform] || "Inventory Intelligence"}
+                    </h3>
+                    <p className="mt-0.5 text-xs text-studio-muted">
+                      {inventoryIntelligenceOpen
+                        ? "Hide format matrix and distribution channels"
+                        : "Expand to view supported formats and distribution channels"}
+                    </p>
                   </div>
-                </div>
+                  <div className="flex shrink-0 items-center gap-2">
+                    <span className="rounded-full border border-studio-accent/30 bg-studio-accent/10 px-3 py-1 text-[10px] font-semibold text-studio-accent">
+                      {selectedPlatformConfig?.title || "Platform"}
+                    </span>
+                    <ChevronDown
+                      size={18}
+                      className={`text-studio-muted transition-transform duration-200 ${inventoryIntelligenceOpen ? "rotate-180" : ""}`}
+                    />
+                  </div>
+                </button>
+
+                {inventoryIntelligenceOpen ? (
+                  <div className="space-y-4 border-t border-studio-border px-5 pb-5 pt-4">
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
+                      {Object.entries(selectedPlatformConfig?.groups || {}).map(([groupKey, sizes], index) => {
+                        const themes = [
+                          { box: "border-blue-500/25 bg-blue-500/8", title: "text-blue-300", chip: "text-blue-100" },
+                          { box: "border-purple-500/25 bg-purple-500/8", title: "text-purple-300", chip: "text-purple-100" },
+                          { box: "border-fuchsia-500/25 bg-fuchsia-500/8", title: "text-fuchsia-300", chip: "text-fuchsia-100" },
+                          { box: "border-emerald-500/25 bg-emerald-500/8", title: "text-emerald-300", chip: "text-emerald-100" },
+                        ];
+                        const theme = themes[index % themes.length];
+                        return (
+                          <div key={groupKey} className={`rounded-2xl border p-4 ${theme.box}`}>
+                            <p className={`mb-3 text-xs font-bold uppercase tracking-wider ${theme.title}`}>{GROUP_LABELS[groupKey] || groupKey}</p>
+                            <div className="flex flex-wrap gap-2">
+                              {sizes.map((size) => (
+                                <span key={`${groupKey}-${size}`} className={`rounded-md border border-white/10 bg-white/10 px-2 py-1 text-[11px] ${theme.chip}`}>
+                                  {size}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    <div className="rounded-xl border border-studio-border bg-black/20 p-3">
+                      <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-studio-muted">Platform Distribution Intelligence</p>
+                      <div className="flex flex-wrap gap-2">
+                        {(platform === "programmatic"
+                          ? DSP_PARTNERS
+                          : platform === "google_ads"
+                            ? ["Google Display Network", "Responsive Display", "YouTube Companion"]
+                            : ["Meta Feed", "Meta Stories", "Meta Reels", "Meta Carousel"]
+                        ).map((channel) => (
+                          <span key={channel} className="rounded-md border border-studio-success/30 bg-studio-success/10 px-2 py-1 text-[11px] text-studio-success">
+                            {channel}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                ) : null}
               </ToolSurface>
+
+              {!usesProgrammaticFolderSections && creatives.length > 0 ? (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+                    <ToolStatCard value={creatives.length} label="Total" tone="accent" />
+                    <ToolStatCard value={validCreatives.length} label="Ready" tone="success" />
+                    <ToolStatCard value={validationSummary.warningCount} label="Warnings" tone="warning" />
+                    <ToolStatCard value={validationSummary.criticalCount} label="Critical" tone="error" />
+                  </div>
+                  {validationResults.length > 0 ? (
+                    <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+                      <ToolStatCard value={validationSummary.totalIssues} label="Total Issues" />
+                      <div className="studio-card rounded-xl p-4 text-center md:col-span-3">
+                        <p className="studio-tabular text-2xl font-bold text-studio-accent">{validationSummary.inventoryImpactScore}/100</p>
+                        <p className="mt-1 text-sm text-studio-muted">Inventory Impact Score</p>
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
 
               {isProgrammaticUrlUtmFlow && creatives.length > 0 ? (
                 <ToolSurface className="space-y-4">
@@ -5374,7 +5647,11 @@ export default function PreviewTool() {
                 <h3 className="studio-heading mb-2 text-2xl font-bold text-studio-text">{drag ? "Drop files here" : "Upload Creatives"}</h3>
                 <p className="mb-6 text-sm text-studio-muted">
                   {isVideoObjectiveSelected
-                    ? "Upload MP4 / MOV / WebM video creatives"
+                    ? platform === "meta_ads"
+                      ? "Upload MP4 / MOV video creatives (Meta)"
+                      : platform === "google_ads"
+                        ? "Upload MP4 / MOV / WebM video creatives (YouTube / Google)"
+                        : "Upload MP4 / MOV / WebM video creatives (Programmatic / VAST)"
                     : "or click to browse your computer"}
                 </p>
                 <input
@@ -5382,7 +5659,13 @@ export default function PreviewTool() {
                   type="file"
                   multiple
                   hidden
-                  accept={isVideoObjectiveSelected ? "video/mp4,video/quicktime,video/webm,.mp4,.mov,.webm" : "image/*"}
+                  accept={
+                    isVideoObjectiveSelected
+                      ? platform === "meta_ads"
+                        ? "video/mp4,video/quicktime,.mp4,.mov"
+                        : "video/mp4,video/quicktime,video/webm,.mp4,.mov,.webm"
+                      : "image/*"
+                  }
                   onChange={(e) => { handleFiles(e.target.files); e.target.value = ""; }}
                 />
               </ToolDropzone>
@@ -5398,26 +5681,6 @@ export default function PreviewTool() {
                         ? `Validating uploads… ${uploadProgress.completed} of ${uploadProgress.total}`
                         : "Validating uploads…"}
                   </p>
-                </div>
-              )}
-
-              {/* Validation Summary Stats */}
-              {creatives.length > 0 && (
-                <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-                  <ToolStatCard value={creatives.length} label="Total" tone="accent" />
-                  <ToolStatCard value={validCreatives.length} label="Ready" tone="success" />
-                  <ToolStatCard value={validationSummary.warningCount} label="Warnings" tone="warning" />
-                  <ToolStatCard value={validationSummary.criticalCount} label="Critical" tone="error" />
-                </div>
-              )}
-
-              {validationResults.length > 0 && (
-                <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-                  <ToolStatCard value={validationSummary.totalIssues} label="Total Issues" />
-                  <div className="studio-card rounded-xl p-4 text-center md:col-span-3">
-                    <p className="studio-tabular text-2xl font-bold text-studio-accent">{validationSummary.inventoryImpactScore}/100</p>
-                    <p className="mt-1 text-sm text-studio-muted">Inventory Impact Score</p>
-                  </div>
                 </div>
               )}
 
@@ -5615,7 +5878,7 @@ export default function PreviewTool() {
                       placeholder="https://www.example.com/landing"
                     />
                     <p className="mt-2 text-xs text-studio-tertiary">
-                      UTM parameters are detected and removed automatically — only the clean URL is validated.
+                      UTM parameters are detected and removed automatically. Only the clean URL is validated.
                       {displayValidationUrl.trim() && creatives.length > 0 && platform && effectiveCampaignGoal
                         ? " Validation runs automatically when you enter this step or change the URL."
                         : null}
@@ -5635,6 +5898,11 @@ export default function PreviewTool() {
                 {readinessError && !readinessReport ? (
                   <p className="text-sm text-studio-error">{readinessError}</p>
                 ) : null}
+                {activeUrlValidation?.submitted_url
+                  && stripUtmFromUrl(activeUrlValidation.submitted_url) === stripUtmFromUrl(landingUrl.trim())
+                  && !urlValidationRunning ? (
+                  <UrlAlignmentSummaryCard urlValidation={activeUrlValidation} />
+                ) : null}
                 {readinessReport ? (
                   <div className="validation-report-dark studio-card overflow-hidden rounded-2xl border-studio-border bg-studio-surface-elevated">
                     <ValidationReport
@@ -5642,12 +5910,12 @@ export default function PreviewTool() {
                       onCopy={() => addToast("Readiness report copied to clipboard.", "success")}
                     />
                   </div>
-                ) : null}
-                {activeUrlValidation?.submitted_url
+                ) : activeUrlValidation?.submitted_url
                   && stripUtmFromUrl(activeUrlValidation.submitted_url) === stripUtmFromUrl(landingUrl.trim())
-                  && !urlValidationRunning ? (
+                  && !urlValidationRunning
+                  && !readinessLoading ? (
                   <p className="text-xs text-studio-tertiary">
-                    URL check complete. Open Step 3 Overview for alignment details.
+                    Campaign readiness will appear here once validation finishes.
                   </p>
                 ) : null}
               </ToolSurface>
@@ -5674,7 +5942,7 @@ export default function PreviewTool() {
 
               <div className="flex gap-4 pt-4">
                 <ToolNavBtn variant="back" onClick={goBack}>← Back</ToolNavBtn>
-                <ToolNavBtn onClick={goNext} disabled={!canAdvanceToAnalysis}>Next: Analysis →</ToolNavBtn>
+                <ToolNavBtn onClick={goNext} disabled={!canAdvanceToAnalysis}>Next: Campaign Intelligence →</ToolNavBtn>
               </div>
             </motion.div>
           )}
@@ -5684,7 +5952,7 @@ export default function PreviewTool() {
             <motion.div key="step-3" variants={stepPanelVariants} initial="hidden" animate="visible" exit="exit" className="space-y-6">
               <ToolSectionHeader
                 step={3}
-                title={isProgrammaticUrlUtmFlow ? "URL Validation" : "Analysis"}
+                title={isProgrammaticUrlUtmFlow ? "URL Validation" : "Campaign Intelligence"}
                 description={isProgrammaticUrlUtmFlow
                   ? "Review URL accessibility and campaign alignment against your setup."
                   : `Analyze your creatives against ${PLATFORMS.find(p => p.id === platform)?.title} standards.`}
@@ -5829,7 +6097,7 @@ export default function PreviewTool() {
             </motion.div>
           )}
 
-          {/* STEP 4: PREVIEW STUDIO (hidden entirely for Video Ads) */}
+          {/* STEP 4: PREVIEW STUDIO (display + video placement templates) */}
           {step === 4 && showPreviewStudio && (
             <motion.div key="step-4" variants={stepPanelVariants} initial="hidden" animate="visible" exit="exit" className="space-y-8">
               <div className="flex flex-wrap items-center justify-between gap-4">
@@ -5843,7 +6111,9 @@ export default function PreviewTool() {
                   <RotateCcw size={18} /> Start New Analysis
                 </ToolNavBtn>
                 <ToolNavBtn variant="success" onClick={handleExportPptx} disabled={isExporting} className="flex max-w-none flex-none items-center gap-2 px-8">
-                  <Download size={20} /> {isExporting ? "Exporting..." : "Download Preview Report"}
+                  <Download size={20} /> {isExporting
+                    ? (isVideoPreviewStudio ? "Recording..." : "Exporting...")
+                    : (isVideoPreviewStudio ? "Download Preview Video" : "Download Preview Report")}
                 </ToolNavBtn>
               </div>
               </div>
@@ -5859,6 +6129,10 @@ export default function PreviewTool() {
                     url: c.url,
                     fullUrl: c.fullUrl,
                     size: c.size,
+                    mediaType: c.mediaType,
+                    mimeType: c.mimeType,
+                    videoUrl: c.mediaType === "video" ? c.fullUrl : undefined,
+                    posterUrl: c.mediaType === "video" ? c.url : undefined,
                   }))}
                   vertical={campaignVertical || "general"}
                   goal={campaignGoal || "awareness"}
@@ -5883,6 +6157,7 @@ export default function PreviewTool() {
                   initialTemplateId={reportDeepLink?.templateId}
                   initialPreviewDevice={reportDeepLink?.device}
                   initialPreviewCreativeId={reportDeepLink?.previewCreativeId}
+                  isVideoMode={isVideoPreviewStudio}
                 />
                 </div>
               )}
@@ -5901,7 +6176,9 @@ export default function PreviewTool() {
                   <RotateCcw size={16} /> Start New Analysis
                 </ToolNavBtn>
                 <ToolNavBtn variant="success" onClick={handleExportPptx} disabled={isExporting} className="flex justify-center items-center gap-2">
-                  <Download size={20} /> {isExporting ? "Generating..." : "Download Preview Report"}
+                  <Download size={20} /> {isExporting
+                    ? (isVideoPreviewStudio ? "Recording..." : "Generating...")
+                    : (isVideoPreviewStudio ? "Download Preview Video" : "Download Preview Report")}
                 </ToolNavBtn>
               </div>
             </motion.div>

@@ -325,6 +325,24 @@ a {
   background-color: #1b1b1b;
 }
 
+.marketing-page .saas-hover {
+  transition: transform 0.22s ease, box-shadow 0.22s ease, border-color 0.22s ease;
+}
+
+.marketing-page .saas-hover:hover {
+  transform: translateY(-3px);
+  box-shadow:
+    0 0 0 1px rgba(148, 163, 184, 0.35),
+    0 16px 42px rgba(15, 23, 42, 0.1),
+    0 0 36px rgba(200, 240, 77, 0.12);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .marketing-page .saas-hover:hover {
+    transform: none;
+  }
+}
+
 img, video {
   display: block;
   max-width: 100%;

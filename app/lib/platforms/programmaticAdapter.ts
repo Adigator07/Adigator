@@ -199,7 +199,8 @@ export const programmaticAdapter: PlatformWorkflowAdapter = {
   validationRules: {
     landingUrlRequired: true,
     defaultMaxFileSizeKb: 150,
-    uploadGuidance: "Upload IAB standard sizes per ad group. Each ad group can have its own objective and folder of creatives.",
+    uploadGuidance:
+      "Display: use IAB standard sizes. Video: prefer H.264 MP4 (15s/30s), 16:9 for in-stream, keep packages under 200 MB for exchange-friendly delivery.",
   },
   previewStudioMode: "contextual-ai",
   defaultPreviewTemplateId: "news",

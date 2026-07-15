@@ -25,7 +25,7 @@ const NAV_SECTIONS = [
   {
     label: "Tools",
     items: [
-      { icon: Eye,   label: "Preview Studio",  href: "/preview",      badge: "CORE" },
+      { icon: Eye,   label: "Campaign Intelligence Studio",  href: "/preview-tool?step=campaign-setup",      badge: "CORE" },
       { icon: Brain, label: "Ad Intelligence", href: "/intelligence",  badge: "CORE" },
     ],
   },

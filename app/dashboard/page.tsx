@@ -149,12 +149,12 @@ export default function Dashboard() {
               : "Your creative workflow at a glance"}
           </p>
         </div>
-        <Link href="/preview-tool?step=1">
+        <Link href="/preview-tool?step=campaign-setup">
           <motion.button
             whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.96 }}
             className="flex items-center gap-2 px-5 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white font-semibold rounded-xl shadow-lg shadow-purple-500/25 hover:shadow-purple-500/50 transition-shadow premium-card-glow"
           >
-            <Plus size={18} /> Open Preview Tool
+            <Plus size={18} /> Open Campaign Intelligence Studio
           </motion.button>
         </Link>
       </motion.div>
@@ -163,8 +163,8 @@ export default function Dashboard() {
         <h2 className="text-sm font-bold text-white/40 uppercase tracking-widest mb-3">Quick Actions</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {[
-            { href: "/preview-tool?step=1", icon: Plus, label: "Open Preview Tool", sub: "Launch the full analyzer workflow", color: "from-purple-600 to-blue-600" },
-            { href: "/preview-tool?step=3", icon: Clock, label: "Resume Analysis", sub: "Continue where you left off", color: "from-blue-600 to-cyan-600" },
+            { href: "/preview-tool?step=campaign-setup", icon: Plus, label: "Campaign Intelligence Studio", sub: "Launch Campaign Setup through Preview Studio", color: "from-purple-600 to-blue-600" },
+            { href: "/preview-tool?step=campaign-intelligence", icon: Clock, label: "Resume Campaign Intelligence", sub: "Continue where you left off", color: "from-blue-600 to-cyan-600" },
             ...(isOrgAdmin ? [{ href: "/dashboard/organization", icon: Building2, label: "Organization Console", sub: "Manage teams, users, and org activity", color: "from-sky-600 to-blue-600" }] : []),
             ...(isAdmin ? [{ href: "/dashboard/admin", icon: Shield, label: "Super Admin Console", sub: "Organizations, users, analytics & platform health", color: "from-amber-600 to-orange-600" }] : []),
           ].map((a) => {

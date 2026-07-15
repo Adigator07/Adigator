@@ -896,7 +896,7 @@ export default function AdvertisersSection({ advertisers, loading = false, owner
 
       {sortedAdvertisers.length === 0 ? (
         <div className="rounded-2xl border border-white/10 bg-white/5 p-6 text-sm text-white/45">
-          No advertisers yet. Enter an advertiser in Step 1 of the Preview Tool to start building your portfolio.
+          No advertisers yet. Enter an advertiser in Campaign Setup of Campaign Intelligence Studio to start building your portfolio.
         </div>
       ) : focusedAdvertiser ? (
         <AdvertiserFocusView

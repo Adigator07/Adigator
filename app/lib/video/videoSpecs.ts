@@ -17,8 +17,8 @@ export interface AspectRatioSpec {
 
 export const ASPECT_RATIO_TOLERANCE = 0.06;
 
-/** Video file-size guidance — separate from image 150 KB rules. */
-export const VIDEO_LAUNCH_READY_MAX_BYTES = 100 * 1024 * 1024;
+/** Video file-size guidance. Separate from image 150 KB rules. */
+export const VIDEO_LAUNCH_READY_MAX_BYTES = 150 * 1024 * 1024;
 export const VIDEO_NEEDS_REVIEW_MAX_BYTES = 500 * 1024 * 1024;
 
 export function getVideoFileSizeTier(
@@ -111,7 +111,59 @@ export const GOOGLE_VIDEO_SPECS = {
   recommendedAspectRatios: ["16:9", "9:16", "1:1"],
 } as const;
 
-export type PlatformVideoSpec = typeof META_VIDEO_SPECS | typeof GOOGLE_VIDEO_SPECS;
+/**
+ * Programmatic / open-web video (VAST in-stream + out-stream / CTV-friendly packs).
+ * Kept separate from Meta Reels and Google/YouTube rules.
+ */
+export const PROGRAMMATIC_VIDEO_SPECS = {
+  platform: "programmatic",
+  label: "Programmatic",
+  allowedMimeTypes: ["video/mp4", "video/webm", "video/quicktime"],
+  allowedExtensions: [".mp4", ".webm", ".mov"],
+  recommendedVideoCodecs: ["h264", "avc", "h.264"],
+  recommendedAudioCodecs: ["aac"],
+  // DSP-friendly ceiling; many exchanges prefer leaner packs than Meta/YouTube maxima.
+  maxFileSizeBytes: 150 * 1024 * 1024,
+  minDurationSeconds: 1,
+  preferredMaxDurationSeconds: 30,
+  maxDurationSeconds: 120,
+  companionBannerNote: "Pair with companion banners (300x250 / 728x90) when running display + video packages.",
+  minWidth: 640,
+  minHeight: 360,
+  recommendedMinShortSidePx: 720,
+  minFrameRate: 23,
+  maxFrameRate: 60,
+  supportedAspectRatios: [
+    { label: "16:9", ratio: 1.7778 },
+    { label: "9:16", ratio: 0.5625 },
+    { label: "1:1", ratio: 1 },
+    { label: "4:5", ratio: 0.8 },
+  ] as AspectRatioSpec[],
+  recommendedAspectRatios: {
+    instream: ["16:9"],
+    outstream: ["16:9", "1:1", "4:5"],
+    vertical: ["9:16"],
+  },
+} as const;
+
+export type PlatformVideoSpec =
+  | typeof META_VIDEO_SPECS
+  | typeof GOOGLE_VIDEO_SPECS
+  | typeof PROGRAMMATIC_VIDEO_SPECS;
+
+export type VideoPlatformId = "meta_ads" | "google_ads" | "programmatic";
+
+export function getVideoSpecsForPlatform(platform: string): PlatformVideoSpec {
+  if (platform === "google_ads") return GOOGLE_VIDEO_SPECS;
+  if (platform === "programmatic") return PROGRAMMATIC_VIDEO_SPECS;
+  return META_VIDEO_SPECS;
+}
+
+export function resolveVideoPlatformId(platform: string): VideoPlatformId {
+  if (platform === "google_ads") return "google_ads";
+  if (platform === "programmatic") return "programmatic";
+  return "meta_ads";
+}
 
 export const VIDEO_FRAME_DEFAULTS = {
   intervalSeconds: 2.5,

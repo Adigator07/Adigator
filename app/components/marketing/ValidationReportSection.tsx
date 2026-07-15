@@ -44,7 +44,7 @@ const REPORT_FEATURES = [
     icon: "📚",
     ariaLabel: "Books",
     title: "Validation History",
-    description: "Track validation results for every task—never lose visibility into campaign readiness",
+    description: "Track validation results for every task so you never lose visibility into campaign readiness",
   },
 ] as const;
 
@@ -158,7 +158,7 @@ export default function ValidationReportSection() {
             Know Exactly What Needs Attention Before Execution
           </h2>
           <p className="mt-5 max-w-xl text-lg leading-relaxed text-[#5A5A55] sm:text-xl">
-            Adigator doesn&apos;t just detect issues—it generates a structured validation report that tells your team
+            Adigator doesn&apos;t just detect issues. It generates a structured validation report that tells your team
             what&apos;s ready, what&apos;s missing, and what needs to be fixed before execution.
           </p>
 

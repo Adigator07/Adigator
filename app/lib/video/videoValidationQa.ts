@@ -1,10 +1,9 @@
 import {
-  GOOGLE_VIDEO_SPECS,
-  META_VIDEO_SPECS,
   VIDEO_LAUNCH_READY_MAX_BYTES,
   VIDEO_NEEDS_REVIEW_MAX_BYTES,
   formatVideoFileSize,
   getVideoFileSizeTier,
+  getVideoSpecsForPlatform,
 } from "@/app/lib/video/videoSpecs";
 import type { VideoValidationIssue, VideoValidationResult } from "@/app/lib/video/videoValidation";
 
@@ -98,7 +97,7 @@ function buildFileSizeItem(fileSizeBytes: number, platformMaxBytes: number): Vid
       key: "file_size",
       label: "File size",
       status: "warn",
-      text: `${label} is above 500 MB — needs review. Compress toward ≤${formatVideoFileSize(VIDEO_LAUNCH_READY_MAX_BYTES)} for launch-ready delivery.`,
+      text: `${label} is above 500 MB and needs review. Compress toward ≤${formatVideoFileSize(VIDEO_LAUNCH_READY_MAX_BYTES)} for launch-ready delivery.`,
     };
   }
   if (tier === "review") {
@@ -106,7 +105,7 @@ function buildFileSizeItem(fileSizeBytes: number, platformMaxBytes: number): Vid
       key: "file_size",
       label: "File size",
       status: "warn",
-      text: `${label} is in the 100–500 MB review band. Compress toward ≤${formatVideoFileSize(VIDEO_LAUNCH_READY_MAX_BYTES)} for launch-ready delivery.`,
+      text: `${label} is in the ${formatVideoFileSize(VIDEO_LAUNCH_READY_MAX_BYTES)}–${formatVideoFileSize(VIDEO_NEEDS_REVIEW_MAX_BYTES)} review band. Compress toward ≤${formatVideoFileSize(VIDEO_LAUNCH_READY_MAX_BYTES)} for launch-ready delivery.`,
     };
   }
   return {
@@ -166,7 +165,7 @@ function buildFrameRateItem(issues: VideoValidationIssue[], frameRate?: number |
     key: "frame_rate",
     label: "Frame rate",
     status: "pass",
-    text: "Frame rate could not be measured in-browser — 24, 30, or 60 fps are safe defaults.",
+    text: "Frame rate could not be measured in-browser. 24, 30, or 60 fps are safe defaults.",
   };
 }
 
@@ -183,19 +182,11 @@ export function buildVideoValidationChecklist({
   frameRate?: number | null;
   validationResults?: Record<string, Pick<VideoValidationResult, "pass" | "errors" | "warnings">>;
 }): VideoValidationChecklistItem[] {
-  const platformMaxBytes =
-    platform === "google_ads"
-      ? GOOGLE_VIDEO_SPECS.maxFileSizeBytes
-      : platform === "meta_ads"
-        ? META_VIDEO_SPECS.maxFileSizeBytes
-        : Math.min(GOOGLE_VIDEO_SPECS.maxFileSizeBytes, META_VIDEO_SPECS.maxFileSizeBytes);
-
-  const allowedFormats =
-    platform === "google_ads"
-      ? GOOGLE_VIDEO_SPECS.allowedExtensions.join(" / ")
-      : platform === "meta_ads"
-        ? META_VIDEO_SPECS.allowedExtensions.join(" / ")
-        : "MP4 / MOV / WebM";
+  const specs = getVideoSpecsForPlatform(platform);
+  const platformMaxBytes = specs.maxFileSizeBytes;
+  const allowedFormats = specs.allowedExtensions
+    .map((ext) => ext.replace(".", "").toUpperCase())
+    .join(" / ");
 
   const items: VideoValidationChecklistItem[] = CHECKLIST_DEFS.map((def) => {
     if (def.key === "file_size") {
@@ -240,7 +231,7 @@ export function buildVideoValidationChecklist({
         key: def.key,
         label: def.label,
         status: "pass",
-        text: "Video decoded successfully — file is readable and playable.",
+        text: "Video decoded successfully. File is readable and playable.",
       };
     }
     return buildChecklistItem(
@@ -306,3 +297,226 @@ export const VIDEO_VALIDATION_LEVELS = [
     tier: "critical" as const,
   },
 ];
+
+export type VideoPlatformQaItem = {
+  status: VideoQaStatus;
+  text: string;
+  count?: number;
+};
+
+const VIDEO_PLATFORM_SPECS_SUMMARY: Record<
+  string,
+  {
+    label: string;
+    format: string;
+    maxSize: string;
+    aspects: string;
+    resolution: string;
+    duration: string;
+    placements: string[];
+  }
+> = {
+  google_ads: {
+    label: "Google Ads (Video)",
+    format: "MP4 (H.264, AAC)",
+    maxSize: "100 MB recommended (≤150 MB launch-ready)",
+    aspects: "16:9, 1:1, 9:16",
+    resolution: "720p–1080p",
+    duration: "6s–60s+",
+    placements: ["YouTube", "Google Video Partners", "Discover", "Gmail"],
+  },
+  meta_ads: {
+    label: "Meta Ads (Facebook & Instagram)",
+    format: "MP4/MOV (H.264, AAC)",
+    maxSize: "100 MB recommended (4 GB supported)",
+    aspects: "1:1, 4:5, 9:16, 16:9",
+    resolution: "1080×1080, 1080×1350, 1080×1920",
+    duration: "6s–60s+",
+    placements: [
+      "Facebook Feed",
+      "Instagram Feed",
+      "Reels",
+      "Stories",
+      "In-Stream",
+      "Audience Network",
+    ],
+  },
+  programmatic: {
+    label: "Programmatic Ads (DV360/OpenRTB)",
+    format: "MP4 (H.264, AAC)",
+    maxSize: "100–150 MB",
+    aspects: "16:9, 1:1, 9:16",
+    resolution: "720p–1080p",
+    duration: "6s, 15s, 30s",
+    placements: [
+      "In-Stream",
+      "Out-Stream",
+      "CTV/OTT",
+      "Mobile Apps",
+      "Publisher Websites",
+    ],
+  },
+};
+
+function worstItemStatus(current: VideoQaStatus, next: VideoQaStatus): VideoQaStatus {
+  return worstStatus(current, next);
+}
+
+function checklistStatusToQa(status: VideoQaStatus): VideoQaStatus {
+  return status;
+}
+
+/** Aggregate Technical QA for video campaigns (platform-aware, never uses 150 KB image rules). */
+export function buildVideoTechnicalQaSection(
+  insights: Array<{
+    mediaType?: string;
+    videoValidationMeta?: { checklist?: VideoValidationChecklistItem[]; fileSizeLabel?: string; sizeTier?: string };
+    creativeName?: string;
+  }>,
+  platform: string,
+): { summary: string; items: VideoPlatformQaItem[]; passRate: number } {
+  const spec = VIDEO_PLATFORM_SPECS_SUMMARY[platform] || VIDEO_PLATFORM_SPECS_SUMMARY.meta_ads;
+  const videoInsights = insights.filter((i) => i.mediaType === "video" || i.videoValidationMeta);
+  const checklistKeys = [
+    "format",
+    "file_size",
+    "resolution",
+    "aspect_ratio",
+    "duration",
+    "video_codec",
+    "audio_codec",
+    "frame_rate",
+    "platform_compatibility",
+  ] as const;
+
+  const aggregated = new Map<string, { status: VideoQaStatus; texts: string[]; count: number }>();
+
+  for (const insight of videoInsights) {
+    const checklist = insight.videoValidationMeta?.checklist || [];
+    for (const key of checklistKeys) {
+      const item = checklist.find((entry) => entry.key === key);
+      if (!item) continue;
+      const existing = aggregated.get(key);
+      if (!existing) {
+        aggregated.set(key, { status: item.status, texts: [item.text], count: 1 });
+      } else {
+        existing.status = worstItemStatus(existing.status, item.status);
+        existing.count += 1;
+        if (!existing.texts.includes(item.text) && existing.texts.length < 2) {
+          existing.texts.push(item.text);
+        }
+      }
+    }
+  }
+
+  const items: VideoPlatformQaItem[] = [
+    {
+      status: "pass",
+      text: `${spec.label}: format ${spec.format}; recommended max ${spec.maxSize}; aspect ${spec.aspects}; resolution ${spec.resolution}; duration ${spec.duration}.`,
+    },
+  ];
+
+  for (const key of checklistKeys) {
+    const agg = aggregated.get(key);
+    if (!agg) continue;
+    items.push({
+      status: checklistStatusToQa(agg.status),
+      text: agg.texts[0],
+      count: agg.count > 1 ? agg.count : undefined,
+    });
+  }
+
+  if (!aggregated.has("file_size")) {
+    items.push({
+      status: "pass",
+      text: `Video file-size guidance uses MB (≤${formatVideoFileSize(VIDEO_LAUNCH_READY_MAX_BYTES)} launch-ready), not the 150 KB image display rule.`,
+    });
+  }
+
+  const pass = items.filter((i) => i.status === "pass").length;
+  const warn = items.filter((i) => i.status === "warn").length;
+  const fail = items.filter((i) => i.status === "fail").length;
+  const scored = items.length || 1;
+  const passRate = Math.round((pass / scored) * 100);
+
+  return {
+    summary: `${spec.label} video technical checks: ${pass} passed · ${warn} warnings · ${fail} failures across ${videoInsights.length || insights.length} creative(s).`,
+    items,
+    passRate,
+  };
+}
+
+/** Placement QA for video campaigns using platform video inventory. */
+export function buildVideoPlacementQaSection(
+  insights: Array<{ mediaType?: string; videoValidationMeta?: { checklist?: VideoValidationChecklistItem[] } }>,
+  platform: string,
+): {
+  summary: string;
+  items: VideoPlatformQaItem[];
+  passRate: number;
+  placementMatrix?: undefined;
+  placementColumns?: undefined;
+  deviceMatrix?: undefined;
+  deviceColumns?: undefined;
+  placementLegend?: string;
+} {
+  const spec = VIDEO_PLATFORM_SPECS_SUMMARY[platform] || VIDEO_PLATFORM_SPECS_SUMMARY.meta_ads;
+  const videoInsights = insights.filter((i) => i.mediaType === "video" || i.videoValidationMeta);
+
+  let compatibilityStatus: VideoQaStatus = "pass";
+  let aspectStatus: VideoQaStatus = "pass";
+  let durationStatus: VideoQaStatus = "pass";
+
+  for (const insight of videoInsights) {
+    const checklist = insight.videoValidationMeta?.checklist || [];
+    for (const item of checklist) {
+      if (item.key === "platform_compatibility") {
+        compatibilityStatus = worstItemStatus(compatibilityStatus, item.status);
+      }
+      if (item.key === "aspect_ratio") {
+        aspectStatus = worstItemStatus(aspectStatus, item.status);
+      }
+      if (item.key === "duration") {
+        durationStatus = worstItemStatus(durationStatus, item.status);
+      }
+    }
+  }
+
+  const items: VideoPlatformQaItem[] = [
+    {
+      status: compatibilityStatus,
+      text:
+        compatibilityStatus === "pass"
+          ? `Compatible with ${spec.label} video placements: ${spec.placements.join(", ")}.`
+          : `Review ${spec.label} placement compatibility for one or more video creatives.`,
+    },
+    {
+      status: aspectStatus,
+      text:
+        aspectStatus === "pass"
+          ? `Aspect ratios support ${spec.label} inventory (${spec.aspects}).`
+          : `One or more videos need an aspect ratio suited to ${spec.label} (${spec.aspects}).`,
+    },
+    {
+      status: durationStatus,
+      text:
+        durationStatus === "pass"
+          ? `Duration fits ${spec.label} guidance (${spec.duration}).`
+          : `Adjust video length toward ${spec.label} guidance (${spec.duration}).`,
+    },
+    ...spec.placements.map((placement) => ({
+      status: "pass" as VideoQaStatus,
+      text: `${placement}: supported video placement for this platform.`,
+    })),
+  ];
+
+  const pass = items.filter((i) => i.status === "pass").length;
+  const scored = items.length || 1;
+
+  return {
+    summary: `${spec.label} video placement coverage across ${spec.placements.length} inventory surfaces for ${videoInsights.length || insights.length} creative(s).`,
+    items,
+    passRate: Math.round((pass / scored) * 100),
+    placementLegend: `Video placements for ${spec.label}: ${spec.placements.join(" · ")}`,
+  };
+}

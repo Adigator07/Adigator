@@ -22,7 +22,7 @@ const PreviewTool = dynamic(() => import("./PreviewTool"), {
     <div className="min-h-screen bg-[#0B1220] flex items-center justify-center">
       <div className="flex flex-col items-center gap-4">
         <div className="w-12 h-12 border-4 border-purple-500 border-t-transparent rounded-full animate-spin" />
-        <p className="text-white/40 text-sm font-medium">Loading Preview Tool...</p>
+        <p className="text-white/40 text-sm font-medium">Loading Campaign Intelligence Studio...</p>
       </div>
     </div>
   ),
@@ -51,7 +51,7 @@ export default function PreviewToolGate() {
         resetPreviewToolForDemo();
         const step = searchParams.get("step");
         if (step !== "1" && active) {
-          router.replace("/preview-tool?demo=1&step=1");
+          router.replace("/preview-tool?demo=1&step=campaign-setup");
           return;
         }
       }
@@ -86,7 +86,7 @@ export default function PreviewToolGate() {
       <div className="min-h-screen bg-[#0B1220] flex items-center justify-center">
         <div className="flex flex-col items-center gap-4">
           <div className="w-12 h-12 border-4 border-purple-500 border-t-transparent rounded-full animate-spin" />
-          <p className="text-white/40 text-sm font-medium">Preparing Preview Tool...</p>
+          <p className="text-white/40 text-sm font-medium">Preparing Campaign Intelligence Studio...</p>
         </div>
       </div>
     );
@@ -99,7 +99,7 @@ export default function PreviewToolGate() {
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-purple-300">Demo Limit Reached</p>
           <h1 className="mt-3 text-2xl font-black">Your free demo session has been used</h1>
           <p className="mt-3 text-sm leading-relaxed text-white/70">
-            Guest users receive one interactive Preview Tool experience. Sign in to unlock unlimited access to the Dashboard and Preview Tool.
+            Guest users receive one interactive Campaign Intelligence Studio experience. Sign in to unlock unlimited access to the Dashboard and Campaign Intelligence Studio.
           </p>
           <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-center">
             <Link

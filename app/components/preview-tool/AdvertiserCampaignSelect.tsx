@@ -88,7 +88,7 @@ export default function AdvertiserCampaignSelect({
       {selectedCampaignId ? (
         <p className="flex items-center gap-2 text-xs text-studio-success">
           <CheckCircle2 size={14} />
-          Campaign selected — loading details…
+          Campaign selected. Loading details…
         </p>
       ) : null}
     </div>

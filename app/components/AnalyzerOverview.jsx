@@ -356,9 +356,8 @@ function CampaignBriefOverviewSection({ briefValidation, platformLabel, programm
   const sample = briefValidation?.sampleBriefAlignment;
   const intent = briefValidation?.intentSummary;
   const intentLine = briefValidation?.intentLine;
-  const goalOk = settings?.goal_settings_check?.is_aligned;
   const verticalOk = settings?.vertical_settings_check?.is_aligned;
-  const hasSettingsConflict = config.showGoalVerticalChecks && (goalOk === false || verticalOk === false);
+  const hasSettingsConflict = config.showGoalVerticalChecks && verticalOk === false;
   const hasCreativeConflict = (briefValidation?.briefMisalignedCount || 0) > 0
     || sample?.creative_matches_brief === false
     || sample?.alignment_status === "misaligned";
@@ -404,12 +403,7 @@ function CampaignBriefOverviewSection({ briefValidation, platformLabel, programm
       ) : null}
 
       {config.showGoalVerticalChecks ? (
-        <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3">
-          <BriefCheckCard
-            title="Goal vs Brief"
-            ok={goalOk}
-            explanation={settings?.goal_settings_check?.explanation}
-          />
+        <div className="mt-4 grid grid-cols-1 gap-3">
           <BriefCheckCard
             title="Vertical vs Brief"
             ok={verticalOk}
@@ -520,7 +514,7 @@ function CreativeRiskSummarySection({ riskSummary, platformLabel, exportMode = f
             Campaign-level risk view across {counts.total || 0} {platformLabel} creative{counts.total === 1 ? "" : "s"}.
             {exportMode
               ? " Full per-creative risk detail is included below."
-              : " Critical issues appear first — expand individual creatives for full detail."}
+              : " Critical issues appear first. Expand individual creatives for full detail."}
           </p>
         </div>
         {launchStatus ? (

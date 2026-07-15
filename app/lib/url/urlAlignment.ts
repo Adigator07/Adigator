@@ -2,7 +2,6 @@ import OpenAI from "openai";
 import type { UrlAlignmentResult } from "@/app/types/urlValidation";
 import type { UrlHealthResult } from "@/app/lib/url/healthCheck";
 import { stripUtmFromUrl } from "@/app/lib/utmManagement";
-import { CATEGORY_KEYWORDS } from "@/app/constants/programmaticSpecs";
 
 export interface UrlAlignmentInput {
   submittedUrl: string;
@@ -11,6 +10,7 @@ export interface UrlAlignmentInput {
   objective?: string;
   vertical?: string;
   campaignName?: string;
+  campaignBrief?: string;
   adType?: "display" | "video";
   creatives?: Array<{ id: string; name: string; size?: string; imageBase64?: string }>;
 }
@@ -25,20 +25,6 @@ function normalizeUrlForCompare(value: string): string {
   } catch {
     return stripUtmFromUrl(value.trim()).toLowerCase();
   }
-}
-
-function scoreCategory(text: string): Record<string, number> {
-  const lower = text.toLowerCase();
-  const scores: Record<string, number> = {};
-  for (const [cat, keywords] of Object.entries(CATEGORY_KEYWORDS)) {
-    scores[cat] = keywords.reduce((acc, kw) => (lower.includes(kw) ? acc + 1 : acc), 0);
-  }
-  return scores;
-}
-
-function topCategory(scores: Record<string, number>): string | null {
-  const sorted = Object.entries(scores).sort((a, b) => b[1] - a[1]);
-  return sorted[0]?.[1] > 0 ? sorted[0][0] : null;
 }
 
 function buildHeuristicAlignment(input: UrlAlignmentInput): UrlAlignmentResult {
@@ -72,21 +58,9 @@ function buildHeuristicAlignment(input: UrlAlignmentInput): UrlAlignmentResult {
     suggestions.push("Confirm the final URL matches the offer shown in your creative, or use the final URL directly.");
   }
 
-  const pageText = [
-    input.campaignName || "",
-    ...(input.creatives || []).map((c) => c.name),
-    health?.pageTitle || "",
-    health?.h1 || "",
-    ...(health?.ctaTexts || []),
-  ].join(" ");
-
-  const pageCategory = topCategory(scoreCategory(pageText));
-  const vertical = (input.vertical || "").toLowerCase();
-  if (vertical && pageCategory && !vertical.includes(pageCategory.slice(0, 5)) && pageCategory !== "ecommerce") {
-    misaligned = true;
-    reasons.push(`Landing page content suggests "${pageCategory}" but campaign vertical is "${input.vertical}".`);
-    suggestions.push("Use a landing page that matches your selected industry vertical and creative messaging.");
-  }
+  // Do not use coarse keyword category matching for vertical alignment here.
+  // Step 3 Analysis owns vertical/product fit; false Step 2 "vertical not aligned"
+  // warnings must not contradict aligned analysis results for the same page.
 
   if (!misaligned && !health?.pageTitle && !health?.h1) {
     reasons.push("Landing page loaded but limited content signals were detected.");
@@ -96,7 +70,7 @@ function buildHeuristicAlignment(input: UrlAlignmentInput): UrlAlignmentResult {
   const pageAbout = [
     health?.pageTitle,
     health?.h1,
-  ].filter(Boolean).join(" — ").trim();
+  ].filter(Boolean).join(": ").trim();
 
   return {
     status: misaligned ? "misaligned" : "aligned",
@@ -107,7 +81,7 @@ function buildHeuristicAlignment(input: UrlAlignmentInput): UrlAlignmentResult {
       : "Landing page URL appears consistent with your submitted destination and campaign context.",
     page_about: pageAbout
       ? pageAbout.slice(0, 220)
-      : "Limited page content was detected — add a clearer headline and offer on the destination.",
+      : "Limited page content was detected. Add a clearer headline and offer on the destination.",
     misalignment_reason: misaligned && reasons.length
       ? reasons[0].slice(0, 220)
       : undefined,
@@ -117,7 +91,7 @@ function buildHeuristicAlignment(input: UrlAlignmentInput): UrlAlignmentResult {
       : misaligned
         ? ["Review the landing page offer, branding, and vertical fit against your uploaded creative."]
         : ["Keep the same URL in your ad platform final URL field to preserve tracking continuity."],
-    confidence: misaligned ? 62 : 70,
+    confidence: misaligned ? 62 : 78,
     source: "heuristic",
     checked_at: new Date().toISOString(),
   };
@@ -126,13 +100,31 @@ function buildHeuristicAlignment(input: UrlAlignmentInput): UrlAlignmentResult {
 function sanitizeAlignmentResponse(raw: unknown, input: UrlAlignmentInput): UrlAlignmentResult {
   const record = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
   const statusRaw = String(record.status || record.alignment || "").toLowerCase();
-  const status = statusRaw === "aligned" ? "aligned" : "misaligned";
+  let status: "aligned" | "misaligned" =
+    statusRaw === "aligned" || statusRaw === "misaligned"
+      ? statusRaw
+      : "aligned";
+
   const reasons = Array.isArray(record.reasons)
     ? record.reasons.map((r) => String(r)).filter(Boolean).slice(0, 6)
     : [];
   const suggestions = Array.isArray(record.suggestions)
     ? record.suggestions.map((s) => String(s)).filter(Boolean).slice(0, 5)
     : [];
+
+  // Soften taxonomy-only vertical false positives that conflict with healthy landing pages.
+  const weakVerticalOnly =
+    status === "misaligned"
+    && reasons.length > 0
+    && reasons.every((reason) => /vertical|industr|categor/i.test(reason))
+    && !reasons.some((reason) => /404|unreachable|broken|wrong product|different brand|offer mismatch|redirect/i.test(reason))
+    && Boolean(input.urlHealth?.pageTitle || input.urlHealth?.h1)
+    && input.urlHealth?.statusCode !== 404;
+
+  if (weakVerticalOnly) {
+    status = "aligned";
+  }
+
   const summary = String(record.summary || record.message || "").trim()
     || (status === "aligned"
       ? "Landing page URL is aligned with your creative and campaign setup."
@@ -147,22 +139,28 @@ function sanitizeAlignmentResponse(raw: unknown, input: UrlAlignmentInput): UrlA
   const fallbackAbout = [
     health?.pageTitle,
     health?.h1,
-  ].filter(Boolean).join(" — ").trim();
+  ].filter(Boolean).join(": ").trim();
 
   return {
     status,
     submitted_url: input.submittedUrl.trim(),
     final_url: finalUrl || null,
-    summary,
+    summary: weakVerticalOnly
+      ? "Landing page URL is aligned with your campaign. Vertical labels may differ in wording, but the destination matches the campaign context."
+      : summary,
     page_about: pageAbout || fallbackAbout?.slice(0, 220) || undefined,
-    misalignment_reason: misalignmentReason || (status === "misaligned" && reasons.length ? reasons[0] : undefined),
-    reasons: reasons.length ? reasons : [summary],
+    misalignment_reason: status === "misaligned"
+      ? (misalignmentReason || (reasons.length ? reasons[0] : undefined))
+      : undefined,
+    reasons: status === "aligned"
+      ? (reasons.length && !weakVerticalOnly ? reasons : ["URL and page signals look consistent with the campaign brief, goal, and vertical."])
+      : (reasons.length ? reasons : [summary]),
     suggestions: suggestions.length
       ? suggestions
       : status === "misaligned"
         ? ["Update the landing page or final URL so the offer, brand, and vertical match the uploaded creative."]
         : [],
-    confidence: Number.isFinite(confidence) ? Math.max(0, Math.min(100, confidence)) : 85,
+    confidence: Number.isFinite(confidence) ? Math.max(0, Math.min(100, confidence)) : (status === "aligned" ? 88 : 85),
     source: "openai",
     checked_at: new Date().toISOString(),
   };
@@ -223,7 +221,8 @@ export async function evaluateUrlAlignment(input: UrlAlignmentInput): Promise<Ur
     "- Not served over HTTPS, not mobile-friendly, or page load is poor",
     "",
     "Mark ALIGNED only when the URL is reachable, secure, mobile-friendly, AND the page clearly continues the video ad's product, message, branding, and CTA.",
-    "Do NOT evaluate image dimensions, file weight, banner ad sizing, or Responsive Display specs — those are irrelevant for video ads.",
+    "If the page matches the campaign brief and product, mark ALIGNED even when vertical labels differ slightly in taxonomy wording.",
+    "Do NOT evaluate image dimensions, file weight, banner ad sizing, or Responsive Display specs. Those are irrelevant for video ads.",
   ];
 
   const displayRules = [
@@ -231,10 +230,13 @@ export async function evaluateUrlAlignment(input: UrlAlignmentInput): Promise<Ur
     "- Submitted URL is broken, invalid, or unreachable",
     "- Final URL after redirects differs materially from user intent or creative offer",
     "- Landing page topic/brand/offer does not match the uploaded creative(s)",
-    "- Page vertical or goal mismatch (e.g. finance ad → unrelated blog page)",
+    "- Page clearly promotes a different product category than the campaign (not a naming taxonomy difference)",
     "",
-    "Mark ALIGNED only when the URL is reachable AND the landing page clearly supports the creative message and campaign context.",
+    "Mark ALIGNED when the URL is reachable AND the landing page clearly supports the creative message, campaign brief, selected goal, and selected vertical.",
+    "Do NOT mark misaligned only because vertical labels differ in wording (e.g. technology vs consumer electronics) when the page sells the same product.",
   ];
+
+  const briefSnippet = String(input.campaignBrief || "").trim().slice(0, 1800);
 
   const userText = [
     `Evaluate whether the user's landing page URL is ALIGNED or MISALIGNED with their ${isVideoAd ? "video" : "display"} ad campaign.`,
@@ -246,6 +248,7 @@ export async function evaluateUrlAlignment(input: UrlAlignmentInput): Promise<Ur
     `Campaign objective: ${input.objective || "awareness"}`,
     `Industry vertical: ${input.vertical || "general"}`,
     `Campaign name: ${input.campaignName || "Campaign"}`,
+    briefSnippet ? `Campaign brief:\n${briefSnippet}` : "Campaign brief: (not provided)",
     `Submitted URL: ${cleanSubmittedUrl}`,
     `Final URL (after redirects): ${health?.finalUrl ? stripUtmFromUrl(health.finalUrl) : cleanSubmittedUrl}`,
     `HTTP status: ${health?.statusCode ?? "unknown"}`,
@@ -265,6 +268,7 @@ export async function evaluateUrlAlignment(input: UrlAlignmentInput): Promise<Ur
     "Return JSON only:",
     '{ "status": "aligned"|"misaligned", "confidence": 0-100, "summary": "one sentence", "page_about": "brief what the landing page is about", "misalignment_reason": "short why misaligned if applicable", "reasons": ["..."], "suggestions": ["actionable fix 1", "..."] }',
     "Suggestions must be specific and helpful when misaligned.",
+    "Consistency rule: if the page clearly matches the brief/product and is reachable, status must be aligned.",
   ].join("\n");
 
   const imageParts = imageCreatives.map((creative) => ({
@@ -288,9 +292,11 @@ export async function evaluateUrlAlignment(input: UrlAlignmentInput): Promise<Ur
           role: "system",
           content: [
             "You are an expert performance marketing QA analyst.",
-            "Judge landing page URL alignment against ad creatives and campaign setup.",
-            "Be strict: unrelated destinations, wrong offers, or broken URLs are misaligned.",
+            "Judge landing page URL alignment against ad creatives, campaign brief, selected goal, and selected vertical.",
+            "Be strict on broken URLs, wrong products, and unrelated destinations.",
+            "Do not invent vertical mismatches from taxonomy wording alone when the page clearly matches the product and brief.",
             "Provide practical suggestions only when misaligned.",
+            "Never use em dashes in your writing.",
           ].join(" "),
         },
         {

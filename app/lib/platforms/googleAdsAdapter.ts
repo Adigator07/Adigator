@@ -127,7 +127,8 @@ export const googleAdsAdapter: PlatformWorkflowAdapter = {
   validationRules: {
     landingUrlRequired: true,
     defaultMaxFileSizeKb: 150,
-    uploadGuidance: "Use IAB standard display sizes. Responsive Display Ads support landscape (1.91:1), square (1:1), and logo assets per Google specs.",
+    uploadGuidance:
+      "Display: IAB / RDA landscape, square, and logo assets. Video: MP4/WebM/MOV for YouTube — prefer 16:9, keep non-skippable cuts ≤60s.",
   },
   previewStudioMode: "static-placements",
   defaultPreviewTemplateId: "display",

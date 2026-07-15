@@ -129,7 +129,7 @@ function CampaignBriefAlignmentPanel({ briefAlignment, campaignBrief, labelGoal,
 
       {status.key === "misaligned" && !exportMode ? (
         <p className="mt-3 text-xs text-slate-700">
-          Update the creative, revise the Campaign Brief in Step 1, or align your goal/vertical settings — then click <strong>Reanalyze</strong>.
+          Update the creative, revise the Campaign Brief in Step 1, or align your goal/vertical settings, then click <strong>Reanalyze</strong>.
         </p>
       ) : null}
     </div>

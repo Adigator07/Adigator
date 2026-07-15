@@ -6,6 +6,7 @@ export const PROGRAMMATIC_OBJECTIVES = [
   { id: "awareness", title: "Awareness", subtitle: "Introduce Brand", emoji: "📣", desc: "Maximize reach and brand recognition.", color: "from-blue-600/30 to-blue-800/20", border: "border-blue-500/50", analyzerGoal: "awareness" },
   { id: "consideration", title: "Consideration", subtitle: "Evaluate Product", emoji: "🤔", desc: "Balance information and moderate CTA.", color: "from-purple-600/30 to-purple-800/20", border: "border-purple-500/50", analyzerGoal: "consideration" },
   { id: "conversion", title: "Conversion", subtitle: "Drive Action", emoji: "⚡", desc: "Strong CTA and direct response.", color: "from-orange-600/30 to-orange-800/20", border: "border-orange-500/50", analyzerGoal: "conversion" },
+  { id: "programmatic_video_views", title: "Video Views", subtitle: "Promote video ads", emoji: "🎬", desc: "Validate VAST in-stream and out-stream video packs.", color: "from-rose-600/30 to-rose-800/20", border: "border-rose-500/50", analyzerGoal: "video_views" },
 ];
 
 export const GOOGLE_OBJECTIVES = [
@@ -16,6 +17,7 @@ export const GOOGLE_OBJECTIVES = [
   { id: "google_brand_awareness", title: "Brand Awareness and Reach", subtitle: "Top of funnel", emoji: "📣", desc: "Maximize reach and brand recall.", color: "from-blue-600/30 to-blue-800/20", border: "border-blue-500/50", analyzerGoal: "awareness" },
   { id: "google_app_promotion", title: "App Promotion", subtitle: "App installs", emoji: "📲", desc: "Drive app downloads and engagement.", color: "from-indigo-600/30 to-indigo-800/20", border: "border-indigo-500/50", analyzerGoal: "app_installs" },
   { id: "google_local", title: "Local Store Visits and Promotions", subtitle: "Foot traffic", emoji: "📍", desc: "Drive visits to physical locations.", color: "from-amber-600/30 to-amber-800/20", border: "border-amber-500/50", analyzerGoal: "traffic" },
+  { id: "google_video_views", title: "Video Views", subtitle: "Promote video ads", emoji: "🎬", desc: "Validate YouTube video ads for hook, pacing, and platform specs.", color: "from-rose-600/30 to-rose-800/20", border: "border-rose-500/50", analyzerGoal: "video_views" },
   { id: "google_no_goal", title: "Create a Campaign Without a Goal's Guidance", subtitle: "Flexible setup", emoji: "⚙️", desc: "Configure without a predefined objective template.", color: "from-slate-600/30 to-slate-800/20", border: "border-slate-500/50", analyzerGoal: "awareness" },
 ];
 
@@ -26,6 +28,7 @@ export const META_OBJECTIVES = [
   { id: "meta_leads", title: "Leads", subtitle: "Lead forms", emoji: "🧾", desc: "Collect leads for your business.", color: "from-emerald-600/30 to-emerald-800/20", border: "border-emerald-500/50", analyzerGoal: "lead_generation" },
   { id: "meta_app_promotion", title: "App Promotion", subtitle: "App installs", emoji: "📲", desc: "Find people likely to install your app.", color: "from-indigo-600/30 to-indigo-800/20", border: "border-indigo-500/50", analyzerGoal: "app_installs" },
   { id: "meta_sales", title: "Sales", subtitle: "Conversions", emoji: "🛒", desc: "Find people likely to purchase.", color: "from-orange-600/30 to-orange-800/20", border: "border-orange-500/50", analyzerGoal: "conversion" },
+  { id: "meta_video_views", title: "Video Views", subtitle: "Promote video ads", emoji: "🎬", desc: "Validate Reels and Feed video ads for hook, pacing, and safe zones.", color: "from-rose-600/30 to-rose-800/20", border: "border-rose-500/50", analyzerGoal: "video_views" },
 ];
 
 const ALL_OBJECTIVES = [...PROGRAMMATIC_OBJECTIVES, ...GOOGLE_OBJECTIVES, ...META_OBJECTIVES];

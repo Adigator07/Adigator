@@ -78,7 +78,7 @@ export default function AnalysisTabExportBundle({
         </p>
         <h2 className="mt-2 text-2xl font-black text-[#f4f4f8]">
           {exportScope === "creative-analysis" && creativeName
-            ? `${labels.title} — ${creativeName}`
+            ? `${labels.title}: ${creativeName}`
             : labels.title}
         </h2>
         <p className="mt-1 text-sm text-[#c8c8d4]">{labels.subtitle}</p>

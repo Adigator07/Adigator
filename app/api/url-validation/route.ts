@@ -49,6 +49,7 @@ export async function POST(request: Request) {
       objective: body.objective,
       vertical: body.vertical,
       campaignName: body.campaignName,
+      campaignBrief: body.campaignBrief,
       adType,
       creatives: creatives.map((c) => ({
         id: c.id,

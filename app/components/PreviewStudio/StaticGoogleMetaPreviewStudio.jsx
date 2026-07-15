@@ -34,8 +34,10 @@ export default function StaticGoogleMetaPreviewStudio({
   onCopyCreative,
   onEditCreative,
   onExportContextChange,
+  isVideoMode = false,
 }) {
   const [studioMode, setStudioMode] = useState("previews");
+  const [previewMuted, setPreviewMuted] = useState(true);
   const previewCaptureRef = useRef(null);
   const isGoogle = platform === "google_ads";
 
@@ -46,6 +48,7 @@ export default function StaticGoogleMetaPreviewStudio({
     goal,
     keyMessage,
     sourceCreatives,
+    isVideoMode,
   });
 
   const {
@@ -65,8 +68,8 @@ export default function StaticGoogleMetaPreviewStudio({
     templates,
   } = studio;
 
-  const googleAnalysis = useGoogleCreativeAnalysis(isGoogle ? selectedSource : null);
-  const metaAnalysis = useMetaCreativeAnalysis(!isGoogle ? selectedSource : null);
+  const googleAnalysis = useGoogleCreativeAnalysis(!isVideoMode && isGoogle ? selectedSource : null);
+  const metaAnalysis = useMetaCreativeAnalysis(!isVideoMode && !isGoogle ? selectedSource : null);
   const creativeAnalysis = isGoogle ? googleAnalysis : metaAnalysis;
 
   const handlers = useMemo(
@@ -77,10 +80,27 @@ export default function StaticGoogleMetaPreviewStudio({
   const showDeviceToggle = deviceOptions.length > 1;
   const alternateDevice = deviceOptions.find((option) => option.id !== device)?.id;
   const canPreview = selectedSourceDeviceValidation.supported && templates.length > 0;
-  const showAnalysisTools = Boolean(selectedSource?.url || selectedSource?.fullUrl);
+  const showAnalysisTools = !isVideoMode && Boolean(selectedSource?.url || selectedSource?.fullUrl);
   const analysisReady = creativeAnalysis.status === "ready" && creativeAnalysis.imageUrl;
+  const visibleStudioModes = isVideoMode
+    ? STUDIO_MODES.filter((mode) => mode.id === "previews")
+    : STUDIO_MODES;
 
-  const primaryTemplate = templates[0] || null;
+  const primaryTemplate = useMemo(() => {
+    if (!templates.length) return null;
+    if (device === "desktop") {
+      return templates.find((template) => String(template.environment || "").includes("desktop"))
+        || templates[0];
+    }
+    return templates.find((template) => !String(template.environment || "").includes("desktop"))
+      || templates[0];
+  }, [templates, device]);
+
+  useEffect(() => {
+    if (isVideoMode && studioMode !== "previews") {
+      setStudioMode("previews");
+    }
+  }, [isVideoMode, studioMode]);
 
   useEffect(() => {
     onExportContextChange?.({
@@ -104,7 +124,7 @@ export default function StaticGoogleMetaPreviewStudio({
   return (
     <div className="space-y-6">
       <StudioTabBar
-        tabs={STUDIO_MODES}
+        tabs={visibleStudioModes}
         activeTab={studioMode}
         onChange={setStudioMode}
         layoutIdPrefix="google-meta-modes"
@@ -146,19 +166,35 @@ export default function StaticGoogleMetaPreviewStudio({
         {studioMode === "previews" ? (
           <>
             <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
-              {showDeviceToggle ? (
-                <DeviceToggle
-                  options={deviceOptions}
-                  activeDevice={device}
-                  onChange={setDevice}
-                  layoutIdPrefix="google-meta-device"
-                />
-              ) : (
-                <div />
-              )}
+              <div className="flex flex-wrap items-center gap-3">
+                {showDeviceToggle ? (
+                  <DeviceToggle
+                    options={deviceOptions}
+                    activeDevice={device}
+                    onChange={setDevice}
+                    layoutIdPrefix="google-meta-device"
+                  />
+                ) : null}
+                {isVideoMode ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const nextMuted = !previewMuted;
+                      setPreviewMuted(nextMuted);
+                      window.dispatchEvent(new CustomEvent("adigator:preview-sound", {
+                        detail: { muted: nextMuted },
+                      }));
+                    }}
+                    className="inline-flex items-center gap-2 rounded-xl border border-cyan-400/30 bg-cyan-500/10 px-3 py-2 text-xs font-semibold text-cyan-100 hover:bg-cyan-500/20"
+                  >
+                    {previewMuted ? "Unmute" : "Mute"}
+                  </button>
+                ) : null}
+              </div>
               <p className="text-xs text-studio-tertiary">
                 {device === "desktop" ? "Desktop" : "Mobile"} view · predefined{" "}
                 {isGoogle ? "Google Ads" : "Meta Ads"} layout
+                {isVideoMode ? " · audio available" : ""}
               </p>
             </div>
 

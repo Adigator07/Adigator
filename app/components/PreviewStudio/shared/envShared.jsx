@@ -21,7 +21,7 @@ export function TemplateFitNotice({ message, className = "" }) {
   );
 }
 
-/** Fixed-ratio container — creatives preserve original aspect ratio (contain, never crop). */
+/** Fixed-ratio container. Creatives preserve original aspect ratio (contain, never crop). */
 export function MediaFrame({
   creative,
   aspectRatio = "1 / 1",
@@ -41,15 +41,160 @@ export function MediaFrame({
         className={`relative w-full overflow-hidden bg-gray-100 ${className}`}
         style={{ aspectRatio }}
       >
-        <AdImage creative={creative} className="absolute inset-0" fit={fitAnalysis.fitMode || fit} />
+        <AdMedia creative={creative} className="absolute inset-0" fit={fitAnalysis.fitMode || fit} />
       </div>
       <TemplateFitNotice message={fitMessage} />
     </div>
   );
 }
 
+function isVideoCreative(creative) {
+  if (!creative) return false;
+  if (creative.mediaType === "video") return true;
+  if (creative.videoUrl) return true;
+  const candidate = creative.fullUrl || creative.imageUrl || creative.image || "";
+  return /\.(mp4|mov|webm|m4v)(\?|$)/i.test(candidate)
+    || String(creative.mimeType || "").startsWith("video/");
+}
+
+/** Renders image or in-template video playback for placement previews. */
+export function AdMedia({ creative, className = "", alt = "Ad creative", fit = "contain" }) {
+  const fitClass = fit === "contain" ? "object-contain" : "object-cover";
+  const poster = creative?.posterUrl || creative?.imageUrl || creative?.image || "";
+  const videoSrc = creative?.videoUrl || (isVideoCreative(creative) ? (creative?.fullUrl || creative?.imageUrl || "") : "");
+  const videoRef = useRef(null);
+  const [muted, setMuted] = useState(false);
+  const [needsGesture, setNeedsGesture] = useState(false);
+
+  useEffect(() => {
+    const el = videoRef.current;
+    if (!el || !videoSrc) return;
+
+    let cancelled = false;
+    el.defaultMuted = false;
+    el.volume = 1;
+
+    const tryPlayWithSound = async () => {
+      el.muted = false;
+      setMuted(false);
+      try {
+        await el.play();
+        if (!cancelled) setNeedsGesture(false);
+      } catch {
+        if (cancelled) return;
+        // Browsers block unmuted autoplay — keep video playing, prompt for sound.
+        el.muted = true;
+        setMuted(true);
+        setNeedsGesture(true);
+        try {
+          await el.play();
+        } catch {
+          // Ignore secondary play failures (tab background, etc.).
+        }
+      }
+    };
+
+    const onExternalUnmute = () => {
+      void (async () => {
+        if (!el) return;
+        el.muted = false;
+        el.volume = 1;
+        setMuted(false);
+        setNeedsGesture(false);
+        try {
+          await el.play();
+        } catch {
+          setMuted(true);
+          setNeedsGesture(true);
+          el.muted = true;
+        }
+      })();
+    };
+
+    const onExternalSound = (event) => {
+      const wantMuted = Boolean(event?.detail?.muted);
+      if (wantMuted) {
+        el.muted = true;
+        setMuted(true);
+        return;
+      }
+      onExternalUnmute();
+    };
+
+    void tryPlayWithSound();
+    window.addEventListener("adigator:preview-unmute", onExternalUnmute);
+    window.addEventListener("adigator:preview-sound", onExternalSound);
+    return () => {
+      cancelled = true;
+      window.removeEventListener("adigator:preview-unmute", onExternalUnmute);
+      window.removeEventListener("adigator:preview-sound", onExternalSound);
+    };
+  }, [videoSrc]);
+
+  const enableSound = async (event) => {
+    event?.preventDefault?.();
+    event?.stopPropagation?.();
+    const el = videoRef.current;
+    if (!el) return;
+    el.muted = false;
+    el.volume = 1;
+    setMuted(false);
+    setNeedsGesture(false);
+    try {
+      await el.play();
+    } catch {
+      setMuted(true);
+      setNeedsGesture(true);
+      el.muted = true;
+    }
+  };
+
+  const muteSound = (event) => {
+    event?.preventDefault?.();
+    event?.stopPropagation?.();
+    const el = videoRef.current;
+    if (!el) return;
+    el.muted = true;
+    setMuted(true);
+  };
+
+  if (isVideoCreative(creative) && videoSrc) {
+    return (
+      <div className={`relative h-full w-full overflow-hidden ${className}`}>
+        <video
+          ref={videoRef}
+          key={videoSrc}
+          src={videoSrc}
+          poster={poster && poster !== videoSrc ? poster : undefined}
+          className={`block h-full w-full ${fitClass}`}
+          style={fit === "contain" ? { width: "100%", height: "100%" } : undefined}
+          autoPlay
+          muted={muted}
+          loop
+          playsInline
+          controls={false}
+          preload="auto"
+          data-preview-video="true"
+          aria-label={alt}
+        />
+        <button
+          type="button"
+          onClick={muted ? enableSound : muteSound}
+          className="absolute bottom-3 right-3 z-20 inline-flex items-center gap-1.5 rounded-full border border-white/25 bg-black/75 px-3 py-1.5 text-[11px] font-semibold text-white shadow-lg backdrop-blur-sm hover:bg-black/90"
+          title={muted ? "Unmute preview" : "Mute preview"}
+        >
+          <span aria-hidden>{muted ? "🔇" : "🔊"}</span>
+          {muted ? "Unmute" : "Mute"}
+        </button>
+      </div>
+    );
+  }
+
+  return <AdImage creative={creative} className={className} alt={alt} fit={fit} />;
+}
+
 export function AdImage({ creative, className = "", alt = "Ad creative", fit = "contain" }) {
-  const src = creative?.imageUrl || creative?.image;
+  const src = creative?.imageUrl || creative?.image || creative?.posterUrl;
   const fitClass = fit === "contain" ? "object-contain" : "object-cover";
 
   if (src) {

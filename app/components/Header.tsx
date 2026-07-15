@@ -15,7 +15,7 @@ export default function Header() {
     { href: "/product", label: "Product" },
     { href: "/solutions", label: "Solutions" },
     { href: "/about", label: "About" },
-    { href: "/preview-tool", label: "Preview Tool" },
+    { href: "/preview-tool", label: "Campaign Intelligence Studio" },
     { href: "/login", label: "Login" },
   ];
 

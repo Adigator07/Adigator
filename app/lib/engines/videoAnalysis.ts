@@ -106,9 +106,29 @@ ${VIDEO_COMMON_RULES}
 - Use "Google" as the key inside validation_results.`;
 }
 
-/** Dynamic prompt routing: Google Ads Video -> Google prompt, Meta Ads Video -> Meta prompt. */
+function buildProgrammaticVideoSystemPrompt() {
+  return `You are a senior Programmatic / open-web VIDEO creative QA analyst (VAST in-stream, out-stream, and CTV-friendly packs).
+Evaluate the video against programmatic exchange expectations, then return JSON only.
+
+${VIDEO_JSON_SHAPE}
+
+Programmatic video guidance:
+- Container: MP4 (H.264 + AAC) preferred for broad DSP/SSP acceptance; WebM optionally for some buyers.
+- Aspect ratios: 16:9 for classic in-stream, 9:16 for vertical/out-stream, 1:1 and 4:5 where supported.
+- Prefer 15s or 30s for standard in-stream; keep under 120s for broader package acceptance.
+- Keep on-screen text and CTA away from player chrome; plan companion banners (300x250 / 728x90) when the buy requires them.
+- Front-load the hook; many environments auto-play muted — captions matter.
+- Never grade against Meta Reels safe zones or YouTube-only skip rules unless the campaign explicitly targets those environments.
+
+${VIDEO_COMMON_RULES}
+- Use "Programmatic" as the key inside validation_results.`;
+}
+
+/** Dynamic prompt routing: each ad platform gets its own video QA brain. */
 function buildVideoSystemPrompt(platform: string) {
-  return platform === "google_ads" ? buildGoogleVideoSystemPrompt() : buildMetaVideoSystemPrompt();
+  if (platform === "google_ads") return buildGoogleVideoSystemPrompt();
+  if (platform === "programmatic") return buildProgrammaticVideoSystemPrompt();
+  return buildMetaVideoSystemPrompt();
 }
 
 async function normalizeFrame(buffer: Buffer) {
@@ -206,9 +226,13 @@ export async function runVideoCreativeAnalysis({
   campaignProductFocus?: string;
   landingUrl?: string;
 }): Promise<VideoAnalysisOutput> {
-  // Validate against the SELECTED platform's official video spec (independent Google/Meta rules).
-  const targetPlatforms: Array<"meta_ads" | "google_ads"> =
-    platform === "google_ads" ? ["google_ads"] : platform === "meta_ads" ? ["meta_ads"] : ["meta_ads", "google_ads"];
+  // Validate against the SELECTED platform's official video spec (independent Google/Meta/Programmatic rules).
+  const targetPlatforms: Array<"meta_ads" | "google_ads" | "programmatic"> =
+    platform === "google_ads"
+      ? ["google_ads"]
+      : platform === "programmatic"
+        ? ["programmatic"]
+        : ["meta_ads"];
   const deterministic = validateVideoForPlatforms(metadata, targetPlatforms);
   const openai = createOpenAIClient();
   if (!openai) {

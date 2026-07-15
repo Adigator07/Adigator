@@ -36,6 +36,8 @@ import ProgrammaticAdGroupConfiguration, {
 } from "@/app/components/preview-tool/ProgrammaticAdGroupConfiguration";
 
 import { ToolInput, ToolSelect, ToolTextarea } from "@/app/components/preview-tool/PreviewToolUi";
+import CampaignBriefInsightsPanel from "@/app/components/preview-tool/CampaignBriefInsightsPanel";
+import type { CampaignBriefInsights } from "@/app/lib/campaignBriefInsights";
 
 
 
@@ -116,7 +118,9 @@ type ProgrammaticStep1FieldsProps = {
   onAdvertiserCampaignSelect?: (campaign: AdvertiserCampaign) => void;
 
   onCreativeAdditionModeChange: (mode: CreativeAdditionMode) => void;
-
+  campaignIntent?: string;
+  effectiveCampaignGoal?: string;
+  onBriefInsightsChange?: (insights: CampaignBriefInsights | null) => void;
 };
 
 
@@ -164,6 +168,9 @@ export default function ProgrammaticStep1Fields({
   onAdTypeChange,
   objectiveOptions,
   supportsCustomObjective,
+  campaignIntent = "",
+  onBriefInsightsChange,
+  effectiveCampaignGoal = "",
   onTaskTypeChange,
 
   onAdGroupCountChange,
@@ -202,7 +209,7 @@ export default function ProgrammaticStep1Fields({
   const platformAdapter = getPlatformAdapter(platform || "programmatic");
   const taskTypeOptions = platformAdapter.taskTypes;
   const isProgrammatic = platform === "programmatic";
-  const showAdTypeSelector = !isProgrammatic && isProgrammaticCampaignSetup(taskType);
+  const showAdTypeSelector = isProgrammaticCampaignSetup(taskType);
   const adGroupObjectiveOptions = objectiveOptions;
   const adGroupSupportsCustomObjective = supportsCustomObjective ?? isProgrammatic;
   const adGroupDescription = isProgrammatic
@@ -547,7 +554,7 @@ export default function ProgrammaticStep1Fields({
 
                     : isCampaignSetup
 
-                      ? "Save this Campaign ID with your campaign name — you will need both to load this campaign in other task types."
+                      ? "Save this Campaign ID with your campaign name. You will need both to load this campaign in other task types."
 
                       : "Used for readiness scoring, mismatch detection, and report export."}
 
@@ -681,7 +688,7 @@ export default function ProgrammaticStep1Fields({
 
                 <p className="mt-2 text-xs text-studio-tertiary">
 
-                  Existing campaign ID — updates will be saved against this ID.
+                  Existing campaign ID. Updates will be saved against this ID.
 
                 </p>
 
@@ -697,7 +704,15 @@ export default function ProgrammaticStep1Fields({
                 <div className="grid grid-cols-2 gap-3">
                   {[
                     { id: "display" as const, title: "Display Ads", desc: "Image / banner creatives" },
-                    { id: "video" as const, title: "Video Ads", desc: "MP4 / MOV / WebM creatives" },
+                    {
+                      id: "video" as const,
+                      title: "Video Ads",
+                      desc: isProgrammatic
+                        ? "VAST in-stream / out-stream video"
+                        : platform === "meta_ads"
+                          ? "MP4 / MOV for Feed & Reels"
+                          : "MP4 / MOV / WebM for YouTube",
+                    },
                   ].map((option) => {
                     const selected = adType === option.id;
                     return (
@@ -727,30 +742,32 @@ export default function ProgrammaticStep1Fields({
               </div>
             ) : null}
 
-            <div>
+            <div className="space-y-4">
+              <div>
+                <label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-[#9a9aad]">
+                  Campaign Brief
+                </label>
+                <ToolTextarea
+                  value={campaignBrief}
+                  onChange={(event: ChangeEvent<HTMLTextAreaElement>) => onCampaignBriefChange(event.target.value)}
+                  placeholder="Describe campaign goals, product, requirements, and context."
+                  rows={4}
+                  readOnly={isCampaignDetailsReadOnly}
+                  className={isCampaignDetailsReadOnly ? "opacity-90" : ""}
+                />
+                <p className="mt-2 text-xs text-studio-tertiary">
+                  Intent and audience update automatically as you edit the brief.
+                </p>
+              </div>
 
-              <label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-[#9a9aad]">
-
-                Campaign Brief
-
-              </label>
-
-              <ToolTextarea
-
-                value={campaignBrief}
-
-                onChange={(event: ChangeEvent<HTMLTextAreaElement>) => onCampaignBriefChange(event.target.value)}
-
-                placeholder="Describe campaign goals, product, requirements, and context."
-
-                rows={4}
-
-                readOnly={isCampaignDetailsReadOnly}
-
-                className={isCampaignDetailsReadOnly ? "opacity-90" : ""}
-
+              <CampaignBriefInsightsPanel
+                campaignBrief={campaignBrief}
+                campaignGoal={effectiveCampaignGoal || undefined}
+                vertical={campaignVertical || undefined}
+                platform={platform || undefined}
+                preferredIntent={campaignIntent}
+                onInsightsChange={onBriefInsightsChange}
               />
-
             </div>
 
             <div>

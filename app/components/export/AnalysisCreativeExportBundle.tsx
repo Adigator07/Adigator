@@ -65,7 +65,7 @@ export default function AnalysisCreativeExportBundle({
         </p>
         <h2 className="mt-2 text-2xl font-black text-[#f4f4f8]">{creativeName}</h2>
         <p className="mt-1 text-sm text-[#c8c8d4]">
-          Complete analysis export — Overview, Campaign Alignment, QA, Creative Analysis, Risk Summary, and Recommendations
+          Complete analysis export: Overview, Campaign Alignment, QA, Creative Analysis, Risk Summary, and Recommendations
         </p>
       </div>
 

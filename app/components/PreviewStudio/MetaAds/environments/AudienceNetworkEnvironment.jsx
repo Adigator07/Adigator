@@ -3,7 +3,7 @@
 import { useState } from "react";
 import {
   AdChoicesMark,
-  AdImage,
+  AdMedia,
   DeviceChrome,
   DisplayAdSlot,
   EnvironmentPreviewCard,
@@ -49,7 +49,7 @@ export default function AudienceNetworkEnvironment({ creative, deviceMode = "mob
                 </div>
                 <div className="absolute inset-x-3 bottom-12 z-10">
                   <div className="relative overflow-hidden rounded border bg-white" style={{ height: 50 }}>
-                    <AdImage creative={creative} className="absolute inset-0" />
+                    <AdMedia creative={creative} className="absolute inset-0" />
                     <AdChoicesMark className="absolute bottom-0.5 right-6 scale-75" />
                   </div>
                 </div>

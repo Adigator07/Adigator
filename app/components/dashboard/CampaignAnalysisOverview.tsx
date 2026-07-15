@@ -58,13 +58,13 @@ export default function CampaignAnalysisOverview({
         <FileText size={28} className="mx-auto text-white/25" />
         <p className="mt-3 text-sm font-semibold text-white">No campaign analysis yet</p>
         <p className="mt-1 text-xs text-white/45">
-          Run analysis in the Preview Tool for {advertiserName} · {campaign.name} to generate the full Overview.
+          Run Campaign Intelligence for {advertiserName} · {campaign.name} to generate the full Overview.
         </p>
         <Link
-          href="/preview-tool?step=3"
+          href="/preview-tool?step=campaign-intelligence"
           className="mt-4 inline-flex items-center gap-2 rounded-xl border border-purple-500/40 bg-purple-500/10 px-4 py-2 text-sm font-semibold text-purple-200 transition hover:bg-purple-500/20"
         >
-          Open Preview Tool
+          Open Campaign Intelligence Studio
           <ChevronRight size={14} />
         </Link>
       </div>

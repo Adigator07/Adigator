@@ -7,6 +7,10 @@ import { CAMPAIGN_LAUNCH_STATUS } from "./analyzerInsights";
 import { summarizePlacementMatrix } from "./platformQaBuilders";
 import { getPlacementColumns } from "./placementCompatibility";
 import { resolveVerticalAlignmentStatus, getVerticalAlignmentDisplay } from "./strategicPresentation";
+import {
+  buildVideoPlacementQaSection,
+  buildVideoTechnicalQaSection,
+} from "./video/videoValidationQa";
 
 function clampScore(value) {
   return Math.max(0, Math.min(100, Math.round(value)));
@@ -356,9 +360,13 @@ function buildDataDrivenBriefing(overview, goalText, verticalText, insights, pla
   const review = overview.reviewCount || 0;
   const misaligned = overview.misalignedCount || 0;
   const risks = overview.launchRisks || [];
+  const isVideoCampaign =
+    insights.length > 0 &&
+    insights.every((i) => i.mediaType === "video" || Boolean(i.videoAnalysis));
+  const creativeNoun = isVideoCampaign ? "video creative" : "display creative";
 
   const headline = total
-    ? `${ready} of ${total} display creative${total === 1 ? "" : "s"} launch-ready`
+    ? `${ready} of ${total} ${creativeNoun}${total === 1 ? "" : "s"} launch-ready`
     : `${platformLabel} campaign intelligence`;
 
   const visualThemes = [...new Set(
@@ -368,7 +376,9 @@ function buildDataDrivenBriefing(overview, goalText, verticalText, insights, pla
   )].slice(0, 2);
 
   const narrativeParts = [
-    `Analysis of ${total || "uploaded"} static display creative${total === 1 ? "" : "s"} for a ${goalText} campaign in ${verticalText}.`,
+    isVideoCampaign
+      ? `Analysis of ${total || "uploaded"} ${creativeNoun}${total === 1 ? "" : "s"} for a ${goalText} campaign in ${verticalText}.`
+      : `Analysis of ${total || "uploaded"} static display creative${total === 1 ? "" : "s"} for a ${goalText} campaign in ${verticalText}.`,
   ];
 
   if (total > 0 && ready === total) {
@@ -745,8 +755,8 @@ export function buildPlatformOverviewSections({
   const briefingFn = briefingBuilders[platform] || buildProgrammaticBriefing;
   const healthFn = healthBuilders[platform] || buildProgrammaticCampaignHealth;
 
-  // Video campaigns don't use display/RDA placement or banner technical QA — the dedicated
-  // video report covers platform compliance. Suppress those display-only overview sections.
+  // Video campaigns use dedicated video technical/placement QA (MB-based, platform video inventory).
+  // Display/RDA/banner QA must never apply to all-video campaigns.
   const isVideoCampaign =
     insights.length > 0
     && insights.every((i) => i.mediaType === "video" || Boolean(i.videoAnalysis));
@@ -755,8 +765,12 @@ export function buildPlatformOverviewSections({
     briefing: briefingFn(overview, goalText, verticalText, insights),
     campaignHealth: healthFn(insights, overview),
     creativeAnalysis: buildCreativeAnalysisSection(insights, platform, verticalText),
-    technicalQa: isVideoCampaign ? null : buildTechnicalQaSection(insights, platform),
-    placementQa: isVideoCampaign ? null : buildPlacementQaSection(insights, platform, overview),
+    technicalQa: isVideoCampaign
+      ? buildVideoTechnicalQaSection(insights, platform)
+      : buildTechnicalQaSection(insights, platform),
+    placementQa: isVideoCampaign
+      ? buildVideoPlacementQaSection(insights, platform)
+      : buildPlacementQaSection(insights, platform, overview),
     creativeRiskSummary: buildCreativeRiskSection(insights, overview),
     platform,
   };

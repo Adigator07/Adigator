@@ -2,21 +2,27 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  filterSourceCreativesByPlacement,
-  getDefaultPreviewPlacement,
-  getDeviceOptionsForPlacement,
-  getPreviewPlacement,
-  getPreviewPlacementTabs,
-} from "@/app/lib/previewPlacementRegistry";
-import {
   filterSourceCreativesByDevice,
   getSupportedDevicesForCreative,
   validatePreviewDeviceCompatibility,
 } from "@/app/lib/previewDeviceCompatibility";
+import {
+  getDefaultVideoPreviewPlacement,
+  getVideoPreviewPlacement,
+  getVideoPreviewPlacementTabs,
+} from "@/app/lib/videoPreviewPlacements";
+import {
+  getDefaultPreviewPlacement,
+  getDeviceOptionsForPlacement,
+  getPreviewPlacement,
+  getPreviewPlacementTabs,
+  filterSourceCreativesByPlacement,
+} from "@/app/lib/previewPlacementRegistry";
 import { buildStaticPlacementTemplates } from "./staticPreviewTemplates";
 
 /**
- * Placement-aware preview studio without OpenAI — uses predefined environment layouts.
+ * Placement-aware preview studio (display or video).
+ * Video mode uses platform-specific video templates; display keeps existing placements.
  */
 export function useStaticPlacementPreviewStudio({
   platform,
@@ -25,12 +31,24 @@ export function useStaticPlacementPreviewStudio({
   goal,
   keyMessage,
   sourceCreatives = [],
+  isVideoMode = false,
 }) {
-  const placementTabs = useMemo(() => getPreviewPlacementTabs(platform), [platform]);
-  const defaultPlacement = useMemo(() => getDefaultPreviewPlacement(platform), [platform]);
+  const placementTabs = useMemo(
+    () => (isVideoMode ? getVideoPreviewPlacementTabs(platform) : getPreviewPlacementTabs(platform)),
+    [platform, isVideoMode],
+  );
+  const defaultPlacement = useMemo(
+    () => (isVideoMode ? getDefaultVideoPreviewPlacement(platform) : getDefaultPreviewPlacement(platform)),
+    [platform, isVideoMode],
+  );
 
   const [activePlacement, setActivePlacement] = useState(defaultPlacement);
   const [device, setDevice] = useState(() => {
+    if (isVideoMode) {
+      const placement = getVideoPreviewPlacement(platform, defaultPlacement);
+      const devices = placement?.devices || ["mobile", "desktop"];
+      return devices.includes("mobile") ? "mobile" : (devices[0] || "mobile");
+    }
     const options = getDeviceOptionsForPlacement(platform, defaultPlacement);
     return options[0]?.id || "mobile";
   });
@@ -39,24 +57,38 @@ export function useStaticPlacementPreviewStudio({
   );
 
   const activePlacementConfig = useMemo(
-    () => getPreviewPlacement(platform, activePlacement),
-    [platform, activePlacement],
+    () => (isVideoMode
+      ? getVideoPreviewPlacement(platform, activePlacement)
+      : getPreviewPlacement(platform, activePlacement)),
+    [platform, activePlacement, isVideoMode],
   );
 
-  const compatibleSourceCreatives = useMemo(
-    () => filterSourceCreativesByPlacement(sourceCreatives, platform, activePlacement),
-    [sourceCreatives, platform, activePlacement],
-  );
+  const compatibleSourceCreatives = useMemo(() => {
+    if (isVideoMode) {
+      const videos = sourceCreatives.filter((c) => c?.mediaType === "video" || c?.videoUrl || c?.fullUrl);
+      return videos.length ? videos : sourceCreatives;
+    }
+    return filterSourceCreativesByPlacement(sourceCreatives, platform, activePlacement);
+  }, [sourceCreatives, platform, activePlacement, isVideoMode]);
 
-  const deviceOptions = useMemo(
-    () => getDeviceOptionsForPlacement(platform, activePlacement),
-    [platform, activePlacement],
-  );
+  const deviceOptions = useMemo(() => {
+    if (isVideoMode) {
+      const devices = activePlacementConfig?.devices || ["mobile", "desktop"];
+      const ordered = devices.includes("mobile")
+        ? ["mobile", ...devices.filter((id) => id !== "mobile")]
+        : devices;
+      return ordered.map((id) => ({
+        id,
+        label: id === "mobile" ? "Mobile" : "Desktop",
+      }));
+    }
+    return getDeviceOptionsForPlacement(platform, activePlacement);
+  }, [platform, activePlacement, isVideoMode, activePlacementConfig]);
 
-  const deviceCompatibleSourceCreatives = useMemo(
-    () => filterSourceCreativesByDevice(compatibleSourceCreatives, platform, activePlacement, device),
-    [compatibleSourceCreatives, platform, activePlacement, device],
-  );
+  const deviceCompatibleSourceCreatives = useMemo(() => {
+    if (isVideoMode) return compatibleSourceCreatives;
+    return filterSourceCreativesByDevice(compatibleSourceCreatives, platform, activePlacement, device);
+  }, [compatibleSourceCreatives, platform, activePlacement, device, isVideoMode]);
 
   useEffect(() => {
     if (!placementTabs.some((tab) => tab.id === activePlacement)) {
@@ -86,18 +118,21 @@ export function useStaticPlacementPreviewStudio({
   );
 
   const selectedSourceDeviceValidation = useMemo(() => {
-    if (!selectedSource) return { supported: true, message: null };
+    if (!selectedSource || isVideoMode) return { supported: true, message: null };
     return validatePreviewDeviceCompatibility({
       platform,
       placementId: activePlacement,
       device,
       size: selectedSource.size || selectedSource.validation?.size,
     });
-  }, [selectedSource, platform, activePlacement, device]);
+  }, [selectedSource, platform, activePlacement, device, isVideoMode]);
 
   const getSupportedDevicesForCreativeFn = useCallback(
-    (size) => getSupportedDevicesForCreative(platform, activePlacement, size),
-    [platform, activePlacement],
+    (size) => {
+      if (isVideoMode) return (activePlacementConfig?.devices || ["desktop", "mobile"]);
+      return getSupportedDevicesForCreative(platform, activePlacement, size);
+    },
+    [platform, activePlacement, isVideoMode, activePlacementConfig],
   );
 
   const templatesForSource = useMemo(() => {
@@ -110,8 +145,9 @@ export function useStaticPlacementPreviewStudio({
       vertical,
       goal,
       keyMessage,
+      isVideoMode,
     });
-  }, [platform, activePlacement, selectedSource, brandName, vertical, goal, keyMessage]);
+  }, [platform, activePlacement, selectedSource, brandName, vertical, goal, keyMessage, isVideoMode]);
 
   return {
     placementTabs,
@@ -122,15 +158,12 @@ export function useStaticPlacementPreviewStudio({
     setDevice,
     deviceOptions,
     compatibleSourceCreatives,
-    deviceCompatibleSourceCreatives,
     selectedSource,
     selectedSourceId,
     setSelectedSourceId,
     selectedSourceDeviceValidation,
     getSupportedDevicesForCreative: getSupportedDevicesForCreativeFn,
     templates: templatesForSource,
-    loading: false,
-    error: "",
-    loadTemplates: () => {},
+    isVideoMode,
   };
 }

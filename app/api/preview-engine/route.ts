@@ -2,13 +2,12 @@
  * Preview Engine API — POST /api/preview-engine
  *
  * 1. Accepts creative metadata + optional analyzer output
- * 2. Calls OpenAI to generate contextual environment content
+ * 2. Calls Gemini to generate contextual environment content (Gemini only)
  * 3. Runs deterministic engine to select environment, slot, template
  * 4. Returns the full PreviewEngineOutput
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import OpenAI from "openai";
 import {
   selectEnvironmentFamily,
   buildPreviewEngineOutput,
@@ -23,12 +22,6 @@ import type {
 } from "@/app/lib/preview-engine/types";
 
 export const runtime = "nodejs";
-
-function getClient(): OpenAI {
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) throw new Error("OPENAI_API_KEY not configured");
-  return new OpenAI({ apiKey });
-}
 
 async function generateWithGemini(prompt: string): Promise<Partial<GeneratedEnvironment> & { landingPage?: Partial<LandingPageContent> } | null> {
   const apiKey = process.env.GEMINI_API_KEY;
@@ -75,37 +68,13 @@ async function generatePreviewEnvironment(
   goal: PreviewEngineInput["goal"],
   promptHints: PromptHints,
 ): Promise<GeneratedEnvironment> {
-  let aiError: unknown = null;
-
-  if (process.env.OPENAI_API_KEY) {
-    try {
-      const client = getClient();
-      const completion = await client.chat.completions.create({
-        model: process.env.OPENAI_MODEL || "gpt-4o",
-        messages: [{ role: "user", content: prompt }],
-        temperature: 0.55,
-        max_tokens: 1200,
-        response_format: { type: "json_object" },
-      });
-
-      const raw = completion.choices[0]?.message?.content ?? "{}";
-      const parsed = JSON.parse(raw) as Partial<GeneratedEnvironment> & { landingPage?: Partial<LandingPageContent> };
-      return normalizeGeneratedEnvironment(parsed, rendererFamily, vertical, goal, promptHints);
-    } catch (error) {
-      aiError = error;
-      console.warn("[preview-engine] OpenAI content generation failed:", error);
-    }
-  }
-
+  // Step 4 Preview Studio uses Gemini only (no OpenAI for environment chrome).
   const geminiParsed = await generateWithGemini(prompt);
   if (geminiParsed) {
     return normalizeGeneratedEnvironment(geminiParsed, rendererFamily, vertical, goal, promptHints);
   }
 
-  if (aiError) {
-    console.warn("[preview-engine] Falling back to deterministic content after AI failures");
-  }
-
+  console.warn("[preview-engine] Gemini unavailable or failed; using deterministic preview content");
   return buildFallbackContent(rendererFamily, vertical, goal, promptHints);
 }
 
@@ -424,8 +393,8 @@ export async function GET(): Promise<NextResponse> {
     description: "Contextual Ad Reality Simulator",
     endpoint: "POST /api/preview-engine",
     providers: {
-      openai: Boolean(process.env.OPENAI_API_KEY),
       gemini: Boolean(process.env.GEMINI_API_KEY),
+      mode: "gemini-only",
     },
   });
 }

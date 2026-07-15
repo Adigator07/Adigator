@@ -174,10 +174,10 @@ export default function DownloadsPage() {
             </div>
           </div>
           <Link
-            href="/preview-tool?step=1"
+            href="/preview-tool?step=campaign-setup"
             className="inline-flex items-center gap-2 rounded-xl border border-purple-500/40 bg-purple-500/10 px-4 py-2.5 text-sm font-semibold text-purple-200 transition hover:bg-purple-500/20"
           >
-            Open Preview Tool
+            Open Campaign Intelligence Studio
           </Link>
         </div>
 

@@ -6,6 +6,7 @@ import {
   type ReportExportKind,
 } from "@/app/lib/reportExportCache";
 import { downloadBlob } from "@/app/lib/wysiwygCapture";
+import { getWorkflowStepSlug } from "@/app/lib/workflowSteps";
 
 export type DownloadReportType =
   | "Overview Report (PDF)"
@@ -123,7 +124,7 @@ function resolveTargetStep(entry: DownloadHistoryEntry): 3 | 4 | null {
   return null;
 }
 
-/** Deep-link href to reopen a report context in Preview Tool (fallback when PDF blob is missing). */
+/** Deep-link href to reopen a report context in Campaign Intelligence Studio (fallback when PDF blob is missing). */
 export function buildReportOpenHref(entry: DownloadHistoryEntry): string | null {
   if (entry.status !== "Completed") return null;
 
@@ -131,7 +132,7 @@ export function buildReportOpenHref(entry: DownloadHistoryEntry): string | null 
   if (!step) return null;
 
   const params = new URLSearchParams();
-  params.set("step", String(step));
+  params.set("step", getWorkflowStepSlug(step));
   if (entry.campaignId) params.set("campaign_id", entry.campaignId);
   if (entry.campaignName) params.set("campaign_name", entry.campaignName);
   if (entry.advertiserId) params.set("advertiser_id", entry.advertiserId);

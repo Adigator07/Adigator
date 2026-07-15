@@ -122,6 +122,7 @@ export function WebsiteAdSlot({
   fallbackSrc,
   className,
   fit = "contain",
+  mediaType,
 }: {
   slot: PlacementKey;
   activePlacement: PlacementKey;
@@ -130,10 +131,14 @@ export function WebsiteAdSlot({
   fallbackSrc: string;
   className?: string;
   fit?: "cover" | "contain";
+  mediaType?: string;
 }) {
   const targetSize = SLOT_DIMENSIONS[slot];
   const isUsingUserCreative = slot === activePlacement && Boolean(creativeUrl);
   const renderSrc = isUsingUserCreative ? creativeUrl : fallbackSrc;
+  const isVideo =
+    mediaType === "video"
+    || /\.(mp4|mov|webm|m4v)(\?|$)/i.test(renderSrc || "");
 
   return (
     <div className={className} style={{ width: "100%", maxWidth: `${targetSize.width}px` }}>
@@ -143,17 +148,34 @@ export function WebsiteAdSlot({
       >
         <AnimatePresence mode="wait">
           {renderSrc ? (
-            <motion.img
-              key={`${renderSrc}-${slot}`}
-              src={renderSrc}
-              alt="Sponsored"
-              className="max-h-full max-w-full"
-              style={{ objectFit: isUsingUserCreative ? "contain" : "cover" }}
-              initial={{ opacity: 0.45 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0.45 }}
-              transition={{ duration: 0.22 }}
-            />
+            isVideo && isUsingUserCreative ? (
+              <motion.video
+                key={`${renderSrc}-${slot}-video`}
+                src={renderSrc}
+                className="max-h-full max-w-full"
+                style={{ objectFit: "contain" }}
+                autoPlay
+                muted
+                loop
+                playsInline
+                initial={{ opacity: 0.45 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0.45 }}
+                transition={{ duration: 0.22 }}
+              />
+            ) : (
+              <motion.img
+                key={`${renderSrc}-${slot}`}
+                src={renderSrc}
+                alt="Sponsored"
+                className="max-h-full max-w-full"
+                style={{ objectFit: isUsingUserCreative ? "contain" : "cover" }}
+                initial={{ opacity: 0.45 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0.45 }}
+                transition={{ duration: 0.22 }}
+              />
+            )
           ) : (
             <motion.div
               key={`fallback-${slot}`}

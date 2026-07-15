@@ -30,6 +30,18 @@ export async function POST(request: Request) {
       height: parseNumber(formData.get("height")),
       durationSeconds: parseNumber(formData.get("duration_seconds")),
       fileName: String(formData.get("file_name") || creativeName),
+      readable: String(formData.get("readable") || "true") !== "false",
+      frameRate: formData.get("frame_rate") != null ? parseNumber(formData.get("frame_rate")) : null,
+      hasAudio:
+        formData.get("has_audio") == null
+          ? null
+          : String(formData.get("has_audio")) === "true"
+            ? true
+            : String(formData.get("has_audio")) === "false"
+              ? false
+              : null,
+      videoCodec: formData.get("video_codec") ? String(formData.get("video_codec")) : null,
+      audioCodec: formData.get("audio_codec") ? String(formData.get("audio_codec")) : null,
     };
 
     const frameEntries = formData

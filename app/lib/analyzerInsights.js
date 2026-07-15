@@ -56,14 +56,12 @@ import {
 import {
   formatVideoFileSize,
   getVideoFileSizeTier,
-  GOOGLE_VIDEO_SPECS,
-  META_VIDEO_SPECS,
+  getVideoSpecsForPlatform,
+  VIDEO_LAUNCH_READY_MAX_BYTES,
 } from "./video/videoSpecs";
 
 function getVideoPlatformMaxBytes(platform) {
-  if (platform === "google_ads") return GOOGLE_VIDEO_SPECS.maxFileSizeBytes;
-  if (platform === "meta_ads") return META_VIDEO_SPECS.maxFileSizeBytes;
-  return Math.min(GOOGLE_VIDEO_SPECS.maxFileSizeBytes, META_VIDEO_SPECS.maxFileSizeBytes);
+  return getVideoSpecsForPlatform(platform).maxFileSizeBytes;
 }
 
 export const LAUNCH_STATUS = {
@@ -454,10 +452,16 @@ function uniqueStrings(items) {
 }
 
 function deriveCreativeRiskAssessment(creative, payload, platform) {
+  const isVideo =
+    creative?.mediaType === "video"
+    || payload?.media_type === "video"
+    || Boolean(payload?.video_analysis);
+
   const adigator = getAdigatorAnalysis(payload) || {};
   const recs = getValidatedRecommendations(payload);
-  const technicalQa = deriveTechnicalQa(creative, payload, platform);
-  const placementQa = derivePlacementQa(creative, payload, platform);
+  // Video creatives must never inherit display/banner 150 KB technical or placement QA.
+  const technicalQa = isVideo ? [] : deriveTechnicalQa(creative, payload, platform);
+  const placementQa = isVideo ? [] : derivePlacementQa(creative, payload, platform);
 
   const criticalIssues = [];
   const complianceConcerns = [];
@@ -1205,7 +1209,7 @@ export function computeCampaignOverview(
     ? insights.filter((i) => {
       const bytes = entries.find((e) => e.creative?.id === i.creativeId)?.creative?.fileSizeBytes
         || (entries.find((e) => e.creative?.id === i.creativeId)?.creative?.fileSizeKB || 0) * 1024;
-      return bytes > 0 && bytes <= 100 * 1024 * 1024;
+      return bytes > 0 && bytes <= VIDEO_LAUNCH_READY_MAX_BYTES;
     }).length
     : insights.filter((i) => {
       const kb = entries.find((e) => e.creative?.id === i.creativeId)?.creative?.fileSizeKB;
@@ -1214,13 +1218,15 @@ export function computeCampaignOverview(
   if (optimizedFiles === insights.length && insights.length > 0) {
     qaSummary.push({
       status: "pass",
-      text: isVideoCampaign ? "Video file sizes within launch-ready target (≤100 MB)" : "File sizes optimized",
+      text: isVideoCampaign
+        ? `Video file sizes within launch-ready target (≤${formatVideoFileSize(VIDEO_LAUNCH_READY_MAX_BYTES)})`
+        : "File sizes optimized",
     });
   } else if (optimizedFiles > 0) {
     qaSummary.push({
       status: "warn",
       text: isVideoCampaign
-        ? `${optimizedFiles}/${insights.length} videos within ≤100 MB launch-ready target`
+        ? `${optimizedFiles}/${insights.length} videos within ≤${formatVideoFileSize(VIDEO_LAUNCH_READY_MAX_BYTES)} launch-ready target`
         : `${optimizedFiles}/${insights.length} creatives under 150KB`,
     });
   }

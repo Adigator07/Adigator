@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import {
-  AdImage,
+  AdMedia,
   BrandAvatar,
   EnvironmentPreviewCard,
   PhoneFrame,
@@ -28,7 +28,7 @@ export default function FacebookStoryEnvironment({ creative, onCopy, onEdit }) {
               <span className="font-bold">f</span>
               <span>×</span>
             </div>
-            <AdImage creative={creative} className="absolute inset-0" />
+            <AdMedia creative={creative} className="absolute inset-0" />
             <div className="absolute inset-x-3 top-16 flex gap-1">
               {[0, 1, 2].map((i) => (
                 <div key={i} className="h-0.5 flex-1 bg-white/30">

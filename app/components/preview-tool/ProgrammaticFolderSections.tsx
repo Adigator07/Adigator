@@ -314,6 +314,24 @@ export default function ProgrammaticFolderSections({
               </div>
             </div>
 
+            {folderCreatives.length > 0 ? (
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+                  <ToolStatCard value={folderCreatives.length} label="Total" tone="accent" />
+                  <ToolStatCard value={validFolderCreatives.length} label="Ready" tone="success" />
+                  <ToolStatCard value={folderValidation.warningCount} label="Warnings" tone="warning" />
+                  <ToolStatCard value={folderValidation.criticalCount} label="Critical" tone="error" />
+                </div>
+                <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+                  <ToolStatCard value={folderValidation.totalIssues} label="Total Issues" />
+                  <div className="studio-card rounded-xl p-4 text-center md:col-span-3">
+                    <p className="studio-tabular text-2xl font-bold text-studio-accent">{folderValidation.inventoryImpactScore}/100</p>
+                    <p className="mt-1 text-sm text-studio-muted">Inventory Impact Score</p>
+                  </div>
+                </div>
+              </div>
+            ) : null}
+
             <ToolDropzone
               active={dragActiveGroupId === group.id}
               onClick={() => {
@@ -401,15 +419,6 @@ export default function ProgrammaticFolderSections({
                 aria-hidden
               />
             </ToolDropzone>
-
-            {folderCreatives.length > 0 ? (
-              <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-                <ToolStatCard value={folderCreatives.length} label="Total" tone="accent" />
-                <ToolStatCard value={validFolderCreatives.length} label="Ready" tone="success" />
-                <ToolStatCard value={folderValidation.warningCount} label="Warnings" tone="warning" />
-                <ToolStatCard value={folderValidation.criticalCount} label="Critical" tone="error" />
-              </div>
-            ) : null}
 
             {validFolderCreatives.length > 0 ? (
               <div className="space-y-3">

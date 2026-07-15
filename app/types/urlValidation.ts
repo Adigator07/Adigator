@@ -22,6 +22,7 @@ export interface UrlValidationRequestBody {
   objective?: string;
   vertical?: string;
   campaignName?: string;
+  campaignBrief?: string;
   adType?: AdType;
   creatives?: Array<{
     id: string;

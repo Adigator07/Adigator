@@ -6,7 +6,7 @@ import type {
   ValidationFlag,
   ValidationPlatform,
 } from "@/app/types/validation";
-import { CATEGORY_KEYWORDS, PROGRAMMATIC_OBJECTIVE_REQUIREMENTS } from "@/app/constants/programmaticSpecs";
+import { PROGRAMMATIC_OBJECTIVE_REQUIREMENTS } from "@/app/constants/programmaticSpecs";
 import { META_OBJECTIVE_REQUIREMENTS, META_TEXT_RULES } from "@/app/constants/metaSpecs";
 import {
   GOOGLE_OBJECTIVE_REQUIREMENTS,
@@ -26,20 +26,6 @@ function parseSize(size?: string) {
   const [w, h] = size.split("x").map(Number);
   if (!w || !h) return null;
   return { width: w, height: h, ratio: w / h };
-}
-
-function scoreCategory(text: string): Record<string, number> {
-  const lower = text.toLowerCase();
-  const scores: Record<string, number> = {};
-  for (const [cat, keywords] of Object.entries(CATEGORY_KEYWORDS)) {
-    scores[cat] = keywords.reduce((acc, kw) => (lower.includes(kw) ? acc + 1 : acc), 0);
-  }
-  return scores;
-}
-
-function topCategory(scores: Record<string, number>): string | null {
-  const sorted = Object.entries(scores).sort((a, b) => b[1] - a[1]);
-  return sorted[0]?.[1] > 0 ? sorted[0][0] : null;
 }
 
 export function calculateReadinessScore(flags: ValidationFlag[]): {
@@ -105,9 +91,11 @@ export function validateProgrammaticCreatives(
  */
 export function validateVideoCreatives(
   creatives: CreativeValidationInput[],
-  platform: "meta" | "google",
+  platform: "meta" | "google" | "programmatic",
 ): ValidationFlag[] {
   const flags: ValidationFlag[] = [];
+  const platformLabel =
+    platform === "google" ? "Google" : platform === "programmatic" ? "Programmatic" : "Meta";
   for (const creative of creatives) {
     const issues = creative.validation?.issues || [];
     if (!issues.length && creative.validation?.valid !== false) {
@@ -116,7 +104,7 @@ export function validateVideoCreatives(
         severity: "pass",
         module: "creative",
         platform,
-        message: `"${creative.name}" passes ${platform === "google" ? "Google" : "Meta"} video ad specs.`,
+        message: `"${creative.name}" passes ${platformLabel} video ad specs.`,
       });
       continue;
     }
@@ -307,9 +295,9 @@ export function validateCampaignAlignment(
   platform: ValidationPlatform,
   objective: string,
   urlHealth: UrlHealthResult | null,
-  campaignName: string,
-  vertical?: string,
-  creativeNames?: string[],
+  _campaignName: string,
+  _vertical?: string,
+  _creativeNames?: string[],
 ): ValidationFlag[] {
   const flags: ValidationFlag[] = [];
   const objKey = objective?.toLowerCase().replace(/\s+/g, "_") || "awareness";
@@ -416,24 +404,8 @@ export function validateCampaignAlignment(
     }
   }
 
-  const combinedText = [
-    campaignName,
-    ...(creativeNames || []),
-    urlHealth?.pageTitle || "",
-    urlHealth?.h1 || "",
-  ].join(" ");
-  const campaignScores = scoreCategory(combinedText);
-  const campaignCat = topCategory(campaignScores);
-  if (vertical && campaignCat && !vertical.toLowerCase().includes(campaignCat.slice(0, 5))) {
-    flags.push({
-      id: "align_category_mismatch",
-      severity: "warning",
-      module: "alignment",
-      platform: platform === "all" ? "all" : platform,
-      message: `Creative/campaign signals "${campaignCat}" but vertical is "${vertical}".`,
-      recommendation: "Confirm campaign vertical matches creative and landing page content.",
-    });
-  }
+  // Category keyword heuristics removed: they caused false "vertical not aligned"
+  // warnings that contradicted Step 3 Analysis for the same landing page.
 
   return flags;
 }
@@ -473,7 +445,10 @@ export function buildCampaignReadinessReport(params: {
   const videoFlags =
     videoCreatives.length === 0
       ? []
-      : validateVideoCreatives(videoCreatives, platformKey === "google" ? "google" : "meta");
+      : validateVideoCreatives(
+          videoCreatives,
+          platformKey === "google" ? "google" : platformKey === "programmatic" ? "programmatic" : "meta",
+        );
 
   const creativeFlags = [...displayFlags, ...videoFlags];
 

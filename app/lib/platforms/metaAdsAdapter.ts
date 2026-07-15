@@ -117,7 +117,8 @@ export const metaAdsAdapter: PlatformWorkflowAdapter = {
     landingUrlRequired: false,
     defaultMaxFileSizeKb: 300,
     minCreativeDimensions: { width: 600, height: 315 },
-    uploadGuidance: "Meta Feed supports 1:1 and 4:5; Stories/Reels require 9:16 with safe zones. Keep text overlay under 20% for image ads.",
+    uploadGuidance:
+      "Display: Feed 1:1 and 4:5; Stories/Reels 9:16 with safe zones. Video: MP4/MOV (H.264 + AAC); Reels/Stories ≤60s; respect top/bottom safe zones.",
   },
   previewStudioMode: "static-placements",
   defaultPreviewTemplateId: "facebook_feed",

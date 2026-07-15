@@ -162,6 +162,11 @@ export function buildPlacementQaFromScores(creative, platform, payload, options 
 }
 
 export function buildTechnicalQaForPlatform(creative, payload, platform) {
+  // Image/display guidance only. Video uses the dedicated video QA builders.
+  if (creative?.mediaType === "video" || payload?.media_type === "video" || payload?.video_analysis) {
+    return [];
+  }
+
   const size = creative?.size || "";
   const fileKb = creative?.fileSizeKB;
   const items = [...validationIssuesToQa(creative, platform, 3)];

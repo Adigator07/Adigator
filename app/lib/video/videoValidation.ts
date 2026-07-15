@@ -2,11 +2,15 @@ import {
   ASPECT_RATIO_TOLERANCE,
   GOOGLE_VIDEO_SPECS,
   META_VIDEO_SPECS,
+  PROGRAMMATIC_VIDEO_SPECS,
   VIDEO_LAUNCH_READY_MAX_BYTES,
   VIDEO_NEEDS_REVIEW_MAX_BYTES,
   formatVideoFileSize,
   getVideoFileSizeTier,
+  getVideoSpecsForPlatform,
+  resolveVideoPlatformId,
   type PlatformVideoSpec,
+  type VideoPlatformId,
 } from "@/app/lib/video/videoSpecs";
 
 export interface VideoMetadataInput {
@@ -68,7 +72,7 @@ function orientationOf(width: number, height: number): "portrait" | "landscape" 
 }
 
 function matchesSupportedAspectRatio(spec: PlatformVideoSpec, width: number, height: number) {
-  if (!width || !height) return true; // unknown → don't penalize
+  if (!width || !height) return true;
   const ratio = width / height;
   return spec.supportedAspectRatios.some(
     (option) => Math.abs(ratio - option.ratio) <= ASPECT_RATIO_TOLERANCE,
@@ -80,9 +84,85 @@ function formatMinutes(seconds: number) {
   return `${mins} min`;
 }
 
+function pushDurationIssues(spec: PlatformVideoSpec, duration: number, push: (
+  type: string,
+  severity: VideoIssueSeverity,
+  message: string,
+  recommendation: string,
+) => void) {
+  const label = spec.label;
+
+  if (duration < spec.minDurationSeconds) {
+    push(
+      "duration_min",
+      "high",
+      `${label}: video is too short (${duration.toFixed(1)}s).`,
+      `Provide a video of at least ${spec.minDurationSeconds}s.`,
+    );
+  }
+
+  if (spec.platform === "meta_ads") {
+    const metaSpec = spec as typeof META_VIDEO_SPECS;
+    if (duration > metaSpec.maxDurationSeconds) {
+      push(
+        "duration_max",
+        "high",
+        `${label}: video exceeds the ${formatMinutes(metaSpec.maxDurationSeconds)} maximum.`,
+        "Trim the video below the platform maximum duration.",
+      );
+    } else if (duration > metaSpec.reelsMaxDurationSeconds) {
+      push(
+        "duration_reels",
+        "medium",
+        `${label}: ${Math.round(duration)}s is longer than the ${metaSpec.reelsMaxDurationSeconds}s Reels/Stories limit.`,
+        "Keep Reels/Stories placements to 60s or less (Feed/in-stream can be longer).",
+      );
+    }
+    return;
+  }
+
+  if (spec.platform === "google_ads") {
+    const googleSpec = spec as typeof GOOGLE_VIDEO_SPECS;
+    if (duration > googleSpec.nonSkippableMaxSeconds) {
+      push(
+        "duration_non_skippable",
+        "medium",
+        `${label}: ${Math.round(duration)}s exceeds the ${googleSpec.nonSkippableMaxSeconds}s non-skippable limit.`,
+        "Use a skippable format, or trim to 60s for non-skippable placements.",
+      );
+    }
+    if (duration > googleSpec.skippableRecommendedMaxSeconds) {
+      push(
+        "duration_skippable",
+        "low",
+        `${label}: ${Math.round(duration)}s is longer than the recommended ${Math.round(googleSpec.skippableRecommendedMaxSeconds / 60)} min for skippable ads.`,
+        "Shorter videos typically retain more viewers on YouTube.",
+      );
+    }
+    return;
+  }
+
+  const programmaticSpec = spec as typeof PROGRAMMATIC_VIDEO_SPECS;
+  if (duration > programmaticSpec.maxDurationSeconds) {
+    push(
+      "duration_max",
+      "high",
+      `${label}: ${Math.round(duration)}s exceeds the ${programmaticSpec.maxDurationSeconds}s programmatic package limit.`,
+      "Trim to 120s or less for broader exchange / VAST acceptance.",
+    );
+  } else if (duration > programmaticSpec.preferredMaxDurationSeconds) {
+    push(
+      "duration_preferred",
+      "medium",
+      `${label}: ${Math.round(duration)}s is longer than the preferred ${programmaticSpec.preferredMaxDurationSeconds}s in-stream standard.`,
+      "Prefer 15s or 30s cuts for in-stream; keep longer cuts for selected CTV/out-stream buys only.",
+    );
+  }
+}
+
 /**
- * Shared, platform-agnostic validation core. Each platform supplies its own official spec,
- * so Google Ads and Meta Ads validate independently.
+ * Shared validation core. Each platform supplies its own official spec so
+ * Google, Meta, and Programmatic validate independently.
  */
 function validateVideoAgainstSpec(
   spec: PlatformVideoSpec,
@@ -106,7 +186,6 @@ function validateVideoAgainstSpec(
   const hasAudio = metadata.hasAudio;
   const readable = metadata.readable !== false;
 
-  // --- Corrupted / unreadable / empty -------------------------------------------------
   if (!readable) {
     push(
       "corrupted",
@@ -114,7 +193,6 @@ function validateVideoAgainstSpec(
       `${label}: video is corrupted or unreadable and cannot be decoded.`,
       "Re-export the video from source (H.264 MP4) and upload again.",
     );
-    // Nothing else is trustworthy once the file is unreadable.
     return finalize(issues);
   }
   if (!width || !height || !duration) {
@@ -127,7 +205,6 @@ function validateVideoAgainstSpec(
     return finalize(issues);
   }
 
-  // --- Format / container -------------------------------------------------------------
   if (!spec.allowedMimeTypes.includes(mime as never)) {
     push(
       "format",
@@ -137,7 +214,6 @@ function validateVideoAgainstSpec(
     );
   }
 
-  // --- File size ----------------------------------------------------------------------
   const sizeTier = getVideoFileSizeTier(size, spec.maxFileSizeBytes);
   if (sizeTier === "critical") {
     push(
@@ -150,65 +226,20 @@ function validateVideoAgainstSpec(
     push(
       "file_size",
       "medium",
-      `${label}: ${formatVideoFileSize(size)} is above 500 MB — needs review before launch.`,
+      `${label}: ${formatVideoFileSize(size)} is above 500 MB and needs review before launch.`,
       `Compress toward ≤${formatVideoFileSize(VIDEO_LAUNCH_READY_MAX_BYTES)} for launch-ready delivery (platform allows up to ${formatVideoFileSize(spec.maxFileSizeBytes)}).`,
     );
   } else if (size > VIDEO_LAUNCH_READY_MAX_BYTES) {
     push(
       "file_size",
       "medium",
-      `${label}: ${formatVideoFileSize(size)} is in the 100–500 MB review band.`,
+      `${label}: ${formatVideoFileSize(size)} is in the ${formatVideoFileSize(VIDEO_LAUNCH_READY_MAX_BYTES)}–${formatVideoFileSize(VIDEO_NEEDS_REVIEW_MAX_BYTES)} review band.`,
       `Compress toward ≤${formatVideoFileSize(VIDEO_LAUNCH_READY_MAX_BYTES)} for launch-ready delivery.`,
     );
   }
 
-  // --- Duration (platform-specific) ---------------------------------------------------
-  if (duration < spec.minDurationSeconds) {
-    push(
-      "duration_min",
-      "high",
-      `${label}: video is too short (${duration.toFixed(1)}s).`,
-      `Provide a video of at least ${spec.minDurationSeconds}s.`,
-    );
-  }
-  if (spec.platform === "meta_ads") {
-    const metaSpec = spec as typeof META_VIDEO_SPECS;
-    if (duration > metaSpec.maxDurationSeconds) {
-      push(
-        "duration_max",
-        "high",
-        `${label}: video exceeds the ${formatMinutes(metaSpec.maxDurationSeconds)} maximum.`,
-        "Trim the video below the platform maximum duration.",
-      );
-    } else if (duration > metaSpec.reelsMaxDurationSeconds) {
-      push(
-        "duration_reels",
-        "medium",
-        `${label}: ${Math.round(duration)}s is longer than the ${metaSpec.reelsMaxDurationSeconds}s Reels/Stories limit.`,
-        "Keep Reels/Stories placements to 60s or less (Feed/in-stream can be longer).",
-      );
-    }
-  } else {
-    const googleSpec = spec as typeof GOOGLE_VIDEO_SPECS;
-    if (duration > googleSpec.nonSkippableMaxSeconds) {
-      push(
-        "duration_non_skippable",
-        "medium",
-        `${label}: ${Math.round(duration)}s exceeds the ${googleSpec.nonSkippableMaxSeconds}s non-skippable limit.`,
-        "Use a skippable format, or trim to 60s for non-skippable placements.",
-      );
-    }
-    if (duration > googleSpec.skippableRecommendedMaxSeconds) {
-      push(
-        "duration_skippable",
-        "low",
-        `${label}: ${Math.round(duration)}s is longer than the recommended ${Math.round(googleSpec.skippableRecommendedMaxSeconds / 60)} min for skippable ads.`,
-        "Shorter videos typically retain more viewers on YouTube.",
-      );
-    }
-  }
+  pushDurationIssues(spec, duration, push);
 
-  // --- Resolution ---------------------------------------------------------------------
   if (width < spec.minWidth || height < spec.minHeight) {
     push(
       "resolution",
@@ -228,7 +259,6 @@ function validateVideoAgainstSpec(
     }
   }
 
-  // --- Aspect ratio / orientation -----------------------------------------------------
   if (!matchesSupportedAspectRatio(spec, width, height)) {
     const supported = spec.supportedAspectRatios.map((r) => r.label).join(", ");
     push(
@@ -239,7 +269,6 @@ function validateVideoAgainstSpec(
     );
   }
 
-  // --- Frame rate ---------------------------------------------------------------------
   if (frameRate != null && frameRate > 0) {
     if (frameRate < spec.minFrameRate || frameRate > spec.maxFrameRate) {
       push(
@@ -251,7 +280,6 @@ function validateVideoAgainstSpec(
     }
   }
 
-  // --- Codecs (best-effort — only when a codec string is available) -------------------
   const videoCodec = String(metadata.videoCodec || "").toLowerCase();
   if (videoCodec && !spec.recommendedVideoCodecs.some((c) => videoCodec.includes(c))) {
     push(
@@ -271,7 +299,6 @@ function validateVideoAgainstSpec(
     );
   }
 
-  // --- Audio track (warning only) -----------------------------------------------------
   if (hasAudio === false) {
     push(
       "missing_audio",
@@ -298,18 +325,37 @@ export function validateGoogleVideo(metadata: VideoMetadataInput): VideoValidati
   return validateVideoAgainstSpec(GOOGLE_VIDEO_SPECS, metadata);
 }
 
+export function validateProgrammaticVideo(metadata: VideoMetadataInput): VideoValidationResult {
+  return validateVideoAgainstSpec(PROGRAMMATIC_VIDEO_SPECS, metadata);
+}
+
+const PLATFORM_RESULT_LABEL: Record<VideoPlatformId, string> = {
+  meta_ads: "Meta",
+  google_ads: "Google",
+  programmatic: "Programmatic",
+};
+
 export function validateVideoForPlatforms(
   metadata: VideoMetadataInput,
-  platforms: Array<"meta_ads" | "google_ads"> = ["meta_ads", "google_ads"],
+  platforms: VideoPlatformId[] = ["meta_ads", "google_ads", "programmatic"],
 ) {
   const validation_results: Record<string, VideoValidationResult> = {};
   if (platforms.includes("meta_ads")) {
-    validation_results.Meta = validateMetaVideo(metadata);
+    validation_results[PLATFORM_RESULT_LABEL.meta_ads] = validateMetaVideo(metadata);
   }
   if (platforms.includes("google_ads")) {
-    validation_results.Google = validateGoogleVideo(metadata);
+    validation_results[PLATFORM_RESULT_LABEL.google_ads] = validateGoogleVideo(metadata);
+  }
+  if (platforms.includes("programmatic")) {
+    validation_results[PLATFORM_RESULT_LABEL.programmatic] = validateProgrammaticVideo(metadata);
   }
   return validation_results;
+}
+
+function placementLabelForPlatform(platform: VideoPlatformId) {
+  if (platform === "meta_ads") return "Video / Reels";
+  if (platform === "google_ads") return "YouTube / Video";
+  return "VAST / In-stream + Out-stream";
 }
 
 /**
@@ -324,14 +370,10 @@ export function buildVideoUploadValidation({
   metadata: VideoMetadataInput;
   platform: string;
 }) {
-  const platforms =
-    platform === "meta_ads"
-      ? (["meta_ads"] as const)
-      : platform === "google_ads"
-        ? (["google_ads"] as const)
-        : (["meta_ads", "google_ads"] as const);
-
-  const validationResults = validateVideoForPlatforms(metadata, [...platforms]);
+  const platformId = resolveVideoPlatformId(platform);
+  const platforms: VideoPlatformId[] = [platformId];
+  const validationResults = validateVideoForPlatforms(metadata, platforms);
+  const specs = getVideoSpecsForPlatform(platformId);
 
   const issues = Object.entries(validationResults).flatMap(([, result]) =>
     result.issues.map((issue) => ({
@@ -349,13 +391,7 @@ export function buildVideoUploadValidation({
   const width = Number(metadata.width || 0);
   const height = Number(metadata.height || 0);
   const fileSizeBytes = Number(metadata.fileSizeBytes || 0);
-  const platformMaxBytes =
-    platform === "google_ads"
-      ? GOOGLE_VIDEO_SPECS.maxFileSizeBytes
-      : platform === "meta_ads"
-        ? META_VIDEO_SPECS.maxFileSizeBytes
-        : Math.min(GOOGLE_VIDEO_SPECS.maxFileSizeBytes, META_VIDEO_SPECS.maxFileSizeBytes);
-  const sizeTier = getVideoFileSizeTier(fileSizeBytes, platformMaxBytes);
+  const sizeTier = getVideoFileSizeTier(fileSizeBytes, specs.maxFileSizeBytes);
 
   return {
     valid,
@@ -363,7 +399,6 @@ export function buildVideoUploadValidation({
     sizeTier,
     fileSizeBytes,
     fileSizeLabel: formatVideoFileSize(fileSizeBytes),
-    // No pixel "size" surfaced for video — dimensions are not banner-validated.
     size: "video",
     dimensions: {
       detectedWidth: width,
@@ -378,8 +413,10 @@ export function buildVideoUploadValidation({
     hasAudio: metadata.hasAudio ?? null,
     validation_results: validationResults,
     intelligence: {
-      placementType: platform === "meta_ads" ? "Video / Reels" : "YouTube / Video",
-      deviceClassification: "Mobile + Desktop",
+      placementType: placementLabelForPlatform(platformId),
+      deviceClassification: platformId === "programmatic" ? "CTV + Desktop + Mobile" : "Mobile + Desktop",
+      companionGuidance:
+        platformId === "programmatic" ? PROGRAMMATIC_VIDEO_SPECS.companionBannerNote : undefined,
     },
   };
 }
