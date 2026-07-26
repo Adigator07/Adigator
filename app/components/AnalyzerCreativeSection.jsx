@@ -281,6 +281,27 @@ function CreativeSelectCard({ insight, isActive, onSelect, index, previewUrl }) 
   );
 }
 
+function buildMessagingGroups(insights) {
+  const groups = new Map();
+  insights.forEach((insight) => {
+    const key = insight.messagingGroupId || insight.creativeId;
+    if (!groups.has(key)) {
+      groups.set(key, {
+        id: key,
+        headline: insight.extractionSignals?.headline || insight.extractionSignals?.primary_message || insight.creativeName,
+        adGroups: new Set(),
+        creatives: [],
+        issueCount: 0,
+      });
+    }
+    const group = groups.get(key);
+    if (insight.adGroupName) group.adGroups.add(insight.adGroupName);
+    group.creatives.push(insight);
+    if (insight.launchStatusKey !== "ready" || insight.mainRisk || insight.recommendedFix) group.issueCount += 1;
+  });
+  return [...groups.values()].filter((group) => group.creatives.length > 1);
+}
+
 export default function AnalyzerCreativeSection({
   insights,
   selectedInsight,
@@ -315,6 +336,7 @@ export default function AnalyzerCreativeSection({
   const isGoogle = platform === "google_ads";
   const isProgrammatic = platform === "programmatic";
   const platformLabel = isMeta ? "Meta Ads" : isGoogle ? "Google Ads" : isProgrammatic ? "Programmatic Ads" : "";
+  const messagingGroups = buildMessagingGroups(insights || []);
 
   return (
     <div className={exportMode ? "space-y-4" : "grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-5 items-start"}>
@@ -323,6 +345,27 @@ export default function AnalyzerCreativeSection({
         <p className={`${PANEL.label} px-1 mb-2`}>
           Creatives: select for status
         </p>
+        {messagingGroups.length > 0 ? (
+          <div className="mb-3 rounded-xl border border-cyan-400/20 bg-cyan-500/8 p-3">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-cyan-200">Messaging groups</p>
+            <div className="mt-2 space-y-2">
+              {messagingGroups.map((group) => (
+                <div key={group.id} className="rounded-lg border border-white/10 bg-black/20 p-2">
+                  <p className="truncate text-xs font-semibold text-[#f4f4f8]">{group.headline}</p>
+                  <p className="mt-1 text-[11px] text-[#c8c8d4]">
+                    {group.creatives.length} size variants
+                    {group.adGroups.size ? ` · ${[...group.adGroups].join(", ")}` : ""}
+                  </p>
+                  <p className={group.issueCount ? "mt-1 text-[11px] text-amber-200" : "mt-1 text-[11px] text-emerald-200"}>
+                    {group.issueCount
+                      ? `${group.issueCount} variant${group.issueCount === 1 ? "" : "s"} flagged individually below.`
+                      : "No variant-specific issues detected."}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : null}
         {insights.map((item, index) => (
           <CreativeSelectCard
             key={item.creativeId}
@@ -341,6 +384,11 @@ export default function AnalyzerCreativeSection({
           <div>
             <h4 className="text-base font-bold text-[#f4f4f8]">{insight.creativeName}</h4>
             <p className="text-xs text-[#9a9aad]">{platform?.replace(/_/g, " ") || "platform"}</p>
+            {insight.adGroupName || insight.adGroupObjective ? (
+              <p className="mt-1 text-[11px] text-cyan-200">
+                {insight.adGroupName || "Ad group"} · Objective: {labelGoal(insight.adGroupObjective || goalAlignment?.selected_goal || campaignGoal)}
+              </p>
+            ) : null}
           </div>
           <span className={`rounded-full border px-3 py-1 text-xs font-bold ${ALIGNMENT_BADGE[insight.launchStatus.tone] || ALIGNMENT_BADGE.amber}`}>
             {insight.launchStatus.emoji} {insight.launchStatus.label}

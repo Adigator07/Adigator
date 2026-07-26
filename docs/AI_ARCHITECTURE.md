@@ -275,6 +275,10 @@ Avoid big-bang rewrites and parallel duplicate systems.
 | Landing Page Intelligence engine | `app/lib/engines/landingPageIntelligence.ts` |
 | Alignment engine | `app/lib/engines/alignmentIntelligence.ts` |
 | Technical validation engine | `app/lib/engines/technicalValidationEngine.ts` |
+| Google campaign types | `app/lib/googleCampaignTypes.ts` |
+| Demand Gen / Google specs | `app/constants/googleSpecs.ts` |
+| Programmatic weight limits | `app/constants/programmaticSpecs.ts` |
+| Campaign Intelligence architecture (workflow + Demand Gen) | `docs/CAMPAIGN_INTELLIGENCE_ARCHITECTURE.md` |
 | Orchestrator runner (persistence) | `app/lib/validation/orchestratorRunner.ts` |
 | Brain persistence (all types) | `app/lib/brains/brainPersistence.ts` |
 | Creative brain persistence | `app/lib/brains/creativeBrainPersistence.ts` |

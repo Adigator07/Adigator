@@ -75,6 +75,15 @@ function getGoogleMissingSetupFields(context: SetupFieldContext): SetupMissingFi
   }
 
   if (isSetup) {
+    if (!context.googleCampaignType) {
+      missing.push({
+        key: "googleCampaignType",
+        label: "Google campaign type",
+        prompt: "Select Display, Responsive Display, or Demand Gen.",
+        inputType: "info",
+        scrollTargetId: "google-campaign-type",
+      });
+    }
     missing.push(...getAdGroupSetupMissingFields(context));
   } else if (isRenewal && !context.renewalUsesAdGroups && !context.campaignGoal) {
     missing.push({
@@ -128,7 +137,7 @@ export const googleAdsAdapter: PlatformWorkflowAdapter = {
     landingUrlRequired: true,
     defaultMaxFileSizeKb: 150,
     uploadGuidance:
-      "Display: IAB / RDA landscape, square, and logo assets. Video: MP4/WebM/MOV for YouTube — prefer 16:9, keep non-skippable cuts ≤60s.",
+      "Display/RDA: IAB banners plus landscape, square, and logo assets. Demand Gen: JPG/PNG only — landscape 1.91:1, square 1:1, portrait 4:5, vertical 9:16 (≤5MB). Video: MP4/WebM/MOV for YouTube — prefer 16:9.",
   },
   previewStudioMode: "static-placements",
   defaultPreviewTemplateId: "display",
@@ -141,7 +150,7 @@ export const googleAdsAdapter: PlatformWorkflowAdapter = {
   }),
   analysisPlatform: "google_ads",
   intelligenceLabel: "Inventory Intelligence",
-  previewStudioDescription: "Preview Google Search, Display, Shopping, and App Install templates with safe-zone and crop analysis.",
+  previewStudioDescription: "Preview Google Display, Responsive Display, and Demand Gen placements with safe-zone and crop analysis.",
   analysisReportLabel: "Google Ads Analysis Report (PDF)",
   previewReportLabel: "Google Ads Preview (PDF)",
 };

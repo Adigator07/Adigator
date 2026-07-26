@@ -19,9 +19,22 @@ export async function POST(request: Request) {
     const platform = String(formData.get("platform") || "meta_ads");
     const vertical = String(formData.get("vertical") || "unknown");
     const campaignBrief = String(formData.get("campaign_brief") || "");
-    const campaignProductFocus = String(formData.get("campaign_product_focus") || "");
+    const campaignProductFocus = String(
+      formData.get("campaign_product_focus") || formData.get("offer") || "",
+    );
     const landingUrl = String(formData.get("landing_url") || "");
     const creativeName = String(formData.get("creative_name") || "Video creative");
+    const adGroupObjective = String(formData.get("ad_group_objective") || goal);
+    const adGroupName = String(formData.get("ad_group_name") || "");
+    const adGroupId = String(formData.get("ad_group_id") || "");
+    const adGroupContextBlock = adGroupObjective || adGroupName
+      ? [
+          "AD GROUP VALIDATION PRIORITY:",
+          `Ad group name: ${adGroupName || "Not provided"}`,
+          `Ad group objective: ${adGroupObjective || goal}`,
+          "Prioritize the ad group objective for creative, CTA, and landing-page validation. Use the campaign brief as broader product and audience context.",
+        ].join("\n")
+      : "";
 
     const metadata = {
       mimeType: String(formData.get("mime_type") || "video/mp4"),
@@ -70,7 +83,7 @@ export async function POST(request: Request) {
       goal,
       platform,
       vertical,
-      campaignBrief,
+      campaignBrief: [campaignBrief, adGroupContextBlock].filter(Boolean).join("\n\n"),
       campaignProductFocus,
       landingUrl,
     });
@@ -80,6 +93,12 @@ export async function POST(request: Request) {
       vertical,
       campaignBrief,
     });
+    (strategicPayload as Record<string, unknown>).ad_group_context = {
+      id: adGroupId,
+      name: adGroupName,
+      objective: adGroupObjective || goal,
+      objective_priority: "ad_group_objective_over_campaign_brief",
+    };
 
     return NextResponse.json({
       success: true,

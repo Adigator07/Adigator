@@ -12,7 +12,14 @@ export interface UrlAlignmentInput {
   campaignName?: string;
   campaignBrief?: string;
   adType?: "display" | "video";
-  creatives?: Array<{ id: string; name: string; size?: string; imageBase64?: string }>;
+  creatives?: Array<{
+    id: string;
+    name: string;
+    size?: string;
+    imageBase64?: string;
+    adGroupName?: string | null;
+    adGroupObjective?: string | null;
+  }>;
 }
 
 function normalizeUrlForCompare(value: string): string {
@@ -192,7 +199,12 @@ export async function evaluateUrlAlignment(input: UrlAlignmentInput): Promise<Ur
   const health = normalizedInput.urlHealth;
   const creativeSummaries = (input.creatives || [])
     .slice(0, 3)
-    .map((c, i) => `#${i + 1} "${c.name}"${c.size ? ` (${c.size})` : ""}`)
+    .map((c, i) => {
+      const groupContext = [c.adGroupName, c.adGroupObjective ? `objective: ${c.adGroupObjective}` : ""]
+        .filter(Boolean)
+        .join(", ");
+      return `#${i + 1} "${c.name}"${c.size ? ` (${c.size})` : ""}${groupContext ? ` [${groupContext}]` : ""}`;
+    })
     .join("; ");
 
   const imageCreatives = (input.creatives || [])
@@ -237,6 +249,12 @@ export async function evaluateUrlAlignment(input: UrlAlignmentInput): Promise<Ur
   ];
 
   const briefSnippet = String(input.campaignBrief || "").trim().slice(0, 1800);
+  const adGroupObjectives = [...new Set((input.creatives || [])
+    .map((creative) => String(creative.adGroupObjective || "").trim())
+    .filter(Boolean))];
+  const adGroupObjectiveInstruction = adGroupObjectives.length
+    ? `Ad group objectives present: ${adGroupObjectives.join(", ")}. Validate creative and landing-page fit against each creative's ad-group objective first; use the campaign objective as broader context only.`
+    : "";
 
   const userText = [
     `Evaluate whether the user's landing page URL is ALIGNED or MISALIGNED with their ${isVideoAd ? "video" : "display"} ad campaign.`,
@@ -246,6 +264,7 @@ export async function evaluateUrlAlignment(input: UrlAlignmentInput): Promise<Ur
     `Platform: ${input.platform}`,
     `Ad type: ${isVideoAd ? "Video ads" : "Display ads"}`,
     `Campaign objective: ${input.objective || "awareness"}`,
+    adGroupObjectiveInstruction || "Ad group objectives: none provided.",
     `Industry vertical: ${input.vertical || "general"}`,
     `Campaign name: ${input.campaignName || "Campaign"}`,
     briefSnippet ? `Campaign brief:\n${briefSnippet}` : "Campaign brief: (not provided)",

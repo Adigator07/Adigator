@@ -66,6 +66,91 @@ export const RDA_PREVIEW_LAYOUTS = [
   { name: "Wide Skyscraper 160×600", uses: ["image_square", "headline_short", "description", "logo"] },
 ] as const;
 
+/**
+ * Google Demand Gen image requirements.
+ * Source: Google Ads Help, "Demand Gen campaign creative: Asset specifications
+ * and guidelines" (verified July 2026).
+ */
+export const DEMAND_GEN_IMAGE_REQUIREMENTS = {
+  max_file_size_bytes: 5 * 1024 * 1024,
+  allowed_mime_types: ["image/jpeg", "image/png"],
+  assets: {
+    landscape: {
+      aspect_ratio: 1.91,
+      tolerance: 0.03,
+      min: { width: 600, height: 314 },
+      recommended: { width: 1200, height: 628 },
+      required: true,
+    },
+    square: {
+      aspect_ratio: 1,
+      tolerance: 0.02,
+      min: { width: 300, height: 300 },
+      recommended: { width: 1200, height: 1200 },
+      required: true,
+    },
+    portrait: {
+      aspect_ratio: 0.8,
+      tolerance: 0.02,
+      min: { width: 480, height: 600 },
+      recommended: { width: 960, height: 1200 },
+      required: false,
+    },
+    vertical: {
+      aspect_ratio: 9 / 16,
+      tolerance: 0.02,
+      min: { width: 600, height: 1067 },
+      recommended: { width: 1080, height: 1920 },
+      required: false,
+    },
+  },
+  logo: {
+    aspect_ratio: 1,
+    min: { width: 144, height: 144 },
+    recommended: { width: 1200, height: 1200 },
+    max_file_size_bytes: 150 * 1024,
+  },
+} as const;
+
+export type DemandGenAssetClass = keyof typeof DEMAND_GEN_IMAGE_REQUIREMENTS.assets;
+
+export type DemandGenAssetEvaluation = {
+  assetClass: DemandGenAssetClass | "unsupported";
+  ratio: number;
+  ratioSupported: boolean;
+  meetsMinimum: boolean;
+  maxFileSizeBytes: number;
+};
+
+export function evaluateDemandGenImageAsset(
+  width: number,
+  height: number,
+): DemandGenAssetEvaluation {
+  const safeWidth = Math.max(0, Number(width) || 0);
+  const safeHeight = Math.max(0, Number(height) || 0);
+  const ratio = safeHeight > 0 ? safeWidth / safeHeight : 0;
+
+  for (const [assetClass, requirement] of Object.entries(DEMAND_GEN_IMAGE_REQUIREMENTS.assets)) {
+    if (Math.abs(ratio - requirement.aspect_ratio) <= requirement.tolerance) {
+      return {
+        assetClass: assetClass as DemandGenAssetClass,
+        ratio,
+        ratioSupported: true,
+        meetsMinimum: safeWidth >= requirement.min.width && safeHeight >= requirement.min.height,
+        maxFileSizeBytes: DEMAND_GEN_IMAGE_REQUIREMENTS.max_file_size_bytes,
+      };
+    }
+  }
+
+  return {
+    assetClass: "unsupported",
+    ratio,
+    ratioSupported: false,
+    meetsMinimum: false,
+    maxFileSizeBytes: DEMAND_GEN_IMAGE_REQUIREMENTS.max_file_size_bytes,
+  };
+}
+
 export const GOOGLE_OBJECTIVE_REQUIREMENTS: Record<
   string,
   { recommended_formats: string[]; url_required: boolean; landing_page_needs: string[]; note: string }

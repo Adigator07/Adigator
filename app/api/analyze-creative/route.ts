@@ -3488,6 +3488,14 @@ function buildAdigatorPlacementCompatibility(params: {
         reason: googleDisplayIntelligence.responsive_safety_analysis.risks[0] || "Core hierarchy remains stable across resize behavior.",
       },
       {
+        placement: "Demand Gen",
+        status: responsiveStatus === "Risk"
+          ? "Caution"
+          : mapSeverityToPlacementStatus(googleDisplayIntelligence.mobile_cropping_risk.risk_level),
+        reason: googleDisplayIntelligence.mobile_cropping_risk.issues[0]
+          || "Native-ratio assets remain readable across Discover, YouTube, and Gmail Demand Gen surfaces.",
+      },
+      {
         placement: "Gmail",
         status: mapSeverityToPlacementStatus(gmailSeverity),
         reason: googleDisplayIntelligence.text_density_analysis.impact,
@@ -4171,6 +4179,9 @@ export type AnalyzeCreativeRunInput = {
   campaignBrief?: string;
   campaignProductFocus?: string;
   landingUrl?: string;
+  adGroupObjective?: string;
+  adGroupName?: string;
+  adGroupId?: string;
 };
 
 export async function runAnalyzeCreative(input: AnalyzeCreativeRunInput): Promise<Record<string, unknown>> {
@@ -4188,6 +4199,16 @@ export async function runAnalyzeCreative(input: AnalyzeCreativeRunInput): Promis
   const campaignBrief = String(input.campaignBrief || "").trim().slice(0, 2000);
   const campaignProductFocus = String(input.campaignProductFocus || "").trim().slice(0, 64);
   const landingUrl = stripUtmFromUrl(String(input.landingUrl || "").trim()).slice(0, 2048);
+  const adGroupObjective = String(input.adGroupObjective || input.goal || "").trim().slice(0, 80);
+  const adGroupName = String(input.adGroupName || "").trim().slice(0, 120);
+  const adGroupContextBlock = adGroupObjective || adGroupName
+    ? [
+        "AD GROUP VALIDATION PRIORITY:",
+        `Ad group name: ${adGroupName || "Not provided"}`,
+        `Ad group objective: ${adGroupObjective || goal}`,
+        "For creative and landing-page validation, prioritize the ad group objective above the broader campaign brief when they create tension. Still validate against the campaign brief for product, audience, and brand consistency.",
+      ].join("\n")
+    : "";
   const platformProfile = PLATFORM_BMI_PROFILE[platform];
 
   if (!file.type.startsWith("image/")) {
@@ -4208,12 +4229,17 @@ export async function runAnalyzeCreative(input: AnalyzeCreativeRunInput): Promis
     goalProfile.stage,
     vertical,
     PRODUCT_CATEGORY_GROUNDING_RULES,
-    campaignBrief || undefined,
+    [campaignBrief, adGroupContextBlock].filter(Boolean).join("\n\n") || undefined,
     campaignProductFocus || undefined,
     landingUrl || undefined,
   );
 
-  const extractionSystemPrompt = buildExtractionSystemPrompt(platform, goal, vertical, campaignBrief);
+  const extractionSystemPrompt = buildExtractionSystemPrompt(
+    platform,
+    goal,
+    vertical,
+    [campaignBrief, adGroupContextBlock].filter(Boolean).join("\n\n"),
+  );
 
   const extractionResult = await extractSignalsWithRetry({
     openai,
@@ -4665,6 +4691,12 @@ export async function runAnalyzeCreative(input: AnalyzeCreativeRunInput): Promis
       campaign_alignment: campaignAlignment,
       platform_alignment: platformAlignment,
       goal_alignment: goalAlignment,
+      ad_group_context: {
+        id: input.adGroupId || "",
+        name: adGroupName,
+        objective: adGroupObjective || goal,
+        objective_priority: "ad_group_objective_over_campaign_brief",
+      },
       vertical_alignment: verticalAlignment,
       creative_vertical_alignment: creativeVerticalAlignment,
       brief_alignment: briefAlignment,
@@ -4714,6 +4746,7 @@ export async function runAnalyzeCreative(input: AnalyzeCreativeRunInput): Promis
           : creativeTypeDetection.primary_type,
         platform_context: platformProfile.label,
         objective_context: goal,
+        ad_group_objective: adGroupObjective || goal,
         objective_stage: goalProfile.stage,
         audience_stage: audienceStage,
         detected_vertical: verticalIntelligence.productCategory.id,
@@ -4752,8 +4785,11 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       vertical: String(formData.get("vertical") || "technology"),
       platform: String(formData.get("platform") || "programmatic"),
       campaignBrief: String(formData.get("campaign_brief") || ""),
-      campaignProductFocus: String(formData.get("campaign_product_focus") || ""),
+      campaignProductFocus: String(formData.get("campaign_product_focus") || formData.get("offer") || ""),
       landingUrl: stripUtmFromUrl(String(formData.get("landing_url") || "")),
+      adGroupObjective: String(formData.get("ad_group_objective") || ""),
+      adGroupName: String(formData.get("ad_group_name") || ""),
+      adGroupId: String(formData.get("ad_group_id") || ""),
     });
     return NextResponse.json(result);
   } catch (err) {

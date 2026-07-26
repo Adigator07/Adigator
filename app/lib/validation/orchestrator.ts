@@ -28,6 +28,15 @@ export type ValidationOrchestratorInput = BuildStalenessPlanInput & {
   taskType: ProgrammaticTaskTypeId | string;
   engines: ValidationEngineRegistry;
   existingVersionNumber?: number;
+  technicalCreatives?: Array<{
+    id: string;
+    name: string;
+    width?: number;
+    height?: number;
+    fileSize?: number;
+    format?: string;
+    contentHash?: string;
+  }>;
 };
 
 export type ValidationOrchestratorResult = {
@@ -247,7 +256,8 @@ export async function runValidationOrchestrator(
         campaignId: input.campaignId,
         platform: input.campaign.platform,
         landingUrl: input.campaign.landingUrl,
-        creatives: input.creatives.map((c: CreativeStalenessItem) => ({
+        campaignType: String(input.campaign.platformConfig?.googleCampaignType || ""),
+        creatives: input.technicalCreatives || input.creatives.map((c: CreativeStalenessItem) => ({
           id: c.creativeId,
           name: c.creativeId,
           contentHash: c.imageBytesHash,

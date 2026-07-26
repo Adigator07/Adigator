@@ -55,6 +55,8 @@ export async function POST(request: Request) {
         id: c.id,
         name: c.name,
         size: c.size,
+        adGroupName: c.adGroupName,
+        adGroupObjective: c.adGroupObjective,
         imageBase64: c.imageBase64,
       })),
     });

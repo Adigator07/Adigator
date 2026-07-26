@@ -26,7 +26,7 @@ const modalVariants = {
   exit: { opacity: 0, scale: 0.92, y: 30, transition: { duration: 0.2 } },
 };
 
-export default function EditCreativeModal({ creative, platform, onApply, onClose }) {
+export default function EditCreativeModal({ creative, platform, campaignType = "", onApply, onClose }) {
   const {
     previewUrl,
     previewSize,
@@ -102,6 +102,7 @@ export default function EditCreativeModal({ creative, platform, onApply, onClose
         : null,
       image: { width: newW, height: newH },
       platform: platform || "programmatic",
+      campaignType: campaignType || "",
     }).then((baseValidation) => {
       const freshValidation = finalizeValidationForPlatform(baseValidation, platform || "programmatic", previewSize);
       onApply(creative.id, {
@@ -118,7 +119,7 @@ export default function EditCreativeModal({ creative, platform, onApply, onClose
       });
       onClose();
     });
-  }, [creative.id, creative.mimeType, creative.fileSizeBytes, previewUrl, previewSize, platform, onApply, onClose]);
+  }, [creative.id, creative.mimeType, creative.fileSizeBytes, previewUrl, previewSize, platform, campaignType, onApply, onClose]);
 
   const handleSliderMove = useCallback(
     (e) => {

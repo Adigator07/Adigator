@@ -7,6 +7,7 @@ export type SetupFieldKey =
   | "advertiserName"
   | "campaignVertical"
   | "campaignGoal"
+  | "googleCampaignType"
   | "programmaticTaskType"
   | "programmaticAdGroupCount"
   | "adGroupConfig"
@@ -35,6 +36,8 @@ export type SetupFieldContext = {
   advertiserName: string;
   campaignVertical: string | null;
   campaignGoal: string | null;
+  campaignProductFocus?: string;
+  googleCampaignType?: string;
   campaignBrief: string;
   campaignName: string;
   landingUrl: string;

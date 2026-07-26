@@ -757,6 +757,8 @@ export function computeCreativeInsight(
 ) {
   const creative = entry?.creative || {};
   const payload = getEntryPayload(entry) || {};
+  const adGroupContext = payload?.ad_group_context || {};
+  const messagingGroup = payload?.messaging_group || {};
   const goalAlignment = getGoalAlignment(payload);
   let verticalAlignment = getVerticalAlignment(payload);
   const placementScores = computePlacementCompatibility(creative, platform, payload);
@@ -937,6 +939,11 @@ export function computeCreativeInsight(
       creativeName: creative.name || "Untitled Creative",
       creativeSize: "",
       creativeUrl: creative.url,
+      adGroupId: creative.adGroupId || adGroupContext.id || null,
+      adGroupName: creative.adGroupName || adGroupContext.name || "",
+      adGroupObjective: creative.adGroupObjective || adGroupContext.objective || goalAlignment?.selected_goal || campaignGoal,
+      messagingGroupId: creative.messagingGroupId || messagingGroup.id || creative.contentHash || creative.id,
+      messagingGroup,
       mediaType: "video",
       launchStatus: LAUNCH_STATUS[launchStatusKey],
       launchStatusKey,
@@ -972,6 +979,11 @@ export function computeCreativeInsight(
     creativeName: creative.name || "Untitled Creative",
     creativeSize: creative.size || "",
     creativeUrl: creative.url,
+    adGroupId: creative.adGroupId || adGroupContext.id || null,
+    adGroupName: creative.adGroupName || adGroupContext.name || "",
+    adGroupObjective: creative.adGroupObjective || adGroupContext.objective || goalAlignment?.selected_goal || campaignGoal,
+    messagingGroupId: creative.messagingGroupId || messagingGroup.id || creative.contentHash || creative.id,
+    messagingGroup,
     launchStatus: LAUNCH_STATUS[launchStatusKey],
     launchStatusKey,
     goalAlignment: {

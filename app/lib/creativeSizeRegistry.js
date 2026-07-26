@@ -132,6 +132,12 @@ export const PLATFORM_SUPPORTED_SIZE_GROUPS = {
     desktop_display: DESKTOP_IAB_SIZES,
     mobile_display: MOBILE_IAB_SIZES,
     responsive_native_assets: NATIVE_RESPONSIVE_SIZES,
+    demand_gen_assets: [
+      "600x314", "1200x628",
+      "300x300", "1200x1200",
+      "480x600", "960x1200",
+      "600x1067", "1080x1920",
+    ],
     companion_banners: COMPANION_SIZES,
   },
   meta_ads: {
@@ -157,6 +163,7 @@ export const PLATFORM_SIZE_GROUP_LABELS = {
   desktop_display: "Desktop Display",
   mobile_display: "Mobile Display",
   responsive_native_assets: "Responsive / Native Assets",
+  demand_gen_assets: "Demand Gen Assets",
   companion_banners: "Companion Banners",
   feed_placements: "Feed Placements",
   story_reels: "Story / Reels",

@@ -56,6 +56,9 @@ export type CreativeHashInput = {
   imageBytesHash: string;
   overlayText?: string;
   creativeId: string;
+  campaignProductFocus?: string;
+  platform?: string;
+  campaignGoal?: string;
 };
 
 export async function hashCreativeInputs(input: CreativeHashInput): Promise<string> {
@@ -63,6 +66,9 @@ export async function hashCreativeInputs(input: CreativeHashInput): Promise<stri
     creativeId: input.creativeId,
     imageBytesHash: input.imageBytesHash,
     overlayText: (input.overlayText ?? "").trim(),
+    campaignProductFocus: (input.campaignProductFocus ?? "").trim(),
+    platform: (input.platform ?? "").trim(),
+    campaignGoal: (input.campaignGoal ?? "").trim(),
   });
   return digestSha256(payload);
 }

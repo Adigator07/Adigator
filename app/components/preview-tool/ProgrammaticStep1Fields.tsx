@@ -18,6 +18,10 @@ import type { AdvertiserCampaign } from "@/app/lib/advertiserStore";
 import type { ProgrammaticCampaignSnapshot } from "@/app/lib/programmaticCampaignStore";
 import type { AnalyzerPlatform } from "@/app/lib/platforms/types";
 import { getPlatformAdapter } from "@/app/lib/platforms/registry";
+import {
+  GOOGLE_CAMPAIGN_TYPES,
+  type GoogleCampaignType,
+} from "@/app/lib/googleCampaignTypes";
 
 import ProgrammaticCreativeAdditionPanel, {
 
@@ -56,6 +60,8 @@ type ProgrammaticStep1FieldsProps = {
   campaignName: string;
 
   campaignBrief: string;
+  campaignProductFocus?: string;
+  googleCampaignType?: GoogleCampaignType;
 
   campaignVertical: string | null;
 
@@ -106,6 +112,8 @@ type ProgrammaticStep1FieldsProps = {
   onCampaignNameChange: (value: string) => void;
 
   onCampaignBriefChange: (value: string) => void;
+  onCampaignProductFocusChange?: (value: string) => void;
+  onGoogleCampaignTypeChange?: (value: GoogleCampaignType) => void;
 
   onLandingUrlChange: (value: string) => void;
 
@@ -140,6 +148,8 @@ export default function ProgrammaticStep1Fields({
   campaignName,
 
   campaignBrief,
+  campaignProductFocus = "",
+  googleCampaignType = "display",
 
   campaignVertical,
 
@@ -192,6 +202,8 @@ export default function ProgrammaticStep1Fields({
   onCampaignNameChange,
 
   onCampaignBriefChange,
+  onCampaignProductFocusChange,
+  onGoogleCampaignTypeChange,
 
   onLandingUrlChange,
 
@@ -324,6 +336,41 @@ export default function ProgrammaticStep1Fields({
         </div>
 
       </section>
+
+      {platform === "google_ads" && isCampaignSetup ? (
+        <section id="google-campaign-type" className="space-y-5">
+          <div>
+            <h3 className="studio-heading text-2xl font-bold tracking-tight text-studio-text">
+              Google Campaign Type
+            </h3>
+            <p className="mt-1 text-studio-muted">
+              Select the inventory architecture used for format, weight, placement, and safe-zone validation.
+            </p>
+          </div>
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+            {GOOGLE_CAMPAIGN_TYPES.map((option) => {
+              const selected = googleCampaignType === option.id;
+              return (
+                <button
+                  key={option.id}
+                  type="button"
+                  onClick={() => onGoogleCampaignTypeChange?.(option.id)}
+                  className={`rounded-xl border px-4 py-4 text-left transition ${
+                    selected
+                      ? "border-studio-accent bg-studio-accent/10 ring-1 ring-studio-accent"
+                      : "border-white/10 bg-white/[0.03] hover:border-white/25"
+                  }`}
+                >
+                  <span className="block text-sm font-semibold text-studio-text">{option.label}</span>
+                  <span className="mt-1 block text-xs leading-relaxed text-studio-muted">
+                    {option.description}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </section>
+      ) : null}
 
 
 
@@ -743,6 +790,22 @@ export default function ProgrammaticStep1Fields({
             ) : null}
 
             <div className="space-y-4">
+              <div>
+                <label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-[#9a9aad]">
+                  Offer Context
+                </label>
+                <ToolTextarea
+                  value={campaignProductFocus}
+                  onChange={(event: ChangeEvent<HTMLTextAreaElement>) => onCampaignProductFocusChange?.(event.target.value)}
+                  placeholder="Describe the product, price, promotion, incentive, or value proposition shown in the ads and landing page."
+                  rows={3}
+                  readOnly={isCampaignDetailsReadOnly}
+                  className={isCampaignDetailsReadOnly ? "opacity-90" : ""}
+                />
+                <p className="mt-2 text-xs text-studio-tertiary">
+                  Used to validate creative messaging, CTA expectations, and landing-page offer continuity.
+                </p>
+              </div>
               <div>
                 <label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-[#9a9aad]">
                   Campaign Brief

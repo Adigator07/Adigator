@@ -92,6 +92,9 @@ export async function generateCreativeBrain(
     creativeId: input.creativeId,
     imageBytesHash,
     overlayText: params.overlayText,
+    campaignProductFocus: context.campaignProductFocus,
+    platform: context.platform,
+    campaignGoal: context.campaignGoal,
   });
 
   const existing = await findCreativeBrainByContentHash(

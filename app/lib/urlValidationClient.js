@@ -157,6 +157,8 @@ export async function runUrlValidationRequest({
       name: creative.name,
       size: creative.size,
       mediaType: creative.mediaType,
+      adGroupName: creative.adGroupName || null,
+      adGroupObjective: creative.adGroupObjective || null,
       ...(imageBase64 ? { imageBase64 } : {}),
     });
   }

@@ -1,5 +1,10 @@
 import { SIZE_TOLERANCE_PX, formatCreativeSize, readImageDimensionsFromBlob, dimensionsWithinTolerance } from "./imageDimensions";
 import { enrichIssuesWithFixActions } from "./creativeFixActions";
+import { FILE_SIZE_LIMITS } from "../constants/programmaticSpecs";
+import {
+  DEMAND_GEN_IMAGE_REQUIREMENTS,
+  evaluateDemandGenImageAsset,
+} from "../constants/googleSpecs";
 import {
   SIZE_INTELLIGENCE,
   SUPPORTED_DISPLAY_SIZE_GROUPS,
@@ -229,16 +234,22 @@ function withinTolerance(a, b, tolerance = SIZE_TOLERANCE_PX) {
 export const NEAR_MATCH_TOLERANCE_PX = 32;
 const META_MIN_SHORT_SIDE_PX = 600;
 
-function getPlatformSupportedSizes(platform) {
+function getPlatformSupportedSizes(platform, campaignType = "") {
   const platformGroups = PLATFORM_SUPPORTED_SIZE_GROUPS[platform] || PLATFORM_SUPPORTED_SIZE_GROUPS.programmatic;
+  if (platform === "google_ads" && campaignType === "demand_gen" && platformGroups.demand_gen_assets) {
+    return [...new Set(platformGroups.demand_gen_assets)];
+  }
+  if (platform === "google_ads" && campaignType === "responsive_display" && platformGroups.responsive_native_assets) {
+    return [...new Set(platformGroups.responsive_native_assets)];
+  }
   return [...new Set(Object.values(platformGroups).flat())];
 }
 
 /** Match raw pixel dimensions to a platform-supported canonical size (with tolerance). */
-export function matchPlatformSupportedSize(rawWidth, rawHeight, platform) {
+export function matchPlatformSupportedSize(rawWidth, rawHeight, platform, campaignType = "") {
   const rawW = Math.max(1, Math.round(Number(rawWidth) || 0));
   const rawH = Math.max(1, Math.round(Number(rawHeight) || 0));
-  const supportedSizes = getPlatformSupportedSizes(platform);
+  const supportedSizes = getPlatformSupportedSizes(platform, campaignType);
 
   let best = null;
   let bestDistance = Infinity;
@@ -281,10 +292,10 @@ export function matchPlatformSupportedSize(rawWidth, rawHeight, platform) {
 }
 
 /** Dimensions close to a supported size but outside exact tolerance — Needs Review, not Critical. */
-export function findNearPlatformSize(rawWidth, rawHeight, platform) {
+export function findNearPlatformSize(rawWidth, rawHeight, platform, campaignType = "") {
   const rawW = Math.max(1, Math.round(Number(rawWidth) || 0));
   const rawH = Math.max(1, Math.round(Number(rawHeight) || 0));
-  const supportedSizes = getPlatformSupportedSizes(platform);
+  const supportedSizes = getPlatformSupportedSizes(platform, campaignType);
 
   let best = null;
   let bestDistance = Infinity;
@@ -315,11 +326,11 @@ export function findNearPlatformSize(rawWidth, rawHeight, platform) {
   return best;
 }
 
-function hasSupportedAspectRatio(rawWidth, rawHeight, platform) {
+function hasSupportedAspectRatio(rawWidth, rawHeight, platform, campaignType = "") {
   const rawW = Math.max(1, Math.round(Number(rawWidth) || 0));
   const rawH = Math.max(1, Math.round(Number(rawHeight) || 0));
   const ratio = rawW / rawH;
-  const supportedSizes = getPlatformSupportedSizes(platform);
+  const supportedSizes = getPlatformSupportedSizes(platform, campaignType);
 
   return supportedSizes.some((candidate) => {
     const dims = parseSize(candidate);
@@ -372,13 +383,42 @@ function isStandardDisplayBanner(size, intelligence) {
   return bannerSizes.has(size);
 }
 
-function buildFileWeightIssues(file, platform, size, intelligence) {
+function buildFileWeightIssues(file, platform, size, intelligence, campaignType = "") {
   const fileSize = file?.size || 0;
   if (!fileSize) return [];
 
   const fileMime = String(file?.type || "").toLowerCase();
   const isNative = isNativeOrResponsiveSize(size, intelligence);
   const isBanner = isStandardDisplayBanner(size, intelligence);
+
+  if (platform === "programmatic") {
+    const assetKind = fileMime === "image/gif" ? "animated_gif" : "static_image";
+    const limit = FILE_SIZE_LIMITS[assetKind];
+    if (fileSize > limit) {
+      return [{
+        type: "weight",
+        severity: "high",
+        message: `File size is ${Math.round(fileSize / 1024)}KB and exceeds the ${Math.round(limit / 1024)}KB programmatic ${assetKind.replace(/_/g, " ")} limit.`,
+        recommendation: `Compress the asset to ${Math.round(limit / 1024)}KB or less before launch.`,
+        scorePenalty: 28,
+        limitBytes: limit,
+        actualBytes: fileSize,
+      }];
+    }
+  }
+
+  if (platform === "google_ads" && campaignType === "demand_gen") {
+    if (fileSize > DEMAND_GEN_IMAGE_REQUIREMENTS.max_file_size_bytes) {
+      return [{
+        type: "demand_gen_weight",
+        severity: "high",
+        message: "Demand Gen image exceeds Google's 5MB image asset limit.",
+        recommendation: "Compress the JPG or PNG below 5MB.",
+        scorePenalty: 30,
+      }];
+    }
+    return [];
+  }
 
   if (platform === "meta_ads") {
     if (fileMime.startsWith("image/") && fileSize > 30 * 1024 * 1024) {
@@ -511,7 +551,7 @@ function resolveValidatedDisplayDimensions(rawW, rawH, sizeMatch) {
   };
 }
 
-export async function validateCreativeAsset({ file, image, platform }) {
+export async function validateCreativeAsset({ file, image, platform, campaignType = "" }) {
   const rawW = Math.max(1, Math.round(Number(image?.width) || 0));
   const rawH = Math.max(1, Math.round(Number(image?.height) || 0));
   const actualSize = `${rawW}x${rawH}`;
@@ -522,9 +562,9 @@ export async function validateCreativeAsset({ file, image, platform }) {
       ? "Meta Ads"
       : "Programmatic";
   const platformGroups = PLATFORM_SUPPORTED_SIZE_GROUPS[normalizedPlatform] || PLATFORM_SUPPORTED_SIZE_GROUPS.programmatic;
-  const supportedSizes = getPlatformSupportedSizes(normalizedPlatform);
-  const sizeMatch = matchPlatformSupportedSize(rawW, rawH, normalizedPlatform);
-  const nearSizeMatch = !sizeMatch ? findNearPlatformSize(rawW, rawH, normalizedPlatform) : null;
+  const supportedSizes = getPlatformSupportedSizes(normalizedPlatform, campaignType);
+  const sizeMatch = matchPlatformSupportedSize(rawW, rawH, normalizedPlatform, campaignType);
+  const nearSizeMatch = !sizeMatch ? findNearPlatformSize(rawW, rawH, normalizedPlatform, campaignType) : null;
   const displayDims = resolveValidatedDisplayDimensions(rawW, rawH, sizeMatch);
   const canonicalSize = sizeMatch?.match || nearSizeMatch?.match || displayDims.size;
   const size = displayDims.size;
@@ -533,7 +573,9 @@ export async function validateCreativeAsset({ file, image, platform }) {
     ? resolveSizeIntelligence(canonicalSize)
     : null;
   const fileMime = String(file?.type || "").toLowerCase();
-  const rdaFit = normalizedPlatform === "google_ads" ? evaluateGoogleRdaFit(canonicalSize) : null;
+  const rdaFit = normalizedPlatform === "google_ads" && campaignType !== "demand_gen"
+    ? evaluateGoogleRdaFit(canonicalSize)
+    : null;
   const googleSizeTier = normalizedPlatform === "google_ads" ? classifyGoogleSizeTier(canonicalSize) : null;
   const metaPlacement = normalizedPlatform === "meta_ads" ? classifyMetaPlacement(canonicalSize) : null;
   const metaSafeZone = normalizedPlatform === "meta_ads" ? evaluateMetaSafeZoneRisk(canonicalSize) : null;
@@ -557,7 +599,7 @@ export async function validateCreativeAsset({ file, image, platform }) {
         recommendation: "Export at least 1080×1080, 1080×1350, or 1080×1920 for Meta feed and story placements.",
         scorePenalty: 35,
       });
-    } else if (!hasSupportedAspectRatio(rawW, rawH, normalizedPlatform)) {
+    } else if (!hasSupportedAspectRatio(rawW, rawH, normalizedPlatform, campaignType)) {
       issues.push({
         type: "aspect_ratio",
         severity: "high",
@@ -581,7 +623,7 @@ export async function validateCreativeAsset({ file, image, platform }) {
     issues.push(buildUnsupportedSizeIssue(actualSize, platformLabel));
   }
 
-  issues.push(...buildFileWeightIssues(file, normalizedPlatform, canonicalSize, intelligence));
+  issues.push(...buildFileWeightIssues(file, normalizedPlatform, canonicalSize, intelligence, campaignType));
 
   if (sizeMatch && sizeMatch.type !== "exact" && sizeMatch.detectedSize !== canonicalSize) {
     if (sizeMatch.type === "orientation") {
@@ -606,35 +648,65 @@ export async function validateCreativeAsset({ file, image, platform }) {
   }
 
   if (normalizedPlatform === "google_ads") {
-    if (fileMime && !GOOGLE_ALLOWED_MIME_TYPES.has(fileMime)) {
-      issues.push({
-        type: "format",
-        severity: "high",
-        message: `${fileMime} is not in the Google uploaded display support set (JPG, PNG, GIF, ZIP/HTML5).`,
-        recommendation: "Upload JPG, PNG, GIF, or ZIP (HTML5 package) for Google display ecosystem compliance.",
-        scorePenalty: 35,
-      });
-    }
+    if (campaignType === "demand_gen") {
+      const demandGenFit = evaluateDemandGenImageAsset(rawW, rawH);
+      if (!DEMAND_GEN_IMAGE_REQUIREMENTS.allowed_mime_types.includes(fileMime)) {
+        issues.push({
+          type: "demand_gen_format",
+          severity: "high",
+          message: "Demand Gen image assets must be JPG or PNG.",
+          recommendation: "Export this asset as JPG or PNG; animated GIF and HTML5 are Display-only formats.",
+          scorePenalty: 30,
+        });
+      }
+      if (!demandGenFit.ratioSupported) {
+        issues.push({
+          type: "demand_gen_aspect_ratio",
+          severity: "high",
+          message: "Demand Gen supports landscape 1.91:1, square 1:1, portrait 4:5, or vertical 9:16 image assets.",
+          recommendation: "Re-export to 1200x628, 1200x1200, 960x1200, or 1080x1920.",
+          scorePenalty: 32,
+        });
+      } else if (!demandGenFit.meetsMinimum) {
+        issues.push({
+          type: "demand_gen_dimensions",
+          severity: "high",
+          message: `Demand Gen ${demandGenFit.assetClass} asset is below Google's minimum dimensions.`,
+          recommendation: "Use the recommended Demand Gen dimensions for this aspect ratio.",
+          scorePenalty: 28,
+        });
+      }
+    } else {
+      if (fileMime && !GOOGLE_ALLOWED_MIME_TYPES.has(fileMime)) {
+        issues.push({
+          type: "format",
+          severity: "high",
+          message: `${fileMime} is not in the Google uploaded display support set (JPG, PNG, GIF, ZIP/HTML5).`,
+          recommendation: "Upload JPG, PNG, GIF, or ZIP (HTML5 package) for Google display ecosystem compliance.",
+          scorePenalty: 35,
+        });
+      }
 
-    const isStandardBanner = (intelligence?.sizeGroup === "desktop" || intelligence?.sizeGroup === "mobile") && rdaFit?.class === "uploaded_banner";
-    if (isStandardBanner && (file?.size || 0) > 150 * 1024) {
-      issues.push({
-        type: "google_weight",
-        severity: "medium",
-        message: "Banner payload is above 150KB guidance and may reduce viewability and load-speed competitiveness.",
-        recommendation: "Compress image/HTML5 payload toward 150KB for stronger Google Display delivery quality.",
-        scorePenalty: 10,
-      });
-    }
+      const isStandardBanner = (intelligence?.sizeGroup === "desktop" || intelligence?.sizeGroup === "mobile") && rdaFit?.class === "uploaded_banner";
+      if (isStandardBanner && (file?.size || 0) > 150 * 1024) {
+        issues.push({
+          type: "google_weight",
+          severity: "medium",
+          message: "Banner payload is above 150KB guidance and may reduce viewability and load-speed competitiveness.",
+          recommendation: "Compress image/HTML5 payload toward 150KB for stronger Google Display delivery quality.",
+          scorePenalty: 10,
+        });
+      }
 
-    if (rdaFit && !rdaFit.satisfiesMinimum && !isNativeOrResponsiveSize(canonicalSize, intelligence)) {
-      issues.push({
-        type: "rda",
-        severity: "high",
-        message: "Responsive Display asset does not meet minimum ratio dimension requirements.",
-        recommendation: "Use at least 600x314 for landscape or 300x300 for square responsive assets.",
-        scorePenalty: 28,
-      });
+      if (rdaFit && !rdaFit.satisfiesMinimum && !isNativeOrResponsiveSize(canonicalSize, intelligence)) {
+        issues.push({
+          type: "rda",
+          severity: "high",
+          message: "Responsive Display asset does not meet minimum ratio dimension requirements.",
+          recommendation: "Use at least 600x314 for landscape or 300x300 for square responsive assets.",
+          scorePenalty: 28,
+        });
+      }
     }
   }
 
@@ -721,11 +793,20 @@ export async function validateCreativeAsset({ file, image, platform }) {
     intelligence: intelligence || buildPlatformIntelligenceFallback(canonicalSize, normalizedPlatform, platformLabel),
     googleStandards: normalizedPlatform === "google_ads"
       ? {
-        ecosystemFocus: ["responsive_display_ads", "uploaded_banner_ads"],
+        campaignType: campaignType || "display",
+        ecosystemFocus: campaignType === "demand_gen"
+          ? ["demand_gen"]
+          : campaignType === "responsive_display"
+            ? ["responsive_display_ads"]
+            : ["responsive_display_ads", "uploaded_banner_ads"],
         fileFormat: {
           mimeType: fileMime || "unknown",
-          supported: !fileMime || GOOGLE_ALLOWED_MIME_TYPES.has(fileMime),
-          acceptedFormats: ["image/jpeg", "image/png", "image/gif", "application/zip"],
+          supported: campaignType === "demand_gen"
+            ? DEMAND_GEN_IMAGE_REQUIREMENTS.allowed_mime_types.includes(fileMime)
+            : (!fileMime || GOOGLE_ALLOWED_MIME_TYPES.has(fileMime)),
+          acceptedFormats: campaignType === "demand_gen"
+            ? [...DEMAND_GEN_IMAGE_REQUIREMENTS.allowed_mime_types]
+            : ["image/jpeg", "image/png", "image/gif", "application/zip"],
         },
         inventoryType: classifyInventoryType(intelligence),
         sizeTier: googleSizeTier,

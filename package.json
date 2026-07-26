@@ -7,6 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "docs:pdf": "node scripts/generate-documentation-pdf.mjs",
     "test:e2e:creative-brain": "node scripts/e2e-creative-brain-reuse.mjs",
     "test:e2e:creative-brain:staging": "node scripts/e2e-creative-brain-reuse.mjs --staging",
@@ -46,6 +48,7 @@
     "eslint-config-next": "16.2.3",
     "postcss": "^8.5.10",
     "tailwindcss": "^4.2.2",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.4"
   }
 }

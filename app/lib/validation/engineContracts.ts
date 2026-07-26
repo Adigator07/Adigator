@@ -27,11 +27,13 @@ export type TechnicalValidationInput = {
     height?: number;
     fileSize?: number;
     format?: string;
+    assetKind?: "static_image" | "animated_gif" | "html5_zip" | "rich_media";
     contentHash?: string;
   }>;
   landingUrl?: string;
   utmParameters?: Record<string, string>;
   platform: string;
+  campaignType?: string;
 };
 
 export type TechnicalValidationResult = {

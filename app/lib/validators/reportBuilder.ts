@@ -6,7 +6,7 @@ import type {
   ValidationFlag,
   ValidationPlatform,
 } from "@/app/types/validation";
-import { PROGRAMMATIC_OBJECTIVE_REQUIREMENTS } from "@/app/constants/programmaticSpecs";
+import { PROGRAMMATIC_OBJECTIVE_REQUIREMENTS, FILE_SIZE_LIMITS } from "@/app/constants/programmaticSpecs";
 import { META_OBJECTIVE_REQUIREMENTS, META_TEXT_RULES } from "@/app/constants/metaSpecs";
 import {
   GOOGLE_OBJECTIVE_REQUIREMENTS,
@@ -62,14 +62,21 @@ export function validateProgrammaticCreatives(
   for (const creative of creatives) {
     flags.push(...convertLegacyValidationIssues(creative, "programmatic"));
     const dims = parseSize(creative.size);
-    if (dims && creative.fileSize && creative.fileSize > 150 * 1024) {
+    const mime = String(creative.mimeType || "").toLowerCase();
+    const assetKind = mime === "image/gif"
+      ? "animated_gif"
+      : mime === "application/zip" || mime === "application/x-zip-compressed"
+        ? "html5_zip"
+        : "static_image";
+    const weightLimit = FILE_SIZE_LIMITS[assetKind];
+    if (dims && creative.fileSize && creative.fileSize > weightLimit) {
       flags.push({
         id: `prog_weight_${creative.id}`,
-        severity: "warning",
+        severity: "error",
         module: "creative",
         platform: "programmatic",
-        message: `"${creative.name}" exceeds 150KB IAB guidance (${Math.round(creative.fileSize / 1024)}KB).`,
-        recommendation: "Compress to ≤150KB for standard programmatic delivery.",
+        message: `"${creative.name}" exceeds the ${Math.round(weightLimit / 1024)}KB programmatic ${assetKind.replace(/_/g, " ")} limit (${Math.round(creative.fileSize / 1024)}KB).`,
+        recommendation: `Compress to ≤${Math.round(weightLimit / 1024)}KB before launch.`,
       });
     }
   }

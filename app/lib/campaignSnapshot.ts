@@ -1,5 +1,6 @@
 import type { ProgrammaticAdGroup } from "@/app/lib/programmaticWorkflow";
 import type { AnalyzerPlatform, CampaignTaskTypeId } from "@/app/lib/platforms/types";
+import type { GoogleCampaignType } from "@/app/lib/googleCampaignTypes";
 
 /**
  * Unified campaign snapshot — shared across Google Ads, Meta Ads, and Programmatic.
@@ -42,7 +43,7 @@ export type CampaignSnapshot = {
   selectedProgrammaticAdGroupIds?: string[];
   applyProgrammaticAdGroupsToAll?: boolean;
   /** Google Ads extensions */
-  googleCampaignType?: "display" | "search" | "shopping" | "app" | "performance_max" | "";
+  googleCampaignType?: GoogleCampaignType | "";
   googleAdGroupCount?: number | "";
   /** Meta Ads extensions */
   metaCampaignType?: "advantage_plus" | "manual" | "";

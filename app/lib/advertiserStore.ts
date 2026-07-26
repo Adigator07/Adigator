@@ -29,6 +29,8 @@ export type AdvertiserCreativeRef = {
   size?: string;
   valid?: boolean;
   previewUrl?: string;
+  fullUrl?: string;
+  mediaType?: string;
 };
 
 export type AdvertiserAdGroup = {
@@ -172,6 +174,8 @@ function mapCreativesFromSnapshot(creatives: Record<string, unknown>[], adGroupI
       size: typeof creative.size === "string" ? creative.size : undefined,
       valid: typeof creative.valid === "boolean" ? creative.valid : undefined,
       previewUrl: resolveStoredCreativePreviewUrl(creative),
+      fullUrl: typeof creative.fullUrl === "string" ? creative.fullUrl : undefined,
+      mediaType: typeof creative.mediaType === "string" ? creative.mediaType : undefined,
     }))
     .filter((creative) => creative.id);
 }
@@ -440,6 +444,8 @@ export function syncAdvertiserFromGenericSession(options: {
     size?: string;
     valid?: boolean;
     url?: string;
+    fullUrl?: string;
+    mediaType?: string;
     adGroupId?: string | null;
     adGroupName?: string | null;
     adGroupObjective?: string | null;
@@ -466,6 +472,8 @@ export function syncAdvertiserFromGenericSession(options: {
       size: creative.size,
       valid: creative.valid,
       previewUrl: resolveStoredCreativePreviewUrl(creative as Record<string, unknown>),
+      fullUrl: creative.fullUrl,
+      mediaType: creative.mediaType,
     });
   });
 

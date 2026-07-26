@@ -6,6 +6,7 @@ import {
   BarChart3,
   Building2,
   CheckCircle2,
+  Download,
   Eye,
   ImageIcon,
   Layers,
@@ -236,6 +237,7 @@ function CreativePreviewPanel({
   loading?: boolean;
 }) {
   const { creative, advertiserName, campaignName, adGroupName } = selection;
+  const downloadUrl = creative.fullUrl || creative.previewUrl;
 
   return (
     <LevelPanel level="creative" title="Creative preview" subtitle={creative.name} icon={ImageIcon} className="mt-4">
@@ -283,6 +285,16 @@ function CreativePreviewPanel({
             tone={creative.valid === true ? "success" : creative.valid === false ? "error" : "muted"}
           />
           <DetailRow label="Creative ID" value={creative.id} mono />
+          {downloadUrl ? (
+            <a
+              href={downloadUrl}
+              download={`${creative.name || "creative"}`}
+              className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-amber-400/30 bg-amber-500/10 px-3 py-2 text-xs font-semibold text-amber-100 transition hover:bg-amber-500/20"
+            >
+              <Download size={14} />
+              Download creative
+            </a>
+          ) : null}
         </div>
       </div>
     </LevelPanel>
@@ -765,7 +777,7 @@ export default function AdvertisersSection({ advertisers, loading = false, owner
   const [campaignDetailTab, setCampaignDetailTab] = useState<CampaignDetailTab>("campaigns");
   const [expandedAdGroupKey, setExpandedAdGroupKey] = useState<string | null>(null);
   const [selectedCreative, setSelectedCreative] = useState<SelectedCreative | null>(null);
-  const [hydratedPreviews, setHydratedPreviews] = useState<Record<string, string>>({});
+  const [hydratedPreviews, setHydratedPreviews] = useState<Record<string, { previewUrl?: string; fullUrl?: string }>>({});
   const [previewLoadingId, setPreviewLoadingId] = useState<string | null>(null);
 
   const sortedAdvertisers = useMemo(
@@ -781,7 +793,11 @@ export default function AdvertisersSection({ advertisers, loading = false, owner
   );
 
   const getPreviewUrl = useCallback(
-    (creative: AdvertiserCreativeRef) => hydratedPreviews[creative.id] || creative.previewUrl,
+    (creative: AdvertiserCreativeRef) => hydratedPreviews[creative.id]?.previewUrl || creative.previewUrl,
+    [hydratedPreviews],
+  );
+  const getFullUrl = useCallback(
+    (creative: AdvertiserCreativeRef) => hydratedPreviews[creative.id]?.fullUrl || creative.fullUrl || creative.previewUrl,
     [hydratedPreviews],
   );
 
@@ -808,10 +824,13 @@ export default function AdvertisersSection({ advertisers, loading = false, owner
       3,
     ).then((hydrated) => {
       if (cancelled) return;
-      const next: Record<string, string> = {};
+      const next: Record<string, { previewUrl?: string; fullUrl?: string }> = {};
       hydrated.forEach((record, index) => {
         const url = typeof record?.url === "string" ? record.url : "";
-        if (url) next[missing[index].id] = url;
+        const fullUrl = typeof record?.fullUrl === "string" ? record.fullUrl : "";
+        if (url || fullUrl) {
+          next[missing[index].id] = { previewUrl: url || fullUrl, fullUrl: fullUrl || url };
+        }
       });
       if (Object.keys(next).length) {
         setHydratedPreviews((current) => ({ ...current, ...next }));
@@ -858,7 +877,7 @@ export default function AdvertisersSection({ advertisers, loading = false, owner
     }
 
     let previewUrl = getPreviewUrl(creative);
-    setSelectedCreative({ ...ctx, creative: { ...creative, previewUrl } });
+    setSelectedCreative({ ...ctx, creative: { ...creative, previewUrl, fullUrl: getFullUrl(creative) } });
 
     if (previewUrl || !ownerId) return;
 
@@ -867,14 +886,21 @@ export default function AdvertisersSection({ advertisers, loading = false, owner
       setCreativeStorageScope(ownerId);
       const hydrated = await hydrateCreativeRecord({ id: creative.id, hasStoredAssets: true });
       const resolved = typeof hydrated?.url === "string" ? hydrated.url : undefined;
-      if (resolved) {
-        setHydratedPreviews((current) => ({ ...current, [creative.id]: resolved }));
-        setSelectedCreative({ ...ctx, creative: { ...creative, previewUrl: resolved } });
+      const resolvedFull = typeof hydrated?.fullUrl === "string" ? hydrated.fullUrl : resolved;
+      if (resolved || resolvedFull) {
+        setHydratedPreviews((current) => ({
+          ...current,
+          [creative.id]: { previewUrl: resolved || resolvedFull, fullUrl: resolvedFull || resolved },
+        }));
+        setSelectedCreative({
+          ...ctx,
+          creative: { ...creative, previewUrl: resolved || resolvedFull, fullUrl: resolvedFull || resolved },
+        });
       }
     } finally {
       setPreviewLoadingId(null);
     }
-  }, [getPreviewUrl, ownerId]);
+  }, [getFullUrl, getPreviewUrl, ownerId]);
 
   if (loading) {
     return (

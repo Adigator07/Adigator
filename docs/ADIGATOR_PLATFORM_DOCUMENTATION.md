@@ -200,15 +200,19 @@ The Preview Tool is the heart of Adigator. It is a **4-step wizard**:
 | Field | Options / Notes |
 |-------|-----------------|
 | **Platform** | Google Ads, Meta Ads, Programmatic Ads |
+| **Google Campaign Type** | Google Ads only: Display, Responsive Display, Demand Gen |
 | **Campaign Goal** | Platform-specific (see [Section 19](#19-supported-platforms-goals--verticals)) |
 | **Industry Vertical** | 18 verticals including Healthcare, Technology, Fashion, Fitness, etc. |
 | **Audience Stage** | Cold, Warm, Hot/Retargeting |
+| **Offer Context** | Free text product / price / promotion context (`campaignProductFocus`) |
 | **Campaign Name** | Free text (used in readiness validation) |
 | **Landing Page URL** | Required for readiness check (except Meta-only flows) |
 
 ### Purpose
 Step 1 context drives **all downstream intelligence**:
 - Analyzer prompts are platform/goal/vertical-aware
+- Offer Context feeds creative/landing alignment and campaign-brain `offer`
+- Google campaign type selects Display vs RDA vs Demand Gen upload and weight rules
 - Validation matrices differ per platform
 - Preview Studio shows platform-specific placements
 - Goal alignment compares creative signals to selected objective stage
@@ -218,11 +222,17 @@ Step 1 context drives **all downstream intelligence**:
 ## 8. Step 2: Upload & Validation
 
 ### Upload Flow
-1. User drops or selects image files (JPG, PNG, GIF, WebP)
+1. User drops or selects image files (JPG, PNG, GIF, WebP; Demand Gen: JPG/PNG only)
 2. `readImageDimensionsFromBlob()` reads true pixel dimensions from file headers
 3. Filename reconciliation (`300x250`, `300-250`) corrects misread JPEG metadata
-4. `validateCreativeAsset()` runs platform size matrix matching
+4. `validateCreativeAsset({ platform, campaignType })` runs platform size matrix matching
 5. Creatives stored in IndexedDB; metadata persisted to localStorage
+
+### Platform-specific validation notes
+- **Programmatic:** hard `FILE_SIZE_LIMITS` (150KB static/GIF, 200KB HTML5 ZIP)
+- **Google Display / RDA:** IAB + responsive asset matrices; banner weight guidance
+- **Google Demand Gen:** aspect-ratio classes (1.91 / 1:1 / 4:5 / 9:16), JPG/PNG, 5MB ceiling
+- **Meta:** feed/story matrices + safe-zone risk scoring
 
 ### Validation Intelligence (per creative)
 

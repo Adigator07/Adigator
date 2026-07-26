@@ -103,6 +103,18 @@ function normalizeStringArray(value: unknown): string[] {
   return Array.isArray(value) ? value.filter((v): v is string => typeof v === "string") : [];
 }
 
+function inferCtaFromText(...values: unknown[]): string {
+  const corpus = values
+    .filter((value): value is string => typeof value === "string")
+    .join(" ")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!corpus) return "";
+
+  const match = corpus.match(/\b(shop now|buy now|learn more|get started|sign up|subscribe|download|book now|order now|claim offer|try now|start now|contact us|apply now|request demo|view plans|explore now|watch now|register now)\b/i);
+  return match?.[1] || "";
+}
+
 export function normalizeExtraction(raw: Record<string, unknown>): ExtractionSignals {
   // New combined format nests extraction signals under "signals"; fall back to top-level for backward compat.
   // OpenAI output may vary slightly in key naming (camelCase vs snake_case, or renamed fields).
@@ -125,10 +137,24 @@ export function normalizeExtraction(raw: Record<string, unknown>): ExtractionSig
 
   const visualElementsArr = pickArrayStrings(s.visual_elements, (s as any).visualElements);
 
+  const headline = pickString(s.headline, (s as any).title);
+  const primaryMessage = pickString(s.primary_message, (s as any).primaryMessage);
+  const cta = pickString(
+    s.cta,
+    (s as any).cta_text
+      || (s as any).ctaText
+      || (s as any).call_to_action
+      || (s as any).callToAction
+      || (s as any).button_text
+      || (s as any).buttonText
+      || (s as any).action_text
+      || (s as any).actionText,
+  ) || inferCtaFromText(headline, primaryMessage, (s as any).extracted_text, (s as any).visible_text);
+
   return {
-    headline: pickString(s.headline, (s as any).title),
-    cta: pickString(s.cta, (s as any).cta_text),
-    primary_message: pickString(s.primary_message, (s as any).primaryMessage),
+    headline,
+    cta,
+    primary_message: primaryMessage,
     visual_elements:
       visualElementsArr.length > 0
         ? visualElementsArr

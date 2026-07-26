@@ -95,6 +95,7 @@ import {
   tagCreativeRole,
 } from "../lib/creativeRoles";
 import { buildReplacementComparisonReport } from "../lib/creativeReplacementComparison";
+import { normalizeGoogleCampaignType } from "../lib/googleCampaignTypes";
 import { warmDashboardCampaignCaches } from "../lib/dashboardCampaignCache";
 import { resolveCreativePreviewContext } from "../lib/creativePreviewContext";
 import {
@@ -433,6 +434,29 @@ const AUDIENCE_STAGES = [
   },
 ];
 
+function normalizeMessagingFingerprint(parts = []) {
+  const normalized = parts
+    .map((part) => String(part || "").toLowerCase())
+    .join(" ")
+    .replace(/\.[a-z0-9]{2,5}\b/g, " ")
+    .replace(/\b(300x250|728x90|160x600|320x50|1080x1080|1200x628|1920x1080)\b/g, " ")
+    .replace(/[^a-z0-9]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  return normalized.slice(0, 96) || "creative-message";
+}
+
+function buildCreativeMessagingFingerprint(creative, payload = {}) {
+  const signals = payload?.signals || payload?.extraction_signals || {};
+  return normalizeMessagingFingerprint([
+    signals.headline,
+    signals.primary_message,
+    signals.cta,
+    payload?.cta_text,
+    creative?.name,
+  ]);
+}
+
 function getGoalTitle(goalId, platformId) {
   const goals = PLATFORM_GOAL_SETS[platformId] || PROGRAMMATIC_GOALS;
   const found = goals.find((goal) => goal.id === goalId);
@@ -524,6 +548,7 @@ async function analyzeSingleCreative(
     campaignId = "",
     accessToken = null,
     taskType = "creative_addition",
+    googleCampaignType = "",
   },
 ) {
   // Video analysis is triggered only for creatives uploaded under the Video Views objective,
@@ -544,6 +569,9 @@ async function analyzeSingleCreative(
     formData.append("vertical", verticalForApi);
     formData.append("platform", platform || "meta_ads");
     formData.append("audience_stage", audienceStage || "cold");
+    formData.append("ad_group_objective", goalForCreative || "");
+    formData.append("ad_group_name", creative.adGroupName || "");
+    formData.append("ad_group_id", creative.adGroupId || "");
     formData.append("creative_name", creative.name || "Video creative");
     formData.append("mime_type", creative.mimeType || videoBlob.type || "video/mp4");
     formData.append("file_size_bytes", String(creative.fileSizeBytes || videoBlob.size || 0));
@@ -566,6 +594,10 @@ async function analyzeSingleCreative(
     }
     if (campaignBrief?.trim()) formData.append("campaign_brief", campaignBrief.trim());
     if (campaignProductFocus?.trim()) formData.append("campaign_product_focus", campaignProductFocus.trim());
+    if (campaignProductFocus?.trim()) formData.append("offer", campaignProductFocus.trim());
+    if (platform === "google_ads" && googleCampaignType) {
+      formData.append("google_campaign_type", googleCampaignType);
+    }
     if (landingUrl?.trim()) formData.append("landing_url", stripUtmFromUrl(landingUrl.trim()));
 
     frames.forEach((frame, index) => {
@@ -618,11 +650,18 @@ async function analyzeSingleCreative(
   formData.append("vertical", verticalForApi);
   formData.append("platform", platform || "programmatic");
   formData.append("audience_stage", audienceStage || "cold");
+  formData.append("ad_group_objective", goalForCreative || "");
+  formData.append("ad_group_name", creative.adGroupName || "");
+  formData.append("ad_group_id", creative.adGroupId || "");
   if (campaignBrief?.trim()) {
     formData.append("campaign_brief", campaignBrief.trim());
   }
   if (campaignProductFocus?.trim()) {
     formData.append("campaign_product_focus", campaignProductFocus.trim());
+    formData.append("offer", campaignProductFocus.trim());
+  }
+  if (platform === "google_ads" && googleCampaignType) {
+    formData.append("google_campaign_type", googleCampaignType);
   }
   if (landingUrl?.trim()) {
     formData.append("landing_url", stripUtmFromUrl(landingUrl.trim()));
@@ -701,6 +740,7 @@ async function analyzeAllCreatives(
   orchestratorOptions = {},
 ) {
   const verticalForApi = VALID_VERTICALS.has(vertical) ? vertical : "technology";
+  const googleCampaignType = orchestratorOptions.googleCampaignType || "";
 
   const extractStrategicPayload = (raw) => {
     const candidate =
@@ -738,6 +778,7 @@ async function analyzeAllCreatives(
     campaignId: orchestratorOptions.campaignId || "",
     accessToken: orchestratorOptions.accessToken || null,
     taskType: orchestratorOptions.taskType || "creative_addition",
+    googleCampaignType,
   };
 
   let completed = 0;
@@ -861,6 +902,7 @@ export default function PreviewTool() {
   const [campaignBrief, setCampaignBrief] = useState("");
   const [liveBriefInsights, setLiveBriefInsights] = useState(null);
   const [campaignProductFocus, setCampaignProductFocus] = useState("");
+  const [googleCampaignType, setGoogleCampaignType] = useState("display");
   const [landingUrl, setLandingUrl] = useState("");
   const [programmaticTaskType, setProgrammaticTaskType] = useState("");
   const [programmaticAdGroupCount, setProgrammaticAdGroupCount] = useState("");
@@ -978,11 +1020,12 @@ export default function PreviewTool() {
 
   useEffect(() => {
     if (typeof window === "undefined") return;
+    if (step <= 1) return;
     const storedAdvertiserName = localStorage.getItem("adigator_advertiser_name");
     const storedAdvertiserId = localStorage.getItem("adigator_advertiser_id");
     if (storedAdvertiserName) setAdvertiserName(storedAdvertiserName);
     if (storedAdvertiserId) setAdvertiserId(storedAdvertiserId);
-  }, []);
+  }, [step]);
 
   useEffect(() => {
     if (!advertiserName.trim() || advertiserName.trim().length < 2 || !campaignOwnerId) {
@@ -1068,6 +1111,11 @@ export default function PreviewTool() {
     const storedProductFocus = localStorage.getItem("adigator_product_focus");
     if (!campaignProductFocus && storedProductFocus) {
       setCampaignProductFocus(storedProductFocus);
+    }
+
+    const storedGoogleCampaignType = localStorage.getItem("adigator_google_campaign_type");
+    if (storedPlatform === "google_ads" && storedGoogleCampaignType) {
+      setGoogleCampaignType(normalizeGoogleCampaignType(storedGoogleCampaignType));
     }
 
     const storedLandingUrl = localStorage.getItem("adigator_landing_url");
@@ -1329,6 +1377,11 @@ export default function PreviewTool() {
 
       if (campaignProductFocus) localStorage.setItem("adigator_product_focus", campaignProductFocus);
       else localStorage.removeItem("adigator_product_focus");
+      if (platform === "google_ads") {
+        localStorage.setItem("adigator_google_campaign_type", googleCampaignType);
+      } else {
+        localStorage.removeItem("adigator_google_campaign_type");
+      }
 
       if (landingUrl) localStorage.setItem("adigator_landing_url", landingUrl);
       else localStorage.removeItem("adigator_landing_url");
@@ -1354,7 +1407,7 @@ export default function PreviewTool() {
         clearTimeout(campaignConfigPersistTimerRef.current);
       }
     };
-  }, [platform, campaignGoal, campaignVertical, campaignAudienceStage, campaignName, adType, advertiserName, advertiserId, campaignBrief, campaignProductFocus, landingUrl, programmaticTaskType, programmaticAdGroupCount, programmaticAdGroups]);
+  }, [platform, campaignGoal, campaignVertical, campaignAudienceStage, campaignName, adType, advertiserName, advertiserId, campaignBrief, campaignProductFocus, googleCampaignType, landingUrl, programmaticTaskType, programmaticAdGroupCount, programmaticAdGroups]);
 
   useEffect(() => {
     if (workflowPersistTimerRef.current) {
@@ -1418,6 +1471,7 @@ export default function PreviewTool() {
   const sessionInitRef = useRef(false);
   const lastSessionPayloadRef = useRef(null);
   const sessionNetworkWarningShownRef = useRef(false);
+  const [analysisSessionReady, setAnalysisSessionReady] = useState(false);
   const lastUrlUtmAutoValidationKeyRef = useRef("");
 
   const isProgrammatic = platform === "programmatic";
@@ -1521,6 +1575,8 @@ export default function PreviewTool() {
     advertiserName,
     campaignVertical,
     campaignGoal,
+    campaignProductFocus,
+    googleCampaignType: platform === "google_ads" ? googleCampaignType : undefined,
     campaignBrief,
     campaignName,
     landingUrl,
@@ -1540,6 +1596,8 @@ export default function PreviewTool() {
     advertiserName,
     campaignVertical,
     campaignGoal,
+    campaignProductFocus,
+    googleCampaignType,
     campaignBrief,
     campaignName,
     landingUrl,
@@ -1596,6 +1654,7 @@ export default function PreviewTool() {
     setCampaignGoal(snapshot.campaignGoal || null);
     setCampaignAudienceStage(snapshot.campaignAudienceStage || null);
     setCampaignProductFocus(snapshot.campaignProductFocus || "");
+    setGoogleCampaignType(normalizeGoogleCampaignType(snapshot.googleCampaignType));
     setProgrammaticAdGroupCount(snapshot.programmaticAdGroupCount ?? "");
     const normalizedGroups = normalizeProgrammaticAdGroups(snapshot.programmaticAdGroups || []);
     setProgrammaticAdGroups(normalizedGroups);
@@ -2142,6 +2201,7 @@ export default function PreviewTool() {
       campaignGoal: effectiveCampaignGoal || campaignGoal || "",
       campaignAudienceStage: campaignAudienceStage || "",
       campaignProductFocus,
+      googleCampaignType: platform === "google_ads" ? googleCampaignType : undefined,
       programmaticTaskType,
       programmaticAdGroupCount,
       programmaticAdGroups,
@@ -2161,6 +2221,7 @@ export default function PreviewTool() {
       createdAt: loadedCampaignSnapshot?.createdAt || new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       ...platformAdapter.buildSnapshotExtensions({
+        googleCampaignType,
         programmaticAdGroupCount,
         programmaticAdGroups,
         selectedProgrammaticAdGroupIds,
@@ -2176,6 +2237,7 @@ export default function PreviewTool() {
     campaignGoal,
     campaignName,
     campaignProductFocus,
+    googleCampaignType,
     campaignVertical,
     creativeAdditionMode,
     creatives,
@@ -2201,6 +2263,7 @@ export default function PreviewTool() {
     campaignAssistantContext,
     platform,
     platformAdapter,
+    googleCampaignType,
   ]);
 
   const handlePreviewStudioCacheUpdate = useCallback((cache) => {
@@ -2452,12 +2515,78 @@ export default function PreviewTool() {
     return sessionId;
   }, [getAccessToken]);
 
-  const updateAnalysisSession = useCallback(async (updates) => {
-    if (!analysisSessionId) return false;
+  const clearStaleAnalysisSession = useCallback(() => {
+    setAnalysisSessionId(null);
+    lastSessionPayloadRef.current = null;
+    if (typeof window !== "undefined") {
+      localStorage.removeItem(ANALYSIS_SESSION_STORAGE_KEY);
+    }
+  }, []);
 
+  const verifyAnalysisSessionId = useCallback(async (sessionId) => {
+    if (!sessionId) return false;
     try {
       const token = await getAccessToken();
       if (!token) return false;
+
+      const response = await fetch(`/api/session/${encodeURIComponent(sessionId)}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (response.ok) return true;
+      if (response.status === 404) return false;
+
+      let message = "";
+      try {
+        const payload = await response.json();
+        message = String(payload?.error || "");
+      } catch {
+        // Ignore parse errors.
+      }
+      if (/analysis_sessions|schema cache|does not exist/i.test(message)) return false;
+      return false;
+    } catch {
+      return false;
+    }
+  }, [getAccessToken]);
+
+  const updateAnalysisSession = useCallback(async (updates) => {
+    let sessionId = analysisSessionId;
+    if (!sessionId) return false;
+
+    const readUpdateFailure = async (response, fallback) => {
+      try {
+        const payload = await response.json();
+        if (payload?.skipped || payload?.schemaUnavailable) {
+          return { kind: "schema", message: payload?.error || fallback };
+        }
+        if (payload?.notFound) {
+          return { kind: "stale", message: payload?.error || fallback };
+        }
+        if (payload?.error) {
+          return { kind: "error", message: String(payload.error) };
+        }
+      } catch {
+        // Fall through to text body.
+      }
+      try {
+        const text = (await response.text()).trim();
+        if (text) return { kind: "error", message: text.slice(0, 240) };
+      } catch {
+        // Ignore.
+      }
+      return { kind: "error", message: fallback };
+    };
+
+    const isStaleSessionFailure = (failure, status) => {
+      if (status === 404 || failure?.kind === "stale") return true;
+      const message = String(failure?.message || "").toLowerCase();
+      return /pgrst116|not found|0 rows|no rows|multiple \(or no\) rows/.test(message);
+    };
+
+    const attemptUpdate = async (targetSessionId) => {
+      const token = await getAccessToken();
+      if (!token) return { ok: false, failure: { kind: "error", message: "Unauthorized." }, status: 401 };
 
       const response = await fetch("/api/session/update", {
         method: "POST",
@@ -2465,18 +2594,51 @@ export default function PreviewTool() {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ sessionId: analysisSessionId, ...updates }),
+        body: JSON.stringify({ sessionId: targetSessionId, ...updates }),
       });
 
-      if (!response.ok) {
-        let message = "Unable to update analysis session.";
-        try {
-          const payload = await response.json();
-          if (payload?.error) message = payload.error;
-        } catch {
-          // Ignore parse errors and keep fallback message.
+      if (response.ok) return { ok: true };
+
+      const failure = await readUpdateFailure(response, "Unable to update analysis session.");
+      return { ok: false, failure, status: response.status };
+    };
+
+    try {
+      let result = await attemptUpdate(sessionId);
+
+      if (!result.ok && isStaleSessionFailure(result.failure, result.status)) {
+        clearStaleAnalysisSession();
+        const newSessionId = await createAnalysisSession({
+          campaign_goal: campaignGoal || null,
+          vertical: campaignVertical || null,
+          platform: platform || null,
+          status: "draft",
+        });
+        if (newSessionId) {
+          sessionId = newSessionId;
+          result = await attemptUpdate(newSessionId);
         }
-        console.error("Session update failed:", message);
+      }
+
+      if (!result.ok) {
+        const message = result.failure?.message || "Unable to update analysis session.";
+        const isMissingTable = result.failure?.kind === "schema"
+          || /analysis_sessions|schema cache|does not exist/i.test(message);
+        if (isMissingTable) {
+          if (!sessionNetworkWarningShownRef.current) {
+            sessionNetworkWarningShownRef.current = true;
+            console.warn(
+              "Analysis sessions table not found in Supabase. Preview tool will continue without server session persistence. Run supabase/RUN_PREVIEW_TOOL_TABLES.sql in the SQL editor.",
+              message,
+            );
+          }
+          return false;
+        }
+
+        if (!sessionNetworkWarningShownRef.current) {
+          sessionNetworkWarningShownRef.current = true;
+          console.warn("Session update failed:", message);
+        }
         return false;
       }
 
@@ -2488,7 +2650,15 @@ export default function PreviewTool() {
       }
       return false;
     }
-  }, [analysisSessionId, getAccessToken]);
+  }, [
+    analysisSessionId,
+    getAccessToken,
+    clearStaleAnalysisSession,
+    createAnalysisSession,
+    campaignGoal,
+    campaignVertical,
+    platform,
+  ]);
 
   const getUser = useCallback(async () => {
     if (userRef.current) return userRef.current;
@@ -2498,10 +2668,14 @@ export default function PreviewTool() {
   }, []);
 
   const ensureAnalysisSession = useCallback(async () => {
-    if (analysisSessionId) return analysisSessionId;
-
     const user = await getUser();
     if (!user) return null;
+
+    if (analysisSessionId) {
+      const valid = await verifyAnalysisSessionId(analysisSessionId);
+      if (valid) return analysisSessionId;
+      clearStaleAnalysisSession();
+    }
 
     return createAnalysisSession({
       campaign_goal: campaignGoal || null,
@@ -2509,7 +2683,16 @@ export default function PreviewTool() {
       platform: platform || null,
       status: "draft",
     });
-  }, [analysisSessionId, getUser, createAnalysisSession, campaignGoal, campaignVertical, platform]);
+  }, [
+    analysisSessionId,
+    getUser,
+    verifyAnalysisSessionId,
+    clearStaleAnalysisSession,
+    createAnalysisSession,
+    campaignGoal,
+    campaignVertical,
+    platform,
+  ]);
 
   const handlePlatformSelect = useCallback((id) => {
     const allowedGoalIds = PLATFORM_GOAL_IDS[id] || PLATFORM_GOAL_IDS.programmatic;
@@ -2519,6 +2702,7 @@ export default function PreviewTool() {
     setPlatform(id);
     setCampaignGoal(nextGoal);
     if (platformChanged) {
+      setGoogleCampaignType("display");
       setProgrammaticTaskType("");
       setProgrammaticAdGroupCount("");
       setProgrammaticAdGroups([]);
@@ -2841,6 +3025,34 @@ export default function PreviewTool() {
       });
   }, [ensureAnalysisSession, updateAnalysisSession, platform, campaignGoal, campaignAudienceStage]);
 
+  const handleAudienceStageSelect = useCallback((id) => {
+    setCampaignAudienceStage(id);
+
+    void trackUserActivity("button_click", {
+      action_label: "Audience stage selected",
+      platform,
+      campaign_goal: campaignGoal,
+      vertical: campaignVertical,
+      metadata: {
+        action: "audience_stage_select",
+        audience_stage: id,
+      },
+    }, { dedupeKey: `audience-${id}` });
+
+    void ensureAnalysisSession()
+      .then((sessionId) => {
+        if (!sessionId) return;
+        return updateAnalysisSession({
+          platform: platform || null,
+          campaign_goal: campaignGoal || null,
+          vertical: campaignVertical || null,
+        });
+      })
+      .catch((error) => {
+        console.error("Failed to persist audience stage", error);
+      });
+  }, [campaignGoal, campaignVertical, ensureAnalysisSession, platform, updateAnalysisSession]);
+
   const selectedPlatformConfig = PLATFORMS.find((p) => p.id === platform);
   const availableGoals = platform ? (PLATFORM_GOAL_SETS[platform] || PROGRAMMATIC_GOALS) : [];
   const allowedSizes = useMemo(() => (
@@ -3001,7 +3213,7 @@ export default function PreviewTool() {
   }, [analysisSessionId]);
 
   useEffect(() => {
-    if (!mountRef.current || !analysisSessionId) return;
+    if (!mountRef.current || !analysisSessionId || !analysisSessionReady) return;
 
     const status = step >= 4
       ? "preview_ready"
@@ -3032,6 +3244,7 @@ export default function PreviewTool() {
     };
   }, [
     analysisSessionId,
+    analysisSessionReady,
     step,
     analysisLoading,
     campaignGoal,
@@ -3173,9 +3386,12 @@ export default function PreviewTool() {
     setCampaignVertical(null);
     setCampaignAudienceStage(null);
     setCampaignName("");
+    setAdvertiserName("");
+    setAdvertiserId("");
     setAdType("display");
     setCampaignBrief("");
     setCampaignProductFocus("");
+    setGoogleCampaignType("display");
     setLandingUrl("");
     setSizeReviewAcknowledged(false);
     setUrlValidation(null);
@@ -3197,6 +3413,10 @@ export default function PreviewTool() {
     setShowSlotLabels(false);
     setIsHydratingCreatives(false);
     setIsExporting(false);
+    setActiveCampaignId("");
+    setLookupCampaignId("");
+    setLoadedCampaignSnapshot(null);
+    setCampaignAssistantContext(null);
 
     sessionInitRef.current = false;
     lastSessionPayloadRef.current = null;
@@ -3206,12 +3426,16 @@ export default function PreviewTool() {
     localStorage.removeItem("adigator_vertical");
     localStorage.removeItem("adigator_audience_stage");
     localStorage.removeItem("adigator_campaign_name");
+    localStorage.removeItem("adigator_advertiser_name");
+    localStorage.removeItem("adigator_advertiser_id");
     localStorage.removeItem("adigator_ad_type");
     localStorage.removeItem("adigator_campaign_brief");
     localStorage.removeItem("adigator_product_focus");
+    localStorage.removeItem("adigator_google_campaign_type");
     localStorage.removeItem("adigator_landing_url");
     clearStoredUrlValidation();
     localStorage.removeItem(ANALYSIS_SESSION_STORAGE_KEY);
+    localStorage.removeItem(ACTIVE_CAMPAIGN_STORAGE_KEY);
 
     configHydratedRef.current = false;
 
@@ -3311,11 +3535,13 @@ export default function PreviewTool() {
     const initSession = async () => {
       try {
         const id = await ensureAnalysisSession();
-        if (!cancelled && id) {
-          setAnalysisSessionId(id);
+        if (!cancelled) {
+          if (id) setAnalysisSessionId(id);
+          setAnalysisSessionReady(true);
         }
       } catch (error) {
         if (!cancelled) {
+          setAnalysisSessionReady(true);
           console.error("Failed to initialize analysis session", error);
           addToast("Could not start a persistent analysis session.", "error");
         }
@@ -3481,6 +3707,7 @@ export default function PreviewTool() {
               file,
               image: { width: dimensions.width, height: dimensions.height },
               platform,
+              campaignType: platform === "google_ads" ? googleCampaignType : "",
             });
             normalizedValidation = finalizeValidationForPlatform(
               validation,
@@ -3609,6 +3836,7 @@ export default function PreviewTool() {
     adType,
     isProgrammatic,
     schedulePersistCreative,
+    googleCampaignType,
   ]);
 
   const handleProgrammaticFolderSelect = useCallback((files, adGroup) => {
@@ -3767,6 +3995,7 @@ export default function PreviewTool() {
         file: finalFile,
         image: { width: outputWidth, height: outputHeight },
         platform,
+        campaignType: platform === "google_ads" ? googleCampaignType : "",
       });
       const finalSize = validation.size || `${outputWidth}x${outputHeight}`;
       const storedWidth = validation.dimensions?.width || outputWidth;
@@ -3883,7 +4112,7 @@ export default function PreviewTool() {
       compressingIdsRef.current.delete(creativeId);
       setCompressingCreativeIds((prev) => prev.filter((id) => id !== creativeId));
     }
-  }, [platform, addToast, schedulePersistCreative]);
+  }, [platform, googleCampaignType, addToast, schedulePersistCreative]);
 
   const applyCreativeFix = useCallback(async (creativeId, fixAction) => {
     if (!fixAction?.id) return;
@@ -4207,15 +4436,46 @@ export default function PreviewTool() {
           campaignId: activeCampaignId || lookupCampaignId,
           accessToken: campaignAccessToken,
           taskType: programmaticTaskType,
+          googleCampaignType: platform === "google_ads" ? googleCampaignType : "",
         },
       );
-      const reusedCount = results.filter((entry) => entry.brainReused).length;
-      const analyzedCount = results.length - reusedCount;
+      const resultsWithAdGroupContext = results.map((entry, index) => {
+        const creative = creativesToAnalyze[index];
+        const payload = getEntryPayload(entry) || {};
+        const messagingGroupId = buildCreativeMessagingFingerprint(creative, payload);
+        return {
+          ...entry,
+          creative: entry.creative ? {
+            ...entry.creative,
+            adGroupId: creative?.adGroupId || entry.creative.adGroupId || null,
+            adGroupName: creative?.adGroupName || entry.creative.adGroupName || null,
+            adGroupObjective: creative?.adGroupObjective || entry.creative.adGroupObjective || resolvedGoal,
+            messagingGroupId,
+          } : entry.creative,
+          data: payload ? {
+            ...payload,
+            messaging_group: {
+              id: messagingGroupId,
+              basis: "headline_primary_message_cta",
+              note: "Creatives with the same messaging are grouped for summary review; validation issues remain creative-specific.",
+            },
+            ad_group_context: {
+              id: creative?.adGroupId || null,
+              name: creative?.adGroupName || null,
+              objective: creative?.adGroupObjective || resolvedGoal,
+              objective_priority: "ad_group_objective_over_campaign_brief",
+              audience_stage: resolvedAudienceStage,
+            },
+          } : payload,
+        };
+      });
+      const reusedCount = resultsWithAdGroupContext.filter((entry) => entry.brainReused).length;
+      const analyzedCount = resultsWithAdGroupContext.length - reusedCount;
       const mergedResults = shouldMergeAnalysis && existingAnalysis.length
-        ? [...existingAnalysis, ...results]
+        ? [...existingAnalysis, ...resultsWithAdGroupContext]
         : isCreativeAdditionAdditionFlow
-          ? [...existingAnalysis, ...results]
-          : results;
+          ? [...existingAnalysis, ...resultsWithAdGroupContext]
+          : resultsWithAdGroupContext;
       setAnalysisResult(mergedResults);
       writeStoredAnalysisResult(mergedResults);
 
@@ -4227,7 +4487,7 @@ export default function PreviewTool() {
       );
 
       await Promise.all(
-        results.map(async (entry, index) => {
+        resultsWithAdGroupContext.map(async (entry, index) => {
           const supabaseCreativeId = linkedCreatives[index]?.supabaseCreativeId;
           if (!supabaseCreativeId) return;
           await saveAnalyzerResult({
@@ -4245,14 +4505,14 @@ export default function PreviewTool() {
         campaign_goal: resolvedGoal,
         vertical: resolvedVertical,
         metadata: {
-          creative_count: results.length,
+          creative_count: resultsWithAdGroupContext.length,
           audience_stage: resolvedAudienceStage,
           creative_names: creativesForAnalysis.map((c) => c.name).filter(Boolean),
           ad_sizes: creativesForAnalysis.map((c) => c.size),
           replacement_flow: isProgrammaticCreativeReplacementFlow,
           renewal_flow: isProgrammaticRenewalFlow,
         },
-      }, { dedupeKey: `analyzer-complete-${platform}-${effectiveCampaignGoal}-${results.length}` });
+      }, { dedupeKey: `analyzer-complete-${platform}-${effectiveCampaignGoal}-${resultsWithAdGroupContext.length}` });
 
       const authed = await isAuthenticatedUser();
       if (!authed) { /* guest demo already consumed on entry */ }
@@ -4277,7 +4537,7 @@ export default function PreviewTool() {
           baselineCreatives,
           replacementCreatives: creativesForAnalysis,
           baselineAnalysis: baselineAnalysisResult,
-          replacementAnalysis: results,
+          replacementAnalysis: resultsWithAdGroupContext,
         });
         setReplacementComparisonReport(report);
       }
@@ -4294,16 +4554,16 @@ export default function PreviewTool() {
             programmaticAdGroupCount,
           },
           currentCreatives: creativesForAnalysis,
-          currentAnalysis: results,
+          currentAnalysis: resultsWithAdGroupContext,
         });
         setRenewalComparisonReport(report);
       }
 
       const analysisToPersist = isProgrammaticCreativeReplacementFlow && Array.isArray(baselineAnalysisResult)
-        ? [...baselineAnalysisResult, ...results]
+        ? [...baselineAnalysisResult, ...resultsWithAdGroupContext]
         : isCreativeAdditionAdditionFlow
           ? mergedResults
-          : results;
+          : resultsWithAdGroupContext;
       const savedCampaign = await persistProgrammaticCampaignSnapshot(analysisToPersist);
       if (savedCampaign) {
         addToast(`Campaign saved as ${savedCampaign.id}.`, "info");
@@ -4323,6 +4583,8 @@ export default function PreviewTool() {
             size: creative.size,
             valid: creative.valid,
             url: getPersistableCreativeUrl(creative) || creative.url,
+            fullUrl: creative.fullUrl,
+            mediaType: creative.mediaType,
             adGroupId: creative.adGroupId,
             adGroupName: creative.adGroupName,
             adGroupObjective: creative.adGroupObjective,
@@ -5290,16 +5552,6 @@ export default function PreviewTool() {
                 </div>
               </motion.section>
 
-              <motion.section variants={itemVariants} className="space-y-5">
-                <AdvertiserStep1Field
-                  advertiserName={advertiserName}
-                  advertiserId={advertiserId}
-                  existingAdvertisers={existingAdvertisers}
-                  platform={platform}
-                  onAdvertiserNameChange={setAdvertiserName}
-                />
-              </motion.section>
-
               {platform ? (
               <motion.section ref={goalSectionRef} id="setup-goal-section" variants={itemVariants} className="space-y-5">
                 <ProgrammaticStep1Fields
@@ -5311,6 +5563,8 @@ export default function PreviewTool() {
                   applyAdGroupsToAll={applyProgrammaticAdGroupsToAll}
                   campaignName={campaignName}
                   campaignBrief={campaignBrief}
+                  campaignProductFocus={campaignProductFocus}
+                  googleCampaignType={googleCampaignType}
                   campaignVertical={campaignVertical}
                   landingUrl={landingUrl}
                   lookupCampaignId={lookupCampaignId}
@@ -5341,6 +5595,8 @@ export default function PreviewTool() {
                   onApplyAdGroupsToAllChange={handleApplyProgrammaticAdGroupsToAllChange}
                   onCampaignNameChange={setCampaignName}
                   onCampaignBriefChange={setCampaignBrief}
+                  onCampaignProductFocusChange={setCampaignProductFocus}
+                  onGoogleCampaignTypeChange={setGoogleCampaignType}
                   onLandingUrlChange={handleLandingUrlChange}
                   onVerticalChange={handleVerticalSelect}
                   onLookupCampaignIdChange={setLookupCampaignId}
@@ -5367,6 +5623,43 @@ export default function PreviewTool() {
                   </div>
                 ) : null}
               </motion.section>
+              ) : null}
+
+              {platform ? (
+                <motion.section variants={itemVariants} className="space-y-5">
+                  <AdvertiserStep1Field
+                    advertiserName={advertiserName}
+                    advertiserId={advertiserId}
+                    existingAdvertisers={existingAdvertisers}
+                    platform={platform}
+                    onAdvertiserNameChange={setAdvertiserName}
+                  />
+                </motion.section>
+              ) : null}
+
+              {platform ? (
+                <motion.section variants={itemVariants} className="space-y-5">
+                  <div>
+                    <h3 className="studio-heading text-2xl font-bold tracking-tight text-studio-text">Audience</h3>
+                    <p className="mt-1 text-studio-muted">
+                      Select the audience stage so creative messaging is validated against intent, urgency, trust cues, and landing-page expectations.
+                    </p>
+                  </div>
+                  <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                    {AUDIENCE_STAGES.map((audience) => (
+                      <ToolSelectionCard
+                        key={audience.id}
+                        selected={campaignAudienceStage === audience.id}
+                        onClick={() => handleAudienceStageSelect(audience.id)}
+                      >
+                        <h3 className={`studio-heading mb-2 text-xl font-extrabold ${campaignAudienceStage === audience.id ? "text-studio-accent" : "text-studio-text"}`}>
+                          {audience.title}
+                        </h3>
+                        <p className="text-sm leading-relaxed text-studio-muted">{audience.desc}</p>
+                      </ToolSelectionCard>
+                    ))}
+                  </div>
+                </motion.section>
               ) : null}
 
               {missingSetupFields.length > 0 ? (
@@ -6090,6 +6383,12 @@ export default function PreviewTool() {
 
               <div className="flex gap-4 pt-6">
                 <ToolNavBtn variant="back" onClick={goBack}>← Back</ToolNavBtn>
+                <a
+                  href="/dashboard"
+                  className="studio-btn-ghost studio-focus-ring inline-flex items-center justify-center rounded-2xl border border-studio-border px-5 py-3 text-sm font-semibold text-studio-text transition hover:border-studio-accent/60"
+                >
+                  View Analysis in Dashboard
+                </a>
                 {showPreviewStudio ? (
                   <ToolNavBtn onClick={goNext}>Next: Preview Studio →</ToolNavBtn>
                 ) : null}
@@ -6107,6 +6406,12 @@ export default function PreviewTool() {
                   description={platformAdapter.previewStudioDescription}
                 />
                 <div className="flex flex-wrap items-center gap-3">
+                <a
+                  href="/dashboard"
+                  className="studio-btn-ghost studio-focus-ring inline-flex items-center justify-center rounded-2xl border border-studio-border px-5 py-3 text-sm font-semibold text-studio-text transition hover:border-studio-accent/60"
+                >
+                  View Analysis in Dashboard
+                </a>
                 <ToolNavBtn variant="secondary" onClick={handleStartNewAnalysis} className="flex max-w-none flex-none items-center gap-2 px-6">
                   <RotateCcw size={18} /> Start New Analysis
                 </ToolNavBtn>
@@ -6191,6 +6496,7 @@ export default function PreviewTool() {
         <EditCreativeModal
           creative={editModalCreative}
           platform={platform}
+          campaignType={platform === "google_ads" ? googleCampaignType : ""}
           onApply={handleCreativeUpdate}
           onClose={() => setEditModalCreative(null)}
         />

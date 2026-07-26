@@ -58,13 +58,16 @@ export async function POST(request: NextRequest) {
       campaignGoal: String(formData.get("goal") || "awareness").trim(),
       vertical: String(formData.get("vertical") || "technology").trim(),
       targetAudience: String(formData.get("audience_stage") || "cold").trim(),
-      offer: String(formData.get("offer") || "").trim(),
+      offer: String(formData.get("offer") || formData.get("campaign_product_focus") || "").trim(),
       cta: String(formData.get("cta") || "").trim(),
       platform: String(formData.get("platform") || "programmatic").trim(),
       audienceStage: String(formData.get("audience_stage") || "cold").trim(),
-      campaignProductFocus: String(formData.get("campaign_product_focus") || "").trim(),
+      campaignProductFocus: String(formData.get("campaign_product_focus") || formData.get("offer") || "").trim(),
       landingUrl: stripUtmFromUrl(String(formData.get("landing_url") || "").trim()),
       taskType,
+      platformConfig: {
+        googleCampaignType: String(formData.get("google_campaign_type") || "").trim(),
+      },
     };
 
     const supabase = createServerSupabaseClient(token);

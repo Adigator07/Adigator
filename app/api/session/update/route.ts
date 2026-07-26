@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabaseClient, getAccessTokenFromRequest, getAuthenticatedUser } from "../../../lib/supabaseServer";
+import { isSchemaUnavailableError } from "@/app/lib/supabaseErrors";
 
 interface UpdateSessionBody {
   sessionId?: string;
@@ -41,8 +42,6 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       return NextResponse.json({ error: "At least one field must be provided to update." }, { status: 400 });
     }
 
-    updates.updated_at = new Date().toISOString();
-
     const supabase = createServerSupabaseClient(accessToken);
     const { data, error } = await supabase
       .from("analysis_sessions")
@@ -50,10 +49,21 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       .eq("id", sessionId)
       .eq("user_id", user.id)
       .select("id, user_id, campaign_goal, vertical, creative_url, platform, status, created_at, updated_at")
-      .single();
+      .maybeSingle();
 
     if (error) {
+      if (isSchemaUnavailableError(error)) {
+        return NextResponse.json({
+          skipped: true,
+          schemaUnavailable: true,
+          error: error.message,
+        });
+      }
       return NextResponse.json({ error: error.message }, { status: 400 });
+    }
+
+    if (!data) {
+      return NextResponse.json({ error: "Analysis session not found.", notFound: true }, { status: 404 });
     }
 
     return NextResponse.json({ session: data });

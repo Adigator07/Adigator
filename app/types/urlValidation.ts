@@ -29,6 +29,8 @@ export interface UrlValidationRequestBody {
     name: string;
     size?: string;
     mediaType?: string;
+    adGroupName?: string | null;
+    adGroupObjective?: string | null;
     imageBase64?: string;
   }>;
 }
