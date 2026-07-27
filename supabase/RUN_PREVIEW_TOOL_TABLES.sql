@@ -13,7 +13,7 @@ declare
   has_rows boolean;
 begin
   if to_regclass('public.creatives') is null then
-    return;
+    return; 
   end if;
 
   select c.udt_name into id_udt

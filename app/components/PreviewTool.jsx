@@ -156,8 +156,7 @@ import {
   syncAdvertiserFromGenericSession,
   syncAdvertiserFromProgrammaticSnapshot,
 } from "../lib/advertiserStore";
-import ProgrammaticStep1Fields from "./preview-tool/ProgrammaticStep1Fields";
-import AdvertiserStep1Field from "./preview-tool/AdvertiserStep1Field";
+import GoogleAdsConnectPanel from "./preview-tool/GoogleAdsConnectPanel";
 import ProgrammaticFolderSections from "./preview-tool/ProgrammaticFolderSections";
 import { getImageFilesFromDataTransfer, preventDropDefaults } from "../lib/folderUpload";
 import {
@@ -169,6 +168,7 @@ import {
 import { buildVideoUploadValidation } from "../lib/video/videoValidation";
 import UrlUtmValidationReportPanel from "./preview-tool/UrlUtmValidationReportPanel";
 import CampaignAssistantModal from "./preview-tool/CampaignAssistantModal";
+import CampaignSupportChatWidget from "./preview-tool/CampaignSupportChatWidget";
 import MissingSetupFieldsPanel from "./preview-tool/MissingSetupFieldsPanel";
 import {
   getMissingSetupFields,
@@ -960,7 +960,6 @@ export default function PreviewTool() {
   const workflowPersistTimerRef = useRef(null);
   const campaignConfigPersistTimerRef = useRef(null);
   const persistCreativeTimersRef = useRef(new Map());
-  const missingSetupPanelRef = useRef(null);
   const sessionSyncInitializedRef = useRef(false);
   const lastCreativeFingerprintRef = useRef(null);
   const wysiwygExportRef = useRef(null);
@@ -1625,6 +1624,7 @@ export default function PreviewTool() {
   );
 
   const isConfigComplete = isSetupComplete(setupFieldContext);
+  const isStepOneReady = Boolean(platform);
 
   const clearCreativeSessionState = useCallback(() => {
     creativesRef.current.forEach((creative) => revokeCreativeObjectUrls(creative));
@@ -3053,6 +3053,26 @@ export default function PreviewTool() {
       });
   }, [campaignGoal, campaignVertical, ensureAnalysisSession, platform, updateAnalysisSession]);
 
+  const handleGoogleAdsCampaignImport = useCallback((campaign) => {
+    if (!campaign) return;
+
+    if (typeof campaign.name === "string" && campaign.name.trim()) {
+      setCampaignName(campaign.name.trim());
+    }
+
+    if (!campaignGoal && typeof campaign.suggestedGoal === "string" && campaign.suggestedGoal.trim()) {
+      setCampaignGoal(campaign.suggestedGoal.trim());
+    }
+
+    const channel = String(campaign.channelType || "").toUpperCase();
+    if (channel === "DISPLAY" || channel === "VIDEO") {
+      setGoogleCampaignType("display");
+    }
+
+    setSetupPromptHighlighted(false);
+    addToast(`Imported Google Ads campaign: ${campaign.name || campaign.id}`, "success");
+  }, [campaignGoal, addToast]);
+
   const selectedPlatformConfig = PLATFORMS.find((p) => p.id === platform);
   const availableGoals = platform ? (PLATFORM_GOAL_SETS[platform] || PROGRAMMATIC_GOALS) : [];
   const allowedSizes = useMemo(() => (
@@ -3266,15 +3286,9 @@ export default function PreviewTool() {
   );
 
   const goNext = useCallback(async () => {
-    if (step === 1 && !isConfigComplete) {
+    if (step === 1 && !isStepOneReady) {
       setSetupPromptHighlighted(true);
-      missingSetupPanelRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
-      addToast(
-        missingSetupFields.length === 1
-          ? "Complete the required setup item below to continue."
-          : `Complete ${missingSetupFields.length} required setup items below to continue.`,
-        "error",
-      );
+      addToast("Select a platform to continue.", "error");
       return;
     }
     if (step === 2 && !canAdvanceToAnalysis) return;
@@ -3319,7 +3333,7 @@ export default function PreviewTool() {
     router.push(stepHref(nextStep), { scroll: true });
   }, [
     step,
-    isConfigComplete,
+    isStepOneReady,
     canAdvanceToAnalysis,
     effectiveTotalSteps,
     stepHref,
@@ -3341,7 +3355,6 @@ export default function PreviewTool() {
     isProgrammaticUrlUtmFlow,
     programmaticTaskType,
     persistProgrammaticCampaignSnapshot,
-    missingSetupFields.length,
     addToast,
   ]);
 
@@ -3465,14 +3478,14 @@ export default function PreviewTool() {
 
   useEffect(() => {
     if (!mountRef.current) return;
-    if (step > 1 && !isConfigComplete) {
+    if (step > 1 && !isStepOneReady) {
       router.replace(stepHref(1), { scroll: false });
     }
-  }, [step, isConfigComplete, router, stepHref]);
+  }, [step, isStepOneReady, router, stepHref]);
 
   useEffect(() => {
-    if (isConfigComplete) setSetupPromptHighlighted(false);
-  }, [isConfigComplete]);
+    if (isStepOneReady) setSetupPromptHighlighted(false);
+  }, [isStepOneReady]);
 
   useEffect(() => {
     if (!mountRef.current) return;
@@ -5441,7 +5454,7 @@ export default function PreviewTool() {
         label,
         lockReason:
           index === 1
-            ? "Complete platform, goal, and vertical first."
+            ? "Select a platform first."
             : index >= 2
               ? "Upload and validate at least one creative first."
               : undefined,
@@ -5451,19 +5464,19 @@ export default function PreviewTool() {
 
   const lockedWizardSteps = useMemo(() => {
     const locked = [];
-    if (!isConfigComplete) locked.push("2", "3", "4");
+    if (!isStepOneReady) locked.push("2", "3", "4");
     else if (!canAdvanceToAnalysis) locked.push("3", "4");
     return locked;
-  }, [isConfigComplete, canAdvanceToAnalysis]);
+  }, [isStepOneReady, canAdvanceToAnalysis]);
 
   const goToStep = useCallback(
     (targetId) => {
       const targetStep = Number(targetId);
       if (!Number.isFinite(targetStep) || targetStep < 1 || targetStep > TOTAL_STEPS) return;
       if (targetStep === step) return;
-      if (targetStep > 1 && !isConfigComplete) {
+      if (targetStep > 1 && !isStepOneReady) {
         setSetupPromptHighlighted(true);
-        addToast("Complete required setup fields on Step 1 before continuing.", "error");
+        addToast("Select a platform on Step 1 before continuing.", "error");
         router.push(stepHref(1), { scroll: true });
         return;
       }
@@ -5474,7 +5487,7 @@ export default function PreviewTool() {
       if (targetStep >= 3 && uploadedCreatives.length === 0) return;
       router.push(stepHref(targetStep), { scroll: true });
     },
-    [step, isConfigComplete, canAdvanceToAnalysis, uploadedCreatives.length, router, stepHref, addToast],
+    [step, isStepOneReady, canAdvanceToAnalysis, uploadedCreatives.length, router, stepHref, addToast],
   );
 
 
@@ -5522,20 +5535,6 @@ export default function PreviewTool() {
           {/* STEP 1: SETUP CAMPAIGN */}
           {step === 1 && (
             <motion.div key="step-1" variants={stepPanelVariants} initial="hidden" animate="visible" exit="exit" className="space-y-8 pb-28">
-              <motion.section variants={itemVariants} className="space-y-5">
-                <ToolSectionHeader
-                  step={1}
-                  title="Campaign Setup"
-                  description="Configure platform, goal, and vertical before uploading creatives."
-                />
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
-                  <ToolSummaryChip label="Platform" value={selectedPlatformConfig?.title || "Not selected"} />
-                  <ToolSummaryChip label="Campaign Goal" value={campaignGoal ? getGoalTitle(campaignGoal, platform) : "Not selected"} />
-                  <ToolSummaryChip label="Industry Vertical" value={campaignVertical ? (VERTICAL_TITLE_MAP[campaignVertical] || campaignVertical) : "Not selected"} />
-                  {activeCampaignId ? <ToolSummaryChip label="Campaign ID" value={activeCampaignId} /> : null}
-                </div>
-              </motion.section>
-
               <motion.section variants={itemVariants} id="setup-platform-section" className="space-y-5">
                 <div>
                   <h3 className="studio-heading text-2xl font-bold tracking-tight text-studio-text">Choose Advertising Platform</h3>
@@ -5552,237 +5551,17 @@ export default function PreviewTool() {
                 </div>
               </motion.section>
 
-              {platform ? (
               <motion.section ref={goalSectionRef} id="setup-goal-section" variants={itemVariants} className="space-y-5">
-                <ProgrammaticStep1Fields
-                  platform={platform}
-                  taskType={programmaticTaskType}
-                  adGroupCount={programmaticAdGroupCount}
-                  adGroups={programmaticAdGroups}
-                  selectedAdGroupIds={selectedProgrammaticAdGroupIds}
-                  applyAdGroupsToAll={applyProgrammaticAdGroupsToAll}
-                  campaignName={campaignName}
-                  campaignBrief={campaignBrief}
-                  campaignProductFocus={campaignProductFocus}
-                  googleCampaignType={googleCampaignType}
-                  campaignVertical={campaignVertical}
-                  landingUrl={landingUrl}
-                  lookupCampaignId={lookupCampaignId}
-                  campaignId={activeCampaignId}
-                  campaignOwnerId={campaignOwnerId}
-                  campaignAccessToken={campaignAccessToken}
-                  advertiserId={advertiserId}
-                  advertiserName={advertiserName}
-                  loadedCampaign={loadedCampaignSnapshot}
-                  creativeAdditionMode={creativeAdditionMode}
-                  creativeAdditionFindError={creativeAdditionFindError}
-                  verticals={VERTICALS}
-                  adType={adType}
-                  onAdTypeChange={setAdType}
-                  campaignIntent={loadedCampaignSnapshot?.campaignIntent || ""}
-                  effectiveCampaignGoal={effectiveCampaignGoal || campaignGoal || ""}
-                  onBriefInsightsChange={setLiveBriefInsights}
-                  objectiveOptions={isProgrammatic ? undefined : availableGoals.map((g) => ({ id: g.id, label: g.title }))}
-                  supportsCustomObjective={isProgrammatic}
-                  onTaskTypeChange={handleProgrammaticTaskTypeChange}
-                  onAdGroupCountChange={handleProgrammaticAdGroupCountChange}
-                  onAdGroupNameChange={handleProgrammaticAdGroupNameChange}
-                  onAdGroupObjectiveChange={handleProgrammaticAdGroupObjectiveChange}
-                  onAdGroupCustomObjectiveChange={handleProgrammaticAdGroupCustomObjectiveChange}
-                  onAddAdGroup={handleAddProgrammaticAdGroup}
-                  onRemoveAdGroup={handleRemoveProgrammaticAdGroup}
-                  onSelectedAdGroupIdsChange={handleSelectedProgrammaticAdGroupIdsChange}
-                  onApplyAdGroupsToAllChange={handleApplyProgrammaticAdGroupsToAllChange}
-                  onCampaignNameChange={setCampaignName}
-                  onCampaignBriefChange={setCampaignBrief}
-                  onCampaignProductFocusChange={setCampaignProductFocus}
-                  onGoogleCampaignTypeChange={setGoogleCampaignType}
-                  onLandingUrlChange={handleLandingUrlChange}
-                  onVerticalChange={handleVerticalSelect}
-                  onLookupCampaignIdChange={setLookupCampaignId}
-                  onFindCampaign={handleFindProgrammaticCampaign}
-                  onAdvertiserCampaignSelect={handleAdvertiserCampaignSelect}
-                  onCreativeAdditionModeChange={handleCreativeAdditionModeChange}
-                />
-                {isProgrammatic && programmaticTaskType && !isProgrammaticSetup && !isProgrammaticCreativeAdditionFlow && !isProgrammaticCreativeReplacementFlow && !isProgrammaticUrlUtmFlow && (!isProgrammaticRenewalFlow || (renewalReferenceSnapshot && programmaticAdGroups.length === 0)) ? (
-                  <div className="space-y-5">
-                    <div>
-                      <h3 className="studio-heading text-2xl font-bold tracking-tight text-studio-text">What is the campaign objective?</h3>
-                      <p className="mt-1 text-studio-muted">Select the marketing intent for this programmatic task.</p>
-                    </div>
-                    <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-                      {availableGoals.map((g) => (
-                        <ToolSelectionCard key={g.id} selected={campaignGoal === g.id} onClick={() => handleGoalSelect(g.id)}>
-                          <div className="mb-4 text-5xl">{g.emoji}</div>
-                          <p className="mb-1 text-xs font-bold uppercase tracking-widest text-studio-accent">{g.subtitle}</p>
-                          <h3 className={`studio-heading mb-2 text-xl font-extrabold leading-snug ${campaignGoal === g.id ? "text-studio-accent" : "text-studio-text"}`}>{g.title}</h3>
-                          <p className="mb-6 text-sm leading-relaxed text-studio-muted">{g.desc}</p>
-                        </ToolSelectionCard>
-                      ))}
-                    </div>
-                  </div>
-                ) : null}
-              </motion.section>
-              ) : null}
-
-              {platform ? (
-                <motion.section variants={itemVariants} className="space-y-5">
-                  <AdvertiserStep1Field
-                    advertiserName={advertiserName}
-                    advertiserId={advertiserId}
-                    existingAdvertisers={existingAdvertisers}
-                    platform={platform}
-                    onAdvertiserNameChange={setAdvertiserName}
-                  />
-                </motion.section>
-              ) : null}
-
-              {platform ? (
-                <motion.section variants={itemVariants} className="space-y-5">
-                  <div>
-                    <h3 className="studio-heading text-2xl font-bold tracking-tight text-studio-text">Audience</h3>
-                    <p className="mt-1 text-studio-muted">
-                      Select the audience stage so creative messaging is validated against intent, urgency, trust cues, and landing-page expectations.
-                    </p>
-                  </div>
-                  <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-                    {AUDIENCE_STAGES.map((audience) => (
-                      <ToolSelectionCard
-                        key={audience.id}
-                        selected={campaignAudienceStage === audience.id}
-                        onClick={() => handleAudienceStageSelect(audience.id)}
-                      >
-                        <h3 className={`studio-heading mb-2 text-xl font-extrabold ${campaignAudienceStage === audience.id ? "text-studio-accent" : "text-studio-text"}`}>
-                          {audience.title}
-                        </h3>
-                        <p className="text-sm leading-relaxed text-studio-muted">{audience.desc}</p>
-                      </ToolSelectionCard>
-                    ))}
-                  </div>
-                </motion.section>
-              ) : null}
-
-              {missingSetupFields.length > 0 ? (
-                <div ref={missingSetupPanelRef}>
-                  <MissingSetupFieldsPanel
-                    fields={missingSetupFields}
-                    values={{
-                      advertiserName,
-                      campaignName,
-                      campaignBrief,
-                      landingUrl,
-                      programmaticTaskType,
-                      programmaticAdGroupCount,
-                      lookupCampaignId,
-                      campaignVertical,
-                    }}
-                    highlighted={setupPromptHighlighted}
-                    verticalOptions={VERTICALS}
-                    onAdvertiserNameChange={setAdvertiserName}
-                    onCampaignNameChange={setCampaignName}
-                    onCampaignBriefChange={setCampaignBrief}
-                    onLandingUrlChange={handleLandingUrlChange}
-                    onProgrammaticTaskTypeChange={handleProgrammaticTaskTypeChange}
-                    onProgrammaticAdGroupCountChange={handleProgrammaticAdGroupCountChange}
-                    onLookupCampaignIdChange={setLookupCampaignId}
-                    onVerticalChange={handleVerticalSelect}
-                    onFindCampaign={() => { void handleFindProgrammaticCampaign(); }}
-                  />
+                <div>
+                  <h3 className="studio-heading text-2xl font-bold tracking-tight text-studio-text">Google Ads Account</h3>
+                  <p className="mt-1 text-studio-muted">Connect your Google Ads account to import campaign details.</p>
                 </div>
-              ) : null}
-
-              <ToolFooterBar>
-                <ToolNavBtn variant="back" onClick={goBack}>
-                  ← Back
-                </ToolNavBtn>
-                <ToolNavBtn onClick={goNext}>
-                  Creative Validation →
-                </ToolNavBtn>
-              </ToolFooterBar>
-            </motion.div>
-          )}
-
-          {/* STEP 2: CREATIVE VALIDATION */}
-          {step === 2 && (
-            <motion.div key="step-2" variants={stepPanelVariants} initial="hidden" animate="visible" exit="exit" className="space-y-8 pb-8">
-              <ToolSectionHeader
-                step={2}
-                title="Creative Validation"
-                description={`Upload and validate creatives for ${selectedPlatformConfig?.title || "your platform"}. ${allowedSizes.length} supported formats across inventory clusters.`}
-              />
-
-              <ToolSurface className="space-y-0 overflow-hidden p-0">
-                <button
-                  type="button"
-                  onClick={() => setInventoryIntelligenceOpen((open) => !open)}
-                  className="flex w-full items-center justify-between gap-3 px-5 py-4 text-left transition hover:bg-white/[0.03]"
-                  aria-expanded={inventoryIntelligenceOpen}
-                >
-                  <div className="min-w-0">
-                    <h3 className="studio-heading text-lg font-bold text-studio-text">
-                      {PLATFORM_INTELLIGENCE_LABEL[platform] || "Inventory Intelligence"}
-                    </h3>
-                    <p className="mt-0.5 text-xs text-studio-muted">
-                      {inventoryIntelligenceOpen
-                        ? "Hide format matrix and distribution channels"
-                        : "Expand to view supported formats and distribution channels"}
-                    </p>
-                  </div>
-                  <div className="flex shrink-0 items-center gap-2">
-                    <span className="rounded-full border border-studio-accent/30 bg-studio-accent/10 px-3 py-1 text-[10px] font-semibold text-studio-accent">
-                      {selectedPlatformConfig?.title || "Platform"}
-                    </span>
-                    <ChevronDown
-                      size={18}
-                      className={`text-studio-muted transition-transform duration-200 ${inventoryIntelligenceOpen ? "rotate-180" : ""}`}
-                    />
-                  </div>
-                </button>
-
-                {inventoryIntelligenceOpen ? (
-                  <div className="space-y-4 border-t border-studio-border px-5 pb-5 pt-4">
-                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
-                      {Object.entries(selectedPlatformConfig?.groups || {}).map(([groupKey, sizes], index) => {
-                        const themes = [
-                          { box: "border-blue-500/25 bg-blue-500/8", title: "text-blue-300", chip: "text-blue-100" },
-                          { box: "border-purple-500/25 bg-purple-500/8", title: "text-purple-300", chip: "text-purple-100" },
-                          { box: "border-fuchsia-500/25 bg-fuchsia-500/8", title: "text-fuchsia-300", chip: "text-fuchsia-100" },
-                          { box: "border-emerald-500/25 bg-emerald-500/8", title: "text-emerald-300", chip: "text-emerald-100" },
-                        ];
-                        const theme = themes[index % themes.length];
-                        return (
-                          <div key={groupKey} className={`rounded-2xl border p-4 ${theme.box}`}>
-                            <p className={`mb-3 text-xs font-bold uppercase tracking-wider ${theme.title}`}>{GROUP_LABELS[groupKey] || groupKey}</p>
-                            <div className="flex flex-wrap gap-2">
-                              {sizes.map((size) => (
-                                <span key={`${groupKey}-${size}`} className={`rounded-md border border-white/10 bg-white/10 px-2 py-1 text-[11px] ${theme.chip}`}>
-                                  {size}
-                                </span>
-                              ))}
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-
-                    <div className="rounded-xl border border-studio-border bg-black/20 p-3">
-                      <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-studio-muted">Platform Distribution Intelligence</p>
-                      <div className="flex flex-wrap gap-2">
-                        {(platform === "programmatic"
-                          ? DSP_PARTNERS
-                          : platform === "google_ads"
-                            ? ["Google Display Network", "Responsive Display", "YouTube Companion"]
-                            : ["Meta Feed", "Meta Stories", "Meta Reels", "Meta Carousel"]
-                        ).map((channel) => (
-                          <span key={channel} className="rounded-md border border-studio-success/30 bg-studio-success/10 px-2 py-1 text-[11px] text-studio-success">
-                            {channel}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                ) : null}
-              </ToolSurface>
+                <GoogleAdsConnectPanel
+                  enabled={platform === "google_ads"}
+                  onImportCampaign={handleGoogleAdsCampaignImport}
+                  campaignName={campaignName}
+                />
+              </motion.section>
 
               {!usesProgrammaticFolderSections && creatives.length > 0 ? (
                 <div className="space-y-4">
@@ -6501,6 +6280,17 @@ export default function PreviewTool() {
           onClose={() => setEditModalCreative(null)}
         />
       )}
+
+      <CampaignSupportChatWidget
+        step={step}
+        platform={platform}
+        campaignGoal={campaignGoal}
+        campaignVertical={campaignVertical}
+        campaignName={campaignName}
+        advertiserName={advertiserName}
+        landingUrl={landingUrl}
+        missingSetupFields={missingSetupFields.map((field) => field.label)}
+      />
 
       <CampaignAssistantModal
         open={assistantModalOpen}
