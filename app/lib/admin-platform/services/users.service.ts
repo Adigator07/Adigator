@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { getFirebaseAdminAuth } from "@/app/lib/firebase/admin";
 import type { AdminUser, UserStatus } from "../types";
 
 export type UserListQuery = {
@@ -125,8 +126,7 @@ export async function updateUserProfile(
 }
 
 export async function deleteUser(supabase: SupabaseClient, userId: string) {
-  const { error } = await supabase.auth.admin.deleteUser(userId);
-  if (error) throw new Error(error.message);
+  await getFirebaseAdminAuth().deleteUser(userId);
 }
 
 export function usersToCsv(users: AdminUser[]): string {

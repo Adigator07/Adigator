@@ -2,7 +2,9 @@
 
 import { useState, useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { supabase } from "../lib/supabase";
+import { onIdTokenChanged, signOut } from "firebase/auth";
+import { getFirebaseClientAuth } from "../lib/firebase/client";
+import { getClientProfileData } from "../lib/firestore/clientProfiles";
 import Sidebar from "../components/sidebar";
 import Topbar from "../components/topbar";
 import { AdminAuthProvider } from "../lib/admin-platform/AdminAuthContext";
@@ -11,54 +13,101 @@ import { OrgAuthProvider } from "../lib/organization-platform/OrgAuthContext";
 function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [user, setUser] = useState<any>(null);
+  const [authReady, setAuthReady] = useState(false);
   const router = useRouter();
   const pathname = usePathname();
   const isAdminRoute = pathname?.startsWith("/dashboard/admin");
   const isOrgRoute = pathname?.startsWith("/dashboard/organization");
 
+  const authDebug = (event: string, data?: Record<string, unknown>) => {
+    try {
+      console.info("[AUTH_DASHBOARD]", event, {
+        ts: new Date().toISOString(),
+        path: window.location.pathname,
+        ...data,
+      });
+    } catch {
+      // Ignore logging failures.
+    }
+  };
+
   useEffect(() => {
-    const getUser = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) { router.push("/login"); return; }
+    const auth = getFirebaseClientAuth();
 
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("status")
-        .eq("id", session.user.id)
-        .maybeSingle();
-
-      if (profile?.status && profile.status !== "active") {
-        await supabase.auth.signOut();
-        router.push(profile.status === "pending_verification" ? "/login?pending=1" : "/login?disabled=1");
+    const syncUser = async (firebaseUser: { uid: string; email: string | null; displayName: string | null } | null) => {
+      authDebug("sync_start", { hasUser: Boolean(firebaseUser), uid: firebaseUser?.uid ?? null });
+      if (!firebaseUser) {
+        setUser(null);
+        setAuthReady(true);
+        authDebug("sync_no_user");
         return;
       }
 
-      setUser(session.user);
+      const profile = await Promise.race([
+        getClientProfileData<{ status?: string; role?: string; fullName?: string }>(firebaseUser.uid),
+        new Promise<null>((resolve) => {
+          window.setTimeout(() => resolve(null), 1200);
+        }),
+      ]);
+      const status = profile?.status || "active";
+      authDebug("profile_resolved", { hasProfile: Boolean(profile), status, role: profile?.role ?? null });
+
+      if (status !== "active") {
+        authDebug("status_blocked", { status });
+        await signOut(auth);
+        router.push(status === "pending_verification" ? "/login?pending=1" : "/login?disabled=1");
+        return;
+      }
+
+      setUser({
+        id: firebaseUser.uid,
+        email: firebaseUser.email,
+        user_metadata: {
+          full_name: profile?.fullName || firebaseUser.displayName || "",
+          role: profile?.role || "end_client",
+        },
+      });
+      setAuthReady(true);
+      authDebug("sync_ready", { role: profile?.role || "end_client" });
     };
-    getUser();
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, session) => {
-      if (!session) {
-        router.push("/login");
-        return;
-      }
-      void (async () => {
-        const { data: profile } = await supabase
-          .from("profiles")
-          .select("status")
-          .eq("id", session.user.id)
-          .maybeSingle();
 
-        if (profile?.status && profile.status !== "active") {
-          await supabase.auth.signOut();
-          router.push(profile.status === "pending_verification" ? "/login?pending=1" : "/login?disabled=1");
-          return;
-        }
-
-        setUser(session.user);
-      })();
+    const unsubscribe = onIdTokenChanged(auth, (firebaseUser) => {
+      authDebug("onIdTokenChanged", { hasUser: Boolean(firebaseUser), uid: firebaseUser?.uid ?? null });
+      void syncUser(firebaseUser ? {
+        uid: firebaseUser.uid,
+        email: firebaseUser.email,
+        displayName: firebaseUser.displayName,
+      } : null);
     });
-    return () => subscription.unsubscribe();
+
+    return () => unsubscribe();
   }, [router]);
+
+  useEffect(() => {
+    if (!authReady || isAdminRoute || isOrgRoute) return;
+    if (user) return;
+
+    const timer = window.setTimeout(() => {
+      const auth = getFirebaseClientAuth();
+      if (!auth.currentUser) {
+        authDebug("redirect_login_timeout");
+        router.replace("/login");
+      }
+    }, 8000);
+
+    return () => window.clearTimeout(timer);
+  }, [authReady, isAdminRoute, isOrgRoute, router, user]);
+
+  if (!authReady && !isAdminRoute && !isOrgRoute) {
+    return (
+      <div className="min-h-screen bg-[#050816] text-white flex items-center justify-center">
+        <div className="flex flex-col items-center gap-3">
+          <div className="h-10 w-10 animate-spin rounded-full border-4 border-white/20 border-t-white" />
+          <p className="text-sm text-white/45">Loading your dashboard…</p>
+        </div>
+      </div>
+    );
+  }
 
   if (isAdminRoute || isOrgRoute) {
     return <>{children}</>;

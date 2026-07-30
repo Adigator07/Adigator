@@ -4,6 +4,7 @@ import { getFirebaseAdminFirestore } from "@/app/lib/firebase/admin";
 export type UserProfile = {
   uid: string;
   email: string;
+  username: string;
   fullName: string;
   organizationId: string;
   role: string;
@@ -13,6 +14,7 @@ export type UserProfile = {
 
 type UserProfileInput = {
   email: string;
+  username?: string;
   fullName?: string;
   organizationId?: string;
   role?: string;
@@ -24,10 +26,12 @@ function toIso(value: unknown): string {
 }
 
 function mapProfile(uid: string, data: Record<string, unknown>): UserProfile {
+  const resolvedUsername = String(data.username || data.fullName || "");
   return {
     uid,
     email: String(data.email || ""),
-    fullName: String(data.fullName || ""),
+    username: resolvedUsername,
+    fullName: String(data.fullName || resolvedUsername || ""),
     organizationId: String(data.organizationId || ""),
     role: String(data.role || "member"),
     createdAt: toIso(data.createdAt),
@@ -49,6 +53,7 @@ export async function upsertUserProfile(uid: string, input: UserProfileInput): P
 
   const payload: Record<string, unknown> = {
     email: input.email.trim(),
+    username: input.username?.trim() || input.fullName?.trim() || "",
     fullName: input.fullName?.trim() || "",
     organizationId: input.organizationId?.trim() || "",
     role: input.role?.trim() || "member",

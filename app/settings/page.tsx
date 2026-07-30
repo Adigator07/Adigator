@@ -1,21 +1,92 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { ArrowLeft, Bell, Mail, Shield, User } from "lucide-react";
-import { supabase } from "../lib/supabase";
+import { onAuthStateChanged, updateProfile } from "firebase/auth";
+import { doc, getDoc, serverTimestamp, setDoc } from "firebase/firestore";
+import { getFirebaseClientAuth, getFirebaseClientFirestore } from "../lib/firebase/client";
 
 export default function SettingsPage() {
   const [user, setUser] = useState<any>(null);
+  const [username, setUsername] = useState("");
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
-      setUser(data.user);
-      setLoading(false);
+    const auth = getFirebaseClientAuth();
+    const db = getFirebaseClientFirestore();
+    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+      void (async () => {
+        if (!firebaseUser) {
+          setUser(null);
+          setLoading(false);
+          return;
+        }
+
+        const profileSnap = await getDoc(doc(db, "userProfiles", firebaseUser.uid));
+        const profile = profileSnap.exists() ? profileSnap.data() : null;
+        const resolvedUsername = profile?.username || firebaseUser.displayName || profile?.fullName || "";
+        setUser({
+          id: firebaseUser.uid,
+          email: firebaseUser.email,
+          user_metadata: {
+            full_name: profile?.fullName || resolvedUsername,
+          },
+        });
+        setUsername(resolvedUsername);
+        setLoading(false);
+      })();
     });
+
+    return () => unsubscribe();
   }, []);
+
+  const handleUsernameSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const trimmedUsername = username.trim();
+    if (!trimmedUsername) {
+      setError("Please enter a username.");
+      return;
+    }
+
+    setSaving(true);
+    setError("");
+    setMessage("");
+
+    try {
+      const auth = getFirebaseClientAuth();
+      const currentUser = auth.currentUser;
+      if (!currentUser) {
+        throw new Error("You need to be signed in to update your username.");
+      }
+
+      await updateProfile(currentUser, { displayName: trimmedUsername });
+      await setDoc(doc(getFirebaseClientFirestore(), "userProfiles", currentUser.uid), {
+        email: currentUser.email || "",
+        username: trimmedUsername,
+        fullName: trimmedUsername,
+        updatedAt: serverTimestamp(),
+      }, { merge: true });
+
+      setUser((current: any) => current ? {
+        ...current,
+        user_metadata: {
+          ...(current.user_metadata || {}),
+          full_name: trimmedUsername,
+        },
+      } : current);
+      setMessage("Username saved.");
+    } catch (submitError) {
+      const submitMessage = submitError instanceof Error ? submitError.message : "Unable to save username.";
+      setError(submitMessage);
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const email = user?.email || "";
   const fullName = user?.user_metadata?.full_name || "";
@@ -45,10 +116,18 @@ export default function SettingsPage() {
           {loading ? (
             <div className="h-20 animate-pulse rounded-xl bg-white/5" />
           ) : (
-            <div className="space-y-4">
+            <form onSubmit={handleUsernameSubmit} className="space-y-4">
               <div>
-                <label className="text-xs uppercase tracking-wide text-white/40">Name</label>
-                <p className="mt-1 text-white font-medium">{fullName || "Not set"}</p>
+                <label htmlFor="username" className="text-xs uppercase tracking-wide text-white/40">Username</label>
+                <input
+                  id="username"
+                  type="text"
+                  autoComplete="username"
+                  value={username}
+                  onChange={(event) => setUsername(event.target.value)}
+                  className="mt-1 w-full rounded-xl border border-white/10 bg-black/20 px-4 py-3 text-white outline-none transition placeholder:text-white/25 focus:border-sky-400/60"
+                  placeholder="Choose a username"
+                />
               </div>
               <div>
                 <label className="text-xs uppercase tracking-wide text-white/40">Email</label>
@@ -57,7 +136,18 @@ export default function SettingsPage() {
                   {email}
                 </p>
               </div>
-            </div>
+              <div className="flex items-center gap-3">
+                <button
+                  type="submit"
+                  disabled={saving}
+                  className="inline-flex items-center rounded-xl bg-sky-500 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-sky-400 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {saving ? "Saving…" : "Save username"}
+                </button>
+                {message ? <p className="text-sm text-emerald-300">{message}</p> : null}
+                {error ? <p className="text-sm text-red-300">{error}</p> : null}
+              </div>
+            </form>
           )}
         </motion.section>
 

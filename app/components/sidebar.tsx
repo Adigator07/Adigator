@@ -2,7 +2,8 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { supabase } from "../lib/supabase";
+import { signOut } from "firebase/auth";
+import { getFirebaseClientAuth } from "../lib/firebase/client";
 import { useAdminAuth } from "../lib/admin-platform/AdminAuthContext";
 import { useOrgAuth } from "../lib/organization-platform/OrgAuthContext";
 import {
@@ -38,7 +39,7 @@ export default function Sidebar({ collapsed, setCollapsed, user }: any) {
   const { isOrgAdmin } = useOrgAuth();
 
   const handleLogout = async () => {
-    await supabase.auth.signOut();
+    await signOut(getFirebaseClientAuth());
     router.push("/login");
   };
 

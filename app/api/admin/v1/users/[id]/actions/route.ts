@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { getFirebaseAdminAuth } from "@/app/lib/firebase/admin";
 import { withAdminAuth, jsonError } from "@/app/lib/admin-platform/middleware/withAdminAuth";
 import { writeAuditLog } from "@/app/lib/admin-platform/services/audit.service";
 import {
@@ -109,10 +110,7 @@ export async function POST(request: Request, { params }: RouteParams) {
         break;
 
       case "reset_password":
-        await gate.ctx.supabase.auth.admin.generateLink({
-          type: "recovery",
-          email: body.email,
-        });
+        await getFirebaseAdminAuth().generatePasswordResetLink(body.email);
         await writeAuditLog(gate.ctx.supabase, {
           adminId: gate.ctx.auth.userId,
           action: "user.reset_password",

@@ -2,7 +2,9 @@
 import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Search, Bell, ChevronDown, User, Settings, LogOut } from "lucide-react";
-import { supabase } from "../lib/supabase";
+import { signOut } from "firebase/auth";
+import { getFirebaseClientAuth } from "../lib/firebase/client";
+import { getClientProfileData } from "../lib/firestore/clientProfiles";
 import { useRouter } from "next/navigation";
 import { getRoleLabel } from "../lib/communications/roleLabels";
 
@@ -41,17 +43,14 @@ export default function Topbar({ user }: any) {
     }
 
     void (async () => {
-      const { data } = await supabase
-        .from("profiles")
-        .select("role")
-        .eq("id", user.id)
-        .maybeSingle();
-      if (data?.role) setRoleLabel(getRoleLabel(data.role));
+      const profile = await getClientProfileData<{ role?: string }>(user.id);
+      const profileRole = profile?.role;
+      if (profileRole) setRoleLabel(getRoleLabel(profileRole));
     })();
   }, [user?.id, user?.user_metadata?.role]);
 
   const handleLogout = async () => {
-    await supabase.auth.signOut();
+    await signOut(getFirebaseClientAuth());
     router.push("/login");
   };
 
@@ -59,6 +58,7 @@ export default function Topbar({ user }: any) {
     hidden:  { opacity: 0, y: -8, scale: 0.97 },
     visible: { opacity: 1, y: 0,  scale: 1 },
   };
+  const emailDomain = user?.email?.split("@")[1] || "";
 
   return (
     <div className="h-16 border-b border-white/10 flex items-center justify-between px-6 bg-[#050816]/80 backdrop-blur-xl shrink-0 gap-4">
@@ -132,7 +132,7 @@ export default function Topbar({ user }: any) {
                 {user?.user_metadata?.full_name || user?.email?.split("@")[0] || "User"}
               </p>
               <p className="text-[10px] text-white/30 leading-tight">
-                {roleLabel || user?.email?.split("@")[1] ? `@${user.email.split("@")[1]}` : "Member"}
+                {roleLabel || emailDomain ? `@${emailDomain}` : "Member"}
               </p>
             </div>
             <ChevronDown size={14} className="text-white/30 hidden sm:block" />

@@ -8,8 +8,9 @@ export const runtime = "nodejs";
 export async function GET(request: NextRequest) {
   try {
     const forceAccountSelect = request.nextUrl.searchParams.get("useDifferent") === "1";
+    const loginHint = request.nextUrl.searchParams.get("loginHint") || undefined;
     const state = randomUUID();
-    const authUrl = buildGoogleAdsAuthUrl(request.nextUrl.origin, state, forceAccountSelect);
+    const authUrl = buildGoogleAdsAuthUrl(request.nextUrl.origin, state, forceAccountSelect, loginHint);
 
     const response = NextResponse.redirect(authUrl, { status: 302 });
     writeGoogleAdsState(response, state);

@@ -1,4 +1,5 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { getFirebaseAdminAuth } from "@/app/lib/firebase/admin";
 import {
   hasPermission,
   isStaffRole,
@@ -24,15 +25,20 @@ export async function authenticateAdminRequest(
   supabase: SupabaseClient,
   accessToken: string,
 ): Promise<{ ok: true; ctx: AdminAuthContext } | { ok: false; status: number; error: string }> {
-  const { data: userData, error: authError } = await supabase.auth.getUser(accessToken);
-  if (authError || !userData.user) {
+  let decodedUid = "";
+  let decodedEmail = "";
+  try {
+    const decoded = await getFirebaseAdminAuth().verifyIdToken(accessToken);
+    decodedUid = decoded.uid;
+    decodedEmail = decoded.email || "";
+  } catch {
     return { ok: false, status: 401, error: "Invalid or expired session" };
   }
 
   const { data: profile, error: profileError } = await supabase
     .from("profiles")
     .select("id, email, role, admin_role, status")
-    .eq("id", userData.user.id)
+    .eq("id", decodedUid)
     .maybeSingle();
 
   if (profileError || !profile) {
@@ -52,7 +58,7 @@ export async function authenticateAdminRequest(
     ok: true,
     ctx: {
       userId: profile.id,
-      email: profile.email,
+      email: profile.email || decodedEmail,
       role,
       permissions: [],
     },

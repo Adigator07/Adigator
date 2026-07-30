@@ -1,4 +1,4 @@
-import { createServerAuthClient } from "./serverClient";
+import { getFirebaseAdminAuth } from "@/app/lib/firebase/admin";
 import { PASSWORD_RESET_REQUEST_MESSAGE } from "./constants";
 
 function getPasswordResetRedirectUrl(): string {
@@ -19,9 +19,9 @@ export async function requestPasswordResetEmail(email: string): Promise<{
   message: string;
 }> {
   try {
-    const supabase = createServerAuthClient();
-    await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: getPasswordResetRedirectUrl(),
+    await getFirebaseAdminAuth().generatePasswordResetLink(email, {
+      url: getPasswordResetRedirectUrl(),
+      handleCodeInApp: false,
     });
   } catch (error) {
     console.warn("[auth-reset] password reset request error:", error);

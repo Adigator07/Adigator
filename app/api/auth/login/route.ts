@@ -16,14 +16,15 @@ import {
 } from "@/app/lib/auth/loginProtection";
 import {
   getLoginBlockMessage,
-  getProfileAccountStatus,
   isAccountLoginAllowed,
-  revokeAllUserSessions,
 } from "@/app/lib/auth/accountStatus";
+import {
+  getProfileAccountStatus,
+  revokeAllUserSessions,
+} from "@/app/lib/auth/accountStatus.server";
 import { signInWithSecurePassword } from "@/app/lib/auth/authService";
 import type { RegisterRole } from "@/app/lib/auth/types";
 import { parseLoginBody } from "@/app/lib/auth/validation";
-import { createAdminSupabaseClient } from "@/app/lib/supabaseServer";
 
 export const runtime = "nodejs";
 
@@ -74,7 +75,9 @@ export async function POST(request: NextRequest) {
 
     const { data, error } = await signInWithSecurePassword(email, password);
 
-    if (error || !data.session) {
+    const session = data?.session;
+
+    if (error || !session) {
       const failure = await recordFailedLogin(email);
       if (failure.shouldNotifyLockout) {
         void requestPasswordResetEmail(email);
@@ -84,11 +87,10 @@ export async function POST(request: NextRequest) {
 
     await clearLoginFailures(email);
 
-    const admin = createAdminSupabaseClient();
-    const accountStatus = await getProfileAccountStatus(admin, data.session.user.id);
+    const accountStatus = await getProfileAccountStatus(null, session.user.id);
 
     if (!isAccountLoginAllowed(accountStatus)) {
-      await revokeAllUserSessions(admin, data.session.user.id);
+      await revokeAllUserSessions(null, data.session.user.id);
       logAuthValidationFailure("login", {
         reason: "account_status",
         email,
@@ -109,6 +111,7 @@ export async function POST(request: NextRequest) {
       await syncUserProfile({
         userId: data.session.user.id,
         email: data.session.user.email || email,
+        username: String(data.session.user.user_metadata?.full_name || ""),
         fullName: String(data.session.user.user_metadata?.full_name || ""),
         role: metaRole,
       });

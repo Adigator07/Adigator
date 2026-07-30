@@ -1,10 +1,11 @@
-import { createClient, SupabaseClient, User } from "@supabase/supabase-js";
+import { createClient, SupabaseClient } from "@supabase/supabase-js";
 import { NextRequest } from "next/server";
+import { getFirebaseAdminAuth } from "@/app/lib/firebase/admin";
 import {
   getLoginBlockMessage,
-  getProfileAccountStatus,
   isAccountLoginAllowed,
 } from "@/app/lib/auth/accountStatus";
+import { getProfileAccountStatus } from "@/app/lib/auth/accountStatus.server";
 
 function getSupabaseEnv(): { url: string; anonKey: string } {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -36,12 +37,6 @@ export function getAccessTokenFromRequest(request: NextRequest): string | null {
   if (scheme.toLowerCase() !== "bearer") return null;
 
   return token.trim();
-}
-
-/** Plain client for auth validation only — do not combine with accessToken option. */
-function createAuthSupabaseClient(): SupabaseClient {
-  const { url, anonKey } = getSupabaseEnv();
-  return createClient(url, anonKey, baseClientOptions());
 }
 
 /** User-scoped client for database / RPC calls (JWT sent via Authorization header). */
@@ -85,17 +80,24 @@ export function createWritableSupabaseClient(accessToken: string): SupabaseClien
   return createAdminSupabaseClient() ?? createServerSupabaseClient(accessToken);
 }
 
-export async function getAuthenticatedUser(accessToken: string): Promise<{ user: User | null; error: string | null }> {
+export type AuthenticatedUser = {
+  id: string;
+  email: string | null;
+  user_metadata?: Record<string, unknown>;
+};
+
+export async function getAuthenticatedUser(accessToken: string): Promise<{ user: AuthenticatedUser | null; error: string | null }> {
   try {
-    const supabase = createAuthSupabaseClient();
-    const { data, error } = await supabase.auth.getUser(accessToken);
+    const decoded = await getFirebaseAdminAuth().verifyIdToken(accessToken);
+    const user: AuthenticatedUser = {
+      id: decoded.uid,
+      email: decoded.email || null,
+      user_metadata: {
+        full_name: decoded.name || "",
+      },
+    };
 
-    if (error) {
-      return { user: null, error: "Unauthorized" };
-    }
-
-    const user = data.user ?? null;
-    if (!user) {
+    if (!user.id) {
       return { user: null, error: "Unauthorized" };
     }
 

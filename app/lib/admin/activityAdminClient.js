@@ -5,6 +5,8 @@
 import { supabase } from "../supabase";
 import { getClientSession, getClientUser } from "../supabaseAuthClient";
 import { isAdminRole } from "./permissions";
+import { getFirebaseClientFirestore } from "../firebase/client";
+import { doc, getDoc } from "firebase/firestore";
 
 async function getAccessToken() {
   const session = await getClientSession();
@@ -14,26 +16,18 @@ async function getAccessToken() {
 const STAFF_ADMIN_ROLES = ["super_admin", "admin", "moderator", "support"];
 
 async function fetchProfileRole(userId) {
-  const full = await supabase
-    .from("profiles")
-    .select("role, admin_role")
-    .eq("id", userId)
-    .maybeSingle();
-
-  if (!full.error) return full.data;
-
-  const msg = full.error.message || "";
-  if (msg.includes("admin_role")) {
-    const fallback = await supabase
-      .from("profiles")
-      .select("role")
-      .eq("id", userId)
-      .maybeSingle();
-    if (!fallback.error) return fallback.data;
+  try {
+    const db = getFirebaseClientFirestore();
+    const snap = await getDoc(doc(db, "userProfiles", userId));
+    if (!snap.exists()) return null;
+    const data = snap.data() || {};
+    return {
+      role: data.role || null,
+      admin_role: data.admin_role || data.adminRole || null,
+    };
+  } catch {
+    return null;
   }
-
-  console.warn("[Adigator] Could not load profile role:", full.error.message);
-  return null;
 }
 
 async function getCurrentUserRole() {

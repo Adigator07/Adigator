@@ -1,13 +1,23 @@
-import type { Session, User } from "@supabase/supabase-js";
+import { onAuthStateChanged } from "firebase/auth";
 
-import { supabase } from "@/app/lib/supabase";
+import { getFirebaseClientAuth } from "@/app/lib/firebase/client";
+
+type ClientUser = {
+  id: string;
+  email: string | null;
+  user_metadata: {
+    full_name?: string;
+    role?: string;
+  };
+};
+
+type ClientSession = {
+  access_token: string;
+  expires_at: number | null;
+  user: ClientUser;
+};
 
 let authChain: Promise<unknown> = Promise.resolve();
-
-function isAuthLockError(error: unknown): boolean {
-  const message = error instanceof Error ? error.message : String(error || "");
-  return /lock|stole/i.test(message);
-}
 
 /** Serialize browser auth calls to avoid Supabase navigator lock contention. */
 function runSerializedAuth<T>(task: () => Promise<T>): Promise<T> {
@@ -20,35 +30,64 @@ function runSerializedAuth<T>(task: () => Promise<T>): Promise<T> {
 }
 
 /** Read the current session from local storage (preferred for client UI). */
-export async function getClientSession(): Promise<Session | null> {
+export async function getClientSession(): Promise<ClientSession | null> {
   return runSerializedAuth(async () => {
-    try {
-      const { data, error } = await supabase.auth.getSession();
-      if (error) throw error;
-      return data.session ?? null;
-    } catch (error) {
-      if (!isAuthLockError(error)) throw error;
-      const { data } = await supabase.auth.getSession();
-      return data.session ?? null;
-    }
+    const auth = getFirebaseClientAuth();
+    const user = auth.currentUser;
+    if (!user) return null;
+
+    const token = await user.getIdToken();
+    const tokenResult = await user.getIdTokenResult();
+    return {
+      access_token: token,
+      expires_at: tokenResult.expirationTime ? Math.floor(Date.parse(tokenResult.expirationTime) / 1000) : null,
+      user: {
+        id: user.uid,
+        email: user.email,
+        user_metadata: {
+          full_name: user.displayName || "",
+        },
+      },
+    };
   });
 }
 
 /** Resolve the signed-in user without redundant concurrent getUser() calls. */
-export async function getClientUser(): Promise<User | null> {
+export async function getClientUser(): Promise<ClientUser | null> {
   const session = await getClientSession();
   if (session?.user) return session.user;
 
   return runSerializedAuth(async () => {
-    try {
-      const { data, error } = await supabase.auth.getUser();
-      if (error) throw error;
-      return data.user ?? null;
-    } catch (error) {
-      if (!isAuthLockError(error)) throw error;
-      const retrySession = await getClientSession();
-      return retrySession?.user ?? null;
+    const auth = getFirebaseClientAuth();
+    const user = auth.currentUser;
+    if (user) {
+      return {
+        id: user.uid,
+        email: user.email,
+        user_metadata: {
+          full_name: user.displayName || "",
+        },
+      };
     }
+
+    const resolved = await new Promise<ClientUser | null>((resolve) => {
+      const unsubscribe = onAuthStateChanged(auth, (nextUser) => {
+        unsubscribe();
+        if (!nextUser) {
+          resolve(null);
+          return;
+        }
+        resolve({
+          id: nextUser.uid,
+          email: nextUser.email,
+          user_metadata: {
+            full_name: nextUser.displayName || "",
+          },
+        });
+      });
+    });
+
+    return resolved;
   });
 }
 
@@ -58,7 +97,7 @@ export async function getClientAccessToken(): Promise<string | null> {
 
 const TOKEN_REFRESH_BUFFER_MS = 60_000;
 
-function isSessionTokenFresh(session: Session): boolean {
+function isSessionTokenFresh(session: ClientSession): boolean {
   if (!session.access_token) return false;
   const expiresAtMs = (session.expires_at ?? 0) * 1000;
   if (!expiresAtMs) return true;
@@ -74,18 +113,8 @@ export async function getFreshAccessToken(): Promise<string | null> {
   }
 
   return runSerializedAuth(async () => {
-    try {
-      const { data, error } = await supabase.auth.refreshSession();
-      if (error) {
-        return session.access_token ?? null;
-      }
-      return data.session?.access_token ?? session.access_token ?? null;
-    } catch (error) {
-      if (!isAuthLockError(error)) {
-        return session.access_token ?? null;
-      }
-      const { data } = await supabase.auth.refreshSession();
-      return data.session?.access_token ?? session.access_token ?? null;
-    }
+    const auth = getFirebaseClientAuth();
+    if (!auth.currentUser) return null;
+    return auth.currentUser.getIdToken(true);
   });
 }

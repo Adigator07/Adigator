@@ -2,6 +2,33 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ExternalLink, RefreshCw, Link2, CheckCircle2 } from "lucide-react";
+import { getFirebaseClientAuth } from "@/app/lib/firebase/client";
+
+async function readJsonResponse(response, fallbackMessage) {
+  const text = await response.text();
+
+  let payload = null;
+  if (text) {
+    try {
+      payload = JSON.parse(text);
+    } catch {
+      throw new Error(`${fallbackMessage} Server returned non-JSON response (${response.status}).`);
+    }
+  }
+
+  if (!response.ok) {
+    throw new Error(payload?.error || `${fallbackMessage} (${response.status}).`);
+  }
+
+  return payload || {};
+}
+
+function isScopeInsufficientError(error) {
+  const message = String(error?.message || "").toLowerCase();
+  return message.includes("insufficient authentication scopes")
+    || message.includes("access_token_scope_insufficient")
+    || message.includes("request had insufficient authentication scopes");
+}
 
 export default function GoogleAdsConnectPanel({
   enabled,
@@ -24,14 +51,25 @@ export default function GoogleAdsConnectPanel({
     [campaigns, selectedCampaignId],
   );
 
+  const currentAppEmail = getFirebaseClientAuth().currentUser?.email || "";
+
+  const openOAuth = useCallback((useDifferent = false, loginHint = email || currentAppEmail) => {
+    const params = new URLSearchParams();
+    if (useDifferent) params.set("useDifferent", "1");
+    const resolvedLoginHint = String(loginHint || "").trim();
+    if (!useDifferent && resolvedLoginHint) params.set("loginHint", resolvedLoginHint);
+    const query = params.toString();
+    const url = `/api/google-ads/oauth/start${query ? `?${query}` : ""}`;
+    window.open(url, "google-ads-oauth", "popup=yes,width=540,height=760");
+  }, [email, currentAppEmail]);
+
   const refreshSession = useCallback(async () => {
     if (!enabled) return;
     setLoadingSession(true);
     setError("");
     try {
       const response = await fetch("/api/google-ads/session", { cache: "no-store" });
-      const payload = await response.json();
-      if (!response.ok) throw new Error(payload?.error || "Unable to read Google Ads session.");
+      const payload = await readJsonResponse(response, "Unable to read Google Ads session.");
       setConnected(Boolean(payload.connected));
       setEmail(payload.email || "");
     } catch (err) {
@@ -48,8 +86,7 @@ export default function GoogleAdsConnectPanel({
     setError("");
     try {
       const response = await fetch("/api/google-ads/accounts", { cache: "no-store" });
-      const payload = await response.json();
-      if (!response.ok) throw new Error(payload?.error || "Failed to load accounts.");
+      const payload = await readJsonResponse(response, "Failed to load accounts.");
       const items = Array.isArray(payload.accounts) ? payload.accounts : [];
       setAccounts(items);
       if (items.length > 0) {
@@ -58,11 +95,18 @@ export default function GoogleAdsConnectPanel({
       if (payload.connectedEmail) setEmail(payload.connectedEmail);
       setConnected(true);
     } catch (err) {
+      if (isScopeInsufficientError(err)) {
+        setConnected(false);
+        setEmail("");
+        setError("Google Ads access needs to be re-authorized with the Ads scope. Reconnecting now...");
+        window.setTimeout(() => openOAuth(true), 250);
+        return;
+      }
       setError(err?.message || "Unable to load Google Ads accounts.");
     } finally {
       setBusy(false);
     }
-  }, []);
+  }, [openOAuth]);
 
   const loadCampaigns = useCallback(async () => {
     if (!selectedCustomerId) return;
@@ -72,19 +116,24 @@ export default function GoogleAdsConnectPanel({
       const response = await fetch(`/api/google-ads/campaigns?customerId=${encodeURIComponent(selectedCustomerId)}&limit=50`, {
         cache: "no-store",
       });
-      const payload = await response.json();
-      if (!response.ok) throw new Error(payload?.error || "Failed to load campaigns.");
+      const payload = await readJsonResponse(response, "Failed to load campaigns.");
       const items = Array.isArray(payload.campaigns) ? payload.campaigns : [];
       setCampaigns(items);
       if (items.length > 0) {
         setSelectedCampaignId((current) => current || items[0].id);
       }
     } catch (err) {
+      if (isScopeInsufficientError(err)) {
+        setConnected(false);
+        setError("Google Ads access needs to be re-authorized with the Ads scope. Reconnecting now...");
+        window.setTimeout(() => openOAuth(true), 250);
+        return;
+      }
       setError(err?.message || "Unable to load campaigns.");
     } finally {
       setBusy(false);
     }
-  }, [selectedCustomerId]);
+  }, [selectedCustomerId, openOAuth]);
 
   useEffect(() => {
     if (!enabled) return;
@@ -114,11 +163,6 @@ export default function GoogleAdsConnectPanel({
     return () => window.removeEventListener("message", handler);
   }, [refreshSession]);
 
-  const openOAuth = (useDifferent = false) => {
-    const url = `/api/google-ads/oauth/start${useDifferent ? "?useDifferent=1" : ""}`;
-    window.open(url, "google-ads-oauth", "popup=yes,width=540,height=760");
-  };
-
   const handleCreateCampaign = async () => {
     if (!selectedCustomerId) {
       setError("Select a Google Ads account first.");
@@ -146,8 +190,7 @@ export default function GoogleAdsConnectPanel({
           status: "PAUSED",
         }),
       });
-      const payload = await response.json();
-      if (!response.ok) throw new Error(payload?.error || "Failed to create campaign.");
+      const payload = await readJsonResponse(response, "Failed to create campaign.");
 
       const created = payload?.campaign;
       if (created) {
@@ -164,47 +207,51 @@ export default function GoogleAdsConnectPanel({
   if (!enabled) return null;
 
   return (
-    <section className="space-y-4 rounded-2xl border border-studio-accent/25 bg-studio-accent/5 p-5">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h3 className="studio-heading text-xl font-bold text-studio-text">Google Ads Account</h3>
-          <p className="mt-1 text-sm text-studio-muted">
-            Connect once, choose the Ads account, then import campaign settings. You can always continue manually.
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={() => {
-            void refreshSession();
-            if (connected) void loadAccounts();
-          }}
-          className="inline-flex items-center gap-2 rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-xs font-semibold text-studio-text hover:bg-white/10"
-        >
-          <RefreshCw size={14} /> Refresh
-        </button>
-      </div>
+    <section className="relative space-y-3 rounded-2xl border border-studio-accent/25 bg-studio-accent/5 p-3 pr-24 md:p-4 md:pr-28">
+      <button
+        type="button"
+        onClick={() => {
+          void refreshSession();
+          if (connected) void loadAccounts();
+        }}
+        className="absolute right-3 top-3 inline-flex items-center gap-2 rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-xs font-semibold text-studio-text hover:bg-white/10 md:right-4 md:top-4"
+      >
+        <RefreshCw size={14} /> Refresh
+      </button>
 
       {!connected ? (
         <div className="space-y-3">
-          <button
-            type="button"
-            onClick={() => openOAuth(false)}
-            disabled={loadingSession}
-            className="inline-flex items-center gap-2 rounded-xl bg-studio-accent px-4 py-2.5 text-sm font-semibold text-[#071225] disabled:opacity-60"
-          >
-            <Link2 size={16} /> Continue with Google
-          </button>
-          <button
-            type="button"
-            onClick={() => openOAuth(true)}
-            disabled={loadingSession}
-            className="ml-2 inline-flex items-center gap-2 rounded-xl border border-white/20 bg-black/20 px-4 py-2.5 text-sm font-semibold text-studio-text disabled:opacity-60"
-          >
-            <ExternalLink size={16} /> Use a different Google account
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => openOAuth(false)}
+              disabled={loadingSession}
+              className="inline-flex items-center gap-2 rounded-xl bg-studio-accent px-4 py-2.5 text-sm font-semibold text-[#071225] disabled:opacity-60"
+            >
+              <Link2 size={16} /> Continue with Google
+            </button>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => openOAuth(true)}
+              disabled={loadingSession}
+              className="inline-flex items-center gap-2 rounded-xl border border-white/20 bg-black/20 px-4 py-2.5 text-sm font-semibold text-studio-text disabled:opacity-60"
+            >
+              <ExternalLink size={16} /> Use a different Google account
+            </button>
+            <button
+              type="button"
+              onClick={() => openOAuth(false)}
+              disabled={loadingSession}
+              className="inline-flex items-center gap-2 rounded-xl border border-white/20 bg-black/20 px-4 py-2.5 text-sm font-semibold text-studio-tertiary disabled:opacity-60"
+            >
+              same account as for adi
+            </button>
+          </div>
         </div>
       ) : (
-        <div className="space-y-4">
+        <div className="space-y-3">
           <div className="inline-flex items-center gap-2 rounded-full border border-studio-success/30 bg-studio-success/10 px-3 py-1 text-xs font-semibold text-studio-success">
             <CheckCircle2 size={14} /> Connected {email ? `as ${email}` : "to Google Ads"}
           </div>

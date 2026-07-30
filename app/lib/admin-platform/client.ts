@@ -1,12 +1,11 @@
 "use client";
 
-import { supabase } from "@/app/lib/supabase";
+import { getFreshAccessToken } from "@/app/lib/supabaseAuthClient";
 
 const API_BASE = "/api/admin/v1";
 
 async function getAccessToken(): Promise<string | null> {
-  const { data } = await supabase.auth.getSession();
-  return data.session?.access_token || null;
+  return getFreshAccessToken();
 }
 
 async function adminFetch<T>(path: string, init?: RequestInit): Promise<T> {

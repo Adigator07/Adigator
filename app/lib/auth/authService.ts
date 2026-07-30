@@ -1,9 +1,8 @@
-import type { Session, User } from "@supabase/supabase-js";
-import { createAdminSupabaseClient } from "@/app/lib/supabaseServer";
-import { markProfilePendingApproval } from "./accountStatus";
+import { getFirebaseAdminAuth } from "@/app/lib/firebase/admin";
+import { getUserProfile, upsertUserProfile } from "@/app/lib/firestore/profiles";
+import { markProfilePendingApproval } from "./accountStatus.server";
 import { syncUserProfile } from "./handlers";
 import { migrateLegacyPasswordOnLogin } from "./legacyPasswordMigration";
-import { createServerAuthClient } from "./serverClient";
 import type { RegisterRole } from "./types";
 
 export type SignUpInput = {
@@ -14,51 +13,94 @@ export type SignUpInput = {
   role: RegisterRole;
 };
 
+type FirebaseSession = {
+  access_token: string;
+  refresh_token: string;
+  expires_in?: number;
+  expires_at?: number;
+  user: {
+    id: string;
+    email: string;
+    user_metadata: {
+      full_name: string;
+      role: RegisterRole;
+    };
+  };
+};
+
+function getFirebaseApiKey(): string {
+  const key = process.env.NEXT_PUBLIC_FIREBASE_API_KEY || process.env.FIREBASE_API_KEY;
+  if (!key) throw new Error("Firebase API key is missing.");
+  return key;
+}
+
+async function firebaseSignInWithPassword(email: string, password: string) {
+  const key = getFirebaseApiKey();
+  const response = await fetch(
+    `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${encodeURIComponent(key)}`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password, returnSecureToken: true }),
+    },
+  );
+
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(payload?.error?.message || "Firebase sign-in failed");
+  }
+  return payload as {
+    localId: string;
+    email: string;
+    displayName?: string;
+    idToken: string;
+    refreshToken: string;
+    expiresIn?: string;
+  };
+}
+
 /**
  * Sign up via Supabase Auth.
  * Passwords are bcrypt-hashed by Supabase in auth.users — never stored in plaintext in app tables.
  */
 export async function signUpWithSecurePassword(input: SignUpInput) {
-  const supabase = createServerAuthClient();
+  try {
+    const user = await getFirebaseAdminAuth().createUser({
+      email: input.email,
+      password: input.password,
+      displayName: input.displayName,
+    });
 
-  const { data, error } = await supabase.auth.signUp({
-    email: input.email,
-    password: input.password,
-    options: {
+    await syncUserProfile({
+      userId: user.uid,
+      email: input.email,
+      username: input.displayName,
+      fullName: input.displayName,
+      role: input.role,
+    });
+
+    await upsertUserProfile(user.uid, {
+      email: input.email,
+      username: input.displayName,
+      fullName: input.displayName,
+      role: input.role,
+    });
+
+    await markProfilePendingApproval(null, user.uid);
+
+    return {
       data: {
-        full_name: input.displayName,
-        username: input.username,
-        display_name: input.displayName,
-        role: input.role,
+        user: {
+          id: user.uid,
+          email: user.email || input.email,
+        },
+        session: null,
       },
-    },
-  });
-
-  if (error || !data.user) {
-    return { data: null, error };
+      error: null,
+    };
+  } catch (error) {
+    return { data: null, error: error instanceof Error ? error : new Error("Signup failed") };
   }
-
-  await syncUserProfile({
-    userId: data.user.id,
-    email: input.email,
-    fullName: input.displayName,
-    role: input.role,
-  });
-
-  const admin = createAdminSupabaseClient();
-  if (admin) {
-    await markProfilePendingApproval(admin, data.user.id);
-    await admin
-      .from("profiles")
-      .update({ password_hash_version: "supabase_bcrypt" })
-      .eq("id", data.user.id);
-  }
-
-  if (data.session) {
-    await supabase.auth.signOut();
-  }
-
-  return { data: { ...data, session: null }, error: null };
 }
 
 /**
@@ -67,8 +109,38 @@ export async function signUpWithSecurePassword(input: SignUpInput) {
 export async function signInWithSecurePassword(email: string, password: string) {
   await migrateLegacyPasswordOnLogin(email, password);
 
-  const supabase = createServerAuthClient();
-  return supabase.auth.signInWithPassword({ email, password });
+  try {
+    const signedIn = await firebaseSignInWithPassword(email, password);
+    const profile = await getUserProfile(signedIn.localId);
+    const resolvedRole = (profile?.role === "usa_client" ? "usa_client" : "end_client") as RegisterRole;
+    const fullName = profile?.fullName || signedIn.displayName || email.split("@")[0] || "";
+    const expiresIn = Number.parseInt(String(signedIn.expiresIn || "3600"), 10) || 3600;
+
+    const session: FirebaseSession = {
+      access_token: signedIn.idToken,
+      refresh_token: signedIn.refreshToken,
+      expires_in: expiresIn,
+      expires_at: Math.floor(Date.now() / 1000) + expiresIn,
+      user: {
+        id: signedIn.localId,
+        email: signedIn.email || email,
+        user_metadata: {
+          full_name: fullName,
+          role: resolvedRole,
+        },
+      },
+    };
+
+    return {
+      data: {
+        session,
+        user: session.user,
+      },
+      error: null,
+    };
+  } catch (error) {
+    return { data: null, error };
+  }
 }
 
 export type ChangePasswordInput = {
@@ -82,47 +154,21 @@ export type ChangePasswordInput = {
  * Verify current password, then re-hash via Supabase Auth admin API (bcrypt in auth.users).
  */
 export async function changePasswordSecure(input: ChangePasswordInput) {
-  const verifier = createServerAuthClient();
-  const { error: verifyError } = await verifier.auth.signInWithPassword({
-    email: input.email,
-    password: input.currentPassword,
-  });
+  try {
+    await firebaseSignInWithPassword(input.email, input.currentPassword);
 
-  if (verifyError) {
-    return { ok: false as const, error: verifyError };
+    const decoded = await getFirebaseAdminAuth().verifyIdToken(input.accessToken);
+    await getFirebaseAdminAuth().updateUser(decoded.uid, {
+      password: input.newPassword,
+    });
+
+    return { ok: true as const, error: null };
+  } catch (error) {
+    return { ok: false as const, error };
   }
-
-  const supabase = createServerAuthClient();
-  const { data: userData, error: userError } = await supabase.auth.getUser(input.accessToken);
-  if (userError || !userData.user) {
-    return { ok: false as const, error: userError || new Error("Unauthorized") };
-  }
-
-  const admin = createAdminSupabaseClient();
-  if (!admin) {
-    return { ok: false as const, error: new Error("Password update unavailable") };
-  }
-
-  const { error: updateError } = await admin.auth.admin.updateUserById(userData.user.id, {
-    password: input.newPassword,
-  });
-
-  if (updateError) {
-    return { ok: false as const, error: updateError };
-  }
-
-  await admin
-    .from("profiles")
-    .update({
-      password_hash_version: "supabase_bcrypt",
-      password_migrated_at: new Date().toISOString(),
-    })
-    .eq("id", userData.user.id);
-
-  return { ok: true as const, error: null };
 }
 
 export type AuthSessionResult = {
-  session: Session;
-  user: User;
+  session: FirebaseSession;
+  user: FirebaseSession["user"];
 };

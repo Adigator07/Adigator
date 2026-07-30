@@ -60,7 +60,12 @@ function ensureOk(response: Response, body: string) {
   }
 }
 
-export function buildGoogleAdsAuthUrl(origin: string, state: string, forceAccountSelect = false): string {
+export function buildGoogleAdsAuthUrl(
+  origin: string,
+  state: string,
+  forceAccountSelect = false,
+  loginHint?: string,
+): string {
   const clientId = requiredEnv("GOOGLE_ADS_CLIENT_ID");
   const redirectUri = process.env.GOOGLE_ADS_REDIRECT_URI?.trim() || `${origin}/api/google-ads/oauth/callback`;
 
@@ -79,6 +84,11 @@ export function buildGoogleAdsAuthUrl(origin: string, state: string, forceAccoun
     prompt: forceAccountSelect ? "select_account consent" : "consent",
     state,
   });
+
+  const resolvedLoginHint = String(loginHint || "").trim();
+  if (resolvedLoginHint) {
+    params.set("login_hint", resolvedLoginHint);
+  }
 
   return `${GOOGLE_AUTH_BASE}?${params.toString()}`;
 }

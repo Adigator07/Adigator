@@ -1,11 +1,24 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowRight, Loader2, Check } from "lucide-react";
+import {
+  browserLocalPersistence,
+  GoogleAuthProvider,
+  createUserWithEmailAndPassword,
+  getRedirectResult,
+  onAuthStateChanged,
+  sendPasswordResetEmail,
+  setPersistence,
+  signInWithEmailAndPassword,
+  signInWithRedirect,
+  signOut,
+  updateProfile,
+} from "firebase/auth";
+import { doc, serverTimestamp, setDoc } from "firebase/firestore";
 import { MARKETING_CTA } from "@/app/lib/siteNavigation";
-import { supabase } from "@/app/lib/supabase";
 import {
   GENERIC_AUTH_VALIDATION_ERROR,
   GENERIC_SIGNUP_RESPONSE_MESSAGE,
@@ -21,14 +34,22 @@ import {
   isAccountLoginAllowed,
   type AccountStatus,
 } from "@/app/lib/auth/accountStatus";
-import { logUserActivity } from "@/app/lib/userActivity";
 import { REGISTRATION_ROLES, getPostAuthRedirect } from "@/app/lib/communications/roleLabels";
 import type { UserRole } from "@/app/lib/communications/types";
+import { DISPLAY_NAME_PATTERN } from "@/app/lib/auth/sanitize";
+import { getFirebaseClientAuth, getFirebaseClientFirestore } from "@/app/lib/firebase/client";
+import { getClientProfileData } from "@/app/lib/firestore/clientProfiles";
 
 type RegisterRole = Extract<UserRole, "usa_client" | "end_client">;
 
 type FieldErrors = {
   form?: string;
+};
+
+type PendingGoogleProfile = {
+  uid: string;
+  email: string | null;
+  role: RegisterRole;
 };
 
 const VALIDATION_STATS = [
@@ -76,18 +97,229 @@ export default function LoginContent() {
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState<FieldErrors>({});
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
+  const [googleUsername, setGoogleUsername] = useState("");
+  const [googleUsernameError, setGoogleUsernameError] = useState<string | null>(null);
+  const [googleUsernameSaving, setGoogleUsernameSaving] = useState(false);
+  const [pendingGoogleProfile, setPendingGoogleProfile] = useState<PendingGoogleProfile | null>(null);
   const [success, setSuccess] = useState(false);
   const [resetEmail, setResetEmail] = useState("");
   const [resetMessage, setResetMessage] = useState<string | null>(null);
   const [signupSuccessMessage, setSignupSuccessMessage] = useState<string | null>(null);
+  const queryStatusError = isPendingQuery
+    ? LOGIN_PENDING_APPROVAL_ERROR
+    : isDisabledQuery
+      ? LOGIN_ACCOUNT_DISABLED_ERROR
+      : null;
+  const finalizingRef = useRef(false);
+  const redirectedRef = useRef(false);
+
+  function authDebug(event: string, data?: Record<string, unknown>) {
+    try {
+      console.info("[AUTH_LOGIN]", event, {
+        ts: new Date().toISOString(),
+        path: window.location.pathname,
+        ...data,
+      });
+    } catch {
+      // Ignore logging failures.
+    }
+  }
+
+  async function getRoleAndStatus(uid: string): Promise<{ role: RegisterRole; status: AccountStatus | null }> {
+    const data = await getClientProfileData<{ role?: string; status?: AccountStatus }>(uid);
+    const role = (data?.role === "usa_client" ? "usa_client" : "end_client") as RegisterRole;
+    const status = (data?.status as AccountStatus | undefined) ?? null;
+    return { role, status };
+  }
+
+  async function getRoleAndStatusFast(
+    uid: string,
+    fallbackRole: RegisterRole = "end_client",
+    timeoutMs = 100,
+  ): Promise<{ role: RegisterRole; status: AccountStatus | null }> {
+    const timeout = new Promise<null>((resolve) => {
+      window.setTimeout(() => resolve(null), timeoutMs);
+    });
+
+    const data = await Promise.race([
+      getClientProfileData<{ role?: string; status?: AccountStatus }>(uid),
+      timeout,
+    ]);
+
+    const role = data?.role === "usa_client" ? "usa_client" : fallbackRole;
+    const status = (data?.status as AccountStatus | undefined) ?? null;
+    return { role, status };
+  }
+
+  async function finalizeSignedInUser(resolvedUser: {
+    uid: string;
+    email: string | null;
+    displayName: string | null;
+    providerIds: string[];
+  }) {
+    if (redirectedRef.current || finalizingRef.current) return;
+    finalizingRef.current = true;
+    authDebug("finalize_start", { uid: resolvedUser.uid, hasEmail: Boolean(resolvedUser.email) });
+
+    const auth = getFirebaseClientAuth();
+    const profileRef = doc(getFirebaseClientFirestore(), "userProfiles", resolvedUser.uid);
+    const profile = await Promise.race([
+      getClientProfileData<{ role?: string; status?: AccountStatus }>(resolvedUser.uid),
+      new Promise<null>((resolve) => {
+        window.setTimeout(() => resolve(null), 1200);
+      }),
+    ]);
+    const shouldActivateProfile = !profile || profile.status === "pending_verification";
+    const hasSavedUsername = Boolean(String(profile?.username || profile?.fullName || "").trim());
+    const isGoogleAccount = resolvedUser.providerIds.includes("google.com");
+    authDebug("profile_resolved", {
+      hasProfile: Boolean(profile),
+      status: profile?.status ?? null,
+      role: profile?.role ?? null,
+      hasSavedUsername,
+      isGoogleAccount,
+      shouldActivateProfile,
+    });
+
+    try {
+      if (shouldActivateProfile) {
+        // Do not block dashboard redirect on profile write when the network is unstable.
+        void Promise.race([
+          setDoc(profileRef, {
+            email: resolvedUser.email || "",
+            username: resolvedUser.displayName || resolvedUser.email?.split("@")[0] || "",
+            fullName: resolvedUser.displayName || "",
+            role: "end_client",
+            status: "active",
+            updatedAt: serverTimestamp(),
+            createdAt: serverTimestamp(),
+          }, { merge: true }),
+          new Promise<void>((resolve) => {
+            window.setTimeout(() => resolve(), 1000);
+          }),
+        ]).catch(() => {
+          // Keep going if Firestore is briefly unavailable.
+        });
+      }
+
+      const resolvedRole = (profile?.role === "usa_client" ? "usa_client" : "end_client") as RegisterRole;
+      const accountStatus = shouldActivateProfile ? "active" : ((profile?.status as AccountStatus | undefined) ?? null);
+      if (accountStatus && !isAccountLoginAllowed(accountStatus)) {
+        authDebug("blocked_status", { accountStatus });
+        await signOut(auth);
+        setErrors({ form: getLoginBlockMessage(accountStatus) });
+        setGoogleLoading(false);
+        return;
+      }
+
+      if (isGoogleAccount && !hasSavedUsername) {
+        authDebug("username_prompt_required", { uid: resolvedUser.uid });
+        setPendingGoogleProfile({
+          uid: resolvedUser.uid,
+          email: resolvedUser.email,
+          role: resolvedRole,
+        });
+        setGoogleUsername(
+          resolvedUser.displayName?.trim() || resolvedUser.email?.split("@")[0] || "",
+        );
+        setGoogleUsernameError(null);
+        setGoogleLoading(false);
+        return;
+      }
+
+      setSuccess(true);
+      redirectedRef.current = true;
+      const destination = getPostAuthRedirect(resolvedRole);
+      authDebug("redirecting", { destination, resolvedRole, accountStatus });
+      router.replace(destination);
+
+      // If the router transition is interrupted, enforce navigation shortly after.
+      window.setTimeout(() => {
+        if (window.location.pathname === "/login") {
+          authDebug("router_fallback_assign", { destination });
+          window.location.assign(destination);
+        }
+      }, 1200);
+    } finally {
+      authDebug("finalize_end");
+      finalizingRef.current = false;
+    }
+  }
 
   useEffect(() => {
-    if (isPendingQuery) {
-      setErrors({ form: LOGIN_PENDING_APPROVAL_ERROR });
-    } else if (isDisabledQuery) {
-      setErrors({ form: LOGIN_ACCOUNT_DISABLED_ERROR });
-    }
-  }, [isPendingQuery, isDisabledQuery]);
+    const auth = getFirebaseClientAuth();
+    authDebug("persistence_init");
+    void setPersistence(auth, browserLocalPersistence).catch(() => {
+      // Keep default persistence if the browser blocks persistence APIs.
+      authDebug("persistence_failed");
+    });
+  }, []);
+
+  useEffect(() => {
+    const auth = getFirebaseClientAuth();
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      authDebug("onAuthStateChanged", { hasUser: Boolean(user), uid: user?.uid ?? null });
+      if (!user) {
+        setPendingGoogleProfile(null);
+        setGoogleUsernameError(null);
+        setGoogleLoading(false);
+        return;
+      }
+      void finalizeSignedInUser({
+        uid: user.uid,
+        email: user.email,
+        displayName: user.displayName,
+        providerIds: user.providerData.map((provider) => provider.providerId),
+      });
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+
+    void (async () => {
+      const auth = getFirebaseClientAuth();
+      authDebug("redirect_result_start");
+      try {
+        const redirectResult = await Promise.race([
+          getRedirectResult(auth),
+          new Promise<null>((resolve) => {
+            window.setTimeout(() => resolve(null), 5000);
+          }),
+        ]);
+        const result = redirectResult;
+        const user = result?.user;
+        const resolvedUser = user || auth.currentUser;
+        authDebug("redirect_result_done", {
+          hasResultUser: Boolean(user),
+          hasCurrentUser: Boolean(auth.currentUser),
+          resolvedUid: resolvedUser?.uid ?? null,
+        });
+        if (!active || !resolvedUser) return;
+        await finalizeSignedInUser({
+          uid: resolvedUser.uid,
+          email: resolvedUser.email,
+          displayName: resolvedUser.displayName,
+          providerIds: resolvedUser.providerData.map((provider) => provider.providerId),
+        });
+      } catch (error) {
+        if (!active) return;
+        const message = error instanceof Error ? error.message : "Google sign-in failed.";
+        authDebug("redirect_result_error", { message });
+        setErrors({ form: message });
+      } finally {
+        authDebug("redirect_result_finalize");
+        if (active) setGoogleLoading(false);
+      }
+    })();
+
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const leftEyebrow = isResetMode ? "Password recovery" : isRegisterMode ? "Create account" : "Welcome back";
   const leftTitle = isResetMode
@@ -103,6 +335,7 @@ export default function LoginContent() {
   const formTitle = isResetMode ? "Reset password" : isRegisterMode ? "Register" : "Log in";
   const submitLabel = isResetMode ? "Send reset link" : isRegisterMode ? "Register" : "Log in";
 
+
   const handlePasswordReset = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setLoading(true);
@@ -115,9 +348,7 @@ export default function LoginContent() {
         setErrors({ form: GENERIC_AUTH_VALIDATION_ERROR });
         return;
       }
-      await supabase.auth.resetPasswordForEmail(trimmed, {
-        redirectTo: `${window.location.origin}/login?reset=1`,
-      });
+      await sendPasswordResetEmail(getFirebaseClientAuth(), trimmed);
       setResetMessage(PASSWORD_RESET_REQUEST_MESSAGE);
     } catch {
       setResetMessage(PASSWORD_RESET_REQUEST_MESSAGE);
@@ -152,28 +383,27 @@ export default function LoginContent() {
     setSignupSuccessMessage(null);
 
     try {
+      const auth = getFirebaseClientAuth();
+      const db = getFirebaseClientFirestore();
+
       if (isRegisterMode) {
-        const { data, error } = await supabase.auth.signUp({
-          email: trimmedEmail,
-          password,
-          options: {
-            data: {
-              full_name: trimmedUsername,
-              username: trimmedUsername,
-              display_name: trimmedUsername,
-              role: selectedRole,
-            },
-          },
-        });
+        const credential = await createUserWithEmailAndPassword(auth, trimmedEmail, password);
+        await updateProfile(credential.user, { displayName: trimmedUsername });
 
-        if (error) {
-          setErrors({ form: GENERIC_SIGNUP_RESPONSE_MESSAGE });
-          return;
+        try {
+          await setDoc(doc(db, "userProfiles", credential.user.uid), {
+            email: trimmedEmail,
+            fullName: trimmedUsername,
+            role: selectedRole,
+            status: "pending_verification",
+            updatedAt: serverTimestamp(),
+            createdAt: serverTimestamp(),
+          }, { merge: true });
+        } catch {
+          // Continue with auth so the user can still sign in if Firestore is temporarily unavailable.
         }
 
-        if (data.session) {
-          await supabase.auth.signOut();
-        }
+        await signOut(auth);
 
         setSignupSuccessMessage(SIGNUP_PENDING_APPROVAL_MESSAGE);
         setPassword("");
@@ -181,37 +411,19 @@ export default function LoginContent() {
         return;
       }
 
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email: trimmedEmail,
-        password,
-      });
-
-      if (error || !data.session?.user) {
+      const credential = await signInWithEmailAndPassword(auth, trimmedEmail, password);
+      const user = credential.user;
+      if (!user) {
         setErrors({ form: LOGIN_INCORRECT_CREDENTIALS_ERROR });
         return;
       }
 
-      const user = data.session.user;
-      const metaRole = user.user_metadata?.role as RegisterRole | undefined;
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("role, status")
-        .eq("id", user.id)
-        .maybeSingle();
-
-      const accountStatus = (profile?.status as AccountStatus | null | undefined) ?? null;
+      const { role: resolvedRole, status: accountStatus } = await getRoleAndStatus(user.uid);
       if (accountStatus && !isAccountLoginAllowed(accountStatus)) {
-        await supabase.auth.signOut();
+        await signOut(auth);
         setErrors({ form: getLoginBlockMessage(accountStatus) });
         return;
       }
-
-      const resolvedRole = (profile?.role || metaRole || "end_client") as RegisterRole;
-
-      await logUserActivity("user_login", {
-        event_label: "User logged in",
-        metadata: { email: user.email || trimmedEmail, role: resolvedRole },
-      });
 
       setSuccess(true);
       setTimeout(() => router.replace(getPostAuthRedirect(resolvedRole)), 500);
@@ -221,6 +433,86 @@ export default function LoginContent() {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleGoogleLogin = async () => {
+    authDebug("google_click");
+    setErrors({});
+    setSignupSuccessMessage(null);
+    setPendingGoogleProfile(null);
+    setGoogleUsernameError(null);
+    setGoogleUsername("");
+    setGoogleLoading(true);
+
+    try {
+      const auth = getFirebaseClientAuth();
+      await setPersistence(auth, browserLocalPersistence).catch(() => {
+        // Continue with default persistence when browser restrictions apply.
+      });
+      const provider = new GoogleAuthProvider();
+      const loginHint = email.trim();
+      provider.setCustomParameters({
+        prompt: "select_account",
+        ...(loginHint ? { login_hint: loginHint } : {}),
+      });
+      authDebug("redirect_start");
+      await signInWithRedirect(auth, provider);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Google sign-in failed.";
+      authDebug("google_signin_error", { message });
+      setErrors({ form: message });
+      setGoogleLoading(false);
+    } finally {
+      // Redirect flow leaves this page; keep the loading state if navigation succeeds.
+    }
+  };
+
+  const handleGoogleUsernameSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!pendingGoogleProfile) return;
+
+    const trimmedUsername = googleUsername.trim();
+    if (!trimmedUsername || trimmedUsername.length < 2 || !DISPLAY_NAME_PATTERN.test(trimmedUsername)) {
+      setGoogleUsernameError("Please enter a valid username.");
+      return;
+    }
+
+    setGoogleUsernameError(null);
+    setGoogleUsernameSaving(true);
+
+    try {
+      const auth = getFirebaseClientAuth();
+      const currentUser = auth.currentUser;
+      if (!currentUser || currentUser.uid !== pendingGoogleProfile.uid) {
+        throw new Error("Your Google session changed. Please sign in again.");
+      }
+
+      await updateProfile(currentUser, { displayName: trimmedUsername });
+      await setDoc(doc(getFirebaseClientFirestore(), "userProfiles", currentUser.uid), {
+        email: currentUser.email || pendingGoogleProfile.email || "",
+        username: trimmedUsername,
+        fullName: trimmedUsername,
+        role: pendingGoogleProfile.role,
+        status: "active",
+        updatedAt: serverTimestamp(),
+      }, { merge: true });
+
+      setPendingGoogleProfile(null);
+      setSuccess(true);
+      redirectedRef.current = true;
+      const destination = getPostAuthRedirect(pendingGoogleProfile.role);
+      router.replace(destination);
+      window.setTimeout(() => {
+        if (window.location.pathname === "/login") {
+          window.location.assign(destination);
+        }
+      }, 1200);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unable to save your username.";
+      setGoogleUsernameError(message);
+    } finally {
+      setGoogleUsernameSaving(false);
     }
   };
 
@@ -297,10 +589,41 @@ export default function LoginContent() {
             </div>
 
             <h2 className="text-[clamp(2rem,5vw,2.75rem)] font-black tracking-[-0.04em] text-[#0D0D0D]">
-              {formTitle}
+              {pendingGoogleProfile ? "Choose a username" : formTitle}
             </h2>
 
-            {isResetMode ? (
+            {pendingGoogleProfile ? (
+              <form onSubmit={handleGoogleUsernameSubmit} noValidate className="mt-10 space-y-4">
+                <p className="text-sm leading-relaxed text-[#6B7280]">
+                  Your Google account is connected. Choose the username that will appear across Adigator.
+                </p>
+
+                <input
+                  id="google-username"
+                  type="text"
+                  autoComplete="username"
+                  value={googleUsername}
+                  onChange={(e) => setGoogleUsername(e.target.value)}
+                  className={inputClassName}
+                  placeholder="Username"
+                />
+
+                {googleUsernameError ? (
+                  <p className="rounded-xl border border-red-200/80 bg-red-50 px-4 py-3 text-sm text-red-800">
+                    {googleUsernameError}
+                  </p>
+                ) : null}
+
+                <button
+                  type="submit"
+                  disabled={googleUsernameSaving}
+                  className="mt-2 flex h-[3.25rem] w-full items-center justify-center gap-2 rounded-full bg-[#0D0D0D] text-[15px] font-semibold text-white shadow-[0_12px_30px_rgba(13,13,13,0.18)] transition hover:bg-[#1a1a1a] disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {googleUsernameSaving ? <Loader2 size={18} className="animate-spin" aria-hidden /> : null}
+                  {googleUsernameSaving ? "Saving…" : "Continue to dashboard"}
+                </button>
+              </form>
+            ) : isResetMode ? (
               <form onSubmit={handlePasswordReset} noValidate className="mt-10 space-y-4">
                 <input
                   id="reset-email"
@@ -318,8 +641,8 @@ export default function LoginContent() {
                   </p>
                 ) : null}
 
-                {errors.form ? (
-                  <p className="rounded-xl border border-red-200/80 bg-red-50 px-4 py-3 text-sm text-red-800">{errors.form}</p>
+                {errors.form || queryStatusError ? (
+                  <p className="rounded-xl border border-red-200/80 bg-red-50 px-4 py-3 text-sm text-red-800">{errors.form || queryStatusError}</p>
                 ) : null}
 
                 <button
@@ -429,18 +752,37 @@ export default function LoginContent() {
                     </p>
                   ) : null}
 
-                  {errors.form ? (
-                    <p className="rounded-xl border border-red-200/80 bg-red-50 px-4 py-3 text-sm text-red-800">{errors.form}</p>
+                  {errors.form || queryStatusError ? (
+                    <p className="rounded-xl border border-red-200/80 bg-red-50 px-4 py-3 text-sm text-red-800">{errors.form || queryStatusError}</p>
                   ) : null}
 
                   <button
                     type="submit"
-                    disabled={loading || success}
+                    disabled={loading || googleLoading || success}
                     className="mt-2 flex h-[3.25rem] w-full items-center justify-center gap-2 rounded-full bg-[#0D0D0D] text-[15px] font-semibold text-white shadow-[0_12px_30px_rgba(13,13,13,0.18)] transition hover:bg-[#1a1a1a] disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     {success ? <Check size={18} aria-hidden /> : loading ? <Loader2 size={18} className="animate-spin" aria-hidden /> : null}
                     {success ? "Success" : loading ? "Please wait…" : submitLabel}
                   </button>
+
+                  {!isRegisterMode ? (
+                    <>
+                      <div className="my-1 flex items-center gap-3">
+                        <div className="h-px flex-1 bg-[#E8E6DF]" />
+                        <span className="text-xs font-semibold uppercase tracking-[0.14em] text-[#9CA3AF]">or</span>
+                        <div className="h-px flex-1 bg-[#E8E6DF]" />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => { void handleGoogleLogin(); }}
+                        disabled={loading || googleLoading || success}
+                        className="mt-1 flex h-[3.25rem] w-full items-center justify-center gap-3 rounded-full border border-[#E8E6DF] bg-white text-[15px] font-semibold text-[#0D0D0D] transition hover:bg-[#F7F7F3] disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        <span className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-[#DAD8D2] bg-white text-sm font-bold">G</span>
+                        {googleLoading ? "Connecting to Google…" : "Continue with Google"}
+                      </button>
+                    </>
+                  ) : null}
                 </form>
 
                 <p className="mt-10 text-sm text-[#6B7280]">

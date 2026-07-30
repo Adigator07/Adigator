@@ -31,8 +31,12 @@ const PreviewTool = dynamic(() => import("./PreviewTool"), {
 export default function PreviewToolGate() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [ready, setReady] = useState(false);
+  const [ready, setReady] = useState(true);
   const [blocked, setBlocked] = useState(false);
+
+  useEffect(() => {
+    void import("./PreviewTool");
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -68,8 +72,6 @@ export default function PreviewToolGate() {
       if (!authed) {
         enterGuestDemoSession();
       }
-
-      setReady(true);
     })();
 
     return () => {

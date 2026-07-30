@@ -14,7 +14,8 @@ import {
   X,
 } from "lucide-react";
 import { useState } from "react";
-import { supabase } from "@/app/lib/supabase";
+import { signOut } from "firebase/auth";
+import { getFirebaseClientAuth } from "@/app/lib/firebase/client";
 import { cn } from "@/app/lib/utils";
 import { useOrgAuth } from "@/app/lib/organization-platform/OrgAuthContext";
 
@@ -32,7 +33,7 @@ export default function OrgShell({ children }: { children: React.ReactNode }) {
   const { organizationName } = useOrgAuth();
 
   const handleLogout = async () => {
-    await supabase.auth.signOut();
+    await signOut(getFirebaseClientAuth());
     router.push("/login");
   };
 

@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { getFirebaseAdminAuth } from "@/app/lib/firebase/admin";
 import {
   createServiceSupabase,
   getBearerToken,
@@ -26,12 +27,15 @@ export async function authenticateOrgAdminRequest(
   accessToken: string,
   organizationId?: string | null,
 ): Promise<{ ok: true; ctx: OrgAuthContext } | { ok: false; status: number; error: string }> {
-  const { data: userData, error: authError } = await supabase.auth.getUser(accessToken);
-  if (authError || !userData.user) {
+  let userId = "";
+  let email = "";
+  try {
+    const decoded = await getFirebaseAdminAuth().verifyIdToken(accessToken);
+    userId = decoded.uid;
+    email = decoded.email || "";
+  } catch {
     return { ok: false, status: 401, error: "Invalid or expired session" };
   }
-
-  const userId = userData.user.id;
 
   const adminResult = await authenticateAdminRequest(supabase, accessToken);
   const isPlatformAdmin = adminResult.ok;
@@ -91,7 +95,7 @@ export async function authenticateOrgAdminRequest(
       ok: true,
       ctx: {
         userId,
-        email: userData.user.email || "",
+        email,
         organizationId: org.id,
         memberRole: "org_admin",
         organization: mapOrganization(org),
@@ -119,7 +123,7 @@ export async function authenticateOrgAdminRequest(
     ok: true,
     ctx: {
       userId,
-      email: userData.user.email || "",
+      email,
       organizationId: membership.organization_id,
       memberRole,
       organization: mapOrganization(orgRaw),

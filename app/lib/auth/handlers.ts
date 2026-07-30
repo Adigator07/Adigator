@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { createAdminSupabaseClient } from "@/app/lib/supabaseServer";
+import { upsertUserProfile } from "@/app/lib/firestore/profiles";
 import type { RegisterRole } from "./types";
 
 export function getRequestMeta(request: NextRequest) {
@@ -14,27 +14,22 @@ export function getRequestMeta(request: NextRequest) {
 export async function syncUserProfile({
   userId,
   email,
+  username,
   fullName,
   role,
 }: {
   userId: string;
   email: string;
+  username?: string;
   fullName: string;
   role: RegisterRole;
 }) {
-  const admin = createAdminSupabaseClient();
-  if (!admin) return;
-
-  await admin.from("profiles").upsert(
-    {
-      id: userId,
-      email,
-      full_name: fullName,
-      role,
-      updated_at: new Date().toISOString(),
-    },
-    { onConflict: "id" },
-  );
+  await upsertUserProfile(userId, {
+    email,
+    username: username || fullName,
+    fullName,
+    role,
+  });
 }
 
 export function sessionPayload(session: {

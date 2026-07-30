@@ -1,9 +1,11 @@
 import { getRoleLabel } from "./roleLabels";
 import { supabase } from "../supabase";
+import { getClientUser, getFreshAccessToken } from "../supabaseAuthClient";
+import { getFirebaseClientFirestore } from "../firebase/client";
+import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
 
 async function getToken() {
-  const { data: { session } } = await supabase.auth.getSession();
-  return session?.access_token || null;
+  return getFreshAccessToken();
 }
 
 async function apiFetch(path, options = {}) {
@@ -26,47 +28,33 @@ async function apiFetch(path, options = {}) {
 }
 
 export async function fetchMyProfile() {
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getClientUser();
   if (!user) return null;
 
   const metaRole = user.user_metadata?.role || "end_client";
+  const db = getFirebaseClientFirestore();
+  const ref = doc(db, "userProfiles", user.id);
+  const snap = await getDoc(ref);
 
-  const { data, error } = await supabase
-    .from("profiles")
-    .select("*")
-    .eq("id", user.id)
-    .maybeSingle();
-
-  if (error) throw new Error(error.message);
-
-  if (!data) {
-    const { data: created, error: createError } = await supabase
-      .from("profiles")
-      .insert({
-        id: user.id,
-        email: user.email,
-        full_name: user.user_metadata?.full_name || user.email?.split("@")[0],
-        role: metaRole,
-      })
-      .select("*")
-      .single();
-    if (createError) throw new Error(createError.message);
-    return { ...created, role_label: getRoleLabel(created.role) };
+  if (!snap.exists()) {
+    const payload = {
+      email: user.email || "",
+      fullName: user.user_metadata?.full_name || user.email?.split("@")[0] || "",
+      role: metaRole,
+      updatedAt: serverTimestamp(),
+      createdAt: serverTimestamp(),
+    };
+    await setDoc(ref, payload, { merge: true });
+    return { ...payload, id: user.id, role_label: getRoleLabel(payload.role) };
   }
 
+  const data = snap.data() || {};
   if (data.role !== metaRole && user.user_metadata?.role) {
-    const { data: updated, error: updateError } = await supabase
-      .from("profiles")
-      .update({ role: metaRole, updated_at: new Date().toISOString() })
-      .eq("id", user.id)
-      .select("*")
-      .single();
-    if (!updateError && updated) {
-      return { ...updated, role_label: getRoleLabel(updated.role) };
-    }
+    await setDoc(ref, { role: metaRole, updatedAt: serverTimestamp() }, { merge: true });
+    return { ...data, id: user.id, role: metaRole, role_label: getRoleLabel(metaRole) };
   }
 
-  return { ...data, role_label: getRoleLabel(data.role) };
+  return { ...data, id: user.id, role_label: getRoleLabel(data.role || metaRole) };
 }
 
 export async function fetchConversations() {

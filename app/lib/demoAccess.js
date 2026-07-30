@@ -8,7 +8,8 @@
 
 
 
-import { supabase } from "./supabase";
+import { getFirebaseClientAuth, getFirebaseClientFirestore } from "./firebase/client";
+import { doc, getDoc } from "firebase/firestore";
 
 
 
@@ -22,17 +23,16 @@ export async function isAuthenticatedUser() {
 
   try {
 
-    const { data: { session } } = await supabase.auth.getSession();
+    const auth = getFirebaseClientAuth();
+    const user = auth.currentUser;
+    if (!user) return false;
 
-    if (!session?.user) return false;
+    const db = getFirebaseClientFirestore();
+    const profileSnap = await getDoc(doc(db, "userProfiles", user.uid));
+    if (!profileSnap.exists()) return true;
 
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("status")
-      .eq("id", session.user.id)
-      .maybeSingle();
-
-    return profile?.status === "active";
+    const profile = profileSnap.data() || {};
+    return String(profile.status || "active") === "active";
 
   } catch {
 

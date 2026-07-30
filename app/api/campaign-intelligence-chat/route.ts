@@ -127,12 +127,11 @@ async function fetchGroqModels(apiKey: string): Promise<string[]> {
 
     if (!response.ok) return [];
     const payload = await response.json();
-    const models = Array.isArray(payload?.data) ? payload.data : [];
+    const models: Record<string, unknown>[] = Array.isArray(payload?.data) ? payload.data : [];
 
     const ids = models
-      .map((model) => normalizeModelId((model as Record<string, unknown>)?.id))
-      .filter((id) => Boolean(id) && isLikelyTextModel(id))
-      .filter(Boolean);
+      .map((model: Record<string, unknown>) => normalizeModelId(model?.id))
+      .filter((id: string | null | undefined): id is string => typeof id === "string" && isLikelyTextModel(id));
 
     return [...new Set(ids)];
   } catch {

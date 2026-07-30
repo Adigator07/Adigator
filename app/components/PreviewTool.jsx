@@ -8,7 +8,7 @@ const PreviewStudio = dynamic(() => import("./PreviewStudio"), { ssr: false, loa
 import EditCreativeModal from "./EditCreativeModal";
 import CreativeCard from "./CreativeCard";
 import AnalysisPanel from "./AnalysisPanel";
-import { supabase } from "../lib/supabase";
+import { getFirebaseClientAuth } from "../lib/firebase/client";
 import {
   compareStrategicEntries,
   getEntryPayload,
@@ -1054,8 +1054,9 @@ export default function PreviewTool() {
       if (!active || !ownerId) return;
       setCampaignOwnerId(ownerId);
       setCreativeStorageScope(ownerId);
-      const { data: { session } } = await supabase.auth.getSession();
-      if (active) setCampaignAccessToken(session?.access_token || null);
+      const auth = getFirebaseClientAuth();
+      const token = auth.currentUser ? await auth.currentUser.getIdToken() : null;
+      if (active) setCampaignAccessToken(token || null);
     })();
     return () => {
       active = false;
@@ -1917,8 +1918,9 @@ export default function PreviewTool() {
   ]);
 
   const getAccessToken = useCallback(async () => {
-    const { data: { session } } = await supabase.auth.getSession();
-    return session?.access_token || null;
+    const auth = getFirebaseClientAuth();
+    if (!auth.currentUser) return null;
+    return auth.currentUser.getIdToken();
   }, []);
 
   const handleFindProgrammaticCampaign = useCallback(async (overrides = null) => {
@@ -2662,8 +2664,17 @@ export default function PreviewTool() {
 
   const getUser = useCallback(async () => {
     if (userRef.current) return userRef.current;
-    const { data: { session } } = await supabase.auth.getSession();
-    userRef.current = session?.user || null;
+    const auth = getFirebaseClientAuth();
+    const current = auth.currentUser;
+    userRef.current = current
+      ? {
+        id: current.uid,
+        email: current.email,
+        user_metadata: {
+          full_name: current.displayName || "",
+        },
+      }
+      : null;
     return userRef.current;
   }, []);
 
@@ -5551,17 +5562,19 @@ export default function PreviewTool() {
                 </div>
               </motion.section>
 
-              <motion.section ref={goalSectionRef} id="setup-goal-section" variants={itemVariants} className="space-y-5">
-                <div>
-                  <h3 className="studio-heading text-2xl font-bold tracking-tight text-studio-text">Google Ads Account</h3>
-                  <p className="mt-1 text-studio-muted">Connect your Google Ads account to import campaign details.</p>
-                </div>
-                <GoogleAdsConnectPanel
-                  enabled={platform === "google_ads"}
-                  onImportCampaign={handleGoogleAdsCampaignImport}
-                  campaignName={campaignName}
-                />
-              </motion.section>
+              {platform === "google_ads" ? (
+                <motion.section ref={goalSectionRef} id="setup-goal-section" variants={itemVariants} className="space-y-5">
+                  <div>
+                    <h3 className="studio-heading text-2xl font-bold tracking-tight text-studio-text">Google Ads Account</h3>
+                    <p className="mt-1 text-studio-muted">Connect your Google Ads account to import campaign details.</p>
+                  </div>
+                  <GoogleAdsConnectPanel
+                    enabled={true}
+                    onImportCampaign={handleGoogleAdsCampaignImport}
+                    campaignName={campaignName}
+                  />
+                </motion.section>
+              ) : null}
 
               {!usesProgrammaticFolderSections && creatives.length > 0 ? (
                 <div className="space-y-4">
@@ -5656,92 +5669,7 @@ export default function PreviewTool() {
                 </ToolSurface>
               ) : null}
 
-              {usesProgrammaticFolderSections ? (
-                <ProgrammaticFolderSections
-                  folders={activeProgrammaticAdGroups}
-                  singleFolder={!programmaticUsesMultiFolder}
-                  singleFolderLabel={isProgrammaticCreativeReplacementFlow ? "Upload Replacement Creatives" : "Upload Creative Folder"}
-                  creatives={step2FolderCreatives}
-                  isLoading={isLoading}
-                  editingId={editingId}
-                  editingName={editingName}
-                  targetSizeByCreative={targetSizeByCreative}
-                  compressingCreativeIds={compressingCreativeIds}
-                  fixingCreativeIds={fixingCreativeIds}
-                  isBulkCompressing={isBulkCompressing}
-                  onFolderSelect={handleProgrammaticFolderSelect}
-                  onRemoveCreative={removeCreative}
-                  onStartEdit={startEdit}
-                  onEditingNameChange={setEditingName}
-                  onSaveEdit={saveEdit}
-                  onCancelEdit={() => setEditingId(null)}
-                  onDownloadCreative={downloadCreative}
-                  onTargetSizeChange={handleTargetSizeChange}
-                  onCompressCreative={compressCreative}
-                  onEditCreative={setEditModalCreative}
-                  onApplyFix={applyCreativeFix}
-                  resolveObjectiveLabel={platformSetupUsesAdGroups ? (obj) => getGoalTitle(obj, platform) : undefined}
-                  allowVideo={(group) => isVideoObjective(group?.objective, platform)}
-                />
-              ) : !isProgrammatic ? (
-              <ToolDropzone
-                active={drag}
-                onClick={() => fileRef.current?.click()}
-                onDragEnter={(e) => {
-                  preventDropDefaults(e);
-                  setDrag(true);
-                }}
-                onDragOver={(e) => {
-                  preventDropDefaults(e);
-                  setDrag(true);
-                }}
-                onDragLeave={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  const related = e.relatedTarget;
-                  if (related && e.currentTarget.contains(related)) return;
-                  setDrag(false);
-                }}
-                onDrop={(e) => {
-                  preventDropDefaults(e);
-                  setDrag(false);
-                  if (isVideoObjectiveSelected) {
-                    const dropped = Array.from(e.dataTransfer?.files || []);
-                    if (dropped.length) handleFiles(dropped);
-                    return;
-                  }
-                  void getImageFilesFromDataTransfer(e.dataTransfer).then((files) => {
-                    if (files.length) handleFiles(files);
-                  });
-                }}
-              >
-                <UploadCloud size={48} className="mx-auto mb-4 text-studio-accent" />
-                <h3 className="studio-heading mb-2 text-2xl font-bold text-studio-text">{drag ? "Drop files here" : "Upload Creatives"}</h3>
-                <p className="mb-6 text-sm text-studio-muted">
-                  {isVideoObjectiveSelected
-                    ? platform === "meta_ads"
-                      ? "Upload MP4 / MOV video creatives (Meta)"
-                      : platform === "google_ads"
-                        ? "Upload MP4 / MOV / WebM video creatives (YouTube / Google)"
-                        : "Upload MP4 / MOV / WebM video creatives (Programmatic / VAST)"
-                    : "or click to browse your computer"}
-                </p>
-                <input
-                  ref={fileRef}
-                  type="file"
-                  multiple
-                  hidden
-                  accept={
-                    isVideoObjectiveSelected
-                      ? platform === "meta_ads"
-                        ? "video/mp4,video/quicktime,.mp4,.mov"
-                        : "video/mp4,video/quicktime,video/webm,.mp4,.mov,.webm"
-                      : "image/*"
-                  }
-                  onChange={(e) => { handleFiles(e.target.files); e.target.value = ""; }}
-                />
-              </ToolDropzone>
-              ) : null}
+              {null}
 
               {(isLoading || isHydratingCreatives) && (
                 <div className="py-4 text-center">
@@ -5809,10 +5737,6 @@ export default function PreviewTool() {
               {/* Unified Creative List */}
               {!usesProgrammaticFolderSections && groupedCreatives.length > 0 && (
                 <div className="space-y-6">
-                  <h3 className="flex items-center gap-2 text-xl font-semibold text-studio-text">
-                    <CheckCircle2 className="text-studio-success" />
-                    {isProgrammaticCreativeReplacementFlow ? "Replacement Creatives" : "Creatives"}
-                  </h3>
                   {groupedCreatives.map((group) => (
                     <div key={group.id} className="space-y-3">
                       {programmaticUsesMultiFolder ? (
@@ -5914,6 +5838,7 @@ export default function PreviewTool() {
                 </div>
               )}
 
+              {false ? (
               <ToolSurface className="space-y-4">
                 <div>
                   <h3 className="studio-heading text-lg font-bold text-studio-text">URL & Campaign Readiness</h3>
@@ -5991,6 +5916,7 @@ export default function PreviewTool() {
                   </p>
                 ) : null}
               </ToolSurface>
+              ) : null}
 
               {needsReviewCreatives.length > 0 ? (
                 <div className="rounded-2xl border border-amber-400/40 bg-amber-50 px-4 py-4 space-y-3">
@@ -6011,7 +5937,6 @@ export default function PreviewTool() {
                   </label>
                 </div>
               ) : null}
-
               <div className="flex gap-4 pt-4">
                 <ToolNavBtn variant="back" onClick={goBack}>← Back</ToolNavBtn>
                 <ToolNavBtn onClick={goNext} disabled={!canAdvanceToAnalysis}>Next: Campaign Intelligence →</ToolNavBtn>

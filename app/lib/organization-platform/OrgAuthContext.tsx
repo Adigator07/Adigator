@@ -1,8 +1,9 @@
 "use client";
 
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
-import { supabase } from "@/app/lib/supabase";
-import { getClientUser } from "@/app/lib/supabaseAuthClient";
+import { onAuthStateChanged } from "firebase/auth";
+import { getFirebaseClientAuth } from "@/app/lib/firebase/client";
+import { getClientProfileData } from "@/app/lib/firestore/clientProfiles";
 import { isOrgAdminRole, type OrgMemberRole } from "./types";
 
 type OrgAuthState = {
@@ -31,51 +32,33 @@ export function OrgAuthProvider({ children }: { children: ReactNode }) {
   });
 
   useEffect(() => {
-    let active = true;
+    const auth = getFirebaseClientAuth();
 
-    async function load() {
-      const user = await getClientUser();
-      if (!user) {
-        if (active) {
+    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+      void (async () => {
+        if (!firebaseUser) {
           setState({ isOrgAdmin: false, loading: false, organizationId: null, organizationName: null, memberRole: null });
+          return;
         }
-        return;
-      }
 
-      const { data, error } = await supabase
-        .from("organization_members")
-        .select(`
-          member_role,
-          organization_id,
-          organizations ( name )
-        `)
-        .eq("user_id", user.id)
-        .eq("status", "active")
-        .order("joined_at", { ascending: true })
-        .limit(1)
-        .maybeSingle();
+        const profile = await getClientProfileData<{ organizationId?: string; organizationName?: string; memberRole?: string; role?: string }>(firebaseUser.uid);
 
-      if (!active) return;
+        const roleCandidate = profile?.memberRole || profile?.role || "";
+        const memberRole = (isOrgAdminRole(roleCandidate as OrgMemberRole)
+          ? roleCandidate
+          : null) as OrgMemberRole | null;
 
-      if (error || !data) {
-        setState({ isOrgAdmin: false, loading: false, organizationId: null, organizationName: null, memberRole: null });
-        return;
-      }
+        setState({
+          isOrgAdmin: Boolean(memberRole),
+          loading: false,
+          organizationId: profile?.organizationId || null,
+          organizationName: profile?.organizationName || null,
+          memberRole,
+        });
+      })();
+    });
 
-      const org = data.organizations as { name?: string } | null;
-      const memberRole = data.member_role as OrgMemberRole;
-
-      setState({
-        isOrgAdmin: isOrgAdminRole(memberRole),
-        loading: false,
-        organizationId: data.organization_id,
-        organizationName: org?.name || null,
-        memberRole,
-      });
-    }
-
-    load();
-    return () => { active = false; };
+    return () => unsubscribe();
   }, []);
 
   return <OrgAuthContext.Provider value={state}>{children}</OrgAuthContext.Provider>;
