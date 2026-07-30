@@ -3,12 +3,14 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { onAuthStateChanged } from "firebase/auth";
 import {
   MARKETING_CTA,
   MARKETING_DEMO_VIDEO,
   MARKETING_NAV_LINKS,
   MARKETING_SIGN_IN,
 } from "@/app/lib/siteNavigation";
+import { getFirebaseClientAuth } from "@/app/lib/firebase/client";
 
 type MarketingNavProps = {
   activePath?: string;
@@ -20,6 +22,7 @@ export default function MarketingNav({ activePath, showCta = true }: MarketingNa
   const currentPath = activePath || pathname;
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [isGoogleAccount, setIsGoogleAccount] = useState(false);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 14);
@@ -31,6 +34,16 @@ export default function MarketingNav({ activePath, showCta = true }: MarketingNa
   useEffect(() => {
     setMobileOpen(false);
   }, [pathname]);
+
+  useEffect(() => {
+    const auth = getFirebaseClientAuth();
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      const providerIds = user?.providerData?.map((provider) => provider.providerId) || [];
+      setIsGoogleAccount(providerIds.includes("google.com"));
+    });
+
+    return () => unsubscribe();
+  }, []);
 
   return (
     <nav
@@ -106,9 +119,11 @@ export default function MarketingNav({ activePath, showCta = true }: MarketingNa
             <Link href="/campaign-error-library" className="block rounded-lg px-3 py-2 text-sm font-semibold text-[#0D0D0D] hover:bg-[#F5F5F0]">
               Error Library
             </Link>
-            <Link href={MARKETING_DEMO_VIDEO.href} className="block rounded-lg px-3 py-2 text-sm font-semibold text-[#0D0D0D] hover:bg-[#F5F5F0]">
-              {MARKETING_DEMO_VIDEO.label}
-            </Link>
+            {!isGoogleAccount ? (
+              <Link href={MARKETING_DEMO_VIDEO.href} className="block rounded-lg px-3 py-2 text-sm font-semibold text-[#0D0D0D] hover:bg-[#F5F5F0]">
+                {MARKETING_DEMO_VIDEO.label}
+              </Link>
+            ) : null}
           </div>
           <div className="mt-4 flex flex-col gap-2">
             <Link href={MARKETING_SIGN_IN.href} className="marketing-btn-outline rounded-full px-5 py-3 text-center text-sm font-semibold">

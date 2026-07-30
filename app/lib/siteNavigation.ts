@@ -30,6 +30,11 @@ export const MARKETING_SIGN_IN = {
   href: "/login",
 };
 
+export const GOOGLE_ADS_START = {
+  label: "Open Google Ads",
+  href: "https://ads.google.com/intl/en_in/start/lc/?subid=in-en-gdn-awa-pr-a-pmx!o3~CjwKCAjw7KvTBhA6EiwAWnutYXxpNXcneoz2RSWhuIHA3ovKcIVMkemv38SZf17NKth2kwGVbPnudRoCah0QAvD_BwE~~~21454931486~&gclsrc=aw.ds&gad_source=1&gad_campaignid=21448424331&gclid=CjwKCAjw7KvTBhA6EiwAWnutYXxpNXcneoz2RSWhuIHA3ovKcIVMkemv38SZf17NKth2kwGVbPnudRoCah0QAvD_BwE",
+};
+
 export const MARKETING_FOOTER_DESCRIPTION =
   "The pre-launch campaign validation layer for agencies and brands who refuse to waste media spend on preventable errors.";
 

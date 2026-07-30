@@ -4,17 +4,21 @@ import { FormEvent, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowRight, Loader2, Check } from "lucide-react";
+import { motion, useReducedMotion, type Variants } from "framer-motion";
 import {
   browserLocalPersistence,
+  EmailAuthProvider,
   GoogleAuthProvider,
   createUserWithEmailAndPassword,
   getRedirectResult,
+  linkWithCredential,
   onAuthStateChanged,
   sendPasswordResetEmail,
   setPersistence,
   signInWithEmailAndPassword,
-  signInWithRedirect,
+  signInWithPopup,
   signOut,
+  updatePassword,
   updateProfile,
 } from "firebase/auth";
 import { doc, serverTimestamp, setDoc } from "firebase/firestore";
@@ -82,8 +86,65 @@ const VALIDATION_STATS = [
 const inputClassName =
   "h-[3.25rem] w-full rounded-xl border border-[#E8E6DF] bg-white/90 px-4 text-[15px] text-[#0D0D0D] shadow-[inset_0_1px_2px_rgba(15,23,42,0.04)] outline-none transition placeholder:text-[#9CA3AF] focus:border-[#0D0D0D]/30 focus:bg-white focus:shadow-[0_0_0_3px_rgba(13,13,13,0.06)]";
 
+const shellVariants: Variants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.1,
+      delayChildren: 0.05,
+    },
+  },
+};
+
+const panelVariants: Variants = {
+  hidden: { opacity: 0, y: 18 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: {
+      duration: 0.65,
+      ease: [0.16, 1, 0.3, 1],
+    },
+  },
+};
+
+const statGridVariants: Variants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.08,
+      delayChildren: 0.12,
+    },
+  },
+};
+
+const statCardVariants: Variants = {
+  hidden: { opacity: 0, y: 16 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: {
+      duration: 0.45,
+      ease: [0.16, 1, 0.3, 1],
+    },
+  },
+};
+
+type HiTechInputProps = {
+  id: string;
+  type: string;
+  autoComplete?: string;
+  value: string;
+  onChange: (value: string) => void;
+  label: string;
+  className?: string;
+};
+
 export default function LoginContent() {
   const router = useRouter();
+  const reduceMotion = useReducedMotion();
   const searchParams = useSearchParams();
   const isRegisterMode = searchParams.get("mode") === "register";
   const isResetMode = searchParams.get("reset") === "1";
@@ -106,6 +167,7 @@ export default function LoginContent() {
   const [resetEmail, setResetEmail] = useState("");
   const [resetMessage, setResetMessage] = useState<string | null>(null);
   const [signupSuccessMessage, setSignupSuccessMessage] = useState<string | null>(null);
+  const [submitPulse, setSubmitPulse] = useState(false);
   const queryStatusError = isPendingQuery
     ? LOGIN_PENDING_APPROVAL_ERROR
     : isDisabledQuery
@@ -113,6 +175,7 @@ export default function LoginContent() {
       : null;
   const finalizingRef = useRef(false);
   const redirectedRef = useRef(false);
+  const submitPulseTimeoutRef = useRef<number | null>(null);
 
   function authDebug(event: string, data?: Record<string, unknown>) {
     try {
@@ -171,17 +234,16 @@ export default function LoginContent() {
       }),
     ]);
     const shouldActivateProfile = !profile || profile.status === "pending_verification";
-    const hasSavedUsername = Boolean(String(profile?.username || profile?.fullName || "").trim());
-    const isGoogleAccount = resolvedUser.providerIds.includes("google.com");
-    authDebug("profile_resolved", {
-      hasProfile: Boolean(profile),
-      status: profile?.status ?? null,
-      role: profile?.role ?? null,
-      hasSavedUsername,
-      isGoogleAccount,
-      shouldActivateProfile,
-    });
-
+      const hasSavedUsername = Boolean(String(profile?.username || profile?.fullName || "").trim());
+      const isGoogleAccount = resolvedUser.providerIds.includes("google.com");
+      authDebug("profile_resolved", {
+        hasProfile: Boolean(profile),
+        status: profile?.status ?? null,
+        role: profile?.role ?? null,
+        hasSavedUsername,
+        isGoogleAccount,
+        shouldActivateProfile,
+      });
     try {
       if (shouldActivateProfile) {
         // Do not block dashboard redirect on profile write when the network is unstable.
@@ -214,33 +276,29 @@ export default function LoginContent() {
       }
 
       if (isGoogleAccount && !hasSavedUsername) {
-        authDebug("username_prompt_required", { uid: resolvedUser.uid });
-        setPendingGoogleProfile({
-          uid: resolvedUser.uid,
-          email: resolvedUser.email,
-          role: resolvedRole,
-        });
-        setGoogleUsername(
-          resolvedUser.displayName?.trim() || resolvedUser.email?.split("@")[0] || "",
-        );
-        setGoogleUsernameError(null);
-        setGoogleLoading(false);
-        return;
+        authDebug("google_profile_autofill", { uid: resolvedUser.uid });
       }
 
       setSuccess(true);
       redirectedRef.current = true;
       const destination = getPostAuthRedirect(resolvedRole);
       authDebug("redirecting", { destination, resolvedRole, accountStatus });
-      router.replace(destination);
 
-      // If the router transition is interrupted, enforce navigation shortly after.
-      window.setTimeout(() => {
+      try {
+        router.replace(destination);
+      } catch (error) {
+        authDebug("router_replace_failed", { message: error instanceof Error ? error.message : "unknown" });
+      }
+
+      const forceNavigate = () => {
         if (window.location.pathname === "/login") {
           authDebug("router_fallback_assign", { destination });
           window.location.assign(destination);
         }
-      }, 1200);
+      };
+
+      window.setTimeout(forceNavigate, 300);
+      window.setTimeout(forceNavigate, 1200);
     } finally {
       authDebug("finalize_end");
       finalizingRef.current = false;
@@ -334,6 +392,110 @@ export default function LoginContent() {
       : "Continue to your campaign validation workspace.";
   const formTitle = isResetMode ? "Reset password" : isRegisterMode ? "Register" : "Log in";
   const submitLabel = isResetMode ? "Send reset link" : isRegisterMode ? "Register" : "Log in";
+  const shouldReduceMotion = Boolean(reduceMotion);
+
+  const renderHiTechInput = ({ id, type, autoComplete, value, onChange, label, className }: HiTechInputProps) => (
+    <div className="agi-input-wrap">
+      <input
+        id={id}
+        type={type}
+        autoComplete={autoComplete}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className={`${inputClassName} agi-input-hitech ${className ?? ""}`}
+        placeholder=" "
+      />
+      <label htmlFor={id} className="agi-input-label">
+        {label}
+      </label>
+    </div>
+  );
+
+  const logOutboundGoogleAdsClick = async (source: string, destination = "google_ads_start") => {
+    try {
+      const user = getFirebaseClientAuth().currentUser;
+      if (!user) return;
+      const token = await user.getIdToken();
+      if (!token) return;
+
+      await fetch("/api/activity/log", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          action_type: "google_ads_outbound_click",
+          action_label: "Google Ads outbound redirect",
+          metadata: {
+            source,
+            via: "link",
+            destination,
+          },
+        }),
+      });
+    } catch {
+      // Best-effort logging only; never block outbound navigation.
+    }
+  };
+
+  const openGoogleAdsFromLogin = async (source: string) => {
+    try {
+      const sessionResponse = await fetch("/api/google-ads/session", { cache: "no-store" });
+      const sessionPayload = await sessionResponse.json().catch(() => ({}));
+      const isConnected = Boolean(sessionPayload?.connected) && sessionResponse.ok;
+
+      if (!isConnected) {
+        await logOutboundGoogleAdsClick(source, "google_ads_oauth_start");
+        const oauthTab = window.open("/api/google-ads/oauth/start?useDifferent=1", "_blank", "noopener,noreferrer");
+        if (oauthTab) oauthTab.opener = null;
+        return;
+      }
+
+      const accountsResponse = await fetch("/api/google-ads/accounts", { cache: "no-store" });
+      const accountsPayload = await accountsResponse.json().catch(() => ({}));
+      const accounts = Array.isArray(accountsPayload?.accounts) ? accountsPayload.accounts : [];
+      const selected = accounts[0]?.customerId ? String(accounts[0].customerId).replace(/[^0-9]/g, "") : "";
+
+      await logOutboundGoogleAdsClick(
+        source,
+        selected ? "google_ads_account_selected" : "google_ads_accounts_list",
+      );
+
+      const destination = selected
+        ? `https://ads.google.com/aw/overview?ocid=${encodeURIComponent(selected)}`
+        : "https://ads.google.com/aw/accounts";
+      const accountTab = window.open(destination, "_blank", "noopener,noreferrer");
+      if (accountTab) accountTab.opener = null;
+    } catch {
+      await logOutboundGoogleAdsClick(source, "google_ads_oauth_start");
+      const fallbackTab = window.open("/api/google-ads/oauth/start?useDifferent=1", "_blank", "noopener,noreferrer");
+      if (fallbackTab) fallbackTab.opener = null;
+    }
+  };
+
+  const triggerSubmitPulse = () => {
+    if (shouldReduceMotion) return;
+    setSubmitPulse(false);
+    window.requestAnimationFrame(() => {
+      setSubmitPulse(true);
+      if (submitPulseTimeoutRef.current !== null) {
+        window.clearTimeout(submitPulseTimeoutRef.current);
+      }
+      submitPulseTimeoutRef.current = window.setTimeout(() => {
+        setSubmitPulse(false);
+        submitPulseTimeoutRef.current = null;
+      }, 420);
+    });
+  };
+
+  useEffect(() => {
+    return () => {
+      if (submitPulseTimeoutRef.current !== null) {
+        window.clearTimeout(submitPulseTimeoutRef.current);
+      }
+    };
+  }, []);
 
 
   const handlePasswordReset = async (event: FormEvent<HTMLFormElement>) => {
@@ -348,6 +510,7 @@ export default function LoginContent() {
         setErrors({ form: GENERIC_AUTH_VALIDATION_ERROR });
         return;
       }
+      triggerSubmitPulse();
       await sendPasswordResetEmail(getFirebaseClientAuth(), trimmed);
       setResetMessage(PASSWORD_RESET_REQUEST_MESSAGE);
     } catch {
@@ -378,6 +541,7 @@ export default function LoginContent() {
       return;
     }
 
+    triggerSubmitPulse();
     setLoading(true);
     setErrors({});
     setSignupSuccessMessage(null);
@@ -426,7 +590,15 @@ export default function LoginContent() {
       }
 
       setSuccess(true);
-      setTimeout(() => router.replace(getPostAuthRedirect(resolvedRole)), 500);
+      const destination = getPostAuthRedirect(resolvedRole);
+      const navigateToDashboard = () => {
+        if (window.location.pathname === "/login") {
+          window.location.assign(destination);
+        } else {
+          router.replace(destination);
+        }
+      };
+      window.setTimeout(navigateToDashboard, 500);
     } catch {
       setErrors({
         form: isRegisterMode ? GENERIC_SIGNUP_RESPONSE_MESSAGE : LOGIN_SERVER_ERROR,
@@ -443,6 +615,8 @@ export default function LoginContent() {
     setPendingGoogleProfile(null);
     setGoogleUsernameError(null);
     setGoogleUsername("");
+    setPassword("");
+    setConfirmPassword("");
     setGoogleLoading(true);
 
     try {
@@ -456,15 +630,24 @@ export default function LoginContent() {
         prompt: "select_account",
         ...(loginHint ? { login_hint: loginHint } : {}),
       });
-      authDebug("redirect_start");
-      await signInWithRedirect(auth, provider);
+      authDebug("popup_start");
+      const result = await signInWithPopup(auth, provider);
+      const user = result?.user;
+      authDebug("popup_done", { uid: user?.uid ?? null, email: user?.email ?? null });
+      if (!user) {
+        throw new Error("Google sign-in was cancelled.");
+      }
+      await finalizeSignedInUser({
+        uid: user.uid,
+        email: user.email,
+        displayName: user.displayName,
+        providerIds: user.providerData.map((provider) => provider.providerId),
+      });
     } catch (error) {
       const message = error instanceof Error ? error.message : "Google sign-in failed.";
       authDebug("google_signin_error", { message });
       setErrors({ form: message });
       setGoogleLoading(false);
-    } finally {
-      // Redirect flow leaves this page; keep the loading state if navigation succeeds.
     }
   };
 
@@ -473,13 +656,27 @@ export default function LoginContent() {
     if (!pendingGoogleProfile) return;
 
     const trimmedUsername = googleUsername.trim();
+    const trimmedPassword = password.trim();
+    const trimmedConfirmPassword = confirmPassword.trim();
+
     if (!trimmedUsername || trimmedUsername.length < 2 || !DISPLAY_NAME_PATTERN.test(trimmedUsername)) {
       setGoogleUsernameError("Please enter a valid username.");
       return;
     }
 
+    if (!trimmedPassword || trimmedPassword.length < 8) {
+      setGoogleUsernameError("Please choose a password with at least 8 characters.");
+      return;
+    }
+
+    if (trimmedPassword !== trimmedConfirmPassword) {
+      setGoogleUsernameError("The passwords do not match.");
+      return;
+    }
+
     setGoogleUsernameError(null);
     setGoogleUsernameSaving(true);
+    triggerSubmitPulse();
 
     try {
       const auth = getFirebaseClientAuth();
@@ -488,9 +685,22 @@ export default function LoginContent() {
         throw new Error("Your Google session changed. Please sign in again.");
       }
 
+      const email = currentUser.email || pendingGoogleProfile.email || "";
+      if (!email) {
+        throw new Error("We could not find your Google email. Please sign in again.");
+      }
+
+      const hasPasswordProvider = (currentUser.providerData || []).some((provider) => provider.providerId === "password");
+      if (hasPasswordProvider) {
+        await updatePassword(currentUser, trimmedPassword);
+      } else {
+        const credential = EmailAuthProvider.credential(email, trimmedPassword);
+        await linkWithCredential(currentUser, credential);
+      }
+
       await updateProfile(currentUser, { displayName: trimmedUsername });
       await setDoc(doc(getFirebaseClientFirestore(), "userProfiles", currentUser.uid), {
-        email: currentUser.email || pendingGoogleProfile.email || "",
+        email,
         username: trimmedUsername,
         fullName: trimmedUsername,
         role: pendingGoogleProfile.role,
@@ -500,16 +710,21 @@ export default function LoginContent() {
 
       setPendingGoogleProfile(null);
       setSuccess(true);
+      setPassword("");
+      setConfirmPassword("");
       redirectedRef.current = true;
       const destination = getPostAuthRedirect(pendingGoogleProfile.role);
-      router.replace(destination);
-      window.setTimeout(() => {
+      const forceNavigate = () => {
         if (window.location.pathname === "/login") {
           window.location.assign(destination);
+        } else {
+          router.replace(destination);
         }
-      }, 1200);
+      };
+      forceNavigate();
+      window.setTimeout(forceNavigate, 1200);
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Unable to save your username.";
+      const message = error instanceof Error ? error.message : "Unable to save your account details.";
       setGoogleUsernameError(message);
     } finally {
       setGoogleUsernameSaving(false);
@@ -517,20 +732,34 @@ export default function LoginContent() {
   };
 
   return (
-    <div className="min-h-screen bg-[#F7F5EF] text-[#0D0D0D]">
-      <div className="grid min-h-screen lg:grid-cols-2">
+    <div className="relative min-h-screen overflow-hidden bg-[#F7F5EF] text-[#0D0D0D]">
+      <div className="agi-login-grid" aria-hidden />
+      <div className="agi-login-scan" aria-hidden />
+      <div className="agi-login-orb agi-login-orb--a" aria-hidden />
+      <div className="agi-login-orb agi-login-orb--b" aria-hidden />
+
+      <motion.div
+        className="relative z-10 grid min-h-screen lg:grid-cols-2"
+        initial={shouldReduceMotion ? false : "hidden"}
+        animate="visible"
+        variants={shouldReduceMotion ? undefined : shellVariants}
+      >
         {/* Left — brand panel */}
-        <section className="relative hidden flex-col justify-between overflow-hidden bg-[#080808] px-10 py-12 text-white lg:flex xl:px-14 xl:py-16">
+        <motion.section
+          className="agi-login-panel relative hidden flex-col justify-between overflow-hidden bg-[#080808] px-10 py-12 text-white lg:flex xl:px-14 xl:py-16"
+          variants={shouldReduceMotion ? undefined : panelVariants}
+        >
           <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_20%_0%,rgba(200,168,107,0.12),transparent_55%),radial-gradient(ellipse_at_80%_100%,rgba(255,255,255,0.04),transparent_50%)]" />
           <div className="pointer-events-none absolute inset-0 opacity-[0.35] [background-image:linear-gradient(rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.03)_1px,transparent_1px)] [background-size:64px_64px]" />
+          <div className="pointer-events-none absolute inset-y-0 right-[-8rem] w-[16rem] bg-[radial-gradient(circle,rgba(0,212,255,0.28),transparent_68%)] blur-3xl" />
 
-          <div className="relative z-10">
+          <motion.div className="relative z-10" variants={shouldReduceMotion ? undefined : panelVariants}>
             <Link href="/" className="text-[1.35rem] font-black tracking-[-0.03em] text-white">
               Adigator
             </Link>
-          </div>
+          </motion.div>
 
-          <div className="relative z-10 max-w-lg">
+          <motion.div className="relative z-10 max-w-lg" variants={shouldReduceMotion ? undefined : panelVariants}>
             <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-white/45">{leftEyebrow}</p>
             <h1 className="mt-5 text-[clamp(2.25rem,4vw,3.25rem)] font-black leading-[1.02] tracking-[-0.04em] text-white">
               {leftTitle}
@@ -541,11 +770,16 @@ export default function LoginContent() {
               Launch With Confidence. Not Assumptions.
             </p>
 
-            <div className="mt-8 grid grid-cols-2 gap-4">
+            <motion.div
+              className="mt-8 grid grid-cols-2 gap-4"
+              variants={shouldReduceMotion ? undefined : statGridVariants}
+            >
               {VALIDATION_STATS.map((stat) => (
-                <div
+                <motion.div
                   key={stat.title}
                   className="rounded-2xl border border-white/[0.08] bg-white/[0.04] px-5 py-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] backdrop-blur-sm transition hover:border-white/[0.14] hover:bg-white/[0.06]"
+                  variants={shouldReduceMotion ? undefined : statCardVariants}
+                  whileHover={shouldReduceMotion ? undefined : { y: -4, borderColor: "rgba(255,255,255,0.22)" }}
                 >
                   <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-white/45">{stat.title}</p>
                   <p className={`mt-2 text-[15px] font-bold leading-snug ${stat.accent}`}>
@@ -558,12 +792,12 @@ export default function LoginContent() {
                       stat.value
                     )}
                   </p>
-                </div>
+                </motion.div>
               ))}
-            </div>
-          </div>
+            </motion.div>
+          </motion.div>
 
-          <p className="relative z-10 text-sm text-white/45">
+          <motion.p className="relative z-10 text-sm text-white/45" variants={shouldReduceMotion ? undefined : panelVariants}>
             {isRegisterMode ? "Already have an account?" : "New to Adigator?"}{" "}
             <Link
               href={isRegisterMode ? "/login" : "/login?mode=register"}
@@ -576,12 +810,32 @@ export default function LoginContent() {
               {MARKETING_CTA.label}
               <ArrowRight size={14} aria-hidden />
             </Link>
-          </p>
-        </section>
+            {" or "}
+            <Link
+              href="/api/google-ads/oauth/start?useDifferent=1"
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(event) => {
+                event.preventDefault();
+                void openGoogleAdsFromLogin("login-left-panel");
+              }}
+              className="inline-flex items-center gap-1 font-semibold text-white/85 transition hover:text-white"
+            >
+              Login to Google Ads
+              <ArrowRight size={14} aria-hidden />
+            </Link>
+          </motion.p>
+        </motion.section>
 
         {/* Right — form panel */}
-        <section className="flex min-h-screen items-center justify-center px-6 py-12 sm:px-10 lg:px-14 xl:px-20">
-          <div className="w-full max-w-[420px]">
+        <motion.section
+          className="flex min-h-screen items-center justify-center px-6 py-12 sm:px-10 lg:px-14 xl:px-20"
+          variants={shouldReduceMotion ? undefined : panelVariants}
+        >
+          <motion.div
+            className="agi-login-form-shell w-full max-w-[420px]"
+            variants={shouldReduceMotion ? undefined : panelVariants}
+          >
             <div className="mb-10 lg:hidden">
               <Link href="/" className="text-xl font-black tracking-tight text-[#0D0D0D]">
                 Adigator
@@ -589,24 +843,47 @@ export default function LoginContent() {
             </div>
 
             <h2 className="text-[clamp(2rem,5vw,2.75rem)] font-black tracking-[-0.04em] text-[#0D0D0D]">
-              {pendingGoogleProfile ? "Choose a username" : formTitle}
+              {pendingGoogleProfile ? "Complete your account" : formTitle}
             </h2>
 
             {pendingGoogleProfile ? (
               <form onSubmit={handleGoogleUsernameSubmit} noValidate className="mt-10 space-y-4">
                 <p className="text-sm leading-relaxed text-[#6B7280]">
-                  Your Google account is connected. Choose the username that will appear across Adigator.
+                  Your Google account is connected. Choose a display name and create a password so you can sign in with email later too.
                 </p>
 
-                <input
-                  id="google-username"
-                  type="text"
-                  autoComplete="username"
-                  value={googleUsername}
-                  onChange={(e) => setGoogleUsername(e.target.value)}
-                  className={inputClassName}
-                  placeholder="Username"
-                />
+                {pendingGoogleProfile.email ? (
+                  <p className="rounded-xl border border-[#E8E6DF] bg-white/80 px-4 py-3 text-sm text-[#4B5563]">
+                    Email: <span className="font-semibold text-[#0D0D0D]">{pendingGoogleProfile.email}</span>
+                  </p>
+                ) : null}
+
+                {renderHiTechInput({
+                  id: "google-username",
+                  type: "text",
+                  autoComplete: "username",
+                  value: googleUsername,
+                  onChange: setGoogleUsername,
+                  label: "Username",
+                })}
+
+                {renderHiTechInput({
+                  id: "google-password",
+                  type: "password",
+                  autoComplete: "new-password",
+                  value: password,
+                  onChange: setPassword,
+                  label: "Create password",
+                })}
+
+                {renderHiTechInput({
+                  id: "google-confirm-password",
+                  type: "password",
+                  autoComplete: "new-password",
+                  value: confirmPassword,
+                  onChange: setConfirmPassword,
+                  label: "Confirm password",
+                })}
 
                 {googleUsernameError ? (
                   <p className="rounded-xl border border-red-200/80 bg-red-50 px-4 py-3 text-sm text-red-800">
@@ -617,23 +894,22 @@ export default function LoginContent() {
                 <button
                   type="submit"
                   disabled={googleUsernameSaving}
-                  className="mt-2 flex h-[3.25rem] w-full items-center justify-center gap-2 rounded-full bg-[#0D0D0D] text-[15px] font-semibold text-white shadow-[0_12px_30px_rgba(13,13,13,0.18)] transition hover:bg-[#1a1a1a] disabled:cursor-not-allowed disabled:opacity-60"
+                  className={`mt-2 flex h-[3.25rem] w-full items-center justify-center gap-2 rounded-full bg-[#0D0D0D] text-[15px] font-semibold text-white shadow-[0_12px_30px_rgba(13,13,13,0.18)] transition hover:bg-[#1a1a1a] disabled:cursor-not-allowed disabled:opacity-60 ${submitPulse ? "agi-submit-pulse" : ""}`}
                 >
                   {googleUsernameSaving ? <Loader2 size={18} className="animate-spin" aria-hidden /> : null}
-                  {googleUsernameSaving ? "Saving…" : "Continue to dashboard"}
+                  {googleUsernameSaving ? "Saving…" : "Create password & continue"}
                 </button>
               </form>
             ) : isResetMode ? (
               <form onSubmit={handlePasswordReset} noValidate className="mt-10 space-y-4">
-                <input
-                  id="reset-email"
-                  type="email"
-                  autoComplete="email"
-                  value={resetEmail}
-                  onChange={(e) => setResetEmail(e.target.value)}
-                  className={inputClassName}
-                  placeholder="Email"
-                />
+                {renderHiTechInput({
+                  id: "reset-email",
+                  type: "email",
+                  autoComplete: "email",
+                  value: resetEmail,
+                  onChange: setResetEmail,
+                  label: "Email",
+                })}
 
                 {resetMessage ? (
                   <p className="rounded-xl border border-emerald-200/80 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
@@ -648,7 +924,7 @@ export default function LoginContent() {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="mt-2 flex h-[3.25rem] w-full items-center justify-center gap-2 rounded-full bg-[#0D0D0D] text-[15px] font-semibold text-white shadow-[0_12px_30px_rgba(13,13,13,0.18)] transition hover:bg-[#1a1a1a] disabled:cursor-not-allowed disabled:opacity-60"
+                  className={`mt-2 flex h-[3.25rem] w-full items-center justify-center gap-2 rounded-full bg-[#0D0D0D] text-[15px] font-semibold text-white shadow-[0_12px_30px_rgba(13,13,13,0.18)] transition hover:bg-[#1a1a1a] disabled:cursor-not-allowed disabled:opacity-60 ${submitPulse ? "agi-submit-pulse" : ""}`}
                 >
                   {loading ? <Loader2 size={18} className="animate-spin" aria-hidden /> : null}
                   {loading ? "Sending…" : submitLabel}
@@ -686,37 +962,38 @@ export default function LoginContent() {
                   ) : null}
 
                   {isRegisterMode ? (
-                    <input
-                      id="username"
-                      type="text"
-                      autoComplete="username"
-                      value={username}
-                      onChange={(e) => setUsername(e.target.value)}
-                      className={inputClassName}
-                      placeholder="Username"
-                    />
+                    renderHiTechInput({
+                      id: "username",
+                      type: "text",
+                      autoComplete: "username",
+                      value: username,
+                      onChange: setUsername,
+                      label: "Username",
+                    })
                   ) : null}
 
-                  <input
-                    id="email"
-                    type="email"
-                    autoComplete="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className={inputClassName}
-                    placeholder="Email"
-                  />
+                  {renderHiTechInput({
+                    id: "email",
+                    type: "email",
+                    autoComplete: "email",
+                    value: email,
+                    onChange: setEmail,
+                    label: "Email",
+                  })}
 
-                  <div className="relative">
+                  <div className="agi-input-wrap agi-input-wrap--password relative">
                     <input
                       id="password"
                       type={showPassword ? "text" : "password"}
                       autoComplete={isRegisterMode ? "new-password" : "current-password"}
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
-                      className={`${inputClassName} pr-16`}
-                      placeholder="Password"
+                      className={`${inputClassName} agi-input-hitech pr-16`}
+                      placeholder=" "
                     />
+                    <label htmlFor="password" className="agi-input-label">
+                      Password
+                    </label>
                     <button
                       type="button"
                       onClick={() => setShowPassword((v) => !v)}
@@ -727,15 +1004,14 @@ export default function LoginContent() {
                   </div>
 
                   {isRegisterMode ? (
-                    <input
-                      id="confirm-password"
-                      type={showPassword ? "text" : "password"}
-                      autoComplete="new-password"
-                      value={confirmPassword}
-                      onChange={(e) => setConfirmPassword(e.target.value)}
-                      className={inputClassName}
-                      placeholder="Confirm password"
-                    />
+                    renderHiTechInput({
+                      id: "confirm-password",
+                      type: showPassword ? "text" : "password",
+                      autoComplete: "new-password",
+                      value: confirmPassword,
+                      onChange: setConfirmPassword,
+                      label: "Confirm password",
+                    })
                   ) : null}
 
                   {!isRegisterMode ? (
@@ -759,7 +1035,7 @@ export default function LoginContent() {
                   <button
                     type="submit"
                     disabled={loading || googleLoading || success}
-                    className="mt-2 flex h-[3.25rem] w-full items-center justify-center gap-2 rounded-full bg-[#0D0D0D] text-[15px] font-semibold text-white shadow-[0_12px_30px_rgba(13,13,13,0.18)] transition hover:bg-[#1a1a1a] disabled:cursor-not-allowed disabled:opacity-60"
+                    className={`mt-2 flex h-[3.25rem] w-full items-center justify-center gap-2 rounded-full bg-[#0D0D0D] text-[15px] font-semibold text-white shadow-[0_12px_30px_rgba(13,13,13,0.18)] transition hover:bg-[#1a1a1a] disabled:cursor-not-allowed disabled:opacity-60 ${submitPulse ? "agi-submit-pulse" : ""}`}
                   >
                     {success ? <Check size={18} aria-hidden /> : loading ? <Loader2 size={18} className="animate-spin" aria-hidden /> : null}
                     {success ? "Success" : loading ? "Please wait…" : submitLabel}
@@ -797,12 +1073,25 @@ export default function LoginContent() {
                   <Link href={MARKETING_CTA.href} className="font-semibold text-[#0D0D0D] hover:underline">
                     {MARKETING_CTA.label}
                   </Link>
+                  {" or "}
+                  <Link
+                    href="/api/google-ads/oauth/start?useDifferent=1"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={(event) => {
+                      event.preventDefault();
+                      void openGoogleAdsFromLogin("login-form-footer");
+                    }}
+                    className="font-semibold text-[#0D0D0D] hover:underline"
+                  >
+                    Login to Google Ads
+                  </Link>
                 </p>
               </>
             )}
-          </div>
-        </section>
-      </div>
+          </motion.div>
+        </motion.section>
+      </motion.div>
     </div>
   );
 }

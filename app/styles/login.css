@@ -30,6 +30,210 @@
   50% { transform: scale(1.04); opacity: 1; }
 }
 
+@keyframes agi-login-grid-pan {
+  0% { background-position: 0 0, 0 0; }
+  100% { background-position: 140px 80px, 140px 80px; }
+}
+
+@keyframes agi-login-scanline {
+  0% { transform: translateY(-100%); opacity: 0; }
+  15% { opacity: 0.22; }
+  45% { opacity: 0.14; }
+  100% { transform: translateY(160%); opacity: 0; }
+}
+
+@keyframes agi-login-orb-float {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+  50% { transform: translate3d(0, -18px, 0) scale(1.06); }
+}
+
+@keyframes agi-login-form-pulse {
+  0%, 100% { box-shadow: 0 18px 45px rgba(8, 9, 12, 0.13); }
+  50% { box-shadow: 0 22px 60px rgba(0, 110, 255, 0.2); }
+}
+
+.agi-login-grid {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(0, 0, 0, 0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 0, 0, 0.025) 1px, transparent 1px);
+  background-size: 52px 52px;
+  opacity: 0.55;
+  animation: agi-login-grid-pan 18s linear infinite;
+  pointer-events: none;
+}
+
+.agi-login-scan {
+  position: absolute;
+  inset: -20%;
+  background: linear-gradient(180deg, transparent 0%, rgba(0, 212, 255, 0.14) 50%, transparent 100%);
+  mix-blend-mode: screen;
+  animation: agi-login-scanline 8s ease-in-out infinite;
+  pointer-events: none;
+}
+
+.agi-login-orb {
+  position: absolute;
+  width: clamp(220px, 22vw, 380px);
+  height: clamp(220px, 22vw, 380px);
+  border-radius: 9999px;
+  filter: blur(60px);
+  opacity: 0.42;
+  animation: agi-login-orb-float 9s ease-in-out infinite;
+  pointer-events: none;
+}
+
+.agi-login-orb--a {
+  top: -80px;
+  right: 8%;
+  background: radial-gradient(circle, rgba(0, 212, 255, 0.56) 0%, rgba(0, 212, 255, 0) 68%);
+}
+
+.agi-login-orb--b {
+  bottom: -120px;
+  left: -60px;
+  background: radial-gradient(circle, rgba(59, 123, 255, 0.32) 0%, rgba(59, 123, 255, 0) 72%);
+  animation-delay: 1.8s;
+}
+
+.agi-login-panel::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(160deg, rgba(0, 212, 255, 0.06), transparent 30%, rgba(255, 255, 255, 0.03) 78%);
+  pointer-events: none;
+}
+
+.agi-login-form-shell {
+  position: relative;
+  border: 1px solid rgba(255, 255, 255, 0.68);
+  border-radius: 28px;
+  padding: clamp(1.4rem, 2.2vw, 1.9rem);
+  background:
+    linear-gradient(165deg, rgba(255, 255, 255, 0.9), rgba(249, 249, 244, 0.82)),
+    linear-gradient(180deg, rgba(0, 212, 255, 0.05), rgba(59, 123, 255, 0.04));
+  backdrop-filter: blur(8px);
+  animation: agi-login-form-pulse 7s ease-in-out infinite;
+}
+
+.agi-login-form-shell::before {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(120deg, rgba(0, 212, 255, 0.36), rgba(255, 255, 255, 0.2), rgba(59, 123, 255, 0.28));
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+@keyframes agi-input-scan {
+  0% { transform: translateX(-120%); opacity: 0; }
+  25% { opacity: 0.36; }
+  65% { opacity: 0.16; }
+  100% { transform: translateX(140%); opacity: 0; }
+}
+
+@keyframes agi-submit-pulse {
+  0% {
+    transform: scale(1);
+    box-shadow: 0 12px 30px rgba(13, 13, 13, 0.18);
+  }
+  45% {
+    transform: scale(1.015);
+    box-shadow: 0 16px 34px rgba(13, 13, 13, 0.26), 0 0 18px rgba(0, 212, 255, 0.26);
+  }
+  100% {
+    transform: scale(1);
+    box-shadow: 0 12px 30px rgba(13, 13, 13, 0.18);
+  }
+}
+
+.agi-input-wrap {
+  position: relative;
+  isolation: isolate;
+}
+
+.agi-input-wrap::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -8%;
+  width: 36%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(0, 212, 255, 0.22), transparent);
+  opacity: 0;
+  transform: translateX(-120%);
+  pointer-events: none;
+}
+
+.agi-input-wrap::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 0.75rem;
+  box-shadow: 0 0 0 0 rgba(59, 123, 255, 0);
+  transition: box-shadow 0.25s ease;
+  pointer-events: none;
+}
+
+.agi-input-wrap:focus-within::before {
+  animation: agi-input-scan 1s ease;
+}
+
+.agi-input-wrap:focus-within::after {
+  box-shadow: 0 0 0 1px rgba(59, 123, 255, 0.25), 0 0 18px rgba(0, 212, 255, 0.22);
+}
+
+.agi-input-hitech {
+  padding-top: 1.15rem;
+  padding-bottom: 0.38rem;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    background-color 0.2s ease;
+}
+
+.agi-input-label {
+  position: absolute;
+  left: 1rem;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 0.92rem;
+  color: #8b93a8;
+  line-height: 1;
+  pointer-events: none;
+  transition:
+    top 0.22s ease,
+    transform 0.22s ease,
+    font-size 0.22s ease,
+    letter-spacing 0.22s ease,
+    color 0.22s ease;
+}
+
+.agi-input-wrap:focus-within .agi-input-label,
+.agi-input-wrap .agi-input-hitech:not(:placeholder-shown) + .agi-input-label {
+  top: 0.62rem;
+  transform: translateY(0);
+  font-size: 0.64rem;
+  letter-spacing: 0.08em;
+  color: #0f67c8;
+  text-transform: uppercase;
+}
+
+.agi-input-wrap--password .agi-input-label {
+  right: 4.2rem;
+}
+
+.agi-submit-pulse {
+  animation: agi-submit-pulse 0.42s cubic-bezier(0.2, 0.9, 0.3, 1);
+}
+
 .agi-particle-fallback {
   position: absolute;
   inset: 0;
@@ -187,4 +391,16 @@
 @media (prefers-reduced-motion: reduce) {
   .agi-particle-fallback { animation: none; }
   .agi-shake { animation: none; }
+  .agi-login-grid,
+  .agi-login-scan,
+  .agi-login-orb,
+  .agi-login-form-shell {
+    animation: none;
+  }
+  .agi-input-wrap:focus-within::before {
+    animation: none;
+  }
+  .agi-submit-pulse {
+    animation: none;
+  }
 }

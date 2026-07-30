@@ -73,6 +73,10 @@ export function getCommunicationPageCopy(role) {
   };
 }
 
-export function getPostAuthRedirect(_role) {
+export function resolvePostAuthDestination(_role) {
   return "/dashboard";
+}
+
+export function getPostAuthRedirect(role) {
+  return resolvePostAuthDestination(role);
 }
