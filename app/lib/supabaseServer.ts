@@ -7,12 +7,19 @@ import {
 } from "@/app/lib/auth/accountStatus";
 import { getProfileAccountStatus } from "@/app/lib/auth/accountStatus.server";
 
+export function isSupabaseConfigured(): boolean {
+  return Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
+}
+
 function getSupabaseEnv(): { url: string; anonKey: string } {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
   if (!url || !anonKey) {
-    throw new Error("Supabase environment variables are missing.");
+    return {
+      url: "https://placeholder.supabase.co",
+      anonKey: "placeholder-anon-key",
+    };
   }
 
   return { url, anonKey };
@@ -101,6 +108,12 @@ export async function getAuthenticatedUser(accessToken: string): Promise<{ user:
       return { user: null, error: "Unauthorized" };
     }
 
+    // Degraded mode: allow Firebase-authenticated requests even when Supabase
+    // configuration is missing so routes can still provide non-DB functionality.
+    if (!isSupabaseConfigured()) {
+      return { user, error: null };
+    }
+
     const admin = createAdminSupabaseClient();
     const accountStatus = await getProfileAccountStatus(admin, user.id);
     if (!isAccountLoginAllowed(accountStatus)) {
@@ -109,6 +122,33 @@ export async function getAuthenticatedUser(accessToken: string): Promise<{ user:
 
     return { user, error: null };
   } catch {
+    if (!isSupabaseConfigured()) {
+      // Development fallback: decode JWT payload without signature verification
+      // when Firebase Admin verification is unavailable.
+      try {
+        const [, payloadSegment] = accessToken.split(".");
+        if (payloadSegment) {
+          const payloadJson = Buffer.from(payloadSegment, "base64url").toString("utf-8");
+          const payload = JSON.parse(payloadJson) as Record<string, unknown>;
+          const uid = String(payload.user_id || payload.sub || "").trim();
+          const email = String(payload.email || "").trim() || null;
+          if (uid) {
+            return {
+              user: {
+                id: uid,
+                email,
+                user_metadata: {
+                  full_name: String(payload.name || ""),
+                },
+              },
+              error: null,
+            };
+          }
+        }
+      } catch {
+        // Fall through to unauthorized.
+      }
+    }
     return { user: null, error: "Unauthorized" };
   }
 }

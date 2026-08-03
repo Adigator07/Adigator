@@ -1,7 +1,8 @@
 const GOOGLE_AUTH_BASE = "https://accounts.google.com/o/oauth2/v2/auth";
 const GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
 const GOOGLE_USERINFO_URL = "https://openidconnect.googleapis.com/v1/userinfo";
-const GOOGLE_ADS_API_BASE = "https://googleads.googleapis.com/v20";
+const GOOGLE_ADS_API_VERSION = process.env.GOOGLE_ADS_API_VERSION?.trim() || "v21";
+const GOOGLE_ADS_API_BASE = `https://googleads.googleapis.com/${GOOGLE_ADS_API_VERSION}`;
 
 export type GoogleAdsTokenResponse = {
   access_token: string;
@@ -28,6 +29,14 @@ export type GoogleAdsCampaign = {
   startDate: string;
   endDate: string;
   suggestedGoal: string;
+  sourceType?: "published" | "draft";
+  draftId?: string;
+  channelSummary?: string;
+};
+
+export type GoogleAdsCampaignImportDetails = {
+  landingUrl?: string;
+  adGroupCount?: number;
 };
 
 export type GoogleAdsCreateCampaignInput = {
@@ -207,6 +216,17 @@ function mapChannelToGoal(channel: string): string {
   }
 }
 
+function buildChannelSummary(channel: string): string {
+  if (!channel) return "Unknown";
+  return channel.replace(/_/g, " ").toLowerCase().replace(/\b\w/g, (ch) => ch.toUpperCase());
+}
+
+function parseResourceId(resourceName: unknown): string {
+  const value = String(resourceName || "").trim();
+  if (!value) return "";
+  return value.split("/").pop() || "";
+}
+
 export async function listGoogleAdsCampaigns(accessToken: string, customerId: string, limit = 50): Promise<GoogleAdsCampaign[]> {
   const cid = cleanCustomerId(customerId);
   const query = [
@@ -251,8 +271,122 @@ export async function listGoogleAdsCampaigns(accessToken: string, customerId: st
       startDate: String((campaign.startDate as string) || ""),
       endDate: String((campaign.endDate as string) || ""),
       suggestedGoal: mapChannelToGoal(channel),
+      sourceType: "published",
+      channelSummary: buildChannelSummary(channel),
     };
   });
+}
+
+export async function listGoogleAdsDraftCampaigns(accessToken: string, customerId: string, limit = 50): Promise<GoogleAdsCampaign[]> {
+  const cid = cleanCustomerId(customerId);
+  const query = [
+    "SELECT",
+    "campaign_draft.id,",
+    "campaign_draft.name,",
+    "campaign_draft.draft_campaign,",
+    "campaign_draft.base_campaign",
+    "FROM campaign_draft",
+    `ORDER BY campaign_draft.id DESC LIMIT ${Math.max(1, Math.min(limit, 200))}`,
+  ].join(" ");
+
+  const response = await fetch(`${GOOGLE_ADS_API_BASE}/customers/${cid}/googleAds:search`, {
+    method: "POST",
+    headers: buildGoogleAdsHeaders(accessToken),
+    body: JSON.stringify({ query }),
+  });
+
+  const text = await response.text();
+  ensureOk(response, text);
+  const payload = JSON.parse(text) as {
+    results?: Array<{
+      campaignDraft?: Record<string, unknown>;
+    }>;
+  };
+
+  const publishedCampaigns = await listGoogleAdsCampaigns(accessToken, cid, limit);
+  const publishedById = new Map(publishedCampaigns.map((campaign) => [campaign.id, campaign]));
+  const rows = Array.isArray(payload.results) ? payload.results : [];
+
+  return rows.map((row) => {
+    const draft = row.campaignDraft || {};
+    const draftCampaignId = parseResourceId(draft.draftCampaign);
+    const baseCampaignId = parseResourceId(draft.baseCampaign);
+    const linkedPublished = publishedById.get(draftCampaignId) || publishedById.get(baseCampaignId);
+    const channelType = linkedPublished?.channelType || "";
+
+    return {
+      id: draftCampaignId || String((draft.id as string) || ""),
+      name: String((draft.name as string) || linkedPublished?.name || "Untitled Draft Campaign"),
+      status: "Draft",
+      channelType,
+      budgetAmountMicros: Number(linkedPublished?.budgetAmountMicros || 0),
+      startDate: String(linkedPublished?.startDate || ""),
+      endDate: String(linkedPublished?.endDate || ""),
+      suggestedGoal: mapChannelToGoal(channelType),
+      sourceType: "draft",
+      draftId: String((draft.id as string) || ""),
+      channelSummary: buildChannelSummary(channelType),
+    };
+  });
+}
+
+export async function getGoogleAdsCampaignImportDetails(
+  accessToken: string,
+  customerId: string,
+  campaignId: string,
+): Promise<GoogleAdsCampaignImportDetails> {
+  const cid = cleanCustomerId(customerId);
+  const campaignKey = String(campaignId || "").trim();
+  if (!cid || !campaignKey) return {};
+
+  const adGroupQuery = [
+    "SELECT",
+    "ad_group.id",
+    "FROM ad_group",
+    `WHERE campaign.id = ${campaignKey}`,
+    "ORDER BY ad_group.id DESC LIMIT 500",
+  ].join(" ");
+
+  const adGroupResponse = await fetch(`${GOOGLE_ADS_API_BASE}/customers/${cid}/googleAds:search`, {
+    method: "POST",
+    headers: buildGoogleAdsHeaders(accessToken),
+    body: JSON.stringify({ query: adGroupQuery }),
+  });
+  const adGroupText = await adGroupResponse.text();
+  ensureOk(adGroupResponse, adGroupText);
+  const adGroupPayload = JSON.parse(adGroupText) as {
+    results?: Array<{ adGroup?: Record<string, unknown> }>;
+  };
+
+  const adGroupCount = Array.isArray(adGroupPayload.results) ? adGroupPayload.results.length : 0;
+
+  const landingUrlQuery = [
+    "SELECT",
+    "ad_group_ad.ad.final_urls",
+    "FROM ad_group_ad",
+    `WHERE campaign.id = ${campaignKey}`,
+    "ORDER BY ad_group_ad.ad.id DESC LIMIT 20",
+  ].join(" ");
+
+  const landingResponse = await fetch(`${GOOGLE_ADS_API_BASE}/customers/${cid}/googleAds:search`, {
+    method: "POST",
+    headers: buildGoogleAdsHeaders(accessToken),
+    body: JSON.stringify({ query: landingUrlQuery }),
+  });
+  const landingText = await landingResponse.text();
+  ensureOk(landingResponse, landingText);
+  const landingPayload = JSON.parse(landingText) as {
+    results?: Array<{ adGroupAd?: { ad?: Record<string, unknown> } }>;
+  };
+
+  const landingUrl = (landingPayload.results || [])
+    .map((row) => row?.adGroupAd?.ad?.finalUrls)
+    .find((value) => Array.isArray(value) && value[0])?.[0];
+
+  return {
+    landingUrl: typeof landingUrl === "string" ? landingUrl : undefined,
+    adGroupCount,
+  };
 }
 
 async function createGoogleAdsBudget(accessToken: string, customerId: string, campaignName: string, amountMicros: number) {

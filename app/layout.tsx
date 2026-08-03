@@ -27,6 +27,9 @@ const cormorant = Cormorant_Garamond({
 export const metadata: Metadata = {
   title: "Adigator | Pre Launch Campaign Validation Platform",
   description: "Analyze and optimize your ad creatives with AI",
+  verification: {
+    google: "bBVWyBqp28XqDwBS5iNMolrvyqhO9XB_z_yO3ggBwJA",
+  },
   icons: {
     icon: "/Screenshot_2026-04-29_134437-removebg-preview.png",
   },
@@ -40,8 +43,17 @@ export const viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`dark ${inter.variable} ${jetbrainsMono.variable} ${cormorant.variable}`} data-scroll-behavior="smooth">
-      <body className="antialiased" style={{ fontFamily: "var(--font-inter), sans-serif" }}>
+    <html
+      lang="en"
+      className={`dark ${inter.variable} ${jetbrainsMono.variable} ${cormorant.variable}`}
+      data-scroll-behavior="smooth"
+      suppressHydrationWarning
+    >
+      <body
+        className="antialiased"
+        style={{ fontFamily: "var(--font-inter), sans-serif" }}
+        suppressHydrationWarning
+      >
         <BrowserExtensionErrorGuard />
         {children}
       </body>

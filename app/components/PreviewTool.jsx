@@ -55,6 +55,7 @@ import {
   analysisCoversCreatives,
   filterAnalysisForCreatives,
   getCreativesMissingAnalysis,
+  persistCampaignProgress,
   readStoredAnalysisResult,
   readStoredWorkflow,
   writeStoredAnalysisResult,
@@ -110,6 +111,10 @@ import {
 } from "../lib/previewStudioStorage";
 import { recordAndStoreDownloadReport } from "../lib/downloadHistoryStore";
 import {
+  buildAnalysisReportDownloadToast,
+  buildPreviewReportDownloadToast,
+} from "../lib/reportDownloadMessages";
+import {
   buildPreviewStudioReportFingerprint,
   setReportExportStorageScope,
   saveCachedReportExport,
@@ -153,6 +158,7 @@ import {
 import {
   createOrGetAdvertiser,
   listAdvertisers,
+  persistAdvertiserCampaignSelection,
   syncAdvertiserFromGenericSession,
   syncAdvertiserFromProgrammaticSnapshot,
 } from "../lib/advertiserStore";
@@ -175,6 +181,25 @@ import {
   getRecommendedCampaignDetailFields,
   isSetupComplete,
 } from "@/app/lib/setupRequiredFields";
+
+function buildImportedGoogleAdsBrief(snapshot) {
+  if (!snapshot || snapshot.importSource !== "google_ads") return snapshot?.campaignBrief || "";
+  if (snapshot.campaignBrief?.trim()) return snapshot.campaignBrief;
+
+  const budgetLine = snapshot.googleAdsBudgetAmountMicros
+    ? `Budget: ${(Number(snapshot.googleAdsBudgetAmountMicros) / 1_000_000).toFixed(2)} in account currency.`
+    : "";
+
+  return [
+    `Imported from Google Ads${snapshot.googleAdsCustomerId ? ` account ${snapshot.googleAdsCustomerId}` : ""}.`,
+    snapshot.googleAdsChannelType ? `Channel: ${snapshot.googleAdsChannelType}.` : "",
+    snapshot.googleAdsCampaignStatus ? `Status: ${snapshot.googleAdsCampaignStatus}.` : "",
+    snapshot.googleAdsStartDate ? `Start date: ${snapshot.googleAdsStartDate}.` : "",
+    snapshot.googleAdsEndDate ? `End date: ${snapshot.googleAdsEndDate}.` : "",
+    budgetLine,
+    snapshot.campaignGoal ? `Suggested goal: ${snapshot.campaignGoal}.` : "",
+  ].filter(Boolean).join(" ");
+}
 import {
   buildCampaignAssistantFingerprint,
   isCampaignAssistantContextValid,
@@ -210,6 +235,7 @@ import {
 } from "../lib/workflowSteps";
 import { readinessMatchesSession } from "../lib/campaignReadinessStore";
 import { recordPreviewStudioVideo } from "../lib/previewStudioVideoExport";
+import { timeAsyncOperation } from "../lib/routeTelemetry";
 import {
   WizardStepNav,
   ToolNavBtn,
@@ -605,10 +631,14 @@ async function analyzeSingleCreative(
       formData.append(`frame_time_${index}`, frame.timeLabel);
     });
 
-    const analysisRes = await fetch("/api/analyze-video-creative", {
-      method: "POST",
-      body: formData,
-    });
+    const analysisRes = await timeAsyncOperation(
+      "preview-tool",
+      "POST /api/analyze-video-creative",
+      () => fetch("/api/analyze-video-creative", {
+        method: "POST",
+        body: formData,
+      }),
+    );
 
     if (!analysisRes.ok) {
       let apiError = analysisRes.statusText;
@@ -672,11 +702,15 @@ async function analyzeSingleCreative(
     formData.append("campaign_id", campaignId);
     formData.append("task_type", taskType);
 
-    const orchestratorRes = await fetch("/api/validate-campaign", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${accessToken}` },
-      body: formData,
-    });
+    const orchestratorRes = await timeAsyncOperation(
+      "preview-tool",
+      "POST /api/validate-campaign",
+      () => fetch("/api/validate-campaign", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${accessToken}` },
+        body: formData,
+      }),
+    );
 
     if (orchestratorRes.ok) {
       const body = await orchestratorRes.json();
@@ -698,10 +732,14 @@ async function analyzeSingleCreative(
     }
   }
 
-  const analysisRes = await fetch("/api/analyze-creative", {
-    method: "POST",
-    body: formData,
-  });
+  const analysisRes = await timeAsyncOperation(
+    "preview-tool",
+    "POST /api/analyze-creative",
+    () => fetch("/api/analyze-creative", {
+      method: "POST",
+      body: formData,
+    }),
+  );
 
   if (!analysisRes.ok) {
     let apiError = analysisRes.statusText;
@@ -1445,6 +1483,26 @@ export default function PreviewTool() {
   ]);
 
   useEffect(() => {
+    if (typeof window === "undefined") return;
+    const activeCampaignId =
+      localStorage.getItem(ACTIVE_CAMPAIGN_STORAGE_KEY)
+      || loadedCampaignSnapshot?.id
+      || lookupCampaignId
+      || "";
+
+    if (!activeCampaignId || step < 1) return;
+
+    persistCampaignProgress(activeCampaignId, {
+      lastStep: step,
+      stepSlug: getWorkflowStepSlug(step),
+      campaignName,
+      advertiserName,
+      advertiserId,
+      platform,
+    });
+  }, [step, loadedCampaignSnapshot, lookupCampaignId, campaignName, advertiserName, advertiserId, platform]);
+
+  useEffect(() => {
     if (!mountRef.current) return;
     const delayMs = isBulkCompressing || compressingCreativeIds.length > 0 ? 1200 : 350;
     const timer = setTimeout(() => {
@@ -1649,7 +1707,7 @@ export default function PreviewTool() {
   const applyCampaignConfigFromSnapshot = useCallback((snapshot) => {
     setActiveCampaignId(snapshot.id);
     setCampaignName(snapshot.campaignName);
-    setCampaignBrief(snapshot.campaignBrief);
+    setCampaignBrief(buildImportedGoogleAdsBrief(snapshot));
     setCampaignVertical(snapshot.vertical);
     setLandingUrl(snapshot.landingUrl);
     setCampaignGoal(snapshot.campaignGoal || null);
@@ -1932,12 +1990,18 @@ export default function PreviewTool() {
 
     const resolvedName = (overrides?.campaignName ?? campaignName).trim();
     const resolvedId = (overrides?.campaignId ?? lookupCampaignId).trim();
+    const isGoogleLookup = platform === "google_ads";
+    const hasLookupInput = Boolean(resolvedName || resolvedId);
 
     if (overrides?.campaignName) setCampaignName(overrides.campaignName);
     if (overrides?.campaignId) setLookupCampaignId(overrides.campaignId);
 
-    if (!resolvedName || !resolvedId) {
-      setCreativeAdditionFindError("Enter both campaign name and ID, or select a campaign from your advertiser list.");
+    if ((isGoogleLookup && !hasLookupInput) || (!isGoogleLookup && (!resolvedName || !resolvedId))) {
+      setCreativeAdditionFindError(
+        isGoogleLookup
+          ? "Enter Google campaign name or campaign ID to import from your connected Google Ads account."
+          : "Enter the saved Adigator campaign name and ID, or select a campaign from your advertiser list.",
+      );
       return;
     }
 
@@ -1951,20 +2015,30 @@ export default function PreviewTool() {
 
     if (!match) {
       const token = await getAccessToken();
+      if (!token && isGoogleLookup) {
+        setCreativeAdditionFindError("Google Ads account is not connected. Sign in and connect Google Ads, then retry import.");
+        return;
+      }
       if (token) {
-        const fetched = platform === "programmatic"
-          ? await fetchProgrammaticCampaignFromApi({
-            campaignName: resolvedName,
-            campaignId: resolvedId,
-            accessToken: token,
-          })
-          : await fetchCampaignFromApi({
-            campaignName: resolvedName,
-            campaignId: resolvedId,
-            accessToken: token,
-            platform,
-          });
-        match = fetched;
+        try {
+          const fetched = platform === "programmatic"
+            ? await fetchProgrammaticCampaignFromApi({
+              campaignName: resolvedName,
+              campaignId: resolvedId,
+              accessToken: token,
+            })
+            : await fetchCampaignFromApi({
+              campaignName: resolvedName,
+              campaignId: resolvedId,
+              accessToken: token,
+              platform,
+            });
+          match = fetched;
+        } catch (fetchError) {
+          const errorText = fetchError instanceof Error ? fetchError.message : "Campaign lookup failed.";
+          setCreativeAdditionFindError(errorText);
+          return;
+        }
         if (match && match.ownerId && match.ownerId !== campaignOwnerId) {
           match = null;
         }
@@ -1981,11 +2055,19 @@ export default function PreviewTool() {
     if (!match) {
       setLoadedCampaignSnapshot(null);
       setCreativeAdditionMode("");
-      setCreativeAdditionFindError("No campaign matched that name and ID on your account. Check both values and try again.");
+      setCreativeAdditionFindError(
+        isGoogleLookup
+          ? "No Google Ads campaign matched that name/ID on your connected account. Check the value and try again."
+          : "No saved Adigator campaign matched that name and ID on your account. Save the campaign in Adigator first, or continue with a new setup.",
+      );
       return;
     }
     setLoadedCampaignSnapshot(match);
     setCreativeAdditionMode("");
+    if (isGoogleLookup && match.importSource === "google_ads") {
+      const sourceLabel = match.googleAdsCampaignSource === "draft" ? "Draft" : "Published";
+      addToast(`Imported Google Ads ${sourceLabel} campaign into Adigator.`, "success");
+    }
     if (isCreativeReplacementTask(programmaticTaskType)) {
       void applyCreativeReplacementLoad(match);
       return;
@@ -2004,7 +2086,7 @@ export default function PreviewTool() {
       addToast("Campaign found. Choose how to proceed.", "success");
       return;
     }
-  }, [lookupCampaignId, campaignName, campaignOwnerId, programmaticTaskType, getAccessToken, applyCampaignConfigFromSnapshot, applyCreativeReplacementLoad, applyCampaignRenewalLoad, applyUrlUtmCampaignLoad, addToast]);
+  }, [lookupCampaignId, campaignName, campaignOwnerId, programmaticTaskType, platform, getAccessToken, applyCampaignConfigFromSnapshot, applyCreativeReplacementLoad, applyCampaignRenewalLoad, applyUrlUtmCampaignLoad, addToast]);
 
   const reportDeepLinkHandledRef = useRef("");
 
@@ -2118,11 +2200,28 @@ export default function PreviewTool() {
   }, [searchParams, campaignOwnerId, loadCampaignFromDownloadLink]);
 
   const handleAdvertiserCampaignSelect = useCallback((campaign) => {
+    if (!campaignOwnerId || !campaign?.id || !campaign?.name) return;
+
+    persistAdvertiserCampaignSelection({
+      ownerId: campaignOwnerId,
+      advertiserName: advertiserName.trim() || "Selected advertiser",
+      advertiserId: advertiserId || undefined,
+      campaign: {
+        ...campaign,
+        id: campaign.id,
+        name: campaign.name,
+        platform: campaign.platform || "programmatic",
+        validated: Boolean(campaign.validated ?? false),
+        updatedAt: campaign.updatedAt || new Date().toISOString(),
+        adGroups: Array.isArray(campaign.adGroups) ? campaign.adGroups : [],
+      },
+    });
+
     void handleFindProgrammaticCampaign({
       campaignName: campaign.name,
       campaignId: campaign.id,
     });
-  }, [handleFindProgrammaticCampaign]);
+  }, [advertiserId, advertiserName, campaignOwnerId, handleFindProgrammaticCampaign]);
 
   const handleCreativeAdditionModeChange = useCallback((mode) => {
     if (!loadedCampaignSnapshot) return;
@@ -2149,7 +2248,7 @@ export default function PreviewTool() {
     const resolvedAnalysis = analysisOverride ?? analysisResult;
     const briefText = campaignBrief?.trim() || "";
     const goal = effectiveCampaignGoal || campaignGoal || "";
-    const vertical = campaignVertical || "";
+    const vertical = campaignVertical || loadedCampaignSnapshot?.vertical || "";
     const resolvedIntent = resolveCampaignIntentForBrief(briefText, {
       campaignGoal: goal,
       vertical,
@@ -2308,7 +2407,7 @@ export default function PreviewTool() {
 
   const persistProgrammaticCampaignSnapshot = useCallback(async (analysisOverride = null, options = {}) => {
     const { syncRemote = true } = options;
-    if (!platform || !campaignVertical || !campaignOwnerId) return null;
+    if (!platform || !campaignOwnerId) return null;
     const adapter = getPlatformAdapter(platform);
     const snapshotBase = buildProgrammaticCampaignSnapshot(analysisOverride);
     if (!snapshotBase.id && adapter.isUpdateTask(programmaticTaskType)) {
@@ -2452,14 +2551,18 @@ export default function PreviewTool() {
 
     let response;
     try {
-      response = await fetch("/api/session/create", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(initialValues),
-      });
+      response = await timeAsyncOperation(
+        "preview-tool",
+        "POST /api/session/create",
+        () => fetch("/api/session/create", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(initialValues),
+        }),
+      );
     } catch (error) {
       if (!sessionNetworkWarningShownRef.current) {
         sessionNetworkWarningShownRef.current = true;
@@ -2472,11 +2575,11 @@ export default function PreviewTool() {
       let message = "Unable to create analysis session.";
       try {
         const payload = await response.json();
-        if (payload?.skipped || payload?.schemaUnavailable) {
+        if (payload?.skipped || payload?.schemaUnavailable || payload?.serviceUnavailable) {
           if (!sessionNetworkWarningShownRef.current) {
             sessionNetworkWarningShownRef.current = true;
             console.warn(
-              "Analysis sessions table not found in Supabase. Preview tool will continue without server session persistence. Run supabase/RUN_PREVIEW_TOOL_TABLES.sql in the SQL editor.",
+              "Analysis sessions are temporarily unavailable. Preview tool will continue without server session persistence.",
               payload.error || message,
             );
           }
@@ -2507,6 +2610,17 @@ export default function PreviewTool() {
     }
 
     const payload = await response.json();
+    if (payload?.skipped || payload?.serviceUnavailable || payload?.schemaUnavailable) {
+      if (!sessionNetworkWarningShownRef.current) {
+        sessionNetworkWarningShownRef.current = true;
+        console.warn(
+          "Analysis sessions are temporarily unavailable. Preview tool will continue without server session persistence.",
+          payload.error || "Unable to create analysis session.",
+        );
+      }
+      return null;
+    }
+
     const sessionId = payload?.sessionId;
     if (!sessionId) {
       console.warn("Session creation succeeded but no sessionId was returned.");
@@ -2590,14 +2704,30 @@ export default function PreviewTool() {
       const token = await getAccessToken();
       if (!token) return { ok: false, failure: { kind: "error", message: "Unauthorized." }, status: 401 };
 
-      const response = await fetch("/api/session/update", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ sessionId: targetSessionId, ...updates }),
-      });
+      const response = await timeAsyncOperation(
+        "preview-tool",
+        "POST /api/session/update",
+        () => fetch("/api/session/update", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ sessionId: targetSessionId, ...updates }),
+        }),
+      );
+
+      const payload = await response.json().catch(() => ({}));
+      if (payload?.skipped || payload?.serviceUnavailable || payload?.schemaUnavailable) {
+        return {
+          ok: false,
+          failure: {
+            kind: payload?.schemaUnavailable ? "schema" : "error",
+            message: payload?.error || "Service unavailable.",
+          },
+          status: response.status,
+        };
+      }
 
       if (response.ok) return { ok: true };
 
@@ -2626,6 +2756,9 @@ export default function PreviewTool() {
         const message = result.failure?.message || "Unable to update analysis session.";
         const isMissingTable = result.failure?.kind === "schema"
           || /analysis_sessions|schema cache|does not exist/i.test(message);
+        if (result.failure?.kind === "error" && /serviceUnavailable|unauthorized|missing bearer token/i.test(message)) {
+          return false;
+        }
         if (isMissingTable) {
           if (!sessionNetworkWarningShownRef.current) {
             sessionNetworkWarningShownRef.current = true;
@@ -3067,12 +3200,21 @@ export default function PreviewTool() {
   const handleGoogleAdsCampaignImport = useCallback((campaign) => {
     if (!campaign) return;
 
-    if (typeof campaign.name === "string" && campaign.name.trim()) {
-      setCampaignName(campaign.name.trim());
+    const importedSnapshot = campaign.importSource === "google_ads" ? campaign : null;
+    const resolvedName = (typeof campaign.campaignName === "string" ? campaign.campaignName : campaign.name || "").trim();
+    const resolvedId = String(campaign.id || "").trim();
+
+    if (resolvedName) {
+      setCampaignName(resolvedName);
     }
 
-    if (!campaignGoal && typeof campaign.suggestedGoal === "string" && campaign.suggestedGoal.trim()) {
-      setCampaignGoal(campaign.suggestedGoal.trim());
+    if (resolvedId) setLookupCampaignId(resolvedId);
+
+    const suggestedGoal = typeof campaign.suggestedGoal === "string"
+      ? campaign.suggestedGoal.trim()
+      : (typeof campaign.campaignGoal === "string" ? campaign.campaignGoal.trim() : "");
+    if (!campaignGoal && suggestedGoal) {
+      setCampaignGoal(suggestedGoal);
     }
 
     const channel = String(campaign.channelType || "").toUpperCase();
@@ -3080,9 +3222,46 @@ export default function PreviewTool() {
       setGoogleCampaignType("display");
     }
 
+    if (campaignOwnerId && resolvedName) {
+      persistAdvertiserCampaignSelection({
+        ownerId: campaignOwnerId,
+        advertiserName: advertiserName.trim() || "Google Ads",
+        advertiserId: advertiserId || undefined,
+        campaign: {
+          id: String(campaign.id || resolvedName),
+          name: resolvedName,
+          platform: "google_ads",
+          validated: Boolean(campaign.validated ?? false),
+          updatedAt: new Date().toISOString(),
+          adGroups: [],
+          campaignGoal: typeof campaign.suggestedGoal === "string" ? campaign.suggestedGoal : undefined,
+          vertical: campaign.vertical || undefined,
+        },
+      });
+    }
+
+    if (importedSnapshot) {
+      const normalizedImported = {
+        ...importedSnapshot,
+        id: resolvedId || importedSnapshot.id,
+        campaignName: resolvedName || importedSnapshot.campaignName,
+        ownerId: campaignOwnerId || importedSnapshot.ownerId,
+        platform: "google_ads",
+      };
+      applyCampaignConfigFromSnapshot(normalizedImported);
+      setLoadedCampaignSnapshot(normalizedImported);
+      if (normalizedImported.ownerId) {
+        upsertCampaign(normalizedImported);
+      }
+      const sourceLabel = normalizedImported.googleAdsCampaignSource === "draft" ? "Draft" : "Published";
+      addToast(`Imported Google Ads ${sourceLabel} campaign saved in Adigator.`, "success");
+      setSetupPromptHighlighted(false);
+      return;
+    }
+
     setSetupPromptHighlighted(false);
-    addToast(`Imported Google Ads campaign: ${campaign.name || campaign.id}`, "success");
-  }, [campaignGoal, addToast]);
+    addToast(`Imported Google Ads campaign: ${resolvedName || resolvedId}`, "success");
+  }, [advertiserId, advertiserName, campaignGoal, campaignOwnerId, addToast, applyCampaignConfigFromSnapshot]);
 
   const selectedPlatformConfig = PLATFORMS.find((p) => p.id === platform);
   const availableGoals = platform ? (PLATFORM_GOAL_SETS[platform] || PROGRAMMATIC_GOALS) : [];
@@ -4693,25 +4872,29 @@ export default function PreviewTool() {
 
     setAssistantChecking(true);
     try {
-      const response = await fetch("/api/campaign-context-assessment", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          platform,
-          campaignName,
-          advertiserName,
-          campaignBrief,
-          campaignGoal: effectiveCampaignGoal || campaignGoal,
-          campaignVertical,
-          campaignAudienceStage,
-          campaignProductFocus,
-          landingUrl,
-          programmaticTaskType,
-          creativeCount: creativesForAnalysis.length,
-          creativeNames: creativesForAnalysis.map((creative) => creative.name).filter(Boolean),
-          hasPriorClarifications: isCampaignAssistantContextValid(campaignAssistantContext, fingerprint),
+      const response = await timeAsyncOperation(
+        "preview-tool",
+        "POST /api/campaign-context-assessment",
+        () => fetch("/api/campaign-context-assessment", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            platform,
+            campaignName,
+            advertiserName,
+            campaignBrief,
+            campaignGoal: effectiveCampaignGoal || campaignGoal,
+            campaignVertical,
+            campaignAudienceStage,
+            campaignProductFocus,
+            landingUrl,
+            programmaticTaskType,
+            creativeCount: creativesForAnalysis.length,
+            creativeNames: creativesForAnalysis.map((creative) => creative.name).filter(Boolean),
+            hasPriorClarifications: isCampaignAssistantContextValid(campaignAssistantContext, fingerprint),
+          }),
         }),
-      });
+      );
 
       if (!response.ok) {
         await runAnalysisInternal();
@@ -4998,6 +5181,17 @@ export default function PreviewTool() {
         selectedCreativeId,
       }, { useCache: false });
       downloadBlob(result.blob, result.filename);
+      let persistedCampaignId = activeCampaignId || loadedCampaignSnapshot?.id || lookupCampaignId || "";
+      let persistedOnDownload = false;
+      try {
+        const persisted = await persistProgrammaticCampaignSnapshot(null, { syncRemote: true });
+        if (persisted?.id) {
+          persistedCampaignId = persisted.id;
+          persistedOnDownload = true;
+        }
+      } catch (persistError) {
+        console.warn("[Adigator] Report downloaded but campaign persistence failed:", persistError);
+      }
       void trackUserActivity("download", {
         action_label: "PDF report downloaded",
         platform,
@@ -5014,7 +5208,7 @@ export default function PreviewTool() {
         ownerId: campaignOwnerId || "",
         reportType: reportTypeLabel,
         campaignName: campaignName.trim() || "Untitled Campaign",
-        campaignId: activeCampaignId || loadedCampaignSnapshot?.id || lookupCampaignId || "",
+        campaignId: persistedCampaignId,
         advertiserName: advertiserName.trim() || "—",
         advertiserId: advertiserId || "",
         targetStep: 3,
@@ -5028,10 +5222,8 @@ export default function PreviewTool() {
         platform: platform || undefined,
         blob: result.blob,
       });
-      addToast(
-        result.fromCache ? "Analysis report downloaded." : "Analysis report generated and downloaded.",
-        "success",
-      );
+      const toastInfo = buildAnalysisReportDownloadToast(Boolean(result.fromCache), persistedOnDownload);
+      addToast(toastInfo.message, toastInfo.type);
     } catch (err) {
       console.error(err);
       void recordAndStoreDownloadReport({
@@ -5073,6 +5265,7 @@ export default function PreviewTool() {
     programmaticTaskType,
     replacementComparisonReport,
     renewalComparisonReport,
+    persistProgrammaticCampaignSnapshot,
   ]);
 
   const isVideoPreviewStudio = isVideoAdTypeSelected
@@ -5264,6 +5457,17 @@ export default function PreviewTool() {
       }
 
       downloadBlob(result.blob, result.filename);
+      let persistedCampaignId = activeCampaignId || loadedCampaignSnapshot?.id || lookupCampaignId || "";
+      let persistedOnDownload = false;
+      try {
+        const persisted = await persistProgrammaticCampaignSnapshot(null, { syncRemote: true });
+        if (persisted?.id) {
+          persistedCampaignId = persisted.id;
+          persistedOnDownload = true;
+        }
+      } catch (persistError) {
+        console.warn("[Adigator] Preview report downloaded but campaign persistence failed:", persistError);
+      }
       void trackUserActivity("generate_action", {
         action_label: "Preview studio report generated",
         platform,
@@ -5284,7 +5488,7 @@ export default function PreviewTool() {
         ownerId: campaignOwnerId || "",
         reportType: "Preview Studio (PDF)",
         campaignName: campaignName.trim() || "Untitled Campaign",
-        campaignId: activeCampaignId || loadedCampaignSnapshot?.id || lookupCampaignId || "",
+        campaignId: persistedCampaignId,
         advertiserName: advertiserName.trim() || "—",
         advertiserId: advertiserId || "",
         targetStep: 4,
@@ -5299,10 +5503,8 @@ export default function PreviewTool() {
         platform: platform || undefined,
         blob: result.blob,
       });
-      addToast(
-        result.fromCache ? `Preview report downloaded: ${result.filename}` : `Preview report generated: ${result.filename}`,
-        "success",
-      );
+      const toastInfo = buildPreviewReportDownloadToast(result.filename, Boolean(result.fromCache), persistedOnDownload);
+      addToast(toastInfo.message, toastInfo.type);
     } catch (err) {
       console.error(err);
       void recordAndStoreDownloadReport({
@@ -5343,6 +5545,7 @@ export default function PreviewTool() {
     resolvedCampaignIntentFingerprint,
     previewTemplateContext.brandName,
     campaignProductFocus,
+    persistProgrammaticCampaignSnapshot,
   ]);
 
   const previewPrewarmFingerprintRef = useRef("");
@@ -5552,26 +5755,62 @@ export default function PreviewTool() {
                   <p className="mt-1 text-studio-muted">Select where this campaign will run.</p>
                 </div>
                 <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
-                  {PLATFORMS.map((p) => (
-                    <ToolSelectionCard key={p.id} selected={platform === p.id} onClick={() => handlePlatformSelect(p.id)}>
-                      <div className="mb-4 text-5xl">{p.icon}</div>
-                      <h3 className={`studio-heading mb-2 text-2xl font-extrabold ${platform === p.id ? "text-studio-accent" : "text-studio-text"}`}>{p.title}</h3>
-                      <p className="text-sm leading-relaxed text-studio-muted">{p.desc}</p>
-                    </ToolSelectionCard>
-                  ))}
+                  {PLATFORMS.map((p) => {
+                    const initial = p.title.split(" ")[0][0];
+
+                    return (
+                      <ToolSelectionCard key={p.id} selected={platform === p.id} onClick={() => handlePlatformSelect(p.id)}>
+                        <div className="relative overflow-hidden rounded-[1.4rem] border border-white/10 bg-slate-950/35 p-5 shadow-[0_20px_60px_-28px_rgba(15,23,42,0.65)]">
+                          <div className={`absolute inset-0 bg-linear-to-br ${p.color}`} />
+                          <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.24),transparent_55%)]" />
+                          <motion.div
+                            initial={false}
+                            animate={platform === p.id ? { y: [0, -4, 0], scale: [1, 1.02, 1], rotate: [0, -1.2, 1.2, 0] } : { y: 0, scale: 1, rotate: 0 }}
+                            transition={{ duration: 2.6, repeat: Infinity, ease: "easeInOut" }}
+                            className="relative z-10 flex items-start justify-between gap-3"
+                          >
+                            <div className="flex items-center gap-3">
+                              <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/25 bg-slate-950/55 text-lg font-black text-white shadow-[0_0_22px_rgba(255,255,255,0.15)]">
+                                {initial}
+                              </div>
+                              <div>
+                                <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-studio-muted">Ad network</p>
+                                <h3 className={`studio-heading text-xl font-extrabold ${platform === p.id ? "text-studio-accent" : "text-studio-text"}`}>{p.title}</h3>
+                              </div>
+                            </div>
+                            <div className={`rounded-full border px-2.5 py-1 text-[11px] font-semibold ${platform === p.id ? "border-cyan-400/40 bg-cyan-400/15 text-cyan-200" : "border-white/15 bg-white/10 text-studio-muted"}`}>
+                              {platform === p.id ? "Selected" : "Choose"}
+                            </div>
+                          </motion.div>
+
+                          <p className="relative z-10 mt-4 text-sm leading-relaxed text-studio-muted">{p.desc}</p>
+                        </div>
+                      </ToolSelectionCard>
+                    );
+                  })}
                 </div>
               </motion.section>
 
-              {platform === "google_ads" ? (
+              {platform === "google_ads" || platform === "meta_ads" || platform === "programmatic" ? (
                 <motion.section ref={goalSectionRef} id="setup-goal-section" variants={itemVariants} className="space-y-5">
                   <div>
-                    <h3 className="studio-heading text-2xl font-bold tracking-tight text-studio-text">Google Ads Account</h3>
-                    <p className="mt-1 text-studio-muted">Connect your Google Ads account to import campaign details.</p>
+                    <h3 className="studio-heading text-2xl font-bold tracking-tight text-studio-text">
+                      {platform === "meta_ads" ? "Meta Ads Account" : platform === "programmatic" ? "Programmatic Account" : "Google Ads Account"}
+                    </h3>
+                    <p className="mt-1 text-studio-muted">
+                      {platform === "meta_ads"
+                        ? "Open Meta Ads Manager with its own direct login route."
+                        : platform === "programmatic"
+                          ? "Open your programmatic workspace to continue the workflow."
+                          : "Connect your Google Ads account to import campaign details."}
+                    </p>
                   </div>
                   <GoogleAdsConnectPanel
                     enabled={true}
+                    activePlatform={platform}
                     onImportCampaign={handleGoogleAdsCampaignImport}
                     campaignName={campaignName}
+                    campaignId={lookupCampaignId}
                   />
                 </motion.section>
               ) : null}
@@ -5718,7 +5957,7 @@ export default function PreviewTool() {
                   </div>
                   {isBulkCompressing && bulkCompressProgress.total > 0 && (
                     <div className="mt-3">
-                      <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/[0.06]">
+                      <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/6">
                         <div
                           className="h-full rounded-full bg-studio-accent transition-[width] duration-200"
                           style={{
@@ -5887,7 +6126,7 @@ export default function PreviewTool() {
                     <p className="text-sm font-semibold text-studio-text">
                       {readinessProgress || "Checking URL against your campaign setup…"}
                     </p>
-                    <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-white/[0.08]">
+                    <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-white/8">
                       <div className="h-full w-2/3 animate-pulse rounded-full bg-studio-accent" />
                     </div>
                   </div>
