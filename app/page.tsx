@@ -36,7 +36,7 @@ const IllustrationWrapper = dynamic(
 );
 const HeroPreviewShowcase = dynamic(() => import("@/app/components/marketing/HeroPreviewShowcase"), {
   ssr: false,
-  loading: () => <div className="min-h-[420px] animate-pulse rounded-[28px] bg-[#111111]/80" aria-hidden />,
+  loading: () => <div className="min-h-105 animate-pulse rounded-[28px] bg-[#111111]/80" aria-hidden />,
 });
 const ValidationLayerDiagram = dynamic(
   () => import("@/app/components/marketing/ValidationLayerDiagram"),
@@ -47,14 +47,14 @@ const HeroLiveCards = dynamic(() => import("@/app/components/marketing/HeroLiveC
   loading: () => (
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4" aria-hidden>
       {Array.from({ length: 4 }).map((_, index) => (
-        <div key={index} className="min-h-[260px] animate-pulse rounded-[20px] bg-[#111111]" />
+        <div key={index} className="min-h-65 animate-pulse rounded-[20px] bg-[#111111]" />
       ))}
     </div>
   ),
 });
 const PipelineCoreEngine = dynamic(() => import("@/app/components/marketing/PipelineCoreEngine"), {
   ssr: false,
-  loading: () => <div className="min-h-[420px] animate-pulse rounded-3xl bg-[#111111]/80" aria-hidden />,
+  loading: () => <div className="min-h-105 animate-pulse rounded-3xl bg-[#111111]/80" aria-hidden />,
 });
 const CampaignTaskValidationSection = dynamic(
   () => import("@/app/components/marketing/CampaignTaskValidationSection"),
@@ -89,6 +89,8 @@ const TICKER_BENEFITS = [
   "Meta Ads",
   "Programmatic",
 ];
+
+const HERO_PILLS = ["AI-ready validation", "Human-in-the-loop", "Launch faster"];
 
 const WHY_CAMPAIGNS_FAIL = [
   {
@@ -163,15 +165,16 @@ const UNDERSTANDS_ITEMS = [
 ];
 
 const PLATFORMS = [
-  { name: "Meta Ads", desc: "Feed, Story, Reels, and safe-zone validation before trafficking.", icon: Megaphone },
-  { name: "Google Ads", desc: "Display, RDA, and Demand Gen requirements in one readiness pass.", icon: Target },
-  { name: "Programmatic Display", desc: "RTB sizes, file weight, and placement compatibility.", icon: BarChart3 },
+  { name: "Meta Ads", desc: "Feed, Story, Reels, and safe-zone validation before trafficking.", icon: Megaphone, accent: "from-[#ff5f6d]/20 to-[#ffc371]/20" },
+  { name: "Google Ads", desc: "Display, RDA, and Demand Gen requirements in one readiness pass.", icon: Target, accent: "from-[#4285f4]/20 to-[#34a853]/20" },
+  { name: "Programmatic Display", desc: "RTB sizes, file weight, and placement compatibility.", icon: BarChart3, accent: "from-[#8b5cf6]/20 to-[#38bdf8]/20" },
   {
     name: "Responsive Display",
     desc: "Ratio and asset-set checks for Google Responsive Display Ads.",
     icon: Monitor,
+    accent: "from-[#0ea5e9]/20 to-[#14b8a6]/20",
   },
-  { name: "Cross-device placements", desc: "Desktop, mobile, and tablet fit across the package.", icon: Smartphone },
+  { name: "Cross-device placements", desc: "Desktop, mobile, and tablet fit across the package.", icon: Smartphone, accent: "from-[#f59e0b]/20 to-[#ef4444]/20" },
 ];
 
 const OPERATIONAL_VALUE = [
@@ -225,66 +228,144 @@ const WORKFLOW_STEPS = [
 export default function HomePage() {
   const reduceMotion = useReducedMotion();
   const howItWorksCards = [...HOW_IT_WORKS, ...HOW_IT_WORKS];
+  const slideOffset = (direction: "left" | "right", intensity: "sm" | "md" | "lg" = "md") => {
+    const valueByIntensity: Record<"sm" | "md" | "lg", string> = {
+      sm: "clamp(10px,2vw,18px)",
+      md: "clamp(14px,2.8vw,26px)",
+      lg: "clamp(18px,3.6vw,34px)",
+    };
+    const value = valueByIntensity[intensity];
+    return direction === "left" ? `-${value}` : value;
+  };
 
   return (
-    <div className="marketing-page min-h-screen scroll-smooth bg-[#F5F5F0] text-[#0D0D0D]">
+    <div className="marketing-page relative min-h-screen overflow-hidden scroll-smooth bg-[#F5F5F0] text-[#0D0D0D]">
+      <div className="pointer-events-none absolute inset-0 overflow-hidden">
+        <div className="absolute left-1/2 -top-32 h-112 w-md -translate-x-1/2 rounded-full bg-[radial-gradient(circle,rgba(0,212,255,0.26)_0%,rgba(0,212,255,0.12)_34%,rgba(0,212,255,0.04)_62%,transparent_100%)] blur-3xl" aria-hidden />
+        <div className="absolute -bottom-24 -right-16 h-96 w-96 rounded-full bg-[radial-gradient(circle,rgba(34,211,238,0.18)_0%,rgba(34,211,238,0.08)_45%,transparent_80%)] blur-3xl" aria-hidden />
+      </div>
       <MarketingNav activePath="/" />
 
-      <main className="pt-28">
+      <main className="relative z-10 pt-28">
         {/* Hero */}
         <section className="marketing-section marketing-section-compact mx-auto w-[min(1280px,92vw)]">
-          <div className="grid grid-cols-1 items-center gap-8 md:grid-cols-2 md:gap-10 lg:gap-12">
-            <div className="min-w-0">
-              <h1 className="text-[clamp(2rem,4.5vw,3.25rem)] font-black leading-[1.12] tracking-[-0.035em]">
-                Catch Campaign Mistakes Before Media Spend Begins
-              </h1>
+          <motion.div
+            initial={reduceMotion ? false : { opacity: 0, x: slideOffset("left", "lg") }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: reduceMotion ? 0 : 0.75, ease: [0.22, 1, 0.36, 1] }}
+            className="relative overflow-hidden rounded-[36px] border border-black/10 bg-[linear-gradient(135deg,rgba(255,255,255,0.96),rgba(248,248,241,0.98))] p-6 shadow-[0_30px_90px_rgba(15,23,42,0.08)] sm:p-8 lg:p-10"
+          >
+            <div className="hero-ambient-grid pointer-events-none absolute inset-0" />
+            <motion.div
+              animate={reduceMotion ? { opacity: 0.7 } : { opacity: [0.6, 0.9, 0.65], scale: [1, 1.04, 1] }}
+              transition={{ duration: 7, repeat: Infinity, ease: "easeInOut" }}
+              className="hero-orb hero-orb-a"
+            />
+            <motion.div
+              animate={reduceMotion ? { opacity: 0.7 } : { opacity: [0.55, 0.8, 0.6], scale: [1, 1.06, 1] }}
+              transition={{ duration: 9, repeat: Infinity, ease: "easeInOut", delay: 0.7 }}
+              className="hero-orb hero-orb-b"
+            />
 
-              <motion.p
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: 0.25 }}
-                className="mt-6 max-w-2xl text-lg leading-relaxed text-[#5A5A55] sm:text-xl"
-              >
-                The operational validation layer for modern AdOps. Catch misalignment across brief, creative,
-                landing page, URLs, and platform requirements before media spend begins.
-              </motion.p>
-
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: 0.4 }}
-                className="mt-8 flex flex-wrap gap-4"
-              >
-                <Link
-                  href={MARKETING_CTA.href}
-                  className="marketing-btn-lime saas-hover rounded-full px-8 py-4 text-base font-bold"
+            <div className="relative z-10 grid grid-cols-1 items-center gap-8 md:grid-cols-2 md:gap-10 lg:gap-12">
+              <div className="min-w-0">
+                <motion.div
+                  initial={reduceMotion ? false : { opacity: 0, x: slideOffset("left", "md") }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ duration: reduceMotion ? 0 : 0.6, delay: reduceMotion ? 0 : 0.1, ease: [0.22, 1, 0.36, 1] }}
+                  className="mb-6 inline-flex flex-wrap gap-2"
                 >
-                  {MARKETING_CTA.label}
-                </Link>
-                <Link
-                  href={MARKETING_DEMO_VIDEO.href}
-                  className="marketing-btn-outline saas-hover rounded-full px-8 py-4 text-base font-semibold"
-                >
-                  {MARKETING_DEMO_VIDEO.label}
-                </Link>
-              </motion.div>
-            </div>
+                  {HERO_PILLS.map((pill) => (
+                    <span key={pill} className="hero-floating-pill rounded-full border border-black/10 bg-white/80 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.24em] text-[#4B5563] backdrop-blur">
+                      {pill}
+                    </span>
+                  ))}
+                </motion.div>
 
-            <div className="relative flex min-w-0 items-center justify-center py-4 lg:py-0">
-              <div
-                className="pointer-events-none absolute left-1/2 top-1/2 h-[min(100%,420px)] w-[min(92%,480px)] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(circle,rgba(200,240,77,0.22)_0%,rgba(200,240,77,0.06)_45%,transparent_72%)]"
-                aria-hidden
-              />
-              <IllustrationWrapper
-                src={STORYSET_ILLUSTRATIONS.digitalTransformationBro}
-                alt="Digital transformation and campaign intelligence platform"
-                className="relative z-10 mx-auto w-full max-w-[min(100%,440px)] sm:max-w-[480px] lg:max-w-[520px] xl:max-w-[560px]"
-                animation="fade-up"
-                delay={0.15}
-                priority
-              />
+                <motion.h1
+                  initial={reduceMotion ? false : { opacity: 0, x: slideOffset("left", "lg") }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ duration: reduceMotion ? 0 : 0.7, delay: reduceMotion ? 0 : 0.2, ease: [0.22, 1, 0.36, 1] }}
+                  className="text-[clamp(2rem,4.5vw,3.25rem)] font-black leading-[1.08] tracking-[-0.035em]"
+                >
+                  Catch Campaign Mistakes Before Media Spend Begins
+                </motion.h1>
+
+                <motion.p
+                  initial={reduceMotion ? false : { opacity: 0, x: slideOffset("left", "md") }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ duration: reduceMotion ? 0 : 0.7, delay: reduceMotion ? 0 : 0.3, ease: [0.22, 1, 0.36, 1] }}
+                  className="mt-6 max-w-2xl text-lg leading-relaxed text-[#5A5A55] sm:text-xl"
+                >
+                  The operational validation layer for modern AdOps. Catch misalignment across brief, creative,
+                  landing page, URLs, and platform requirements before media spend begins.
+                </motion.p>
+
+                <motion.div
+                  initial={reduceMotion ? false : { opacity: 0, x: slideOffset("left", "sm") }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ duration: reduceMotion ? 0 : 0.7, delay: reduceMotion ? 0 : 0.4, ease: [0.22, 1, 0.36, 1] }}
+                  className="mt-8 flex flex-wrap gap-4"
+                >
+                  <Link
+                    href={MARKETING_CTA.href}
+                    className="marketing-btn-lime saas-hover rounded-full px-8 py-4 text-base font-bold"
+                  >
+                    {MARKETING_CTA.label}
+                  </Link>
+                  <Link
+                    href={MARKETING_DEMO_VIDEO.href}
+                    className="marketing-btn-outline saas-hover rounded-full px-8 py-4 text-base font-semibold"
+                  >
+                    {MARKETING_DEMO_VIDEO.label}
+                  </Link>
+                </motion.div>
+
+                <motion.div
+                  initial={reduceMotion ? false : { opacity: 0, x: slideOffset("left", "sm") }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ duration: reduceMotion ? 0 : 0.7, delay: reduceMotion ? 0 : 0.5, ease: [0.22, 1, 0.36, 1] }}
+                  className="mt-8 flex flex-wrap gap-3 text-sm text-[#4B5563]"
+                >
+                  <span className="rounded-full border border-black/10 bg-white/70 px-3 py-2 backdrop-blur">Pre-launch confidence</span>
+                  <span className="rounded-full border border-black/10 bg-white/70 px-3 py-2 backdrop-blur">Cross-channel readiness</span>
+                  <span className="rounded-full border border-black/10 bg-white/70 px-3 py-2 backdrop-blur">Fast handoffs</span>
+                </motion.div>
+              </div>
+
+              <div className="relative flex min-w-0 items-center justify-center py-4 lg:py-0 lg:pl-6">
+                <motion.div
+                  initial={reduceMotion ? false : { opacity: 0, x: slideOffset("right", "lg"), scale: 0.98 }}
+                  animate={{ opacity: 1, x: 0, scale: 1 }}
+                  transition={{ duration: reduceMotion ? 0 : 0.8, delay: reduceMotion ? 0 : 0.35, ease: [0.22, 1, 0.36, 1] }}
+                  className="hero-floating-card bottom-[10%] right-[2%] hidden rounded-2xl border border-black/10 bg-[#111111]/90 p-4 text-white shadow-[0_24px_70px_rgba(15,23,42,0.2)] lg:block"
+                >
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.32em] text-white/60">Runtime</p>
+                  <p className="mt-2 text-base font-semibold">Live readiness</p>
+                  <p className="mt-1 text-sm text-white/75">Warnings surface before spend starts.</p>
+                </motion.div>
+
+                <motion.div
+                  animate={reduceMotion ? { opacity: 1, y: 0 } : { y: [0, -10, 0], rotate: [-1, 1, -1] }}
+                  transition={{ duration: reduceMotion ? 0 : 6, repeat: Infinity, ease: "easeInOut" }}
+                  className="relative w-full"
+                >
+                  <div
+                    className="pointer-events-none absolute left-1/2 top-1/2 h-[min(100%,500px)] w-[min(92%,560px)] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(circle,rgba(200,240,77,0.22)_0%,rgba(200,240,77,0.06)_45%,transparent_72%)]"
+                    aria-hidden
+                  />
+                  <IllustrationWrapper
+                    src={STORYSET_ILLUSTRATIONS.digitalTransformationBro}
+                    alt="Digital transformation and campaign intelligence platform"
+                    className="relative z-10 mx-auto w-full max-w-[min(100%,520px)] sm:max-w-136 lg:max-w-152 xl:max-w-2xl"
+                    animation="fade-up"
+                    delay={0.15}
+                    priority
+                  />
+                </motion.div>
+              </div>
             </div>
-          </div>
+          </motion.div>
 
           <div className="mt-8 lg:mt-10">
             <HeroPreviewShowcase className="mx-auto max-w-2xl" />
@@ -306,7 +387,7 @@ export default function HomePage() {
               {[...TICKER_BENEFITS, ...TICKER_BENEFITS].map((item, idx) => (
                 <div
                   key={`${item}-${idx}`}
-                  className="ticker-pill flex h-10 min-w-[max-content] items-center gap-2 rounded-full border px-4 text-sm font-semibold"
+                  className="ticker-pill flex h-10 min-w-max items-center gap-2 rounded-full border px-4 text-sm font-semibold"
                 >
                   <Check size={14} className="text-[#C8F04D]" />
                   {item}
@@ -335,8 +416,8 @@ export default function HomePage() {
             {WHY_CAMPAIGNS_FAIL.map((item, i) => (
               <motion.article
                 key={item.title}
-                initial={{ opacity: 0, y: 12 }}
-                whileInView={{ opacity: 1, y: 0 }}
+                initial={reduceMotion ? false : { opacity: 0, x: i % 2 === 0 ? slideOffset("left", "md") : slideOffset("right", "md") }}
+                whileInView={{ opacity: 1, x: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: i * 0.06 }}
                 className="saas-hover rounded-2xl border border-[#DEDDD5] bg-white p-6 shadow-[0_12px_24px_rgba(15,23,42,0.05)] sm:p-7"
@@ -370,7 +451,7 @@ export default function HomePage() {
                 {howItWorksCards.map((card, idx) => (
                   <article
                     key={`${card.step}-${idx}`}
-                    className="saas-hover relative w-[290px] shrink-0 overflow-hidden rounded-3xl border border-[#2A2A2A] bg-[#151515] p-6 md:w-[320px] lg:w-[340px]"
+                    className="saas-hover relative w-72.5 shrink-0 overflow-hidden rounded-3xl border border-[#2A2A2A] bg-[#151515] p-6 md:w-[320px] lg:w-85"
                     style={{
                       backgroundImage:
                         "radial-gradient(circle at 20% 10%, rgba(200,240,77,0.18), transparent 42%), radial-gradient(circle at 80% 70%, rgba(255,255,255,0.08), transparent 46%)",
@@ -429,7 +510,7 @@ export default function HomePage() {
         <CampaignTaskValidationSection />
 
         {/* Platform coverage */}
-        <section className="border-y border-[#DEDDD5] bg-[#FAFAF7] marketing-section-compact">
+        <section className="border-y border-[#DEDDD5] bg-[radial-gradient(circle_at_top_left,rgba(66,133,244,0.09),transparent_24%),radial-gradient(circle_at_bottom_right,rgba(200,240,77,0.12),transparent_24%),#FAFAF7] marketing-section-compact">
           <div className="mx-auto w-[min(1280px,92vw)]">
             <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#8A8A82]">
               The Adigator platform
@@ -445,17 +526,23 @@ export default function HomePage() {
               {PLATFORMS.map((platform, i) => (
                 <motion.article
                   key={platform.name}
-                  initial={{ opacity: 0, y: 16 }}
-                  whileInView={{ opacity: 1, y: 0 }}
+                  initial={reduceMotion ? false : { opacity: 0, x: i % 2 === 0 ? slideOffset("left", "md") : slideOffset("right", "md") }}
+                  whileInView={{ opacity: 1, x: 0 }}
                   viewport={{ once: true }}
                   transition={{ delay: i * 0.05, duration: 0.35 }}
-                  className="platform-card rounded-2xl border border-[#DEDDD5] bg-white p-5 shadow-[0_8px_20px_rgba(15,23,42,0.04)]"
+                  whileHover={{ y: -6, scale: 1.01, rotate: -0.5 }}
+                  className="platform-card group relative overflow-hidden rounded-3xl border border-[#DEDDD5] bg-white/90 p-5 shadow-[0_18px_40px_rgba(15,23,42,0.06)] backdrop-blur"
                 >
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#EEF0E7] text-[#0D0D0D]">
+                  <div className={`absolute inset-x-0 top-0 h-1 bg-linear-to-r ${platform.accent}`} />
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#EEF0E7] text-[#0D0D0D] transition-transform duration-300 group-hover:scale-110">
                     <platform.icon size={18} />
                   </div>
                   <h3 className="mt-3 text-base font-black tracking-tight">{platform.name}</h3>
                   <p className="mt-2 text-sm leading-relaxed text-[#5B5B55]">{platform.desc}</p>
+                  <div className="mt-4 flex items-center gap-2 text-sm font-semibold text-[#0D0D0D] opacity-70 transition-opacity duration-300 group-hover:opacity-100">
+                    <span>View readiness flow</span>
+                    <span className="transition-transform duration-300 group-hover:translate-x-1">→</span>
+                  </div>
                 </motion.article>
               ))}
             </div>
@@ -498,14 +585,19 @@ export default function HomePage() {
           </div>
 
           <div className="grid gap-5 sm:gap-6">
-            {OPERATIONAL_VALUE.map((feature) => (
-              <article
+            {OPERATIONAL_VALUE.map((feature, i) => (
+              <motion.article
                 key={feature.title}
-                className="saas-hover rounded-2xl border border-[#DEDDD5] bg-white p-6 shadow-[0_12px_24px_rgba(15,23,42,0.05)] sm:rounded-3xl sm:p-8"
+                initial={reduceMotion ? false : { opacity: 0, x: i % 2 === 0 ? slideOffset("left", "md") : slideOffset("right", "md") }}
+                whileInView={{ opacity: 1, x: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.45, delay: i * 0.08 }}
+                whileHover={{ y: -6, scale: 1.01 }}
+                className="saas-hover rounded-3xl border border-[#DEDDD5] bg-white/90 p-6 shadow-[0_18px_36px_rgba(15,23,42,0.05)] sm:p-8"
               >
                 <h3 className="text-xl font-black tracking-tight sm:text-2xl">{feature.title}</h3>
                 <p className="mt-4 text-base leading-relaxed text-[#5B5B55]">{feature.description}</p>
-              </article>
+              </motion.article>
             ))}
           </div>
             </div>
@@ -520,19 +612,29 @@ export default function HomePage() {
             </h2>
             <ul className="mt-6 space-y-3 text-base text-[#4B4B45] sm:mt-8 sm:space-y-4 sm:text-lg">
               {WORKFLOW_STEPS.map((item) => (
-                <li key={item} className="flex items-start gap-3">
+                <motion.li
+                  key={item}
+                  initial={reduceMotion ? false : { opacity: 0, x: slideOffset("left", "sm") }}
+                  whileInView={{ opacity: 1, x: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ duration: 0.4 }}
+                  whileHover={{ x: 4, scale: 1.01 }}
+                  className="flex items-start gap-3 rounded-[18px] border border-[#DEDDD5] bg-white/80 p-3 shadow-[0_10px_24px_rgba(15,23,42,0.04)]"
+                >
                   <span className="mt-1 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#DDE7B7] text-sm font-bold text-[#0D0D0D]">
                     ✓
                   </span>
                   <span>{item}</span>
-                </li>
+                </motion.li>
               ))}
             </ul>
           </div>
 
-          <div className="saas-hover relative overflow-hidden rounded-2xl border border-[#DEDDD5] bg-[#0D0D0D] p-6 shadow-[0_25px_70px_rgba(15,23,42,0.12)] sm:rounded-[32px] sm:p-8">
+          <div className="saas-hover relative overflow-hidden rounded-[28px] border border-white/10 bg-[linear-gradient(135deg,#0f172a_0%,#111827_45%,#0b1220_100%)] p-6 shadow-[0_25px_70px_rgba(15,23,42,0.12)] sm:p-8">
             <div className="relative space-y-6">
-              <p className="text-2xl font-black leading-tight text-white sm:text-3xl">
+              <div className="absolute -right-6 -top-6 h-24 w-24 rounded-full bg-cyan-400/15 blur-3xl" />
+              <div className="absolute -bottom-8 left-0 h-28 w-28 rounded-full bg-lime-300/15 blur-3xl" />
+              <p className="relative text-2xl font-black leading-tight text-white sm:text-3xl">
                 Validate Once. Execute With Confidence.
               </p>
             </div>
@@ -549,7 +651,7 @@ export default function HomePage() {
                   {BUILT_FOR.map((role) => (
                     <span
                       key={role}
-                      className="inline-flex items-center gap-2 rounded-full border border-[#DEDDD5] bg-white px-4 py-2 text-sm font-semibold"
+                      className="inline-flex items-center gap-2 rounded-full border border-[#DEDDD5] bg-white px-4 py-2 text-sm font-semibold shadow-[0_8px_20px_rgba(15,23,42,0.04)]"
                     >
                       <Users size={14} className="text-[#6B7280]" />
                       {role}

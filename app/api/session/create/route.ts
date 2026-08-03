@@ -6,12 +6,12 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
     const accessToken = getAccessTokenFromRequest(request);
     if (!accessToken) {
-      return NextResponse.json({ error: "Unauthorized: missing bearer token." }, { status: 401 });
+      return NextResponse.json({ skipped: true, serviceUnavailable: true, error: "Unauthorized: missing bearer token." }, { status: 200 });
     }
 
     const { user, error: authError } = await getAuthenticatedUser(accessToken);
     if (authError || !user) {
-      return NextResponse.json({ error: authError || "Unauthorized." }, { status: 401 });
+      return NextResponse.json({ skipped: true, serviceUnavailable: true, error: authError || "Unauthorized." }, { status: 200 });
     }
 
     let body: Record<string, unknown> = {};

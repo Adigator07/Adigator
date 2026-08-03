@@ -5,6 +5,7 @@ import type { CampaignIdOption } from "@/app/lib/programmaticCampaignStore";
 import { listCampaignIdsByName } from "@/app/lib/programmaticCampaignStore";
 import { fetchCampaignIdsByName } from "@/app/lib/programmaticCampaignApi";
 import { isAuthenticatedOwnerId } from "@/app/lib/campaignOwnerScope";
+import type { AnalyzerPlatform } from "@/app/lib/platforms/types";
 import { ToolInput, ToolSelect } from "@/app/components/preview-tool/PreviewToolUi";
 
 type CampaignIdSelectProps = {
@@ -12,6 +13,7 @@ type CampaignIdSelectProps = {
   campaignId: string;
   ownerId: string | null;
   accessToken?: string | null;
+  platform?: string;
   onCampaignIdChange: (value: string) => void;
 };
 
@@ -30,6 +32,7 @@ export default function CampaignIdSelect({
   campaignId,
   ownerId,
   accessToken,
+  platform,
   onCampaignIdChange,
 }: CampaignIdSelectProps) {
   const [options, setOptions] = useState<CampaignIdOption[]>([]);
@@ -39,18 +42,28 @@ export default function CampaignIdSelect({
 
   useEffect(() => {
     if (!trimmedName || !ownerId) {
-      setOptions([]);
-      return;
+      const timer = window.setTimeout(() => {
+        setOptions([]);
+        setLoading(false);
+      }, 0);
+      return () => {
+        window.clearTimeout(timer);
+      };
     }
 
     let active = true;
-    setLoading(true);
+    const loadingTimer = window.setTimeout(() => {
+      if (active) setLoading(true);
+    }, 0);
 
     void (async () => {
       const localOptions = listCampaignIdsByName(trimmedName, ownerId);
       let remoteOptions: CampaignIdOption[] = [];
       if (accessToken && isAuthenticatedOwnerId(ownerId)) {
-        remoteOptions = await fetchCampaignIdsByName(trimmedName, accessToken);
+        const normalizedPlatform = platform === "google_ads" || platform === "meta_ads" || platform === "programmatic"
+          ? platform as AnalyzerPlatform
+          : undefined;
+        remoteOptions = await fetchCampaignIdsByName(trimmedName, accessToken, normalizedPlatform);
       }
       if (!active) return;
       setOptions(mergeCampaignIdOptions(localOptions, remoteOptions));
@@ -59,14 +72,15 @@ export default function CampaignIdSelect({
 
     return () => {
       active = false;
+      window.clearTimeout(loadingTimer);
     };
-  }, [trimmedName, ownerId, accessToken]);
+  }, [trimmedName, ownerId, accessToken, platform]);
 
   const helperText = useMemo(() => {
-    if (!trimmedName) return "Enter a campaign name to see your campaign IDs.";
-    if (loading) return "Loading your campaign IDs…";
-    if (options.length === 0) return "No saved campaigns found for this name on your account.";
-    return `${options.length} campaign ID${options.length === 1 ? "" : "s"} found for your account.`;
+    if (!trimmedName) return "Enter a campaign name to see IDs from saved Adigator campaigns.";
+    if (loading) return "Loading IDs from saved Adigator campaigns…";
+    if (options.length === 0) return "No saved Adigator campaigns found for this name on your account. Google Ads drafts are not loaded directly here.";
+    return `${options.length} saved campaign ID${options.length === 1 ? "" : "s"} found in Adigator.`;
   }, [trimmedName, loading, options.length]);
 
   if (options.length > 0) {
@@ -80,7 +94,7 @@ export default function CampaignIdSelect({
           onChange={(event: ChangeEvent<HTMLSelectElement>) => onCampaignIdChange(event.target.value)}
         >
           <option value="" disabled>
-            Select your campaign ID
+            Select a saved campaign ID
           </option>
           {options.map((option) => (
             <option key={option.id} value={option.id}>
@@ -102,7 +116,7 @@ export default function CampaignIdSelect({
         type="text"
         value={campaignId}
         onChange={(event: ChangeEvent<HTMLInputElement>) => onCampaignIdChange(event.target.value)}
-        placeholder="e.g. PGM-ABC123-XYZ789"
+        placeholder="Enter the saved Adigator campaign ID"
       />
       <p className="mt-2 text-xs text-studio-tertiary">{helperText}</p>
     </div>

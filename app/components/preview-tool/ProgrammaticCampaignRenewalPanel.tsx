@@ -2,16 +2,17 @@
 
 import ProgrammaticCampaignLookupPanel from "@/app/components/preview-tool/ProgrammaticCampaignLookupPanel";
 import type { AdvertiserCampaign } from "@/app/lib/advertiserStore";
-import type { ProgrammaticCampaignSnapshot } from "@/app/lib/programmaticCampaignStore";
+import type { CampaignSnapshot } from "@/app/lib/campaignSnapshot";
 
 type ProgrammaticCampaignRenewalPanelProps = {
   campaignName: string;
   campaignId: string;
   campaignOwnerId: string | null;
   campaignAccessToken?: string | null;
+  platform?: string;
   advertiserId?: string;
   advertiserName?: string;
-  loadedCampaign: ProgrammaticCampaignSnapshot | null;
+  loadedCampaign: CampaignSnapshot | null;
   findError: string;
   onCampaignNameChange: (value: string) => void;
   onCampaignIdChange: (value: string) => void;
@@ -24,6 +25,7 @@ export default function ProgrammaticCampaignRenewalPanel({
   campaignId,
   campaignOwnerId,
   campaignAccessToken,
+  platform = "programmatic",
   advertiserId,
   advertiserName,
   loadedCampaign,
@@ -36,11 +38,12 @@ export default function ProgrammaticCampaignRenewalPanel({
   return (
     <ProgrammaticCampaignLookupPanel
       title="Load Campaign for Renewal"
-      description="Select a campaign from your advertiser's history, or enter the campaign name and ID to use as a starting point for renewal."
+      description="Select a previously saved Adigator campaign from your advertiser's history, or enter the saved campaign name and ID to use as a starting point for renewal."
       campaignName={campaignName}
       campaignId={campaignId}
       campaignOwnerId={campaignOwnerId}
       campaignAccessToken={campaignAccessToken}
+      platform={platform}
       advertiserId={advertiserId}
       advertiserName={advertiserName}
       loadedCampaign={loadedCampaign}

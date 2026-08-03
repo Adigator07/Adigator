@@ -46,10 +46,10 @@ export default function OrgShell({ children }: { children: React.ReactNode }) {
         href={item.href}
         onClick={() => setMobileOpen(false)}
         className={cn(
-          "flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium transition",
+          "flex items-center gap-2 rounded-xl border px-3 py-2 text-sm font-medium transition",
           active
-            ? "bg-sky-500/20 text-sky-100 border border-sky-500/30"
-            : "text-white/50 hover:bg-white/5 hover:text-white border border-transparent",
+            ? "border-sky-300 bg-sky-100 text-sky-700"
+            : "border-transparent text-slate-600 hover:border-sky-200 hover:bg-sky-50 hover:text-sky-700",
         )}
       >
         <Icon size={16} />
@@ -59,36 +59,36 @@ export default function OrgShell({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <div className="flex min-h-screen flex-col bg-[#050816]">
-      <header className="sticky top-0 z-40 flex h-14 items-center justify-between border-b border-sky-500/20 bg-[#050816]/95 px-4 backdrop-blur-md">
+    <div className="flex min-h-screen flex-col bg-[radial-gradient(circle_at_top_left,rgba(14,165,233,0.14),transparent_36%),linear-gradient(135deg,#f8fbff_0%,#eef8ff_55%,#f6fbff_100%)] text-slate-800">
+      <header className="sticky top-0 z-40 flex h-14 items-center justify-between border-b border-sky-200/80 bg-white/80 px-4 backdrop-blur-xl">
         <div className="flex items-center gap-3">
           <button
             type="button"
-            className="rounded-lg border border-white/10 p-2 text-white/60 lg:hidden"
+            className="rounded-lg border border-sky-200 p-2 text-slate-600 lg:hidden"
             onClick={() => setMobileOpen((v) => !v)}
             aria-label="Toggle menu"
           >
             {mobileOpen ? <X size={18} /> : <Menu size={18} />}
           </button>
-          <Building2 className="text-sky-400" size={20} />
+          <Building2 className="text-sky-500" size={20} />
           <div>
-            <span className="text-sm font-bold uppercase tracking-widest text-sky-300">Organization Console</span>
+            <span className="text-sm font-bold uppercase tracking-widest text-sky-700">Organization Console</span>
             {organizationName ? (
-              <p className="text-[10px] text-white/40">{organizationName}</p>
+              <p className="text-[10px] text-slate-500">{organizationName}</p>
             ) : null}
           </div>
         </div>
         <div className="flex items-center gap-2">
           <Link
             href="/dashboard"
-            className="flex items-center gap-1.5 rounded-lg border border-white/10 px-3 py-1.5 text-xs font-medium text-white/70 hover:bg-white/5"
+            className="flex items-center gap-1.5 rounded-lg border border-sky-200 px-3 py-1.5 text-xs font-medium text-slate-600 transition hover:bg-sky-50"
           >
             <ArrowLeft size={14} /> Back to App
           </Link>
           <button
             type="button"
             onClick={handleLogout}
-            className="rounded-lg border border-white/10 p-2 text-white/40 hover:text-red-400"
+            className="rounded-lg border border-sky-200 p-2 text-slate-500 hover:text-red-500"
             aria-label="Logout"
           >
             <LogOut size={16} />
@@ -99,7 +99,7 @@ export default function OrgShell({ children }: { children: React.ReactNode }) {
       <div className="flex flex-1">
         <aside
           className={cn(
-            "fixed inset-y-14 left-0 z-30 w-64 transform border-r border-sky-500/20 bg-[#050816] p-4 transition-transform lg:static lg:translate-x-0",
+            "fixed inset-y-14 left-0 z-30 w-64 transform border-r border-sky-200/80 bg-white/80 p-4 shadow-[0_18px_45px_-24px_rgba(14,116,144,0.25)] backdrop-blur-xl transition-transform lg:static lg:translate-x-0",
             mobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0",
           )}
         >
@@ -109,7 +109,7 @@ export default function OrgShell({ children }: { children: React.ReactNode }) {
         {mobileOpen ? (
           <button
             type="button"
-            className="fixed inset-0 z-20 bg-black/50 lg:hidden"
+            className="fixed inset-0 z-20 bg-slate-900/20 lg:hidden"
             onClick={() => setMobileOpen(false)}
             aria-label="Close menu"
           />

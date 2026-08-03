@@ -5,6 +5,8 @@ import { useCallback, useEffect, useMemo, useState, type ComponentType } from "r
 import Link from "next/link";
 import { ChevronRight, Loader2, MonitorPlay } from "lucide-react";
 
+import { LoadingState } from "@/app/components/ui/LoadingState";
+
 import type { AdvertiserCampaign } from "@/app/lib/advertiserStore";
 import type { DashboardPreviewContextCache } from "@/app/lib/dashboardCampaignCache";
 import type { PreviewStudioCache } from "@/app/lib/previewStudioPersistence";
@@ -203,10 +205,11 @@ export default function CampaignPreviewStudioPanel({
 
   if (loading || waitingForCache) {
     return (
-      <div className="flex items-center justify-center rounded-xl border border-white/10 bg-black/20 py-16 text-sm text-white/45">
-        <Loader2 size={22} className="mr-2 animate-spin" />
-        Loading saved previews…
-      </div>
+      <LoadingState
+        title="Loading saved previews"
+        description="Preparing the preview studio experience for this campaign."
+        className="min-h-55 border-white/10 bg-[#0b0b12]/80 text-white"
+      />
     );
   }
 

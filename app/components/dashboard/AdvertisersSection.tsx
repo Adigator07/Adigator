@@ -26,6 +26,8 @@ import { isBlockedAdvertiserName, resolveCampaignBriefAndIntent } from "@/app/li
 import { labelProgrammaticTaskType } from "@/app/lib/programmaticWorkflow";
 import CampaignAnalysisOverview from "@/app/components/dashboard/CampaignAnalysisOverview";
 import CampaignPreviewStudioPanel from "@/app/components/dashboard/CampaignPreviewStudioPanel";
+import { EmptyState } from "@/app/components/ui/EmptyState";
+import { LoadingState } from "@/app/components/ui/LoadingState";
 import { findDashboardCampaignSnapshot } from "@/app/lib/dashboardCampaignContext";
 import {
   hydrateCreativeRecord,
@@ -37,6 +39,7 @@ type AdvertisersSectionProps = {
   advertisers: Advertiser[];
   loading?: boolean;
   ownerId?: string;
+  loadingProgress?: number;
 };
 
 type SelectedCreative = {
@@ -49,11 +52,11 @@ type SelectedCreative = {
 type CampaignDetailTab = "campaigns" | "analysis" | "preview";
 
 const LEVEL_STYLES = {
-  advertiser: "border-purple-500/30 bg-gradient-to-br from-purple-950/30 to-black/20",
-  campaign: "border-blue-500/30 bg-gradient-to-br from-blue-950/25 to-black/20",
-  adGroup: "border-emerald-500/25 bg-gradient-to-br from-emerald-950/20 to-black/15",
-  creative: "border-amber-500/25 bg-gradient-to-br from-amber-950/15 to-black/10",
-  analysis: "border-violet-500/30 bg-gradient-to-br from-violet-950/25 to-black/20",
+  advertiser: "border-sky-200/80 bg-linear-to-br from-sky-50/90 to-cyan-50/80",
+  campaign: "border-sky-200/80 bg-linear-to-br from-white to-sky-50/80",
+  adGroup: "border-emerald-200/80 bg-linear-to-br from-emerald-50/80 to-white",
+  creative: "border-amber-200/80 bg-linear-to-br from-amber-50/70 to-white",
+  analysis: "border-violet-200/80 bg-linear-to-br from-violet-50/80 to-white",
 } as const;
 
 function LevelPanel({
@@ -74,12 +77,12 @@ function LevelPanel({
   return (
     <div className={`rounded-2xl border p-4 sm:p-5 ${LEVEL_STYLES[level]} ${className}`}>
       <div className="mb-4 flex items-start gap-3">
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/5">
-          <Icon size={16} className="text-white/70" />
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-sky-200 bg-white shadow-sm">
+          <Icon size={16} className="text-sky-600" />
         </div>
         <div className="min-w-0">
-          <p className="text-[10px] font-semibold uppercase tracking-widest text-white/40">{title}</p>
-          {subtitle ? <p className="mt-1 text-sm font-semibold text-white">{subtitle}</p> : null}
+          <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-500">{title}</p>
+          {subtitle ? <p className="mt-1 text-sm font-semibold text-slate-800">{subtitle}</p> : null}
         </div>
       </div>
       {children}
@@ -107,7 +110,7 @@ function TabBar({
   ];
 
   return (
-    <div className="mb-4 flex flex-wrap gap-2 border-b border-white/10 pb-3">
+    <div className="mb-4 flex flex-wrap gap-2 border-b border-sky-100 pb-3">
       {tabs.map((tab) => {
         const Icon = tab.icon;
         const selected = active === tab.id;
@@ -118,15 +121,15 @@ function TabBar({
             onClick={() => onChange(tab.id)}
             className={`inline-flex items-center gap-2 rounded-xl border px-4 py-2 text-sm font-semibold transition ${
               selected
-                ? "border-purple-500/50 bg-purple-500/15 text-purple-200"
-                : "border-white/10 bg-white/[0.03] text-white/55 hover:border-white/20 hover:text-white"
+                ? "border-sky-300 bg-sky-100 text-sky-700"
+                : "border-sky-200 bg-white text-slate-600 hover:border-sky-300 hover:text-sky-700"
             }`}
           >
             <Icon size={15} />
             {tab.label}
             {tab.count !== null ? (
               <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
-                selected ? "bg-purple-500/25 text-purple-100" : "bg-white/10 text-white/45"
+                selected ? "bg-sky-200 text-sky-700" : "bg-sky-50 text-slate-500"
               }`}>
                 {tab.count}
               </span>
@@ -141,7 +144,7 @@ function TabBar({
 function AdvertiserAvatar({ name }: { name: string }) {
   const initial = name.trim().charAt(0).toUpperCase() || "?";
   return (
-    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-purple-500/30 bg-gradient-to-br from-purple-600/30 to-blue-600/20 text-sm font-bold text-white">
+    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-sky-200 bg-linear-to-br from-sky-500 to-cyan-500 text-sm font-bold text-white shadow-sm">
       {initial}
     </div>
   );
@@ -155,13 +158,13 @@ function ScrollableCampaignTextCell({
   emptyLabel: string;
 }) {
   if (!text.trim()) {
-    return <span className="text-xs text-white/30">{emptyLabel}</span>;
+    return <span className="text-xs text-slate-400">{emptyLabel}</span>;
   }
 
   return (
-    <div className="w-full rounded-lg border border-white/10 bg-black/20 px-3 py-2.5">
-      <div className="max-h-28 overflow-y-auto overscroll-contain pr-1 text-xs leading-relaxed text-white/75 [scrollbar-width:thin] [scrollbar-color:rgba(255,255,255,0.2)_transparent]">
-        <p className="whitespace-pre-wrap break-words">{text}</p>
+    <div className="w-full rounded-lg border border-sky-100 bg-sky-50/70 px-3 py-2.5">
+      <div className="max-h-28 overflow-y-auto overscroll-contain pr-1 text-xs leading-relaxed text-slate-600 [scrollbar-width:thin] [scrollbar-color:rgba(14,165,233,0.2)_transparent]">
+        <p className="whitespace-pre-wrap wrap-break-word">{text}</p>
       </div>
     </div>
   );
@@ -178,7 +181,7 @@ function CampaignIntentCell({ intentLine }: { intentLine: string }) {
 function TaskTypeCell({ taskType }: { taskType?: string }) {
   const label = labelProgrammaticTaskType(taskType);
   if (label === "—") {
-    return <span className="text-xs text-white/30">Not set</span>;
+    return <span className="text-xs text-slate-400">Not set</span>;
   }
   return (
     <span className="inline-flex max-w-full rounded-full border border-cyan-500/30 bg-cyan-500/10 px-2.5 py-1 text-xs font-semibold text-cyan-100">
@@ -204,8 +207,8 @@ function EyeToggleButton({
       aria-label={label}
       className={`inline-flex h-8 w-8 items-center justify-center rounded-lg border transition ${
         active
-          ? "border-purple-500/50 bg-purple-500/15 text-purple-300"
-          : "border-white/15 bg-white/5 text-white/55 hover:border-purple-500/40 hover:text-purple-300"
+          ? "border-sky-300 bg-sky-100 text-sky-700"
+          : "border-sky-200 bg-white text-slate-500 hover:border-sky-300 hover:text-sky-700"
       }`}
     >
       <Eye size={15} />
@@ -218,8 +221,8 @@ function StatusBadge({ validated }: { validated: boolean }) {
     <span
       className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${
         validated
-          ? "border border-green-500/30 bg-green-500/10 text-green-300"
-          : "border border-white/15 bg-white/5 text-white/45"
+          ? "border border-emerald-200 bg-emerald-50 text-emerald-700"
+          : "border border-sky-100 bg-white text-slate-500"
       }`}
     >
       {validated ? "Validated" : "In progress"}
@@ -248,7 +251,7 @@ function CreativePreviewPanel({
         <button
           type="button"
           onClick={onClose}
-          className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-white/15 text-white/50 transition hover:border-white/30 hover:text-white"
+          className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-sky-200 text-slate-500 transition hover:border-sky-300 hover:text-sky-700"
           aria-label="Close creative preview"
         >
           <X size={16} />
@@ -256,11 +259,11 @@ function CreativePreviewPanel({
       </div>
 
       <div className="mt-4 flex flex-col gap-4 lg:flex-row">
-        <div className="flex min-h-[180px] flex-1 items-center justify-center overflow-hidden rounded-xl border border-white/10 bg-black/30 p-4">
+        <div className="flex min-h-45 flex-1 items-center justify-center overflow-hidden rounded-xl border border-sky-100 bg-sky-50/70 p-4">
           {loading ? (
             <div className="flex flex-col items-center gap-2 text-white/45">
               <Loader2 size={32} className="animate-spin" />
-              <p className="text-sm">Loading preview…</p>
+              <p className="text-sm text-slate-500">Loading preview…</p>
             </div>
           ) : creative.previewUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
@@ -270,7 +273,7 @@ function CreativePreviewPanel({
               className="max-h-72 max-w-full rounded-lg object-contain shadow-lg"
             />
           ) : (
-            <div className="flex flex-col items-center gap-2 text-white/35">
+            <div className="flex flex-col items-center gap-2 text-slate-400">
               <ImageIcon size={40} />
               <p className="text-sm">No preview available</p>
             </div>
@@ -289,7 +292,7 @@ function CreativePreviewPanel({
             <a
               href={downloadUrl}
               download={`${creative.name || "creative"}`}
-              className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-amber-400/30 bg-amber-500/10 px-3 py-2 text-xs font-semibold text-amber-100 transition hover:bg-amber-500/20"
+              className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-700 transition hover:bg-amber-100"
             >
               <Download size={14} />
               Download creative
@@ -313,16 +316,16 @@ function DetailRow({
   tone?: "default" | "success" | "error" | "muted";
 }) {
   const valueClass = tone === "success"
-    ? "text-green-300"
+    ? "text-emerald-700"
     : tone === "error"
-      ? "text-red-300"
+      ? "text-red-600"
       : tone === "muted"
-        ? "text-white/45"
-        : "text-white";
+        ? "text-slate-500"
+        : "text-slate-700";
 
   return (
-    <div className="rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2.5">
-      <p className="text-[10px] font-semibold uppercase tracking-wider text-white/40">{label}</p>
+    <div className="rounded-lg border border-sky-100 bg-white px-3 py-2.5">
+      <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">{label}</p>
       <p className={`mt-1 text-sm font-medium break-all ${mono ? "font-mono text-xs" : ""} ${valueClass}`}>
         {value}
       </p>
@@ -342,15 +345,15 @@ function CreativesTable({
   onSelectCreative: (creative: AdvertiserCreativeRef) => void;
 }) {
   if (!creatives.length) {
-    return <p className="px-1 py-2 text-xs text-white/40">No creatives stored for this ad group yet.</p>;
+    return <p className="px-1 py-2 text-xs text-slate-500">No creatives stored for this ad group yet.</p>;
   }
 
   return (
-    <div className="overflow-x-auto rounded-xl border border-white/10 bg-black/20">
-      <table className="w-full min-w-[480px] text-left text-sm">
+    <div className="overflow-x-auto rounded-xl border border-sky-100 bg-white">
+      <table className="w-full min-w-120 text-left text-sm">
         <thead>
-          <tr className="border-b border-white/10 bg-white/[0.03]">
-            <th className="px-3 py-2 text-[10px] font-semibold uppercase tracking-widest text-white/35">Preview</th>
+          <tr className="border-b border-sky-100 bg-white/3">
+            <th className="px-3 py-2 text-[10px] font-semibold uppercase tracking-widest text-slate-500">Preview</th>
             <th className="px-3 py-2 text-[10px] font-semibold uppercase tracking-widest text-white/35">Name</th>
             <th className="px-3 py-2 text-[10px] font-semibold uppercase tracking-widest text-white/35">Size</th>
             <th className="px-3 py-2 text-[10px] font-semibold uppercase tracking-widest text-white/35">Status</th>
@@ -364,29 +367,29 @@ function CreativesTable({
             return (
               <tr
                 key={creative.id}
-                className={`border-b border-white/[0.06] transition hover:bg-white/[0.03] ${selected ? "bg-amber-500/10" : ""}`}
+                className={`border-b border-sky-100 transition hover:bg-sky-50/60 ${selected ? "bg-sky-100/70" : ""}`}
               >
                 <td className="px-3 py-2.5">
-                  <div className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-md border border-white/10 bg-black/30">
+                  <div className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-md border border-sky-100 bg-sky-50/80">
                     {previewUrl ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img src={previewUrl} alt="" className="h-full w-full object-cover" />
                     ) : (
-                      <ImageIcon size={14} className="text-white/30" />
+                      <ImageIcon size={14} className="text-slate-400" />
                     )}
                   </div>
                 </td>
-                <td className="px-3 py-2.5 font-medium text-white">{creative.name}</td>
-                <td className="px-3 py-2.5 text-white/55">{creative.size || "—"}</td>
+                <td className="px-3 py-2.5 font-medium text-slate-800">{creative.name}</td>
+                <td className="px-3 py-2.5 text-slate-500">{creative.size || "—"}</td>
                 <td className="px-3 py-2.5">
                   {creative.valid === true ? (
                     <span className="inline-flex items-center gap-1 text-xs text-green-300">
                       <CheckCircle2 size={12} /> Valid
                     </span>
                   ) : creative.valid === false ? (
-                    <span className="text-xs text-red-300">Invalid</span>
+                    <span className="text-xs text-red-600">Invalid</span>
                   ) : (
-                    <span className="text-xs text-white/40">—</span>
+                    <span className="text-xs text-slate-400">—</span>
                   )}
                 </td>
                 <td className="px-3 py-2.5 text-right">
@@ -423,7 +426,7 @@ function AdGroupsPanel({
   onSelectCreative: (creative: AdvertiserCreativeRef, adGroupName: string) => void;
 }) {
   if (!adGroups.length) {
-    return <p className="text-xs text-white/40">No ad groups recorded for this campaign yet.</p>;
+    return <p className="text-xs text-slate-500">No ad groups recorded for this campaign yet.</p>;
   }
 
   return (
@@ -435,14 +438,14 @@ function AdGroupsPanel({
         return (
           <div
             key={group.id}
-            className={`rounded-xl border transition ${expanded ? "border-emerald-500/35 bg-emerald-950/10" : "border-white/10 bg-black/20"}`}
+            className={`rounded-xl border transition ${expanded ? "border-emerald-200 bg-emerald-50/80" : "border-sky-100 bg-white"}`}
           >
             <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
               <div className="flex min-w-0 items-center gap-2.5">
                 <Layers size={15} className="shrink-0 text-emerald-400/80" />
                 <div>
-                  <p className="font-semibold text-white">{group.name}</p>
-                  <p className="text-xs text-white/45">
+                  <p className="font-semibold text-slate-800">{group.name}</p>
+                  <p className="text-xs text-slate-500">
                     {group.objectiveLabel || "Not set"} · {group.creatives.length} creative{group.creatives.length === 1 ? "" : "s"}
                   </p>
                 </div>
@@ -456,7 +459,7 @@ function AdGroupsPanel({
 
             {expanded ? (
               <div className="border-t border-emerald-500/20 px-4 py-3">
-                <p className="mb-2 text-[10px] font-semibold uppercase tracking-widest text-emerald-300/60">
+                <p className="mb-2 text-[10px] font-semibold uppercase tracking-widest text-emerald-700">
                   Creatives
                 </p>
                 <CreativesTable
@@ -602,16 +605,16 @@ const CampaignTableRow = memo(function CampaignTableRow({
 }) {
   return (
     <tr
-      className={`border-b border-white/[0.06] transition hover:bg-white/[0.03] ${selected ? "bg-blue-500/10" : ""}`}
+      className={`border-b border-white/6 transition hover:bg-white/3 ${selected ? "bg-blue-500/10" : ""}`}
     >
       <td className="px-3 py-3 align-top">
-        <p className="break-words font-medium leading-snug text-white">{campaign.name}</p>
+        <p className="wrap-break-word font-medium leading-snug text-slate-800">{campaign.name}</p>
       </td>
       <td className="px-3 py-3 align-top">
         <TaskTypeCell taskType={campaign.taskType} />
       </td>
       <td className="px-3 py-3 align-top">
-        <p className="break-all font-mono text-[11px] leading-relaxed text-white/50" title={campaign.id}>
+        <p className="break-all font-mono text-[11px] leading-relaxed text-slate-500" title={campaign.id}>
           {campaign.id}
         </p>
       </td>
@@ -621,7 +624,7 @@ const CampaignTableRow = memo(function CampaignTableRow({
       <td className="px-3 py-3 align-top">
         <CampaignIntentCell intentLine={intentLine} />
       </td>
-      <td className="px-3 py-3 align-top text-white/55">{campaign.adGroups.length}</td>
+      <td className="px-3 py-3 align-top text-slate-500">{campaign.adGroups.length}</td>
       <td className="px-3 py-3 align-top"><StatusBadge validated={campaign.validated} /></td>
       <td className="px-3 py-3 align-top text-right">
         <EyeToggleButton
@@ -681,7 +684,7 @@ function AdvertiserFocusView({
       <button
         type="button"
         onClick={onBack}
-        className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2 text-sm font-semibold text-white/70 transition hover:border-white/20 hover:text-white"
+        className="inline-flex items-center gap-2 rounded-xl border border-sky-200 bg-white px-3 py-2 text-sm font-semibold text-slate-600 transition hover:border-sky-300 hover:text-sky-700"
       >
         <ArrowLeft size={16} />
         All advertisers
@@ -691,15 +694,15 @@ function AdvertiserFocusView({
         <div className="mb-4 flex flex-wrap items-center gap-3">
           <AdvertiserAvatar name={advertiser.name} />
           <div>
-            <p className="font-mono text-xs text-white/45">{advertiser.id}</p>
-            <p className="mt-1 text-xs text-white/40">
+            <p className="font-mono text-xs text-slate-500">{advertiser.id}</p>
+            <p className="mt-1 text-xs text-slate-500">
               {advertiser.campaigns.length} campaign{advertiser.campaigns.length === 1 ? "" : "s"}
             </p>
           </div>
         </div>
 
         {advertiser.campaigns.length ? (
-          <div className="overflow-hidden rounded-xl border border-white/10 bg-black/20">
+          <div className="overflow-hidden rounded-xl border border-sky-200/80 bg-linear-to-br from-white via-sky-50/70 to-emerald-50/70">
             <table className="w-full table-fixed text-left text-sm">
               <colgroup>
                 <col className="w-[12%]" />
@@ -712,15 +715,15 @@ function AdvertiserFocusView({
                 <col className="w-[7%]" />
               </colgroup>
               <thead>
-                <tr className="border-b border-white/10 bg-white/[0.03]">
-                  <th className="px-3 py-2.5 text-[10px] font-semibold uppercase tracking-widest text-white/35">Campaign</th>
-                  <th className="px-3 py-2.5 text-[10px] font-semibold uppercase tracking-widest text-white/35">Task Type</th>
-                  <th className="px-3 py-2.5 text-[10px] font-semibold uppercase tracking-widest text-white/35">Campaign ID</th>
-                  <th className="px-3 py-2.5 text-[10px] font-semibold uppercase tracking-widest text-white/35">Campaign Brief</th>
-                  <th className="px-3 py-2.5 text-[10px] font-semibold uppercase tracking-widest text-white/35">Campaign Intent</th>
-                  <th className="px-3 py-2.5 text-[10px] font-semibold uppercase tracking-widest text-white/35">Ad Groups</th>
-                  <th className="px-3 py-2.5 text-[10px] font-semibold uppercase tracking-widest text-white/35">Status</th>
-                  <th className="px-3 py-2.5 text-right text-[10px] font-semibold uppercase tracking-widest text-white/35">Open</th>
+                <tr className="border-b border-sky-100 bg-sky-50/70">
+                  <th className="px-3 py-2.5 text-[10px] font-semibold uppercase tracking-widest text-slate-600">Campaign</th>
+                  <th className="px-3 py-2.5 text-[10px] font-semibold uppercase tracking-widest text-slate-600">Task Type</th>
+                  <th className="px-3 py-2.5 text-[10px] font-semibold uppercase tracking-widest text-slate-600">Campaign ID</th>
+                  <th className="px-3 py-2.5 text-[10px] font-semibold uppercase tracking-widest text-slate-600">Campaign Brief</th>
+                  <th className="px-3 py-2.5 text-[10px] font-semibold uppercase tracking-widest text-slate-600">Campaign Intent</th>
+                  <th className="px-3 py-2.5 text-[10px] font-semibold uppercase tracking-widest text-slate-600">Ad Groups</th>
+                  <th className="px-3 py-2.5 text-[10px] font-semibold uppercase tracking-widest text-slate-600">Status</th>
+                  <th className="px-3 py-2.5 text-right text-[10px] font-semibold uppercase tracking-widest text-slate-600">Open</th>
                 </tr>
               </thead>
               <tbody>
@@ -741,7 +744,7 @@ function AdvertiserFocusView({
             </table>
           </div>
         ) : (
-          <p className="text-sm text-white/45">No campaigns linked to this advertiser yet.</p>
+          <p className="text-sm text-slate-600">No campaigns linked to this advertiser yet.</p>
         )}
       </LevelPanel>
 
@@ -771,7 +774,7 @@ function AdvertiserFocusView({
   );
 }
 
-export default function AdvertisersSection({ advertisers, loading = false, ownerId = "" }: AdvertisersSectionProps) {
+export default function AdvertisersSection({ advertisers, loading = false, ownerId = "", loadingProgress }: AdvertisersSectionProps) {
   const [expandedAdvertiserId, setExpandedAdvertiserId] = useState<string | null>(null);
   const [expandedCampaignId, setExpandedCampaignId] = useState<string | null>(null);
   const [campaignDetailTab, setCampaignDetailTab] = useState<CampaignDetailTab>("campaigns");
@@ -876,7 +879,7 @@ export default function AdvertisersSection({ advertisers, loading = false, owner
       return;
     }
 
-    let previewUrl = getPreviewUrl(creative);
+    const previewUrl = getPreviewUrl(creative);
     setSelectedCreative({ ...ctx, creative: { ...creative, previewUrl, fullUrl: getFullUrl(creative) } });
 
     if (previewUrl || !ownerId) return;
@@ -905,8 +908,8 @@ export default function AdvertisersSection({ advertisers, loading = false, owner
   if (loading) {
     return (
       <div>
-        <h2 className="mb-3 text-sm font-bold uppercase tracking-widest text-white/40">Advertisers</h2>
-        <div className="h-48 animate-pulse rounded-2xl border border-white/10 bg-white/5" />
+        <h2 className="mb-3 text-sm font-bold uppercase tracking-widest text-slate-500">Advertisers</h2>
+        <LoadingState title="Loading advertisers" description="Preparing your portfolio and campaign context." progress={loadingProgress} />
       </div>
     );
   }
@@ -914,16 +917,18 @@ export default function AdvertisersSection({ advertisers, loading = false, owner
   return (
     <div>
       <div className="mb-3 flex items-center justify-between gap-3">
-        <h2 className="text-sm font-bold uppercase tracking-widest text-white/40">Advertisers</h2>
-        <span className="text-xs text-white/35">
+        <h2 className="text-sm font-bold uppercase tracking-widest text-slate-500">Advertisers</h2>
+        <span className="text-xs text-slate-400">
           {focusedAdvertiser ? `Viewing ${focusedAdvertiser.name}` : `${sortedAdvertisers.length} total`}
         </span>
       </div>
 
       {sortedAdvertisers.length === 0 ? (
-        <div className="rounded-2xl border border-white/10 bg-white/5 p-6 text-sm text-white/45">
-          No advertisers yet. Enter an advertiser in Campaign Setup of Campaign Intelligence Studio to start building your portfolio.
-        </div>
+        <EmptyState
+          title="No advertisers added yet"
+          description="Enter an advertiser in Campaign Setup of Campaign Intelligence Studio to start building your portfolio."
+          className="border-sky-200/80 bg-linear-to-br from-sky-50 via-white to-emerald-50/80 text-left"
+        />
       ) : focusedAdvertiser ? (
         <AdvertiserFocusView
           advertiser={focusedAdvertiser}
@@ -945,36 +950,36 @@ export default function AdvertisersSection({ advertisers, loading = false, owner
           getPreviewUrl={getPreviewUrl}
         />
       ) : (
-        <div className="overflow-hidden rounded-2xl border border-white/10 bg-white/[0.03] premium-card">
+        <div className="overflow-hidden rounded-2xl border border-sky-200/80 bg-linear-to-br from-white via-sky-50/70 to-emerald-50/70 shadow-[0_18px_45px_-24px_rgba(14,116,144,0.3)] premium-card">
             <table className="w-full table-fixed text-left text-sm">
               <thead>
-                <tr className="border-b border-white/10 bg-white/[0.04]">
-                  <th className="px-5 py-3.5 text-[10px] font-semibold uppercase tracking-widest text-white/40">Advertiser Name</th>
-                  <th className="px-5 py-3.5 text-[10px] font-semibold uppercase tracking-widest text-white/40">Advertiser ID</th>
-                  <th className="px-5 py-3.5 text-[10px] font-semibold uppercase tracking-widest text-white/40">Campaigns</th>
-                  <th className="px-5 py-3.5 text-right text-[10px] font-semibold uppercase tracking-widest text-white/40">Actions</th>
+                <tr className="border-b border-sky-100 bg-sky-50/70">
+                  <th className="px-5 py-3.5 text-[10px] font-semibold uppercase tracking-widest text-slate-600">Advertiser Name</th>
+                  <th className="px-5 py-3.5 text-[10px] font-semibold uppercase tracking-widest text-slate-600">Advertiser ID</th>
+                  <th className="px-5 py-3.5 text-[10px] font-semibold uppercase tracking-widest text-slate-600">Campaigns</th>
+                  <th className="px-5 py-3.5 text-right text-[10px] font-semibold uppercase tracking-widest text-slate-600">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {sortedAdvertisers.map((advertiser) => (
                   <tr
                     key={advertiser.id}
-                    className="border-b border-white/[0.07] transition hover:bg-white/[0.04]"
+                    className="border-b border-sky-100 transition hover:bg-sky-50/60"
                   >
                     <td className="px-5 py-4">
                       <div className="flex items-center gap-3">
                         <AdvertiserAvatar name={advertiser.name} />
                         <div className="min-w-0">
-                          <p className="truncate font-semibold text-white">{advertiser.name}</p>
-                          <p className="mt-0.5 inline-flex rounded-md border border-white/10 bg-white/5 px-1.5 py-0.5 font-mono text-[10px] text-white/45">
+                          <p className="truncate font-semibold text-slate-800">{advertiser.name}</p>
+                          <p className="mt-0.5 inline-flex rounded-md border border-sky-100 bg-sky-50 px-1.5 py-0.5 font-mono text-[10px] text-slate-500">
                             {advertiser.id.split("-AD-")[1] || advertiser.id}
                           </p>
                         </div>
                       </div>
                     </td>
-                    <td className="px-5 py-4 font-mono text-xs text-white/50">{advertiser.id}</td>
+                    <td className="px-5 py-4 font-mono text-xs text-slate-500">{advertiser.id}</td>
                     <td className="px-5 py-4">
-                      <span className="font-semibold tabular-nums text-white">{advertiser.campaigns.length}</span>
+                      <span className="font-semibold tabular-nums text-slate-700">{advertiser.campaigns.length}</span>
                     </td>
                     <td className="px-5 py-4 text-right">
                       <EyeToggleButton

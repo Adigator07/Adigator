@@ -2,14 +2,14 @@
 
 :root {
   --agi-bg: #0a0b0f;
-  --agi-accent-blue: #3b7bff;
-  --agi-accent-cyan: #00d4ff;
-  --agi-accent-green: #00ff88;
+  --agi-accent-blue: #f43f5e;
+  --agi-accent-cyan: #fb7185;
+  --agi-accent-green: #ef4444;
   --agi-text-primary: #f0f2ff;
   --agi-text-secondary: #8890a8;
   --agi-text-muted: #4a5068;
-  --agi-border-subtle: rgba(59, 123, 255, 0.12);
-  --agi-border-active: rgba(59, 123, 255, 0.35);
+  --agi-border-subtle: rgba(244, 63, 94, 0.14);
+  --agi-border-active: rgba(244, 63, 94, 0.34);
 }
 
 @keyframes agi-mesh-drift {
@@ -56,18 +56,18 @@
   position: absolute;
   inset: 0;
   background-image:
-    linear-gradient(rgba(0, 0, 0, 0.025) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(0, 0, 0, 0.025) 1px, transparent 1px);
-  background-size: 52px 52px;
-  opacity: 0.55;
-  animation: agi-login-grid-pan 18s linear infinite;
+    linear-gradient(rgba(15, 23, 42, 0.028) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(15, 23, 42, 0.028) 1px, transparent 1px);
+  background-size: 56px 56px;
+  opacity: 0.5;
+  animation: agi-login-grid-pan 20s linear infinite;
   pointer-events: none;
 }
 
 .agi-login-scan {
   position: absolute;
   inset: -20%;
-  background: linear-gradient(180deg, transparent 0%, rgba(0, 212, 255, 0.14) 50%, transparent 100%);
+  background: linear-gradient(180deg, transparent 0%, rgba(244, 63, 94, 0.16) 50%, transparent 100%);
   mix-blend-mode: screen;
   animation: agi-login-scanline 8s ease-in-out infinite;
   pointer-events: none;
@@ -87,13 +87,13 @@
 .agi-login-orb--a {
   top: -80px;
   right: 8%;
-  background: radial-gradient(circle, rgba(0, 212, 255, 0.56) 0%, rgba(0, 212, 255, 0) 68%);
+  background: radial-gradient(circle, rgba(244, 63, 94, 0.52) 0%, rgba(244, 63, 94, 0) 68%);
 }
 
 .agi-login-orb--b {
   bottom: -120px;
   left: -60px;
-  background: radial-gradient(circle, rgba(59, 123, 255, 0.32) 0%, rgba(59, 123, 255, 0) 72%);
+  background: radial-gradient(circle, rgba(239, 68, 68, 0.34) 0%, rgba(239, 68, 68, 0) 72%);
   animation-delay: 1.8s;
 }
 
@@ -101,20 +101,21 @@
   content: "";
   position: absolute;
   inset: 0;
-  background: linear-gradient(160deg, rgba(0, 212, 255, 0.06), transparent 30%, rgba(255, 255, 255, 0.03) 78%);
+  background: linear-gradient(160deg, rgba(244, 63, 94, 0.1), transparent 28%, rgba(255, 255, 255, 0.2) 78%);
   pointer-events: none;
 }
 
 .agi-login-form-shell {
   position: relative;
-  border: 1px solid rgba(255, 255, 255, 0.68);
+  isolation: isolate;
+  border: 1px solid rgba(15, 23, 42, 0.08);
   border-radius: 28px;
   padding: clamp(1.4rem, 2.2vw, 1.9rem);
-  background:
-    linear-gradient(165deg, rgba(255, 255, 255, 0.9), rgba(249, 249, 244, 0.82)),
-    linear-gradient(180deg, rgba(0, 212, 255, 0.05), rgba(59, 123, 255, 0.04));
-  backdrop-filter: blur(8px);
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.98), rgba(247, 250, 252, 0.94));
+  backdrop-filter: blur(10px);
+  box-shadow: 0 24px 80px rgba(15, 23, 42, 0.08);
   animation: agi-login-form-pulse 7s ease-in-out infinite;
+  overflow: hidden;
 }
 
 .agi-login-form-shell::before {
@@ -123,13 +124,39 @@
   inset: -1px;
   border-radius: inherit;
   padding: 1px;
-  background: linear-gradient(120deg, rgba(0, 212, 255, 0.36), rgba(255, 255, 255, 0.2), rgba(59, 123, 255, 0.28));
+  background: linear-gradient(120deg, rgba(244, 63, 94, 0.26), rgba(255, 255, 255, 0.7), rgba(239, 68, 68, 0.22));
   -webkit-mask:
     linear-gradient(#000 0 0) content-box,
     linear-gradient(#000 0 0);
   -webkit-mask-composite: xor;
   mask-composite: exclude;
   pointer-events: none;
+}
+
+.agi-login-form-shell::after {
+  content: "";
+  position: absolute;
+  inset: auto 8% -22% 8%;
+  height: 54%;
+  border-radius: 9999px;
+  background: radial-gradient(circle, rgba(244, 63, 94, 0.36) 0%, rgba(239, 68, 68, 0.2) 38%, rgba(239, 68, 68, 0) 72%);
+  filter: blur(56px);
+  z-index: -1;
+  pointer-events: none;
+}
+
+.agi-login-hero-glow {
+  background: radial-gradient(circle, rgba(244, 63, 94, 0.18) 0%, rgba(239, 68, 68, 0.12) 42%, rgba(239, 68, 68, 0) 72%);
+  filter: blur(80px);
+  opacity: 0.95;
+}
+
+.agi-login-hero-illustration {
+  display: block;
+  height: auto;
+  max-height: min(420px, 52vh);
+  object-fit: contain;
+  filter: drop-shadow(0 24px 60px rgba(15, 23, 42, 0.12));
 }
 
 @keyframes agi-input-scan {
@@ -166,7 +193,7 @@
   left: -8%;
   width: 36%;
   height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(0, 212, 255, 0.22), transparent);
+  background: linear-gradient(90deg, transparent, rgba(244, 63, 94, 0.24), transparent);
   opacity: 0;
   transform: translateX(-120%);
   pointer-events: none;
@@ -187,7 +214,7 @@
 }
 
 .agi-input-wrap:focus-within::after {
-  box-shadow: 0 0 0 1px rgba(59, 123, 255, 0.25), 0 0 18px rgba(0, 212, 255, 0.22);
+  box-shadow: 0 0 0 1px rgba(244, 63, 94, 0.25), 0 0 18px rgba(244, 63, 94, 0.22);
 }
 
 .agi-input-hitech {
@@ -222,7 +249,7 @@
   transform: translateY(0);
   font-size: 0.64rem;
   letter-spacing: 0.08em;
-  color: #0f67c8;
+  color: #e11d48;
   text-transform: uppercase;
 }
 
@@ -350,7 +377,7 @@
   top: 10px;
   transform: translateY(0);
   font-size: 0.68rem;
-  color: #00d4ff;
+  color: #f43f5e;
   letter-spacing: 0.06em;
   text-transform: uppercase;
 }
@@ -385,7 +412,7 @@
 
 .agi-floating-field--has-icon:focus-within .agi-field-icon,
 .agi-floating-field--has-icon:has(.agi-input:not(:placeholder-shown)) .agi-field-icon {
-  color: #6b9fff;
+  color: #fb7185;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -402,5 +429,24 @@
   }
   .agi-submit-pulse {
     animation: none;
+  }
+  .agi-login-grid,
+  .agi-login-scan,
+  .agi-login-orb,
+  .agi-login-form-shell,
+  .agi-input-wrap:focus-within::before,
+  .agi-submit-pulse,
+  .agi-particle-fallback,
+  .agi-shake {
+    animation: none !important;
+  }
+
+  .agi-input-wrap::after,
+  .agi-btn-primary,
+  .agi-btn-ghost,
+  .agi-input,
+  .agi-floating-label,
+  .agi-field-icon {
+    transition: none !important;
   }
 }

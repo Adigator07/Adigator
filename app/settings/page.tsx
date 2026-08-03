@@ -3,46 +3,165 @@
 import { FormEvent, useEffect, useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { ArrowLeft, Bell, Mail, Shield, User } from "lucide-react";
+import { ArrowLeft, Bell, Globe2, Mail, Shield, User } from "lucide-react";
 import { onAuthStateChanged, updateProfile } from "firebase/auth";
 import { doc, getDoc, serverTimestamp, setDoc } from "firebase/firestore";
 import { getFirebaseClientAuth, getFirebaseClientFirestore } from "../lib/firebase/client";
+import RouteAccessShell from "@/app/components/RouteAccessShell";
 
-export default function SettingsPage() {
-  const [user, setUser] = useState<any>(null);
+type GoogleAdsConnectionState = {
+  connected?: boolean;
+  expired?: boolean;
+  message?: string;
+  email?: string;
+  customerId?: string;
+  account?: { name?: string; currencyCode?: string; timeZone?: string };
+  campaigns?: Array<{ id: string; name: string; status: string; suggestedGoal?: string }>;
+};
+
+type SettingsUser = {
+  id: string;
+  email: string | null;
+  user_metadata: {
+    full_name?: string;
+  };
+};
+
+function SettingsPageContent() {
+  const [user, setUser] = useState<SettingsUser | null>(null);
   const [username, setUsername] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [googleAdsState, setGoogleAdsState] = useState<GoogleAdsConnectionState | null>(null);
+  const [googleAdsLoading, setGoogleAdsLoading] = useState(false);
+  const [googleAdsConnecting, setGoogleAdsConnecting] = useState(false);
+  const [googleAdsNotice, setGoogleAdsNotice] = useState("");
+
+  const ensureProfileName = async (firebaseUser: { uid: string; email: string | null; displayName: string | null }) => {
+    const db = getFirebaseClientFirestore();
+    const fallbackName = firebaseUser.displayName || firebaseUser.email?.split("@")[0] || `user-${firebaseUser.uid.slice(0, 6)}`;
+    const ref = doc(db, "userProfiles", firebaseUser.uid);
+    const profileSnap = await getDoc(ref);
+    const profile = profileSnap.exists() ? profileSnap.data() : null;
+    const resolvedUsername = profile?.username || profile?.fullName || fallbackName;
+
+    if (!profileSnap.exists() || !profile?.username || !profile?.fullName) {
+      await setDoc(ref, {
+        email: firebaseUser.email || "",
+        username: resolvedUsername,
+        fullName: resolvedUsername,
+        updatedAt: serverTimestamp(),
+        createdAt: profileSnap.exists() ? profile?.createdAt || serverTimestamp() : serverTimestamp(),
+      }, { merge: true });
+    }
+
+    if (!firebaseUser.displayName && resolvedUsername) {
+      await updateProfile(getFirebaseClientAuth().currentUser!, { displayName: resolvedUsername });
+    }
+
+    return resolvedUsername;
+  };
+
+  const buildImmediateProfile = (firebaseUser: { uid: string; email: string | null; displayName: string | null }): SettingsUser => {
+    const fallbackName = firebaseUser.displayName || firebaseUser.email?.split("@")[0] || `user-${firebaseUser.uid.slice(0, 6)}`;
+    return {
+      id: firebaseUser.uid,
+      email: firebaseUser.email,
+      user_metadata: {
+        full_name: fallbackName,
+      },
+    };
+  };
+
+  const loadGoogleAdsState = async () => {
+    setGoogleAdsLoading(true);
+    setGoogleAdsNotice("");
+    try {
+      const response = await fetch("/api/google-ads/session", { cache: "no-store" });
+      const payload = (await response.json()) as GoogleAdsConnectionState;
+      setGoogleAdsState(payload);
+      if (!payload.connected && payload.message) {
+        setGoogleAdsNotice(payload.message);
+      }
+    } catch (connectError) {
+      const detail = connectError instanceof Error ? connectError.message : "Unable to load Google Ads status.";
+      setGoogleAdsState({ connected: false, message: detail });
+      setGoogleAdsNotice(detail);
+    } finally {
+      setGoogleAdsLoading(false);
+    }
+  };
 
   useEffect(() => {
     const auth = getFirebaseClientAuth();
-    const db = getFirebaseClientFirestore();
+    let active = true;
+
+    const applyResolvedUser = async (firebaseUser: { uid: string; email: string | null; displayName: string | null } | null) => {
+      if (!active) return;
+      if (!firebaseUser) {
+        setUser(null);
+        setUsername("");
+        setLoading(false);
+        return;
+      }
+
+      setUser(buildImmediateProfile(firebaseUser));
+      setUsername(firebaseUser.displayName || firebaseUser.email?.split("@")[0] || "");
+      setLoading(false);
+
+      const resolvedUsername = await ensureProfileName({
+        uid: firebaseUser.uid,
+        email: firebaseUser.email,
+        displayName: firebaseUser.displayName,
+      });
+
+      if (!active) return;
+      setUser({
+        id: firebaseUser.uid,
+        email: firebaseUser.email,
+        user_metadata: {
+          full_name: resolvedUsername,
+        },
+      });
+      setUsername(resolvedUsername);
+    };
+
+    void applyResolvedUser(auth.currentUser ? {
+      uid: auth.currentUser.uid,
+      email: auth.currentUser.email,
+      displayName: auth.currentUser.displayName,
+    } : null);
+
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
       void (async () => {
-        if (!firebaseUser) {
-          setUser(null);
-          setLoading(false);
-          return;
-        }
-
-        const profileSnap = await getDoc(doc(db, "userProfiles", firebaseUser.uid));
-        const profile = profileSnap.exists() ? profileSnap.data() : null;
-        const resolvedUsername = profile?.username || firebaseUser.displayName || profile?.fullName || "";
-        setUser({
-          id: firebaseUser.uid,
+        await applyResolvedUser(firebaseUser ? {
+          uid: firebaseUser.uid,
           email: firebaseUser.email,
-          user_metadata: {
-            full_name: profile?.fullName || resolvedUsername,
-          },
-        });
-        setUsername(resolvedUsername);
-        setLoading(false);
+          displayName: firebaseUser.displayName,
+        } : null);
       })();
     });
 
-    return () => unsubscribe();
+    const timer = window.setTimeout(() => {
+      void loadGoogleAdsState();
+    }, 0);
+    const onMessage = (event: MessageEvent) => {
+      const payload = event.data as { type?: string; message?: string } | undefined;
+      if (payload?.type === "google-ads-auth") {
+        setGoogleAdsNotice(payload.message || "Google Ads status refreshed.");
+        void loadGoogleAdsState();
+      }
+    };
+    window.addEventListener("message", onMessage);
+
+    return () => {
+      active = false;
+      window.clearTimeout(timer);
+      unsubscribe();
+      window.removeEventListener("message", onMessage);
+    };
   }, []);
 
   const handleUsernameSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -72,7 +191,7 @@ export default function SettingsPage() {
         updatedAt: serverTimestamp(),
       }, { merge: true });
 
-      setUser((current: any) => current ? {
+      setUser((current) => current ? {
         ...current,
         user_metadata: {
           ...(current.user_metadata || {}),
@@ -88,8 +207,34 @@ export default function SettingsPage() {
     }
   };
 
+  const handleConnectGoogleAds = () => {
+    setGoogleAdsConnecting(true);
+    setGoogleAdsNotice("Opening Google authorization...");
+    const popup = window.open("/api/google-ads/oauth/start", "google-ads-connect", "width=640,height=760,scrollbars=yes,resizable=yes");
+    if (!popup) {
+      setGoogleAdsConnecting(false);
+      setGoogleAdsNotice("Popups are blocked. Please allow them and try again.");
+    }
+    window.setTimeout(() => setGoogleAdsConnecting(false), 1200);
+  };
+
+  const handleDisconnectGoogleAds = async () => {
+    try {
+      setGoogleAdsLoading(true);
+      const response = await fetch("/api/google-ads/disconnect", { method: "POST" });
+      const payload = (await response.json()) as GoogleAdsConnectionState;
+      setGoogleAdsState(payload);
+      setGoogleAdsNotice(payload.message || "Google Ads disconnected.");
+    } catch (connectError) {
+      const detail = connectError instanceof Error ? connectError.message : "Unable to disconnect Google Ads.";
+      setGoogleAdsNotice(detail);
+    } finally {
+      setGoogleAdsLoading(false);
+    }
+  };
+
   const email = user?.email || "";
-  const fullName = user?.user_metadata?.full_name || "";
+  const profileDisplayName = user?.user_metadata?.full_name || username || "Profile";
 
   return (
     <div className="min-h-screen bg-[#0a0a12] text-white">
@@ -100,7 +245,7 @@ export default function SettingsPage() {
           </Link>
           <div>
             <h1 className="text-2xl font-bold">Settings</h1>
-            <p className="text-sm text-white/40 mt-1">Manage your account and preferences</p>
+            <p className="text-sm text-white/40 mt-1">Manage your account, preferences, and connected ad data</p>
           </div>
         </div>
 
@@ -114,9 +259,54 @@ export default function SettingsPage() {
             <h2 className="font-semibold">Profile</h2>
           </div>
           {loading ? (
-            <div className="h-20 animate-pulse rounded-xl bg-white/5" />
+            <div className="rounded-2xl border border-white/10 bg-black/20 p-5">
+              <div className="flex items-start gap-4">
+                <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-linear-to-br from-sky-500/30 to-cyan-500/20 text-lg font-bold text-white/80 animate-pulse">
+                  A
+                </div>
+                <div className="min-w-0 flex-1 space-y-3">
+                  <div>
+                    <div className="h-4 w-36 animate-pulse rounded-full bg-white/10" />
+                    <div className="mt-2 h-3 w-52 animate-pulse rounded-full bg-white/8" />
+                  </div>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div className="rounded-xl border border-white/8 bg-white/5 p-3">
+                      <p className="text-[10px] uppercase tracking-[0.18em] text-white/35">Username</p>
+                      <div className="mt-2 h-3.5 w-24 animate-pulse rounded-full bg-white/10" />
+                    </div>
+                    <div className="rounded-xl border border-white/8 bg-white/5 p-3">
+                      <p className="text-[10px] uppercase tracking-[0.18em] text-white/35">Email</p>
+                      <div className="mt-2 h-3.5 w-32 animate-pulse rounded-full bg-white/10" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
           ) : (
-            <form onSubmit={handleUsernameSubmit} className="space-y-4">
+            <div className="space-y-5">
+              <div className="rounded-2xl border border-white/10 bg-black/20 p-5">
+                <div className="flex flex-wrap items-start gap-4">
+                  <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-linear-to-br from-sky-500 to-cyan-500 text-lg font-bold text-white shadow-lg shadow-sky-500/20">
+                    {(profileDisplayName || email || "U").charAt(0).toUpperCase()}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-lg font-semibold text-white">{profileDisplayName}</p>
+                    <p className="mt-1 text-sm text-white/45">Active Adigator account profile</p>
+                    <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                      <div className="rounded-xl border border-white/8 bg-white/5 p-3">
+                        <p className="text-[10px] uppercase tracking-[0.18em] text-white/35">Username</p>
+                        <p className="mt-2 text-sm font-medium text-white">{username || "Not set"}</p>
+                      </div>
+                      <div className="rounded-xl border border-white/8 bg-white/5 p-3">
+                        <p className="text-[10px] uppercase tracking-[0.18em] text-white/35">Email</p>
+                        <p className="mt-2 text-sm font-medium text-white break-all">{email || "No email available"}</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <form onSubmit={handleUsernameSubmit} className="space-y-4">
               <div>
                 <label htmlFor="username" className="text-xs uppercase tracking-wide text-white/40">Username</label>
                 <input
@@ -147,7 +337,8 @@ export default function SettingsPage() {
                 {message ? <p className="text-sm text-emerald-300">{message}</p> : null}
                 {error ? <p className="text-sm text-red-300">{error}</p> : null}
               </div>
-            </form>
+              </form>
+            </div>
           )}
         </motion.section>
 
@@ -155,6 +346,115 @@ export default function SettingsPage() {
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.05 }}
+          className="rounded-2xl border border-white/10 bg-white/5 p-6 space-y-4"
+        >
+          <div className="flex items-center gap-2 text-sky-400">
+            <Globe2 size={18} />
+            <h2 className="font-semibold">Ad accounts</h2>
+          </div>
+          <p className="text-sm text-white/50">
+            Connect Google Ads to bring your campaigns and performance data into Adigator.
+          </p>
+
+          {googleAdsLoading ? (
+            <div className="h-24 animate-pulse rounded-xl bg-white/5" />
+          ) : (
+            <div className="space-y-4">
+              {googleAdsState?.connected ? (
+                <div className="rounded-xl border border-emerald-400/25 bg-emerald-500/10 p-4">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-semibold text-emerald-200">Google Ads connected</p>
+                      <p className="text-sm text-white/70">{googleAdsState.account?.name || "Connected account"}</p>
+                      <p className="text-xs text-white/45">
+                        Customer ID: {googleAdsState.customerId || "—"} · Email: {googleAdsState.email || "—"}
+                      </p>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={() => void loadGoogleAdsState()}
+                        className="rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-sm text-white/80 transition hover:bg-black/30"
+                      >
+                        Refresh
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => void handleDisconnectGoogleAds()}
+                        className="rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-sm text-white transition hover:bg-white/20"
+                      >
+                        Disconnect
+                      </button>
+                    </div>
+                  </div>
+
+                  {googleAdsState.campaigns && googleAdsState.campaigns.length > 0 ? (
+                    <div className="mt-4 space-y-2">
+                      <p className="text-xs uppercase tracking-wide text-white/40">Recent campaigns</p>
+                      {googleAdsState.campaigns.map((campaign) => (
+                        <div key={campaign.id} className="rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-sm text-white/80">
+                          <div className="flex items-center justify-between gap-2">
+                            <span>{campaign.name}</span>
+                            <span className="text-xs text-white/45">{campaign.status}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
+              ) : (
+                <div className="rounded-xl border border-white/10 bg-black/20 p-4">
+                  <p className="text-sm text-white/70">No Google Ads account connected yet.</p>
+                  <div className="mt-3 flex flex-wrap gap-3">
+                    <button
+                      type="button"
+                      onClick={handleConnectGoogleAds}
+                      disabled={googleAdsConnecting}
+                      className="rounded-xl bg-sky-500 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-sky-400 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {googleAdsConnecting ? "Opening…" : "Connect Google Ads"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => void loadGoogleAdsState()}
+                      className="rounded-xl border border-white/10 bg-white/10 px-4 py-2.5 text-sm text-white transition hover:bg-white/20"
+                    >
+                      Refresh
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {googleAdsNotice ? <p className="text-sm text-sky-300">{googleAdsNotice}</p> : null}
+            </div>
+          )}
+        </motion.section>
+
+        <motion.section
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.08 }}
+          className="rounded-2xl border border-white/10 bg-white/5 p-6 space-y-4"
+        >
+          <div className="flex items-center gap-2 text-cyan-400">
+            <Bell size={18} />
+            <h2 className="font-semibold">Diagnostics</h2>
+          </div>
+          <p className="text-sm text-white/50">
+            Review internal route and API timing signals for Preview Tool, QA, and Communications.
+          </p>
+          <Link
+            href="/dashboard/telemetry"
+            className="inline-flex items-center rounded-xl bg-cyan-500 px-4 py-2.5 text-sm font-semibold text-slate-950 transition hover:bg-cyan-400"
+          >
+            Open Telemetry Viewer
+          </Link>
+        </motion.section>
+
+        <motion.section
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
           className="rounded-2xl border border-white/10 bg-white/5 p-6 space-y-4"
         >
           <div className="flex items-center gap-2 text-purple-400">
@@ -169,7 +469,7 @@ export default function SettingsPage() {
         <motion.section
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
+          transition={{ delay: 0.15 }}
           className="rounded-2xl border border-white/10 bg-white/5 p-6 space-y-4"
         >
           <div className="flex items-center gap-2 text-purple-400">
@@ -188,5 +488,13 @@ export default function SettingsPage() {
         </motion.section>
       </div>
     </div>
+  );
+}
+
+export default function SettingsPage() {
+  return (
+    <RouteAccessShell routeKey="settings" title="Settings">
+      <SettingsPageContent />
+    </RouteAccessShell>
   );
 }

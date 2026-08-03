@@ -36,7 +36,8 @@ export default function CampaignAssistantModal({
     <AnimatePresence>
       {open ? (
         <motion.div
-          className="fixed inset-0 z-[120] flex items-center justify-center p-4"
+          className="fixed inset-0 flex items-center justify-center p-4"
+          style={{ zIndex: 120 }}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
@@ -54,7 +55,10 @@ export default function CampaignAssistantModal({
             exit={{ opacity: 0, scale: 0.94, y: 24 }}
             className="relative z-10 w-full max-w-2xl overflow-hidden rounded-3xl border border-violet-400/25 bg-[#101322] shadow-[0_24px_80px_-20px_rgba(124,58,237,0.45)]"
           >
-            <div className="border-b border-white/10 bg-gradient-to-r from-violet-500/15 via-transparent to-cyan-500/10 px-6 py-5">
+            <div
+              className="border-b border-white/10 px-6 py-5"
+              style={{ backgroundImage: "linear-gradient(to right, rgba(139, 92, 246, 0.15), transparent, rgba(34, 211, 238, 0.1))" }}
+            >
               <div className="flex items-start justify-between gap-4">
                 <div className="flex items-start gap-3">
                   <div className="mt-0.5 flex h-10 w-10 items-center justify-center rounded-2xl border border-violet-400/30 bg-violet-500/15 text-violet-200">
@@ -90,7 +94,11 @@ export default function CampaignAssistantModal({
             >
               <div className="space-y-4">
                 {questions.map((question) => (
-                  <label key={question.id} className="block rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+                  <label
+                    key={question.id}
+                    className="block rounded-2xl border border-white/10 p-4"
+                    style={{ backgroundColor: "rgba(255, 255, 255, 0.03)" }}
+                  >
                     <div className="mb-2 flex items-start gap-2">
                       <MessageCircleQuestion size={15} className="mt-0.5 shrink-0 text-violet-300" />
                       <div>

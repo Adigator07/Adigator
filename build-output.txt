@@ -1,0 +1,118 @@
+
+> adigator@0.1.0 build
+> next build
+
+▲ Next.js 16.2.3 (Turbopack)
+- Environments: .env
+
+  Creating an optimized production build ...
+✓ Compiled successfully in 10.6s
+  Running TypeScript ...
+  Finished TypeScript in 13.2s ...
+  Collecting page data using 15 workers ...
+  Generating static pages using 15 workers (0/83) ...
+  Generating static pages using 15 workers (20/83) 
+  Generating static pages using 15 workers (41/83) 
+[Adigator] Supabase env vars missing. Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in your hosting dashboard. Supabase features will be disabled.
+  Generating static pages using 15 workers (62/83) 
+✓ Generating static pages using 15 workers (83/83) in 930ms
+  Finalizing page optimization ...
+
+Route (app)
+┌ ○ /
+├ ○ /_not-found
+├ ○ /about
+├ ƒ /api/activity/list
+├ ƒ /api/activity/log
+├ ƒ /api/admin/activity
+├ ƒ /api/admin/v1/activity
+├ ƒ /api/admin/v1/analytics
+├ ƒ /api/admin/v1/audit
+├ ƒ /api/admin/v1/dashboard
+├ ƒ /api/admin/v1/health
+├ ƒ /api/admin/v1/organizations
+├ ƒ /api/admin/v1/permissions
+├ ƒ /api/admin/v1/users
+├ ƒ /api/admin/v1/users/[id]
+├ ƒ /api/admin/v1/users/[id]/actions
+├ ƒ /api/analyze-creative
+├ ƒ /api/analyze-video-creative
+├ ƒ /api/auth/change-password
+├ ƒ /api/auth/login
+├ ƒ /api/auth/reset-password
+├ ƒ /api/auth/signup
+├ ƒ /api/campaign-brief-insights
+├ ƒ /api/campaign-context-assessment
+├ ƒ /api/campaign-intelligence-chat
+├ ƒ /api/campaigns
+├ ƒ /api/communications/attachments/[id]/review
+├ ƒ /api/communications/conversations
+├ ƒ /api/communications/conversations/[id]
+├ ƒ /api/communications/conversations/[id]/activity
+├ ƒ /api/communications/conversations/[id]/messages
+├ ƒ /api/communications/notifications
+├ ƒ /api/communications/users
+├ ƒ /api/creatives
+├ ƒ /api/google-ads/accounts
+├ ƒ /api/google-ads/campaigns
+├ ƒ /api/google-ads/campaigns/create
+├ ƒ /api/google-ads/oauth/callback
+├ ƒ /api/google-ads/oauth/start
+├ ƒ /api/google-ads/session
+├ ƒ /api/google-creative-analysis
+├ ƒ /api/meta-creative-analysis
+├ ƒ /api/organization/v1/dashboard
+├ ƒ /api/organization/v1/members
+├ ƒ /api/organization/v1/members/[id]
+├ ƒ /api/organization/v1/membership
+├ ƒ /api/organization/v1/teams
+├ ƒ /api/outbound/google-ads
+├ ƒ /api/preview-engine
+├ ƒ /api/preview-templates
+├ ƒ /api/programmatic-campaigns
+├ ƒ /api/programmatic-creative-analysis
+├ ƒ /api/session/[id]
+├ ƒ /api/session/create
+├ ƒ /api/session/update
+├ ƒ /api/url-validation
+├ ƒ /api/v2/campaigns
+├ ƒ /api/v2/campaigns/[id]
+├ ƒ /api/v2/uploads/cloudinary
+├ ƒ /api/validate
+├ ƒ /api/validate-campaign
+├ ○ /campaign-error-library
+├ ○ /contact
+├ ○ /dashboard
+├ ○ /dashboard/admin
+├ ○ /dashboard/admin/activity
+├ ○ /dashboard/admin/analytics
+├ ○ /dashboard/admin/audit
+├ ○ /dashboard/admin/health
+├ ○ /dashboard/admin/notifications
+├ ○ /dashboard/admin/organizations
+├ ○ /dashboard/admin/permissions
+├ ○ /dashboard/admin/settings
+├ ○ /dashboard/admin/users
+├ ƒ /dashboard/admin/users/[id]
+├ ○ /dashboard/communications
+├ ○ /dashboard/organization
+├ ○ /dashboard/organization/activity
+├ ○ /dashboard/organization/teams
+├ ○ /dashboard/organization/users
+├ ○ /demo
+├ ○ /downloads
+├ ○ /login
+├ ○ /methodology
+├ ○ /operational-scenarios
+├ ○ /preview
+├ ○ /preview-tool
+├ ○ /privacy
+├ ○ /product
+├ ○ /settings
+├ ○ /solutions
+└ ○ /terms
+
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+

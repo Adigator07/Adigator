@@ -1,4 +1,13 @@
 {
   "tailwindCSS.lint.suggestCanonicalClasses": "ignore",
+  "cSpell.words": [
+    "Adigator",
+    "firestore",
+    "Firestore",
+    "hitech",
+    "STORYSET",
+    "storyset",
+    "Amico"
+  ],
   "chat.disableAIFeatures": false
 }

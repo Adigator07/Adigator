@@ -12,9 +12,20 @@ import {
 export const runtime = "nodejs";
 
 function htmlResult(ok: boolean, message: string, email?: string) {
-  const payload = JSON.stringify({ type: "google-ads-auth", ok, message, email });
-  const escapedMessage = message.replace(/</g, "&lt;").replace(/>/g, "&gt;");
-  const escapedEmail = String(email || "").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  const payload = JSON.stringify({ type: "google-ads-auth", ok, message, email })
+    .replace(/</g, "\\u003c")
+    .replace(/>/g, "\\u003e")
+    .replace(/&/g, "\\u0026")
+    .replace(/\u2028/g, "\\u2028")
+    .replace(/\u2029/g, "\\u2029");
+  const escapeHtml = (value: string) => value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/\"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+  const escapedMessage = escapeHtml(message);
+  const escapedEmail = escapeHtml(String(email || ""));
   return `<!doctype html>
 <html>
   <head>

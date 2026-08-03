@@ -10,7 +10,11 @@ import {
   MARKETING_NAV_LINKS,
   MARKETING_SIGN_IN,
 } from "@/app/lib/siteNavigation";
-import { getFirebaseClientAuth } from "@/app/lib/firebase/client";
+import {
+  getFirebaseClientAuth,
+  getMissingFirebaseClientEnvVars,
+  hasFirebaseClientConfig,
+} from "@/app/lib/firebase/client";
 
 type MarketingNavProps = {
   activePath?: string;
@@ -36,6 +40,15 @@ export default function MarketingNav({ activePath, showCta = true }: MarketingNa
   }, [pathname]);
 
   useEffect(() => {
+    if (!hasFirebaseClientConfig()) {
+      const missing = getMissingFirebaseClientEnvVars();
+      console.warn(
+        `Firebase client env is missing (${missing.join(", ")}); marketing auth state listener disabled.`,
+      );
+      setIsGoogleAccount(false);
+      return;
+    }
+
     const auth = getFirebaseClientAuth();
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       const providerIds = user?.providerData?.map((provider) => provider.providerId) || [];

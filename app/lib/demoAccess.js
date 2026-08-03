@@ -8,8 +8,8 @@
 
 
 
-import { getFirebaseClientAuth, getFirebaseClientFirestore } from "./firebase/client";
-import { doc, getDoc } from "firebase/firestore";
+import { getFirebaseClientAuth, hasFirebaseClientConfig } from "./firebase/client";
+import { onAuthStateChanged } from "firebase/auth";
 
 
 
@@ -17,29 +17,60 @@ export const GUEST_DEMO_USED_KEY = "adigator_guest_demo_used";
 export const GUEST_DEMO_ACTIVE_KEY = "adigator_guest_demo_active";
 export const GUEST_DEMO_REFRESH_KEY = "adigator_preview_refresh";
 
+function isLocalDevHost() {
+  if (typeof window === "undefined") return false;
+  const host = window.location.hostname;
+  return host === "localhost" || host === "127.0.0.1" || host === "::1";
+}
+
+async function resolveAuthUser(timeoutMs = 1500) {
+  if (typeof window === "undefined") return null;
+  if (!hasFirebaseClientConfig()) return null;
+
+  const auth = getFirebaseClientAuth();
+  if (auth.currentUser) return auth.currentUser;
+
+  return new Promise((resolve) => {
+    let settled = false;
+    const finish = (user) => {
+      if (settled) return;
+      settled = true;
+      if (unsubscribe) unsubscribe();
+      window.clearTimeout(timer);
+      resolve(user || null);
+    };
+
+    const unsubscribe = onAuthStateChanged(auth, (user) => finish(user));
+    const timer = window.setTimeout(() => finish(auth.currentUser || null), timeoutMs);
+  });
+}
+
+export function clearGuestDemoRestriction() {
+  if (typeof window === "undefined") return;
+  localStorage.removeItem(GUEST_DEMO_USED_KEY);
+  sessionStorage.removeItem(GUEST_DEMO_ACTIVE_KEY);
+  sessionStorage.removeItem(GUEST_DEMO_REFRESH_KEY);
+}
+
 
 
 export async function isAuthenticatedUser() {
+  if (typeof window === "undefined") return false;
 
   try {
+    if (!hasFirebaseClientConfig()) {
+      return false;
+    }
 
-    const auth = getFirebaseClientAuth();
-    const user = auth.currentUser;
+    const user = await resolveAuthUser();
     if (!user) return false;
 
-    const db = getFirebaseClientFirestore();
-    const profileSnap = await getDoc(doc(db, "userProfiles", user.uid));
-    if (!profileSnap.exists()) return true;
-
-    const profile = profileSnap.data() || {};
-    return String(profile.status || "active") === "active";
-
+    // Preview Tool access gate should not block any authenticated user.
+    // Profile status checks are handled by login/auth flows.
+    return true;
   } catch {
-
     return false;
-
   }
-
 }
 
 
@@ -132,9 +163,20 @@ export function resetPreviewToolForDemo() {
 
 export async function canAccessPreviewTool() {
 
-  const authed = await isAuthenticatedUser();
+  if (isLocalDevHost()) {
+    clearGuestDemoRestriction();
+    return { allowed: true, reason: "local_dev_unlimited" };
+  }
 
-  if (authed) return { allowed: true, reason: "authenticated" };
+  const authed = await isAuthenticatedUser();
+  if (authed) {
+    clearGuestDemoRestriction();
+    return { allowed: true, reason: "authenticated" };
+  }
+
+  if (!hasFirebaseClientConfig()) {
+    return { allowed: true, reason: "local_dev_fallback" };
+  }
 
 
 

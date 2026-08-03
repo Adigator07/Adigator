@@ -86,13 +86,13 @@ export function WizardStepNav({
                 className={`studio-focus-ring relative z-10 flex w-full items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-xs font-semibold transition-all duration-200 ease-out sm:px-4 ${
                   isLocked ? "cursor-not-allowed opacity-45" : "cursor-pointer hover:-translate-y-px"
                 } ${isShaking ? "studio-shake" : ""} ${
-                  isActive ? "text-white" : "text-[#c8c8d4] hover:bg-white/[0.06] hover:text-white"
+                  isActive ? "text-white" : "text-[#c8c8d4] hover:bg-white/6 hover:text-white"
                 }`}
               >
                 {isActive && !reduceMotion ? (
                   <motion.span
                     layoutId={`${layoutIdPrefix}-pill`}
-                    className="absolute inset-0 rounded-xl bg-gradient-to-r from-indigo-500 via-violet-500 to-cyan-400 shadow-[0_0_20px_rgba(34,211,238,0.45)]"
+                    className="absolute inset-0 rounded-xl bg-linear-to-r from-indigo-500 via-violet-500 to-cyan-400 shadow-[0_0_20px_rgba(34,211,238,0.45)]"
                     transition={{ type: "spring", stiffness: 420, damping: 32 }}
                   />
                 ) : isActive ? (
@@ -106,7 +106,7 @@ export function WizardStepNav({
                         ? "bg-studio-success/20 text-studio-success"
                         : isActive
                           ? "bg-white/15 text-white"
-                          : "bg-white/[0.06] text-studio-muted"
+                          : "bg-white/6 text-studio-muted"
                     }`}
                   >
                     {isLocked ? (
@@ -124,7 +124,7 @@ export function WizardStepNav({
               {lockTooltip === stepItem.id && isLocked ? (
                 <div
                   role="tooltip"
-                  className="absolute left-1/2 top-full z-30 mt-2 w-max max-w-[220px] -translate-x-1/2 rounded-lg border border-studio-border bg-studio-surface-elevated px-2.5 py-1.5 text-[10px] font-medium leading-snug text-studio-muted shadow-studio"
+                  className="absolute left-1/2 top-full z-30 mt-2 w-max max-w-55 -translate-x-1/2 rounded-lg border border-studio-border bg-studio-surface-elevated px-2.5 py-1.5 text-[10px] font-medium leading-snug text-studio-muted shadow-studio"
                 >
                   {stepItem.lockReason || "Complete previous steps to unlock."}
                 </div>

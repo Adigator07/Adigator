@@ -41,7 +41,10 @@ import {
 import { REGISTRATION_ROLES, getPostAuthRedirect } from "@/app/lib/communications/roleLabels";
 import type { UserRole } from "@/app/lib/communications/types";
 import { DISPLAY_NAME_PATTERN } from "@/app/lib/auth/sanitize";
-import { getFirebaseClientAuth, getFirebaseClientFirestore } from "@/app/lib/firebase/client";
+import {
+  getFirebaseClientAuth,
+  getFirebaseClientFirestoreOrNull,
+} from "@/app/lib/firebase/client";
 import { getClientProfileData } from "@/app/lib/firestore/clientProfiles";
 
 type RegisterRole = Extract<UserRole, "usa_client" | "end_client">;
@@ -109,6 +112,43 @@ const panelVariants: Variants = {
   },
 };
 
+const panelSlideVariants: Variants = {
+  hidden: { opacity: 0, x: 28 },
+  visible: {
+    opacity: 1,
+    x: 0,
+    transition: {
+      duration: 0.7,
+      ease: [0.16, 1, 0.3, 1],
+    },
+  },
+};
+
+const heroCardVariants: Variants = {
+  hidden: { opacity: 0, y: 24, scale: 0.98 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    scale: 1,
+    transition: {
+      duration: 0.7,
+      ease: [0.22, 1, 0.36, 1],
+    },
+  },
+};
+
+const panelSlideLeftVariants: Variants = {
+  hidden: { opacity: 0, x: -28 },
+  visible: {
+    opacity: 1,
+    x: 0,
+    transition: {
+      duration: 0.7,
+      ease: [0.16, 1, 0.3, 1],
+    },
+  },
+};
+
 const statGridVariants: Variants = {
   hidden: { opacity: 0 },
   visible: {
@@ -141,6 +181,32 @@ type HiTechInputProps = {
   label: string;
   className?: string;
 };
+
+function GoogleAdsIcon({ className = "h-4 w-4" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} aria-hidden="true" focusable="false">
+      <path d="M10.65 3.35a3.9 3.9 0 0 1 5.37 1.43l4.95 8.58a3.9 3.9 0 1 1-6.76 3.9l-4.95-8.58a3.9 3.9 0 0 1 1.39-5.33Z" fill="#4285F4" />
+      <path d="M7.35 6.1a3.9 3.9 0 0 1 1.43 5.34L4.38 19a3.9 3.9 0 1 1-6.76-3.9l4.4-7.57A3.9 3.9 0 0 1 7.35 6.1Z" fill="#34A853" transform="translate(3 0)" />
+      <circle cx="18.15" cy="17.6" r="2.1" fill="#FBBC04" />
+    </svg>
+  );
+}
+
+function MetaIcon({ className = "h-4 w-4" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} aria-hidden="true" focusable="false">
+      <path d="M11.2 4.4c-4.2 0-7.6 3.4-7.6 7.6 0 4.2 3.4 7.6 7.6 7.6 4.2 0 7.6-3.4 7.6-7.6 0-4.2-3.4-7.6-7.6-7.6Zm-3.4 7.7c0-1.8 1.4-3.2 3.2-3.2 1.4 0 2.3.7 2.8 1.8l.7-1.7h1.5l-1.8 4.4c-.3.8-.8 1.2-1.5 1.2-.9 0-1.6-.6-1.9-1.7l-.7 1.7H8.3l1.4-3.5Zm6.3 0c0 1.8-1.4 3.2-3.2 3.2-1.4 0-2.3-.7-2.8-1.8l-.7 1.7h-1.5l1.8-4.4c.3-.8.8-1.2 1.5-1.2.9 0 1.6.6 1.9 1.7l.7-1.7h1.5l-1.5 3.5Z" fill="currentColor" />
+    </svg>
+  );
+}
+
+function ProgrammaticIcon({ className = "h-4 w-4" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} aria-hidden="true" focusable="false">
+      <path d="M4 6.5A2.5 2.5 0 0 1 6.5 4h11A2.5 2.5 0 0 1 20 6.5v11a2.5 2.5 0 0 1-2.5 2.5h-11A2.5 2.5 0 0 1 4 17.5v-11Zm2.5-.5a.5.5 0 0 0-.5.5v11c0 .28.22.5.5.5h11a.5.5 0 0 0 .5-.5v-11a.5.5 0 0 0-.5-.5h-11Zm1.8 3.2a.8.8 0 0 1 1.13 0l2.4 1.8a.8.8 0 0 1 0 1.3l-2.4 1.8a.8.8 0 0 1-1.13-1.3l1.8-1.35-1.8-1.35a.8.8 0 0 1 0-1.3Zm3.6 0a.8.8 0 0 1 1.13 0l2.4 1.8a.8.8 0 0 1 0 1.3l-2.4 1.8a.8.8 0 0 1-1.13-1.3l1.8-1.35-1.8-1.35a.8.8 0 0 1 0-1.3Z" fill="currentColor" />
+    </svg>
+  );
+}
 
 export default function LoginContent() {
   const router = useRouter();
@@ -226,9 +292,15 @@ export default function LoginContent() {
     authDebug("finalize_start", { uid: resolvedUser.uid, hasEmail: Boolean(resolvedUser.email) });
 
     const auth = getFirebaseClientAuth();
-    const profileRef = doc(getFirebaseClientFirestore(), "userProfiles", resolvedUser.uid);
+    const firestore = getFirebaseClientFirestoreOrNull();
+    const profileRef = firestore ? doc(firestore, "userProfiles", resolvedUser.uid) : null;
     const profile = await Promise.race([
-      getClientProfileData<{ role?: string; status?: AccountStatus }>(resolvedUser.uid),
+      getClientProfileData<{
+        role?: string;
+        status?: AccountStatus;
+        username?: string;
+        fullName?: string;
+      }>(resolvedUser.uid),
       new Promise<null>((resolve) => {
         window.setTimeout(() => resolve(null), 1200);
       }),
@@ -245,13 +317,14 @@ export default function LoginContent() {
         shouldActivateProfile,
       });
     try {
-      if (shouldActivateProfile) {
+      if (shouldActivateProfile && profileRef) {
+        const resolvedName = resolvedUser.displayName || resolvedUser.email?.split("@")[0] || `user-${resolvedUser.uid.slice(0, 6)}`;
         // Do not block dashboard redirect on profile write when the network is unstable.
         void Promise.race([
           setDoc(profileRef, {
             email: resolvedUser.email || "",
-            username: resolvedUser.displayName || resolvedUser.email?.split("@")[0] || "",
-            fullName: resolvedUser.displayName || "",
+            username: resolvedName,
+            fullName: resolvedName,
             role: "end_client",
             status: "active",
             updatedAt: serverTimestamp(),
@@ -263,6 +336,12 @@ export default function LoginContent() {
         ]).catch(() => {
           // Keep going if Firestore is briefly unavailable.
         });
+
+        if (!resolvedUser.displayName && auth.currentUser) {
+          void updateProfile(auth.currentUser, { displayName: resolvedName }).catch(() => {});
+        }
+      } else if (shouldActivateProfile) {
+        authDebug("firestore_profile_write_skipped", { uid: resolvedUser.uid });
       }
 
       const resolvedRole = (profile?.role === "usa_client" ? "usa_client" : "end_client") as RegisterRole;
@@ -384,12 +463,12 @@ export default function LoginContent() {
     ? "Reset your password"
     : isRegisterMode
       ? "Create your account"
-      : "Sign in to Adigator";
+      : "Bring your best campaigns to life";
   const leftSubtitle = isResetMode
     ? "We will send a secure link to your inbox."
     : isRegisterMode
-      ? "Register to access your Adigator workspace."
-      : "Continue to your campaign validation workspace.";
+      ? "Join Adigator and move from brief to launch with clarity and confidence."
+      : "A cleaner way to validate ideas, monitor performance, and launch with confidence.";
   const formTitle = isResetMode ? "Reset password" : isRegisterMode ? "Register" : "Log in";
   const submitLabel = isResetMode ? "Send reset link" : isRegisterMode ? "Register" : "Log in";
   const shouldReduceMotion = Boolean(reduceMotion);
@@ -439,38 +518,35 @@ export default function LoginContent() {
     }
   };
 
-  const openGoogleAdsFromLogin = async (source: string) => {
-    try {
-      const sessionResponse = await fetch("/api/google-ads/session", { cache: "no-store" });
-      const sessionPayload = await sessionResponse.json().catch(() => ({}));
-      const isConnected = Boolean(sessionPayload?.connected) && sessionResponse.ok;
+  const openPlatformFromLogin = async (platform: "google_ads" | "meta" | "programmatic", source: string) => {
+    const destinations = {
+      google_ads: "https://ads.google.com/aw/accounts",
+      meta: "https://www.facebook.com/adsmanager",
+      programmatic: "https://www.thetradedesk.com/us/login",
+    } as const;
 
-      if (!isConnected) {
-        await logOutboundGoogleAdsClick(source, "google_ads_oauth_start");
-        const oauthTab = window.open("/api/google-ads/oauth/start?useDifferent=1", "_blank", "noopener,noreferrer");
-        if (oauthTab) oauthTab.opener = null;
-        return;
+    const destination = destinations[platform];
+
+    const openDestination = (url: string) => {
+      try {
+        const tab = window.open(url, "_blank", "noopener,noreferrer");
+        if (tab) {
+          tab.opener = null;
+          return tab;
+        }
+      } catch {
+        // Fall back to same-tab navigation if the popup is blocked.
       }
 
-      const accountsResponse = await fetch("/api/google-ads/accounts", { cache: "no-store" });
-      const accountsPayload = await accountsResponse.json().catch(() => ({}));
-      const accounts = Array.isArray(accountsPayload?.accounts) ? accountsPayload.accounts : [];
-      const selected = accounts[0]?.customerId ? String(accounts[0].customerId).replace(/[^0-9]/g, "") : "";
+      window.location.assign(url);
+      return null;
+    };
 
-      await logOutboundGoogleAdsClick(
-        source,
-        selected ? "google_ads_account_selected" : "google_ads_accounts_list",
-      );
-
-      const destination = selected
-        ? `https://ads.google.com/aw/overview?ocid=${encodeURIComponent(selected)}`
-        : "https://ads.google.com/aw/accounts";
-      const accountTab = window.open(destination, "_blank", "noopener,noreferrer");
-      if (accountTab) accountTab.opener = null;
+    try {
+      void logOutboundGoogleAdsClick(source, `${platform}_direct_open`);
+      openDestination(destination);
     } catch {
-      await logOutboundGoogleAdsClick(source, "google_ads_oauth_start");
-      const fallbackTab = window.open("/api/google-ads/oauth/start?useDifferent=1", "_blank", "noopener,noreferrer");
-      if (fallbackTab) fallbackTab.opener = null;
+      openDestination(destination);
     }
   };
 
@@ -488,6 +564,27 @@ export default function LoginContent() {
       }, 420);
     });
   };
+
+  const platformOptions = [
+    {
+      key: "google_ads",
+      label: "Google Ads",
+      ctaLabel: "Open Google Ads login",
+      icon: <GoogleAdsIcon className="h-4 w-4" />,
+    },
+    {
+      key: "meta",
+      label: "Meta",
+      ctaLabel: "Open Meta Ads Manager",
+      icon: <MetaIcon className="h-4 w-4" />,
+    },
+    {
+      key: "programmatic",
+      label: "Programmatic",
+      ctaLabel: "Open Trade Desk login",
+      icon: <ProgrammaticIcon className="h-4 w-4" />,
+    },
+  ] as const;
 
   useEffect(() => {
     return () => {
@@ -548,23 +645,25 @@ export default function LoginContent() {
 
     try {
       const auth = getFirebaseClientAuth();
-      const db = getFirebaseClientFirestore();
+      const db = getFirebaseClientFirestoreOrNull();
 
       if (isRegisterMode) {
         const credential = await createUserWithEmailAndPassword(auth, trimmedEmail, password);
         await updateProfile(credential.user, { displayName: trimmedUsername });
 
-        try {
-          await setDoc(doc(db, "userProfiles", credential.user.uid), {
-            email: trimmedEmail,
-            fullName: trimmedUsername,
-            role: selectedRole,
-            status: "pending_verification",
-            updatedAt: serverTimestamp(),
-            createdAt: serverTimestamp(),
-          }, { merge: true });
-        } catch {
-          // Continue with auth so the user can still sign in if Firestore is temporarily unavailable.
+        if (db) {
+          try {
+            await setDoc(doc(db, "userProfiles", credential.user.uid), {
+              email: trimmedEmail,
+              fullName: trimmedUsername,
+              role: selectedRole,
+              status: "pending_verification",
+              updatedAt: serverTimestamp(),
+              createdAt: serverTimestamp(),
+            }, { merge: true });
+          } catch {
+            // Continue with auth so the user can still sign in if Firestore is temporarily unavailable.
+          }
         }
 
         await signOut(auth);
@@ -699,14 +798,17 @@ export default function LoginContent() {
       }
 
       await updateProfile(currentUser, { displayName: trimmedUsername });
-      await setDoc(doc(getFirebaseClientFirestore(), "userProfiles", currentUser.uid), {
-        email,
-        username: trimmedUsername,
-        fullName: trimmedUsername,
-        role: pendingGoogleProfile.role,
-        status: "active",
-        updatedAt: serverTimestamp(),
-      }, { merge: true });
+      const firestore = getFirebaseClientFirestoreOrNull();
+      if (firestore) {
+        await setDoc(doc(firestore, "userProfiles", currentUser.uid), {
+          email,
+          username: trimmedUsername,
+          fullName: trimmedUsername,
+          role: pendingGoogleProfile.role,
+          status: "active",
+          updatedAt: serverTimestamp(),
+        }, { merge: true });
+      }
 
       setPendingGoogleProfile(null);
       setSuccess(true);
@@ -732,7 +834,7 @@ export default function LoginContent() {
   };
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-[#F7F5EF] text-[#0D0D0D]">
+    <div className="relative min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top_left,rgba(59,130,246,0.10),transparent_32%),linear-gradient(135deg,#f8fbff_0%,#f4f7fb_100%)] text-[#0D0D0D]">
       <div className="agi-login-grid" aria-hidden />
       <div className="agi-login-scan" aria-hidden />
       <div className="agi-login-orb agi-login-orb--a" aria-hidden />
@@ -746,28 +848,47 @@ export default function LoginContent() {
       >
         {/* Left — brand panel */}
         <motion.section
-          className="agi-login-panel relative hidden flex-col justify-between overflow-hidden bg-[#080808] px-10 py-12 text-white lg:flex xl:px-14 xl:py-16"
-          variants={shouldReduceMotion ? undefined : panelVariants}
+          className="agi-login-panel relative hidden flex-col justify-between overflow-hidden border-r border-slate-200/80 bg-[linear-gradient(135deg,rgba(255,255,255,0.98)_0%,rgba(233,245,255,0.95)_38%,rgba(220,242,255,0.94)_100%)] px-10 py-12 text-slate-900 lg:flex xl:px-14 xl:py-16"
+          variants={shouldReduceMotion ? undefined : panelSlideLeftVariants}
         >
-          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_20%_0%,rgba(200,168,107,0.12),transparent_55%),radial-gradient(ellipse_at_80%_100%,rgba(255,255,255,0.04),transparent_50%)]" />
-          <div className="pointer-events-none absolute inset-0 opacity-[0.35] [background-image:linear-gradient(rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.03)_1px,transparent_1px)] [background-size:64px_64px]" />
-          <div className="pointer-events-none absolute inset-y-0 right-[-8rem] w-[16rem] bg-[radial-gradient(circle,rgba(0,212,255,0.28),transparent_68%)] blur-3xl" />
+          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_15%_0%,rgba(59,130,246,0.12),transparent_58%),radial-gradient(ellipse_at_82%_100%,rgba(16,185,129,0.12),transparent_46%)]" />
+          <div className="pointer-events-none absolute inset-0 opacity-[0.45] bg-[linear-gradient(rgba(15,23,42,0.035)_1px,transparent_1px),linear-gradient(90deg,rgba(15,23,42,0.035)_1px,transparent_1px)] bg-size-[64px_64px]" />
+          <div className="pointer-events-none absolute inset-y-0 -right-32 w-[16rem] bg-[radial-gradient(circle,rgba(14,165,233,0.18),transparent_70%)] blur-3xl" />
 
           <motion.div className="relative z-10" variants={shouldReduceMotion ? undefined : panelVariants}>
-            <Link href="/" className="text-[1.35rem] font-black tracking-[-0.03em] text-white">
+            <Link href="/" className="text-[1.35rem] font-black tracking-[-0.03em] text-slate-900">
               Adigator
             </Link>
           </motion.div>
 
           <motion.div className="relative z-10 max-w-lg" variants={shouldReduceMotion ? undefined : panelVariants}>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-white/45">{leftEyebrow}</p>
-            <h1 className="mt-5 text-[clamp(2.25rem,4vw,3.25rem)] font-black leading-[1.02] tracking-[-0.04em] text-white">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-slate-500">{leftEyebrow}</p>
+            <h1 className="mt-5 text-[clamp(2.25rem,4vw,3.25rem)] font-black leading-[1.02] tracking-[-0.04em] text-slate-900">
               {leftTitle}
             </h1>
-            <p className="mt-5 max-w-md text-base leading-relaxed text-white/55">{leftSubtitle}</p>
+            <p className="mt-5 max-w-md text-base leading-relaxed text-slate-600">{leftSubtitle}</p>
 
-            <p className="mt-10 text-lg font-bold leading-snug tracking-tight text-white sm:text-xl">
-              Launch With Confidence. Not Assumptions.
+            <motion.div
+              className="relative mt-8 w-full max-w-135 self-start"
+              variants={shouldReduceMotion ? undefined : heroCardVariants}
+            >
+              <div className="agi-login-hero-glow absolute inset-x-8 top-6 h-[72%] rounded-full" aria-hidden />
+              <motion.div
+                initial={shouldReduceMotion ? false : { y: 18, opacity: 0, scale: 0.98 }}
+                animate={shouldReduceMotion ? { opacity: 1, y: 0, scale: 1 } : { y: [0, -5, 0], opacity: 1, scale: 1 }}
+                transition={shouldReduceMotion ? { duration: 0.6 } : { duration: 2.6, repeat: Infinity, ease: "easeInOut" }}
+                className="relative overflow-hidden rounded-[26px] border border-slate-200/80 bg-[linear-gradient(135deg,rgba(255,255,255,0.96),rgba(232,245,255,0.94),rgba(255,255,255,0.9))] p-3 shadow-[0_24px_70px_rgba(15,23,42,0.10)] backdrop-blur-md"
+              >
+                <img
+                  src="/assets/illustrations/storyset/analysis-amico.svg"
+                  alt="Adigator dashboard illustration"
+                  className="agi-login-hero-illustration w-full rounded-[20px]"
+                />
+              </motion.div>
+            </motion.div>
+
+            <p className="mt-10 text-lg font-bold leading-snug tracking-tight text-slate-900 sm:text-xl">
+              Launch with confidence. Not assumptions.
             </p>
 
             <motion.div
@@ -777,11 +898,11 @@ export default function LoginContent() {
               {VALIDATION_STATS.map((stat) => (
                 <motion.div
                   key={stat.title}
-                  className="rounded-2xl border border-white/[0.08] bg-white/[0.04] px-5 py-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] backdrop-blur-sm transition hover:border-white/[0.14] hover:bg-white/[0.06]"
+                  className="rounded-2xl border border-slate-200/80 bg-white/80 px-5 py-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.6)] backdrop-blur-sm transition duration-200 hover:-translate-y-0.5 hover:border-slate-300 hover:bg-white"
                   variants={shouldReduceMotion ? undefined : statCardVariants}
                   whileHover={shouldReduceMotion ? undefined : { y: -4, borderColor: "rgba(255,255,255,0.22)" }}
                 >
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-white/45">{stat.title}</p>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">{stat.title}</p>
                   <p className={`mt-2 text-[15px] font-bold leading-snug ${stat.accent}`}>
                     {stat.check ? (
                       <span className="inline-flex items-start gap-1.5">
@@ -797,43 +918,66 @@ export default function LoginContent() {
             </motion.div>
           </motion.div>
 
-          <motion.p className="relative z-10 text-sm text-white/45" variants={shouldReduceMotion ? undefined : panelVariants}>
-            {isRegisterMode ? "Already have an account?" : "New to Adigator?"}{" "}
-            <Link
-              href={isRegisterMode ? "/login" : "/login?mode=register"}
-              className="font-semibold text-white/85 transition hover:text-white"
+          <motion.div className="relative z-10" variants={shouldReduceMotion ? undefined : panelVariants}>
+            <motion.div
+              variants={shouldReduceMotion ? undefined : heroCardVariants}
+              className="mb-4"
             >
-              {isRegisterMode ? "Log in" : "Register"}
-            </Link>
-            {" or "}
-            <Link href={MARKETING_CTA.href} className="inline-flex items-center gap-1 font-semibold text-white/85 transition hover:text-white">
-              {MARKETING_CTA.label}
-              <ArrowRight size={14} aria-hidden />
-            </Link>
-            {" or "}
-            <Link
-              href="/api/google-ads/oauth/start?useDifferent=1"
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={(event) => {
-                event.preventDefault();
-                void openGoogleAdsFromLogin("login-left-panel");
-              }}
-              className="inline-flex items-center gap-1 font-semibold text-white/85 transition hover:text-white"
-            >
-              Login to Google Ads
-              <ArrowRight size={14} aria-hidden />
-            </Link>
-          </motion.p>
+              <button
+                type="button"
+                onClick={() => {
+                  void openPlatformFromLogin("google_ads", "login-left-panel");
+                }}
+                className="group relative w-full overflow-hidden rounded-3xl border border-white/14 bg-[linear-gradient(135deg,rgba(255,255,255,0.16),rgba(255,255,255,0.06))] p-px text-left shadow-[0_18px_55px_rgba(0,0,0,0.22)] backdrop-blur-md"
+              >
+                <span className="block rounded-[23px] bg-[linear-gradient(120deg,rgba(3,15,44,0.96),rgba(0,111,255,0.78),rgba(0,212,255,0.56))] p-4 sm:p-5">
+                  <span className="flex items-start justify-between gap-3">
+                    <span>
+                      <span className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">Launch faster</span>
+                      <span className="mt-2 block text-lg font-semibold text-slate-900">Open your Google Ads workspace</span>
+                    </span>
+                    <span className="rounded-full border border-slate-200/80 bg-slate-100/90 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-700">
+                      quick
+                    </span>
+                  </span>
+
+                  <span className="mt-4 flex items-center gap-2">
+                    <span className="relative flex h-11 w-11 items-center justify-center rounded-full border border-white/15 bg-white/12 shadow-[0_0_0_1px_rgba(255,255,255,0.08)]">
+                      <GoogleAdsIcon className="h-4 w-4 text-[#00D4FF]" />
+                    </span>
+                    <span className="ml-2 inline-flex items-center gap-2 rounded-full border border-slate-200/80 bg-white/70 px-3 py-2 text-sm font-semibold text-slate-700 transition group-hover:bg-white">
+                      Continue to Google Ads
+                      <ArrowRight size={14} className="shrink-0" />
+                    </span>
+                  </span>
+                </span>
+              </button>
+            </motion.div>
+
+            <p className="text-sm text-slate-600">
+              {isRegisterMode ? "Already have an account?" : "New to Adigator?"}{" "}
+              <Link
+                href={isRegisterMode ? "/login" : "/login?mode=register"}
+                className="font-semibold text-slate-800 transition hover:text-slate-950"
+              >
+                {isRegisterMode ? "Log in" : "Register"}
+              </Link>
+              {" or "}
+              <Link href={MARKETING_CTA.href} className="inline-flex items-center gap-1 font-semibold text-slate-800 transition hover:text-slate-950">
+                {MARKETING_CTA.label}
+                <ArrowRight size={14} aria-hidden />
+              </Link>
+            </p>
+          </motion.div>
         </motion.section>
 
         {/* Right — form panel */}
         <motion.section
           className="flex min-h-screen items-center justify-center px-6 py-12 sm:px-10 lg:px-14 xl:px-20"
-          variants={shouldReduceMotion ? undefined : panelVariants}
+          variants={shouldReduceMotion ? undefined : panelSlideVariants}
         >
           <motion.div
-            className="agi-login-form-shell w-full max-w-[420px]"
+            className="agi-login-form-shell w-full max-w-105"
             variants={shouldReduceMotion ? undefined : panelVariants}
           >
             <div className="mb-10 lg:hidden">
@@ -894,7 +1038,7 @@ export default function LoginContent() {
                 <button
                   type="submit"
                   disabled={googleUsernameSaving}
-                  className={`mt-2 flex h-[3.25rem] w-full items-center justify-center gap-2 rounded-full bg-[#0D0D0D] text-[15px] font-semibold text-white shadow-[0_12px_30px_rgba(13,13,13,0.18)] transition hover:bg-[#1a1a1a] disabled:cursor-not-allowed disabled:opacity-60 ${submitPulse ? "agi-submit-pulse" : ""}`}
+                  className={`mt-2 flex h-13 w-full items-center justify-center gap-2 rounded-full bg-[#0D0D0D] text-[15px] font-semibold text-white shadow-[0_12px_30px_rgba(13,13,13,0.18)] transition hover:bg-[#1a1a1a] disabled:cursor-not-allowed disabled:opacity-60 ${submitPulse ? "agi-submit-pulse" : ""}`}
                 >
                   {googleUsernameSaving ? <Loader2 size={18} className="animate-spin" aria-hidden /> : null}
                   {googleUsernameSaving ? "Saving…" : "Create password & continue"}
@@ -924,7 +1068,7 @@ export default function LoginContent() {
                 <button
                   type="submit"
                   disabled={loading}
-                  className={`mt-2 flex h-[3.25rem] w-full items-center justify-center gap-2 rounded-full bg-[#0D0D0D] text-[15px] font-semibold text-white shadow-[0_12px_30px_rgba(13,13,13,0.18)] transition hover:bg-[#1a1a1a] disabled:cursor-not-allowed disabled:opacity-60 ${submitPulse ? "agi-submit-pulse" : ""}`}
+                  className={`mt-2 flex h-13 w-full items-center justify-center gap-2 rounded-full bg-[#0D0D0D] text-[15px] font-semibold text-white shadow-[0_12px_30px_rgba(13,13,13,0.18)] transition hover:bg-[#1a1a1a] disabled:cursor-not-allowed disabled:opacity-60 ${submitPulse ? "agi-submit-pulse" : ""}`}
                 >
                   {loading ? <Loader2 size={18} className="animate-spin" aria-hidden /> : null}
                   {loading ? "Sending…" : submitLabel}
@@ -1035,7 +1179,7 @@ export default function LoginContent() {
                   <button
                     type="submit"
                     disabled={loading || googleLoading || success}
-                    className={`mt-2 flex h-[3.25rem] w-full items-center justify-center gap-2 rounded-full bg-[#0D0D0D] text-[15px] font-semibold text-white shadow-[0_12px_30px_rgba(13,13,13,0.18)] transition hover:bg-[#1a1a1a] disabled:cursor-not-allowed disabled:opacity-60 ${submitPulse ? "agi-submit-pulse" : ""}`}
+                    className={`mt-2 flex h-13 w-full items-center justify-center gap-2 rounded-full bg-[#0D0D0D] text-[15px] font-semibold text-white shadow-[0_12px_30px_rgba(13,13,13,0.18)] transition hover:bg-[#1a1a1a] disabled:cursor-not-allowed disabled:opacity-60 ${submitPulse ? "agi-submit-pulse" : ""}`}
                   >
                     {success ? <Check size={18} aria-hidden /> : loading ? <Loader2 size={18} className="animate-spin" aria-hidden /> : null}
                     {success ? "Success" : loading ? "Please wait…" : submitLabel}
@@ -1052,16 +1196,53 @@ export default function LoginContent() {
                         type="button"
                         onClick={() => { void handleGoogleLogin(); }}
                         disabled={loading || googleLoading || success}
-                        className="mt-1 flex h-[3.25rem] w-full items-center justify-center gap-3 rounded-full border border-[#E8E6DF] bg-white text-[15px] font-semibold text-[#0D0D0D] transition hover:bg-[#F7F7F3] disabled:cursor-not-allowed disabled:opacity-60"
+                        className="mt-1 flex h-13 w-full items-center justify-center gap-3 rounded-full border border-[#DAD8D2] bg-white text-[15px] font-semibold text-[#0D0D0D] shadow-[0_12px_30px_rgba(15,23,42,0.08)] transition duration-200 hover:-translate-y-0.5 hover:bg-[#F7F7F3] disabled:cursor-not-allowed disabled:opacity-60"
                       >
-                        <span className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-[#DAD8D2] bg-white text-sm font-bold">G</span>
+                        <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-white shadow-[0_0_0_1px_rgba(0,0,0,0.08)]">
+                          <svg viewBox="0 0 24 24" className="h-4 w-4" aria-hidden="true">
+                            <path fill="#4285F4" d="M21.6 12.23c0-.79-.07-1.54-.2-2.27H12v4.3h5.39a4.61 4.61 0 0 1-2 3.03v2.5h3.24c1.9-1.75 2.99-4.33 2.99-7.56Z" />
+                            <path fill="#34A853" d="M12 22c2.7 0 4.96-.89 6.61-2.41l-3.24-2.5c-.89.6-2.03.96-3.37.96-2.59 0-4.79-1.75-5.57-4.1H3.07v2.57A10 10 0 0 0 12 22Z" />
+                            <path fill="#FBBC05" d="M6.43 13.95A6.02 6.02 0 0 1 6.43 8.05V5.48H3.07a10 10 0 0 0 0 16.94l3.36-2.57Z" />
+                            <path fill="#EA4335" d="M12 6.04c1.46 0 2.77.5 3.8 1.48l2.84-2.84A9.96 9.96 0 0 0 12 2a10 10 0 0 0-8.93 5.48l3.36 2.57C7.21 7.79 9.41 6.04 12 6.04Z" />
+                          </svg>
+                        </span>
                         {googleLoading ? "Connecting to Google…" : "Continue with Google"}
                       </button>
                     </>
                   ) : null}
                 </form>
 
-                <p className="mt-10 text-sm text-[#6B7280]">
+                <motion.div
+                  initial={shouldReduceMotion ? false : { opacity: 0, y: 16 }}
+                  animate={shouldReduceMotion ? { opacity: 1, y: 0 } : { opacity: 1, y: 0 }}
+                  transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
+                  className="mt-10"
+                >
+                  <button
+                    type="button"
+                    onClick={() => {
+                      void openPlatformFromLogin("google_ads", "login-form-footer");
+                    }}
+                    className="group relative flex w-full items-center justify-between gap-3 overflow-hidden rounded-3xl border border-[#E8E6DF] bg-[linear-gradient(135deg,#FFFFFF_0%,#F7F5EF_100%)] p-4 text-left shadow-[0_12px_30px_rgba(15,23,42,0.08)] transition hover:-translate-y-0.5"
+                  >
+                    <span className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(0,212,255,0.16),transparent_38%),radial-gradient(circle_at_bottom_right,rgba(16,185,129,0.16),transparent_42%),radial-gradient(circle_at_center,rgba(14,165,233,0.12),transparent_34%)]" />
+                    <span className="relative flex items-center gap-3">
+                      <span className="flex h-11 w-11 items-center justify-center rounded-full border border-[#E8E6DF] bg-white/80 shadow-sm">
+                        <GoogleAdsIcon className="h-4 w-4 text-[#00D4FF]" />
+                      </span>
+                      <span className="ml-1">
+                        <span className="block text-[11px] font-semibold uppercase tracking-[0.16em] text-[#6B7280]">Quick access</span>
+                        <span className="mt-1 block text-sm font-semibold text-[#0D0D0D]">Open Google Ads from the sign-in screen</span>
+                      </span>
+                    </span>
+                    <span className="relative inline-flex items-center gap-2 rounded-full bg-[#0D0D0D] px-3 py-2 text-sm font-semibold text-white">
+                      Open
+                      <ArrowRight size={14} />
+                    </span>
+                  </button>
+                </motion.div>
+
+                <p className="mt-6 text-sm text-[#6B7280]">
                   {isRegisterMode ? "Already have an account?" : "Don't have an account?"}{" "}
                   <Link
                     href={isRegisterMode ? "/login" : "/login?mode=register"}
@@ -1072,19 +1253,6 @@ export default function LoginContent() {
                   {" or "}
                   <Link href={MARKETING_CTA.href} className="font-semibold text-[#0D0D0D] hover:underline">
                     {MARKETING_CTA.label}
-                  </Link>
-                  {" or "}
-                  <Link
-                    href="/api/google-ads/oauth/start?useDifferent=1"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    onClick={(event) => {
-                      event.preventDefault();
-                      void openGoogleAdsFromLogin("login-form-footer");
-                    }}
-                    className="font-semibold text-[#0D0D0D] hover:underline"
-                  >
-                    Login to Google Ads
                   </Link>
                 </p>
               </>

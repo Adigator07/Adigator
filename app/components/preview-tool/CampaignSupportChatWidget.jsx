@@ -1,12 +1,11 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Bot, MessageSquare, Send, X } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import { Bot, Expand, MessageCircle, Minimize2, X } from "lucide-react";
 
-const INITIAL_MESSAGE = {
-  role: "assistant",
-  content: "I am your Campaign Intelligence assistant. Tell me what is blocking you and I will help fix it.",
-};
+const CHAT_MODE_PREFERENCE_KEY = "adigator_support_chat_mode_preference";
 
 export default function CampaignSupportChatWidget({
   step,
@@ -18,11 +17,13 @@ export default function CampaignSupportChatWidget({
   landingUrl,
   missingSetupFields,
 }) {
-  const [open, setOpen] = useState(false);
-  const [input, setInput] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [messages, setMessages] = useState([INITIAL_MESSAGE]);
-  const scrollRef = useRef(null);
+  const router = useRouter();
+  const reduceMotion = useReducedMotion();
+  const [modePickerOpen, setModePickerOpen] = useState(false);
+  const [smallWindowOpen, setSmallWindowOpen] = useState(false);
+  const [rememberModeChoice, setRememberModeChoice] = useState(false);
+  const [preferredMode, setPreferredMode] = useState(null);
+  const pickerRef = useRef(null);
 
   const context = useMemo(() => ({
     step,
@@ -44,143 +45,213 @@ export default function CampaignSupportChatWidget({
     missingSetupFields,
   ]);
 
-  useEffect(() => {
-    if (!open) return;
-    const node = scrollRef.current;
-    if (!node) return;
-    node.scrollTop = node.scrollHeight;
-  }, [open, messages, loading]);
-
-  const sendMessage = async () => {
-    const trimmed = input.trim();
-    if (!trimmed || loading) return;
-
-    const nextMessages = [...messages, { role: "user", content: trimmed }];
-    setMessages(nextMessages);
-    setInput("");
-    setLoading(true);
-
-    try {
-      const response = await fetch("/api/campaign-intelligence-chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          messages: nextMessages,
-          context,
-        }),
-      });
-
-      const payload = await response.json().catch(() => ({}));
-      if (!response.ok || !payload?.reply) {
-        const fallback = payload?.error || "I could not process that request. Please try again.";
-        setMessages((prev) => [...prev, { role: "assistant", content: fallback }]);
-        return;
-      }
-
-      setMessages((prev) => [...prev, { role: "assistant", content: String(payload.reply) }]);
-    } catch {
-      setMessages((prev) => [
-        ...prev,
-        {
-          role: "assistant",
-          content: "Connection issue while reaching the assistant. Please retry in a moment.",
-        },
-      ]);
-    } finally {
-      setLoading(false);
+  const persistSupportContext = () => {
+    if (typeof window !== "undefined") {
+      window.sessionStorage.setItem("adigator_support_context", JSON.stringify(context));
     }
   };
 
+  const persistModePreference = (mode) => {
+    if (typeof window === "undefined") return;
+    if (rememberModeChoice) {
+      window.localStorage.setItem(CHAT_MODE_PREFERENCE_KEY, mode);
+      setPreferredMode(mode);
+    } else {
+      window.localStorage.removeItem(CHAT_MODE_PREFERENCE_KEY);
+      setPreferredMode(null);
+    }
+  };
+
+  const handleOpenSupportPage = () => {
+    persistModePreference("full");
+    persistSupportContext();
+    router.push("/preview-tool/support");
+  };
+
+  const handleOpenSmallWindow = () => {
+    persistModePreference("small");
+    persistSupportContext();
+    setSmallWindowOpen(true);
+    setModePickerOpen(false);
+  };
+
+  const handleChatLauncherClick = () => {
+    if (preferredMode === "small") {
+      handleOpenSmallWindow();
+      return;
+    }
+    if (preferredMode === "full") {
+      handleOpenSupportPage();
+      return;
+    }
+    setModePickerOpen((open) => !open);
+  };
+
+  const handleResetPreference = () => {
+    if (typeof window !== "undefined") {
+      window.localStorage.removeItem(CHAT_MODE_PREFERENCE_KEY);
+    }
+    setPreferredMode(null);
+    setRememberModeChoice(false);
+  };
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const stored = window.localStorage.getItem(CHAT_MODE_PREFERENCE_KEY);
+    if (stored === "small" || stored === "full") {
+      setPreferredMode(stored);
+      setRememberModeChoice(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!modePickerOpen) return undefined;
+
+    const handleOutsideClick = (event) => {
+      if (!pickerRef.current) return;
+      if (!pickerRef.current.contains(event.target)) {
+        setModePickerOpen(false);
+      }
+    };
+
+    const handleEscape = (event) => {
+      if (event.key === "Escape") {
+        setModePickerOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleOutsideClick);
+    document.addEventListener("keydown", handleEscape);
+    return () => {
+      document.removeEventListener("mousedown", handleOutsideClick);
+      document.removeEventListener("keydown", handleEscape);
+    };
+  }, [modePickerOpen]);
+
   return (
     <>
-      {!open ? (
-        <button
-          type="button"
-          onClick={() => setOpen(true)}
-          className="fixed bottom-5 right-5 z-[80] flex items-center gap-3 rounded-full border border-cyan-300/30 bg-[#11192b]/95 px-4 py-3 text-left shadow-[0_10px_35px_rgba(34,211,238,0.25)] transition hover:-translate-y-0.5 hover:border-cyan-200/60"
-          aria-label="Open AI campaign support chat"
-        >
-          <span className="relative flex h-9 w-9 items-center justify-center rounded-full bg-cyan-400/15 text-cyan-200">
-            <Bot size={18} />
-            <span className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-cyan-300" />
-          </span>
-          <span className="min-w-0">
-            <span className="block text-xs font-semibold uppercase tracking-[0.14em] text-cyan-200/90">AI Support</span>
-            <span className="block text-sm font-medium text-white/90">Need help fixing issues?</span>
-          </span>
-        </button>
-      ) : (
-        <section className="fixed bottom-5 right-5 z-[80] flex h-[28rem] w-[22rem] max-w-[calc(100vw-1.5rem)] flex-col overflow-hidden rounded-2xl border border-cyan-300/25 bg-[#0c1424]/97 shadow-[0_22px_60px_rgba(2,8,23,0.62)]">
-          <header className="flex items-center justify-between border-b border-white/10 px-4 py-3">
-            <div className="flex items-center gap-2">
-              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-cyan-400/15 text-cyan-200">
-                <MessageSquare size={16} />
-              </span>
-              <div>
-                <p className="text-sm font-semibold text-white">Campaign AI Support</p>
-                <p className="text-[11px] uppercase tracking-[0.12em] text-cyan-200/80">Groq assistant</p>
+      <AnimatePresence>
+        {smallWindowOpen ? (
+          <motion.div
+            initial={reduceMotion ? false : { opacity: 0, y: 16, scale: 0.96 }}
+            animate={reduceMotion ? undefined : { opacity: 1, y: 0, scale: 1 }}
+            exit={reduceMotion ? undefined : { opacity: 0, y: 12, scale: 0.98 }}
+            className="fixed bottom-24 right-5 z-90 h-[min(78vh,700px)] w-[min(96vw,430px)] overflow-hidden rounded-3xl border border-rose-200/35 bg-[#090f1f] shadow-[0_32px_90px_rgba(6,8,18,0.65)]"
+          >
+            <div className="flex items-center justify-between border-b border-white/10 bg-[linear-gradient(120deg,rgba(45,12,18,0.96),rgba(22,8,14,0.94))] px-4 py-3">
+              <div className="flex items-center gap-2 text-white">
+                <MessageCircle size={16} />
+                <p className="text-xs font-semibold uppercase tracking-[0.14em]">Adigator Chat Help</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleOpenSupportPage}
+                  className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-white/20 bg-white/10 text-white transition hover:bg-white/20"
+                  aria-label="Open chat in full screen"
+                  title="Open full screen"
+                >
+                  <Expand size={14} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSmallWindowOpen(false)}
+                  className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-white/20 bg-white/10 text-white transition hover:bg-white/20"
+                  aria-label="Close small chat window"
+                  title="Close"
+                >
+                  <X size={14} />
+                </button>
               </div>
             </div>
-            <button
-              type="button"
-              onClick={() => setOpen(false)}
-              className="rounded-md p-1 text-white/65 transition hover:bg-white/10 hover:text-white"
-              aria-label="Close AI support chat"
+            <iframe
+              title="Adigator support chat small window"
+              src="/preview-tool/support?mode=small"
+              className="h-[calc(100%-53px)] w-full border-0 bg-[#090f1f]"
+            />
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
+
+      <div ref={pickerRef} className="fixed bottom-5 right-5 z-80">
+        <AnimatePresence>
+          {modePickerOpen ? (
+            <motion.div
+              initial={reduceMotion ? false : { opacity: 0, y: 8, scale: 0.98 }}
+              animate={reduceMotion ? undefined : { opacity: 1, y: 0, scale: 1 }}
+              exit={reduceMotion ? undefined : { opacity: 0, y: 8, scale: 0.98 }}
+              className="absolute bottom-18 right-0 w-[min(90vw,280px)] rounded-2xl border border-rose-200/35 bg-[linear-gradient(140deg,rgba(35,10,16,0.98),rgba(17,8,13,0.98))] p-3 shadow-[0_20px_60px_rgba(0,0,0,0.45)]"
             >
-              <X size={16} />
-            </button>
-          </header>
-
-          <div ref={scrollRef} className="flex-1 space-y-3 overflow-y-auto px-3 py-3">
-            {messages.map((message, index) => (
-              <div
-                key={`${message.role}-${index}`}
-                className={`max-w-[90%] rounded-xl px-3 py-2 text-sm leading-relaxed ${
-                  message.role === "assistant"
-                    ? "border border-cyan-300/20 bg-cyan-500/10 text-cyan-50"
-                    : "ml-auto border border-white/15 bg-white/10 text-white"
-                }`}
-              >
-                {message.content}
+              <p className="px-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-rose-100/90">Choose Chat Mode</p>
+              <p className="mt-1 px-1 text-xs text-rose-50/80">How would you like to open support?</p>
+              <div className="mt-3 grid gap-2">
+                <button
+                  type="button"
+                  onClick={handleOpenSupportPage}
+                  className="flex items-center justify-between rounded-xl border border-rose-200/35 bg-white/8 px-3 py-2.5 text-left text-sm font-semibold text-white transition hover:bg-white/14"
+                >
+                  <span>Full Screen</span>
+                  <Expand size={14} />
+                </button>
+                <button
+                  type="button"
+                  onClick={handleOpenSmallWindow}
+                  className="flex items-center justify-between rounded-xl border border-rose-200/35 bg-white/8 px-3 py-2.5 text-left text-sm font-semibold text-white transition hover:bg-white/14"
+                >
+                  <span>Small Window</span>
+                  <Minimize2 size={14} />
+                </button>
               </div>
-            ))}
-            {loading ? (
-              <div className="max-w-[90%] rounded-xl border border-cyan-300/20 bg-cyan-500/10 px-3 py-2 text-sm text-cyan-50">
-                Thinking...
-              </div>
-            ) : null}
-          </div>
+              <label className="mt-3 flex cursor-pointer items-center gap-2 px-1 text-xs text-rose-50/80">
+                <input
+                  type="checkbox"
+                  checked={rememberModeChoice}
+                  onChange={(event) => setRememberModeChoice(event.target.checked)}
+                  className="h-3.5 w-3.5 rounded border border-rose-200/50 bg-transparent"
+                />
+                Remember my choice
+              </label>
+              {preferredMode ? (
+                <button
+                  type="button"
+                  onClick={handleResetPreference}
+                  className="mt-2 px-1 text-xs font-semibold text-rose-100/80 underline decoration-rose-200/40 underline-offset-2 hover:text-white"
+                >
+                  Reset saved mode
+                </button>
+              ) : null}
+            </motion.div>
+          ) : null}
+        </AnimatePresence>
 
-          <div className="border-t border-white/10 p-3">
-            <div className="flex items-end gap-2">
-              <textarea
-                value={input}
-                onChange={(event) => setInput(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter" && !event.shiftKey) {
-                    event.preventDefault();
-                    void sendMessage();
-                  }
-                }}
-                rows={2}
-                placeholder="Describe the issue you want help with"
-                className="min-h-[56px] flex-1 resize-none rounded-xl border border-white/15 bg-white/[0.06] px-3 py-2 text-sm text-white placeholder:text-white/45 outline-none transition focus:border-cyan-300/55"
-              />
-              <button
-                type="button"
-                onClick={() => {
-                  void sendMessage();
-                }}
-                disabled={loading || !input.trim()}
-                className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-cyan-300/35 bg-cyan-400/20 text-cyan-100 transition hover:bg-cyan-300/30 disabled:cursor-not-allowed disabled:opacity-50"
-                aria-label="Send message"
-              >
-                <Send size={16} />
-              </button>
-            </div>
-          </div>
-        </section>
-      )}
+        <motion.button
+          type="button"
+          onClick={handleChatLauncherClick}
+          initial={reduceMotion ? false : { opacity: 0, y: 16, scale: 0.96 }}
+          animate={reduceMotion ? undefined : { opacity: 1, y: 0, scale: 1 }}
+          transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+          whileHover={reduceMotion ? undefined : { y: -3, scale: 1.01 }}
+          whileTap={reduceMotion ? undefined : { scale: 0.98 }}
+          className="group relative flex items-center gap-3 overflow-hidden rounded-full border border-rose-300/40 bg-[linear-gradient(120deg,rgba(45,12,18,0.96),rgba(22,8,14,0.94))] px-4 py-3 text-left shadow-[0_18px_48px_rgba(239,68,68,0.32)] transition"
+          aria-label="Open Adigator chat mode picker"
+        >
+          <span className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(251,113,133,0.28),transparent_42%),radial-gradient(circle_at_bottom_left,rgba(239,68,68,0.28),transparent_45%)]" />
+          <span className="relative flex h-9 w-9 items-center justify-center rounded-full border border-rose-200/35 bg-rose-400/15 text-rose-100 shadow-[0_0_0_1px_rgba(255,255,255,0.12)]">
+            <Bot size={18} />
+            <motion.span
+              animate={reduceMotion ? undefined : { opacity: [0.4, 1, 0.4], scale: [1, 1.25, 1] }}
+              transition={{ duration: 1.6, repeat: Infinity, ease: "easeInOut" }}
+              className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-emerald-300"
+            />
+          </span>
+          <span className="relative min-w-0">
+            <span className="block text-xs font-semibold uppercase tracking-[0.14em] text-rose-50">Adigator Chat Help</span>
+            <span className="block text-sm font-medium text-white">
+              {preferredMode ? (preferredMode === "full" ? "Opening full screen" : "Opening small window") : "Choose window mode"}
+            </span>
+          </span>
+        </motion.button>
+      </div>
     </>
   );
 }

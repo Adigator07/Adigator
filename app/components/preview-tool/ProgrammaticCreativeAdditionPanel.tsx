@@ -4,7 +4,7 @@ import type { ChangeEvent } from "react";
 import { CheckCircle2, FolderPlus, RefreshCw } from "lucide-react";
 
 import type { AdvertiserCampaign } from "@/app/lib/advertiserStore";
-import type { ProgrammaticCampaignSnapshot } from "@/app/lib/programmaticCampaignStore";
+import type { CampaignSnapshot } from "@/app/lib/campaignSnapshot";
 import AdvertiserCampaignSelect from "@/app/components/preview-tool/AdvertiserCampaignSelect";
 import CampaignIdSelect from "@/app/components/preview-tool/CampaignIdSelect";
 import { ToolInput } from "@/app/components/preview-tool/PreviewToolUi";
@@ -16,9 +16,10 @@ type ProgrammaticCreativeAdditionPanelProps = {
   campaignId: string;
   campaignOwnerId: string | null;
   campaignAccessToken?: string | null;
+  platform?: string;
   advertiserId?: string;
   advertiserName?: string;
-  loadedCampaign: ProgrammaticCampaignSnapshot | null;
+  loadedCampaign: CampaignSnapshot | null;
   selectedMode: CreativeAdditionMode | "";
   findError: string;
   onCampaignNameChange: (value: string) => void;
@@ -33,6 +34,7 @@ export default function ProgrammaticCreativeAdditionPanel({
   campaignId,
   campaignOwnerId,
   campaignAccessToken,
+  platform = "programmatic",
   advertiserId = "",
   advertiserName = "",
   loadedCampaign,
@@ -51,7 +53,7 @@ export default function ProgrammaticCreativeAdditionPanel({
       <div>
         <h3 className="studio-heading text-2xl font-bold tracking-tight text-studio-text">Load Existing Campaign</h3>
         <p className="mt-1 text-studio-muted">
-          Select a campaign from your advertiser&apos;s history, or enter the campaign name and ID manually.
+          Select a previously saved Adigator campaign from your advertiser&apos;s history, or enter the saved campaign name and ID manually.
         </p>
       </div>
 
@@ -84,6 +86,7 @@ export default function ProgrammaticCreativeAdditionPanel({
               campaignId={campaignId}
               ownerId={campaignOwnerId}
               accessToken={campaignAccessToken}
+              platform={platform}
               onCampaignIdChange={onCampaignIdChange}
             />
           </div>
@@ -93,8 +96,17 @@ export default function ProgrammaticCreativeAdditionPanel({
             onClick={onFindCampaign}
             className="studio-btn-primary studio-focus-ring rounded-xl px-5 py-2.5 text-sm font-bold"
           >
-            Find Campaign
+            Load Saved Campaign
           </button>
+          {platform === "google_ads" ? (
+            <button
+              type="button"
+              onClick={onFindCampaign}
+              className="studio-btn-ghost studio-focus-ring inline-flex items-center gap-2 rounded-xl border border-studio-accent/30 px-5 py-2.5 text-sm font-bold text-studio-accent"
+            >
+              <RefreshCw size={16} /> Import from Connected Google Ads
+            </button>
+          ) : null}
         </>
       ) : null}
 
@@ -105,10 +117,15 @@ export default function ProgrammaticCreativeAdditionPanel({
           <div className="flex items-start gap-3">
             <CheckCircle2 className="mt-0.5 shrink-0 text-studio-success" size={20} />
             <div>
-              <p className="text-sm font-semibold text-studio-text">Campaign found</p>
+              <p className="text-sm font-semibold text-studio-text">Saved campaign found</p>
               <p className="mt-1 text-sm text-studio-muted">
                 {loadedCampaign.campaignName} · {loadedCampaign.id}
               </p>
+              {loadedCampaign.importSource === "google_ads" ? (
+                <p className="mt-2 inline-flex rounded-full border border-cyan-400/30 bg-cyan-400/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.16em] text-cyan-200">
+                  Imported from Google Ads
+                </p>
+              ) : null}
               <p className="mt-2 text-xs text-studio-tertiary">
                 {loadedCampaign.creatives.length} creative{loadedCampaign.creatives.length === 1 ? "" : "s"} saved ·
                 {" "}

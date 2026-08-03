@@ -263,6 +263,40 @@ export function pruneInvalidAdvertisers(ownerId: string): Advertiser[] {
   return listAdvertisers(ownerId);
 }
 
+export function persistAdvertiserCampaignSelection(options: {
+  ownerId: string;
+  advertiserId?: string;
+  advertiserName: string;
+  campaign: Omit<AdvertiserCampaign, "updatedAt"> & {
+    updatedAt?: string;
+    adGroups?: AdvertiserAdGroup[];
+    creatives?: Array<Record<string, unknown>>;
+  };
+}): Advertiser {
+  const { ownerId, advertiserName, campaign } = options;
+  const trimmedAdvertiserName = advertiserName.trim();
+  const resolvedAdvertiserId = options.advertiserId?.trim();
+
+  if (!ownerId || !trimmedAdvertiserName || !campaign.id) {
+    throw new Error("Invalid advertiser campaign selection payload");
+  }
+
+  const resolvedAdvertiser = resolvedAdvertiserId
+    ? findAdvertiserById(resolvedAdvertiserId, ownerId) || createOrGetAdvertiser(trimmedAdvertiserName, ownerId)
+    : createOrGetAdvertiser(trimmedAdvertiserName, ownerId);
+
+  return syncAdvertiserCampaign({
+    ownerId,
+    advertiserId: resolvedAdvertiser.id,
+    advertiserName: trimmedAdvertiserName,
+    campaign: {
+      ...campaign,
+      adGroups: campaign.adGroups || [],
+      updatedAt: campaign.updatedAt || new Date().toISOString(),
+    },
+  });
+}
+
 export function syncAdvertiserCampaign(options: {
   ownerId: string;
   advertiserId: string;

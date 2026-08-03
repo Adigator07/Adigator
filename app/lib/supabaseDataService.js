@@ -325,8 +325,8 @@ export async function trackUserActivity(actionType, payload = {}, options = {}) 
       });
 
       if (response.ok) {
-        const body = await response.json();
-        if (body?.skipped) {
+        const body = await response.json().catch(() => ({}));
+        if (body?.skipped || body?.serviceUnavailable) {
           return writeLocalActivity({
             action_type: normalizedType,
             action_label: actionLabel,

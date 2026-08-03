@@ -8,7 +8,7 @@ import { useAdminAuth } from "../lib/admin-platform/AdminAuthContext";
 import { useOrgAuth } from "../lib/organization-platform/OrgAuthContext";
 import {
   LayoutDashboard, PlusSquare, FolderOpen, Download, Settings,
-  Eye, Brain, LogOut, ChevronLeft, ChevronRight, MessageSquare, Shield, Building2
+  Eye, Brain, LogOut, ChevronLeft, ChevronRight, MessageSquare, Shield, Building2, ShieldCheck
 } from "lucide-react";
 
 const NAV_SECTIONS = [
@@ -28,6 +28,7 @@ const NAV_SECTIONS = [
     items: [
       { icon: Eye,   label: "Campaign Intelligence Studio",  href: "/preview-tool?step=campaign-setup",      badge: "CORE" },
       { icon: Brain, label: "Ad Intelligence", href: "/intelligence",  badge: "CORE" },
+      { icon: ShieldCheck, label: "QA Workspace", href: "/dashboard/qa", badge: "NEW" },
     ],
   },
 ];
@@ -47,10 +48,10 @@ export default function Sidebar({ collapsed, setCollapsed, user }: any) {
     <motion.div
       animate={{ width: collapsed ? 68 : 256 }}
       transition={{ type: "spring", stiffness: 300, damping: 30 }}
-      className="min-h-screen bg-[#050816] border-r border-white/10 flex flex-col shrink-0 overflow-hidden"
+      className="min-h-screen border-r border-sky-200/80 bg-white/85 shadow-[8px_0_30px_-18px_rgba(14,116,144,0.22)] backdrop-blur-xl flex flex-col shrink-0 overflow-hidden"
     >
       {/* Logo */}
-      <div className="h-16 flex items-center px-4 border-b border-white/10 justify-between shrink-0">
+      <div className="h-16 flex items-center px-4 border-b border-sky-100 justify-between shrink-0">
         <AnimatePresence>
           {!collapsed && (
             <motion.div
@@ -60,14 +61,14 @@ export default function Sidebar({ collapsed, setCollapsed, user }: any) {
               transition={{ duration: 0.15 }}
               className="flex items-center gap-2"
             >
-              <div className="w-8 h-8 rounded-lg bg-linear-to-br from-purple-500 to-blue-500 flex items-center justify-center font-bold text-sm text-white shrink-0">A</div>
-              <span className="font-extrabold text-white text-lg tracking-tight">Adigator</span>
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-linear-to-br from-sky-500 to-cyan-500 font-bold text-sm text-white shadow-lg shadow-sky-500/25 shrink-0">A</div>
+              <span className="text-lg font-extrabold tracking-tight text-slate-800">Adigator</span>
             </motion.div>
           )}
         </AnimatePresence>
         <button
           onClick={() => setCollapsed(!collapsed)}
-          className="w-8 h-8 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 flex items-center justify-center text-white/40 hover:text-white transition shrink-0 ml-auto"
+          className="ml-auto flex h-8 w-8 items-center justify-center rounded-lg border border-sky-200 bg-sky-50 text-slate-500 transition hover:bg-sky-100 hover:text-sky-700 shrink-0"
         >
           {collapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
         </button>
@@ -78,7 +79,7 @@ export default function Sidebar({ collapsed, setCollapsed, user }: any) {
         {NAV_SECTIONS.map((section) => (
           <div key={section.label}>
             {!collapsed && (
-              <p className="text-[10px] text-white/25 uppercase tracking-widest px-3 mb-2 font-bold">
+              <p className="mb-2 px-3 text-[10px] font-bold uppercase tracking-widest text-slate-400">
                 {section.label}
               </p>
             )}
@@ -95,12 +96,12 @@ export default function Sidebar({ collapsed, setCollapsed, user }: any) {
                       whileHover={{ x: collapsed ? 0 : 2 }}
                       className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-150 cursor-pointer relative group ${
                         active
-                          ? "bg-linear-to-r from-purple-600/30 to-blue-600/20 text-white border border-purple-500/30"
-                          : "text-white/50 hover:bg-white/5 hover:text-white border border-transparent"
+                          ? "border border-sky-200 bg-linear-to-r from-sky-500/12 to-cyan-500/10 text-sky-800"
+                          : "border border-transparent text-slate-500 hover:bg-sky-50 hover:text-sky-700"
                       }`}
                     >
                       {active && (
-                        <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-5 bg-gradient-to-b from-purple-400 to-blue-400 rounded-r-full" />
+                        <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-5 bg-linear-to-b from-purple-400 to-blue-400 rounded-r-full" />
                       )}
                       <Icon size={18} className="shrink-0" />
                       <AnimatePresence>
@@ -127,7 +128,7 @@ export default function Sidebar({ collapsed, setCollapsed, user }: any) {
                       )}
                       {/* Tooltip on collapsed */}
                       {collapsed && (
-                        <div className="absolute left-full ml-3 px-2 py-1 bg-slate-800 border border-white/10 rounded-lg text-xs text-white font-medium whitespace-nowrap opacity-0 group-hover:opacity-100 transition pointer-events-none z-50">
+                        <div className="absolute left-full ml-3 z-50 whitespace-nowrap rounded-lg border border-sky-200 bg-white px-2 py-1 text-xs font-medium text-slate-700 opacity-0 transition pointer-events-none group-hover:opacity-100">
                           {item.label}
                         </div>
                       )}
@@ -151,8 +152,8 @@ export default function Sidebar({ collapsed, setCollapsed, user }: any) {
                 whileHover={{ x: collapsed ? 0 : 2 }}
                 className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-150 cursor-pointer relative group ${
                   pathname.startsWith("/dashboard/organization")
-                    ? "bg-linear-to-r from-sky-600/30 to-blue-600/20 text-white border border-sky-500/30"
-                    : "text-sky-200/70 hover:bg-sky-500/10 hover:text-sky-100 border border-transparent"
+                    ? "border border-sky-200 bg-linear-to-r from-sky-500/12 to-cyan-500/10 text-sky-800"
+                    : "border border-transparent text-slate-500 hover:bg-sky-50 hover:text-sky-700"
                 }`}
               >
                 <Building2 size={18} className="shrink-0 text-sky-400" />
@@ -191,8 +192,8 @@ export default function Sidebar({ collapsed, setCollapsed, user }: any) {
                 whileHover={{ x: collapsed ? 0 : 2 }}
                 className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-150 cursor-pointer relative group ${
                   pathname.startsWith("/dashboard/admin")
-                    ? "bg-linear-to-r from-amber-600/30 to-orange-600/20 text-white border border-amber-500/30"
-                    : "text-amber-200/70 hover:bg-amber-500/10 hover:text-amber-100 border border-transparent"
+                    ? "border border-amber-200 bg-linear-to-r from-amber-500/12 to-orange-500/10 text-amber-800"
+                    : "border border-transparent text-slate-500 hover:bg-amber-50 hover:text-amber-700"
                 }`}
               >
                 <Shield size={18} className="shrink-0 text-amber-400" />
@@ -226,26 +227,26 @@ export default function Sidebar({ collapsed, setCollapsed, user }: any) {
       </nav>
 
       {/* User footer */}
-      <div className="p-3 border-t border-white/10 shrink-0">
+      <div className="shrink-0 border-t border-sky-100 p-3">
         {!collapsed ? (
-          <div className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-white/5 border border-white/10">
-            <div className="w-8 h-8 rounded-full bg-linear-to-br from-purple-500 to-blue-500 flex items-center justify-center text-sm font-bold text-white shrink-0">
+          <div className="flex items-center gap-3 rounded-xl border border-sky-200 bg-sky-50/80 px-3 py-2.5">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-linear-to-br from-sky-500 to-cyan-500 text-sm font-bold text-white">
               {user?.email?.[0]?.toUpperCase() || "U"}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-xs font-semibold text-white truncate">
+              <p className="truncate text-xs font-semibold text-slate-800">
                 {user?.user_metadata?.full_name || user?.email?.split("@")[0] || "User"}
               </p>
-              <p className="text-[10px] text-white/30 truncate">{user?.email || ""}</p>
+              <p className="truncate text-[10px] text-slate-500">{user?.email || ""}</p>
             </div>
             <button onClick={handleLogout} title="Logout"
-              className="text-white/30 hover:text-red-400 transition">
+              className="text-slate-400 transition hover:text-red-500">
               <LogOut size={15} />
             </button>
           </div>
         ) : (
           <button onClick={handleLogout} title="Logout"
-            className="w-full flex items-center justify-center py-2.5 rounded-xl text-white/30 hover:text-red-400 transition">
+            className="flex w-full items-center justify-center rounded-xl py-2.5 text-slate-400 transition hover:text-red-500">
             <LogOut size={18} />
           </button>
         )}

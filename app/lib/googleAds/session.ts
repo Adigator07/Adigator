@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 export const GOOGLE_ADS_SESSION_COOKIE = "adigator_google_ads_session";
 export const GOOGLE_ADS_STATE_COOKIE = "adigator_google_ads_oauth_state";
 
-type GoogleAdsSession = {
+export type GoogleAdsSession = {
   accessToken: string;
   refreshToken?: string;
   expiryAt?: number;

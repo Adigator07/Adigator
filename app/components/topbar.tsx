@@ -61,14 +61,14 @@ export default function Topbar({ user }: any) {
   const emailDomain = user?.email?.split("@")[1] || "";
 
   return (
-    <div className="h-16 border-b border-white/10 flex items-center justify-between px-6 bg-[#050816]/80 backdrop-blur-xl shrink-0 gap-4">
+    <div className="h-16 shrink-0 border-b border-sky-100 bg-white/75 px-6 backdrop-blur-xl flex items-center justify-between gap-4">
       {/* Search */}
       <div className="relative flex-1 max-w-sm">
-        <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/30" />
+        <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
         <input
           type="text"
           placeholder="Search campaigns, creatives..."
-          className="w-full bg-white/5 border border-white/10 rounded-xl pl-9 pr-4 py-2 text-sm text-white placeholder-white/25 focus:outline-none focus:border-purple-500/60 focus:bg-white/8 transition"
+          className="w-full rounded-xl border border-sky-200 bg-sky-50/80 py-2 pl-9 pr-4 text-sm text-slate-700 placeholder-slate-400 transition focus:border-sky-400 focus:bg-white focus:outline-none"
         />
       </div>
 
@@ -78,10 +78,10 @@ export default function Topbar({ user }: any) {
           <motion.button
             whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
             onClick={() => { setShowNotif((v) => !v); setShowProfile(false); }}
-            className="relative w-9 h-9 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-white/60 hover:text-white hover:bg-white/10 transition"
+            className="relative flex h-9 w-9 items-center justify-center rounded-xl border border-sky-200 bg-white text-slate-500 transition hover:bg-sky-50 hover:text-sky-700"
           >
             <Bell size={17} />
-            <span className="absolute -top-1 -right-1 w-4 h-4 bg-purple-500 text-white text-[9px] rounded-full flex items-center justify-center font-bold">
+              <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-sky-500 text-[9px] font-bold text-white">
               {MOCK_NOTIFICATIONS.filter((n) => n.unread).length}
             </span>
           </motion.button>
@@ -91,26 +91,26 @@ export default function Topbar({ user }: any) {
               <motion.div
                 variants={dropdownVariants} initial="hidden" animate="visible" exit="hidden"
                 transition={{ duration: 0.15 }}
-                className="absolute right-0 top-12 w-72 bg-[#0f172a] border border-white/10 rounded-2xl shadow-2xl overflow-hidden z-50"
+                className="absolute right-0 top-12 z-50 w-72 overflow-hidden rounded-2xl border border-sky-200 bg-white shadow-2xl"
               >
                 <div className="px-4 py-3 border-b border-white/10 flex items-center justify-between">
-                  <span className="text-sm font-bold text-white">Notifications</span>
-                  <span className="text-xs text-purple-400 cursor-pointer hover:text-purple-300">Mark all read</span>
+                  <span className="text-sm font-bold text-slate-800">Notifications</span>
+                  <span className="cursor-pointer text-xs text-sky-600 hover:text-sky-700">Mark all read</span>
                 </div>
                 {MOCK_NOTIFICATIONS.map((n) => (
                   <div key={n.id} className={`px-4 py-3 border-b border-white/5 hover:bg-white/5 transition cursor-pointer ${n.unread ? "bg-purple-500/5" : ""}`}>
                     <div className="flex items-start gap-2">
                       {n.unread && <div className="w-2 h-2 bg-purple-400 rounded-full mt-1.5 shrink-0" />}
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-semibold text-white">{n.title}</p>
-                        <p className="text-xs text-white/40 mt-0.5">{n.desc}</p>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-semibold text-slate-800">{n.title}</p>
+                        <p className="mt-0.5 text-xs text-slate-500">{n.desc}</p>
                       </div>
-                      <span className="text-[10px] text-white/25 shrink-0">{n.time}</span>
+                      <span className="shrink-0 text-[10px] text-slate-400">{n.time}</span>
                     </div>
                   </div>
                 ))}
                 <div className="px-4 py-2.5 text-center">
-                  <span className="text-xs text-white/30">No more notifications</span>
+                  <span className="text-xs text-slate-400">No more notifications</span>
                 </div>
               </motion.div>
             )}
@@ -122,20 +122,20 @@ export default function Topbar({ user }: any) {
           <motion.button
             whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
             onClick={() => { setShowProfile((v) => !v); setShowNotif(false); }}
-            className="flex items-center gap-2 bg-white/5 border border-white/10 rounded-xl px-3 py-1.5 hover:bg-white/8 hover:border-white/20 transition"
+            className="flex items-center gap-2 rounded-xl border border-sky-200 bg-white px-3 py-1.5 transition hover:border-sky-300 hover:bg-sky-50"
           >
             <div className="w-7 h-7 rounded-full bg-linear-to-br from-purple-500 to-blue-500 flex items-center justify-center text-sm font-bold text-white">
               {user?.email?.[0]?.toUpperCase() || "U"}
             </div>
             <div className="hidden sm:block text-left">
-              <p className="text-xs font-semibold text-white leading-tight">
+              <p className="text-xs font-semibold leading-tight text-slate-800">
                 {user?.user_metadata?.full_name || user?.email?.split("@")[0] || "User"}
               </p>
-              <p className="text-[10px] text-white/30 leading-tight">
+              <p className="text-[10px] leading-tight text-slate-500">
                 {roleLabel || emailDomain ? `@${emailDomain}` : "Member"}
               </p>
             </div>
-            <ChevronDown size={14} className="text-white/30 hidden sm:block" />
+              <ChevronDown size={14} className="hidden text-slate-400 sm:block" />
           </motion.button>
 
           <AnimatePresence>
@@ -143,27 +143,27 @@ export default function Topbar({ user }: any) {
               <motion.div
                 variants={dropdownVariants} initial="hidden" animate="visible" exit="hidden"
                 transition={{ duration: 0.15 }}
-                className="absolute right-0 top-12 w-52 bg-[#0f172a] border border-white/10 rounded-2xl shadow-2xl overflow-hidden z-50"
+                className="absolute right-0 top-12 z-50 w-52 overflow-hidden rounded-2xl border border-sky-200 bg-white shadow-2xl"
               >
                 <div className="px-4 py-3 border-b border-white/10">
-                  <p className="text-xs font-bold text-white truncate">
+                  <p className="truncate text-xs font-bold text-slate-800">
                     {user?.user_metadata?.full_name || user?.email?.split("@")[0] || "User"}
                   </p>
-                  <p className="text-[11px] text-white/30 truncate">{user?.email}</p>
+                  <p className="truncate text-[11px] text-slate-500">{user?.email}</p>
                 </div>
                 {[
                   { icon: User,     label: "Profile",  action: () => {} },
                   { icon: Settings, label: "Settings", action: () => router.push("/settings") },
                 ].map((item) => (
                   <button key={item.label} onClick={item.action}
-                    className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-white/5 text-white/60 hover:text-white transition text-sm">
+                    className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-slate-600 transition hover:bg-sky-50 hover:text-sky-700">
                     <item.icon size={15} />
                     {item.label}
                   </button>
                 ))}
                 <div className="border-t border-white/10">
                   <button onClick={handleLogout}
-                    className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-red-500/10 text-red-400 hover:text-red-300 transition text-sm">
+                    className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-red-500 transition hover:bg-red-50 hover:text-red-600">
                     <LogOut size={15} /> Sign out
                   </button>
                 </div>

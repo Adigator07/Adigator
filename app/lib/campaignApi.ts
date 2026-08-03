@@ -72,23 +72,27 @@ export async function fetchCampaignFromApi({
 }): Promise<CampaignSnapshot | null> {
   const name = campaignName.trim();
   const id = campaignId.trim();
-  if (!name || !id || !accessToken) return null;
+  if (!accessToken) return null;
+  if (!name && !id) return null;
 
   try {
-    const params = new URLSearchParams({
-      campaign_name: name,
-      campaign_id: id,
-    });
+    const params = new URLSearchParams();
+    if (name) params.set("campaign_name", name);
+    if (id) params.set("campaign_id", id);
     if (platform) params.set("platform", platform);
     const response = await fetch(`/api/campaigns?${params.toString()}`, {
       headers: { Authorization: `Bearer ${accessToken}` },
     });
     const payload = await parseJsonResponse(response);
+    if (!response.ok || payload?.success === false) {
+      const apiError = payload?.error || "Campaign fetch failed.";
+      throw new Error(String(apiError));
+    }
     if (!response.ok || !payload?.success || !payload.data) return null;
     return payload.data as CampaignSnapshot;
   } catch (error) {
     console.warn("[Adigator] Campaign fetch failed:", error);
-    return null;
+    throw error;
   }
 }
 

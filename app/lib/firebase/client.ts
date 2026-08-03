@@ -11,18 +11,41 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 };
 
-function hasClientConfig(): boolean {
-  return Boolean(
-    firebaseConfig.apiKey
-      && firebaseConfig.authDomain
-      && firebaseConfig.projectId
-      && firebaseConfig.appId,
-  );
+const REQUIRED_CLIENT_ENV_VARS = [
+  {
+    key: "NEXT_PUBLIC_FIREBASE_API_KEY",
+    value: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+  },
+  {
+    key: "NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN",
+    value: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+  },
+  {
+    key: "NEXT_PUBLIC_FIREBASE_PROJECT_ID",
+    value: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+  },
+  {
+    key: "NEXT_PUBLIC_FIREBASE_APP_ID",
+    value: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+  },
+] as const;
+
+export function getMissingFirebaseClientEnvVars(): string[] {
+  return REQUIRED_CLIENT_ENV_VARS
+    .filter((entry) => !entry.value)
+    .map((entry) => entry.key);
+}
+
+export function hasFirebaseClientConfig(): boolean {
+  return getMissingFirebaseClientEnvVars().length === 0;
 }
 
 export function getFirebaseClientApp() {
-  if (!hasClientConfig()) {
-    throw new Error("Firebase client environment is not configured.");
+  if (!hasFirebaseClientConfig()) {
+    const missing = getMissingFirebaseClientEnvVars();
+    throw new Error(
+      `Firebase client environment is not configured. Missing: ${missing.join(", ")}`,
+    );
   }
 
   return getApps().length ? getApp() : initializeApp(firebaseConfig);
@@ -34,4 +57,12 @@ export function getFirebaseClientAuth() {
 
 export function getFirebaseClientFirestore() {
   return getFirestore(getFirebaseClientApp());
+}
+
+export function getFirebaseClientFirestoreOrNull() {
+  try {
+    return getFirebaseClientFirestore();
+  } catch {
+    return null;
+  }
 }

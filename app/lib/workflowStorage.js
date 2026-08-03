@@ -5,6 +5,7 @@
 
 const WORKFLOW_STORAGE_KEY = "adigator_workflow_v1";
 const ANALYSIS_STORAGE_KEY = "adigator_analysis_result_v1";
+const CAMPAIGN_PROGRESS_STORAGE_KEY = "adigator_campaign_progress_v1";
 
 function parseStoredJson(value, fallback) {
   if (!value) return fallback;
@@ -31,7 +32,8 @@ function migrateEmbeddedAnalysis(workflow) {
     if (!localStorage.getItem(ANALYSIS_STORAGE_KEY)) {
       localStorage.setItem(ANALYSIS_STORAGE_KEY, JSON.stringify(workflow.analysisResult));
     }
-    const { analysisResult: _removed, ...rest } = workflow;
+    const rest = { ...workflow };
+    delete rest.analysisResult;
     const json = JSON.stringify(rest);
     localStorage.setItem(WORKFLOW_STORAGE_KEY, json);
     refreshWorkflowCache(json, rest);
@@ -134,4 +136,39 @@ export function clearStoredWorkflow() {
   refreshWorkflowCache(null, {});
 }
 
-export { WORKFLOW_STORAGE_KEY, ANALYSIS_STORAGE_KEY };
+function readCampaignProgressMap() {
+  if (typeof window === "undefined") return {};
+  return parseStoredJson(localStorage.getItem(CAMPAIGN_PROGRESS_STORAGE_KEY), {});
+}
+
+function writeCampaignProgressMap(progressMap) {
+  if (typeof window === "undefined") return;
+  localStorage.setItem(CAMPAIGN_PROGRESS_STORAGE_KEY, JSON.stringify(progressMap));
+}
+
+export function readCampaignProgress(campaignId) {
+  if (!campaignId) return null;
+  const progressMap = readCampaignProgressMap();
+  const entry = progressMap[campaignId];
+  return entry && typeof entry === "object" ? entry : null;
+}
+
+export function persistCampaignProgress(campaignId, payload) {
+  if (typeof window === "undefined" || !campaignId) return;
+
+  const progressMap = readCampaignProgressMap();
+  const previous = progressMap[campaignId] && typeof progressMap[campaignId] === "object"
+    ? progressMap[campaignId]
+    : {};
+
+  progressMap[campaignId] = {
+    ...previous,
+    ...payload,
+    lastStep: Math.max(Number(previous.lastStep || 0), Number(payload?.lastStep || 0)),
+    updatedAt: new Date().toISOString(),
+  };
+
+  writeCampaignProgressMap(progressMap);
+}
+
+export { WORKFLOW_STORAGE_KEY, ANALYSIS_STORAGE_KEY, CAMPAIGN_PROGRESS_STORAGE_KEY };

@@ -45,6 +45,16 @@ export type CampaignSnapshot = {
   /** Google Ads extensions */
   googleCampaignType?: GoogleCampaignType | "";
   googleAdGroupCount?: number | "";
+  googleAdsCustomerId?: string;
+  googleAdsCampaignStatus?: string;
+  googleAdsChannelType?: string;
+  googleAdsChannelSummary?: string;
+  googleAdsCampaignSource?: "published" | "draft";
+  googleAdsDraftId?: string;
+  googleAdsBudgetAmountMicros?: number;
+  googleAdsStartDate?: string;
+  googleAdsEndDate?: string;
+  importSource?: "google_ads";
   /** Meta Ads extensions */
   metaCampaignType?: "advantage_plus" | "manual" | "";
   metaAdSetCount?: number | "";

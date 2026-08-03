@@ -100,10 +100,10 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
 
   if (!authReady && !isAdminRoute && !isOrgRoute) {
     return (
-      <div className="min-h-screen bg-[#050816] text-white flex items-center justify-center">
-        <div className="flex flex-col items-center gap-3">
-          <div className="h-10 w-10 animate-spin rounded-full border-4 border-white/20 border-t-white" />
-          <p className="text-sm text-white/45">Loading your dashboard…</p>
+      <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,rgba(14,165,233,0.18),transparent_36%),linear-gradient(135deg,#f7fbff_0%,#eef7ff_55%,#f5faff_100%)] text-slate-700 flex items-center justify-center">
+        <div className="flex flex-col items-center gap-3 rounded-3xl border border-sky-200/80 bg-white/80 px-8 py-7 shadow-[0_20px_60px_-24px_rgba(14,116,144,0.28)] backdrop-blur-xl">
+          <div className="h-10 w-10 animate-spin rounded-full border-4 border-sky-200 border-t-sky-600" />
+          <p className="text-sm text-slate-600">Loading your dashboard…</p>
         </div>
       </div>
     );
@@ -114,11 +114,11 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="min-h-screen bg-[#050816] text-white flex">
+    <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,rgba(14,165,233,0.14),transparent_36%),linear-gradient(135deg,#f8fbff_0%,#eef8ff_55%,#f6fbff_100%)] text-slate-800 flex">
       <Sidebar collapsed={sidebarCollapsed} setCollapsed={setSidebarCollapsed} user={user} />
       <div className="flex-1 flex flex-col overflow-hidden">
         <Topbar user={user} />
-        <main className="flex-1 overflow-y-auto p-8">{children}</main>
+        <main className="flex-1 overflow-y-auto bg-transparent p-8">{children}</main>
       </div>
     </div>
   );

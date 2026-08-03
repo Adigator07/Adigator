@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 
 export const runtime = "nodejs";
 const GROQ_BASE_URL = "https://api.groq.com/openai/v1";
+const XAI_BASE_URL = "https://api.x.ai/v1";
+
+type ChatProvider = "groq" | "xai";
 
 type ChatMessage = {
   role: "user" | "assistant";
@@ -82,6 +85,22 @@ function buildConversation(messages: ChatMessage[]): string {
     .join("\n\n");
 }
 
+function buildSystemPrompt(): string {
+  return [
+    "You are Adigator Campaign Intelligence Studio Support.",
+    "Your tone must be friendly, calm, and professional at all times.",
+    "Provide valid, practical information with enough detail for users to act immediately.",
+    "If the user sends only a greeting (for example: hi, hello, hey), reply briefly in 1-2 lines like a normal assistant and ask what they need.",
+    "Prefer clear structure: brief diagnosis, detailed steps, and a concise next action.",
+    "Use plain language, avoid jargon when possible, and explain technical terms when needed.",
+    "Stay specific to the provided campaign context and user message.",
+    "If information is missing, ask one focused follow-up question before assuming.",
+    "Do not invent facts, settings, URLs, or outcomes. If uncertain, say what is unknown and how to verify it.",
+    "When suggesting fixes, include ordered steps and mention expected result checks.",
+    "When using points, keep strong readability: one point per line, blank lines between sections, and short clear bullets.",
+  ].join(" ");
+}
+
 function normalizeModelId(value: unknown): string {
   if (typeof value !== "string") return "";
   const trimmed = cleanText(value, 180);
@@ -101,6 +120,20 @@ function scoreGroqModel(modelId: string): number {
 
   if (id.includes("versatile") || id.includes("instruct") || id.includes("chat")) score += 120;
   if (id.includes("preview") || id.includes("experimental")) score -= 60;
+
+  return score;
+}
+
+function scoreXaiModel(modelId: string): number {
+  const id = modelId.toLowerCase();
+  let score = 0;
+
+  if (id.includes("grok-4")) score += 1000;
+  if (id.includes("grok-3")) score += 900;
+  if (id.includes("grok-2")) score += 800;
+  if (id.includes("latest")) score += 100;
+  if (id.includes("mini") || id.includes("fast")) score += 40;
+  if (id.includes("beta") || id.includes("preview")) score -= 40;
 
   return score;
 }
@@ -139,6 +172,33 @@ async function fetchGroqModels(apiKey: string): Promise<string[]> {
   }
 }
 
+async function fetchXaiModels(apiKey: string): Promise<string[]> {
+  try {
+    const response = await fetch(
+      `${XAI_BASE_URL}/models`,
+      {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${apiKey}`,
+        },
+      },
+    );
+
+    if (!response.ok) return [];
+    const payload = await response.json();
+    const models: Record<string, unknown>[] = Array.isArray(payload?.data) ? payload.data : [];
+
+    const ids = models
+      .map((model: Record<string, unknown>) => normalizeModelId(model?.id))
+      .filter((id: string | null | undefined): id is string => typeof id === "string" && isLikelyTextModel(id));
+
+    return [...new Set(ids)];
+  } catch {
+    return [];
+  }
+}
+
 function buildGroqModelCandidates(discovered: string[]): string[] {
   const envModel = normalizeModelId(process.env.GROQ_MODEL || "");
   const fallbackModels = [
@@ -153,6 +213,20 @@ function buildGroqModelCandidates(discovered: string[]): string[] {
   return [...new Set([envModel, ...sortedDiscovered, ...fallbackModels].filter(Boolean))];
 }
 
+function buildXaiModelCandidates(discovered: string[]): string[] {
+  const envModel = normalizeModelId(process.env.XAI_MODEL || "");
+  const fallbackModels = [
+    "grok-4",
+    "grok-4-fast-reasoning",
+    "grok-4-fast",
+    "grok-3-mini-fast",
+    "grok-2-latest",
+  ];
+
+  const sortedDiscovered = [...discovered].sort((a, b) => scoreXaiModel(b) - scoreXaiModel(a));
+  return [...new Set([envModel, ...sortedDiscovered, ...fallbackModels].filter(Boolean))];
+}
+
 async function queryGroq(messages: ChatMessage[], context: ChatContext): Promise<{ reply: string; model: string }> {
   const apiKey = process.env.GROQ_API_KEY;
   if (!apiKey) {
@@ -162,13 +236,7 @@ async function queryGroq(messages: ChatMessage[], context: ChatContext): Promise
   const discoveredCandidates = await fetchGroqModels(apiKey);
   const modelCandidates = buildGroqModelCandidates(discoveredCandidates);
 
-  const systemPrompt = [
-    "You are Adigator Campaign Intelligence Studio Support.",
-    "Help users identify and resolve campaign setup, validation, upload, and analysis issues.",
-    "Keep answers concise, actionable, and specific to the provided context.",
-    "When diagnosing, provide short steps users can execute immediately.",
-    "If details are missing, ask one focused follow-up question.",
-  ].join(" ");
+  const systemPrompt = buildSystemPrompt();
 
   const contextPrompt = [
     "Current campaign context:",
@@ -227,6 +295,82 @@ async function queryGroq(messages: ChatMessage[], context: ChatContext): Promise
   throw new Error(lastError);
 }
 
+async function queryXai(messages: ChatMessage[], context: ChatContext): Promise<{ reply: string; model: string }> {
+  const apiKey = process.env.XAI_API_KEY;
+  if (!apiKey) {
+    throw new Error("XAI_API_KEY is not configured on the server.");
+  }
+
+  const discoveredCandidates = await fetchXaiModels(apiKey);
+  const modelCandidates = buildXaiModelCandidates(discoveredCandidates);
+
+  const systemPrompt = buildSystemPrompt();
+
+  const contextPrompt = [
+    "Current campaign context:",
+    buildContextSummary(context) || "none",
+    "",
+    "Conversation so far:",
+    buildConversation(messages) || "none",
+  ].join("\n");
+
+  if (!modelCandidates.length) {
+    throw new Error("No xAI text models are available for this API key.");
+  }
+
+  let lastError = "xAI request failed with no response.";
+  for (const model of modelCandidates) {
+    const response = await fetch(
+      `${XAI_BASE_URL}/chat/completions`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          model,
+          temperature: 0.25,
+          max_tokens: 900,
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "system", content: contextPrompt },
+            ...messages.map((message) => ({ role: message.role, content: message.content })),
+          ],
+        }),
+      },
+    );
+
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => "");
+      lastError = `xAI request failed for ${model} (${response.status}): ${errorText}`;
+
+      // Retry with next model when this candidate is incompatible or unavailable.
+      if (response.status === 400 || response.status === 404) continue;
+      throw new Error(lastError);
+    }
+
+    const payload = await response.json();
+    const reply = payload?.choices?.[0]?.message?.content;
+    const cleaned = cleanText(reply, 6000);
+    if (cleaned) {
+      return { reply: cleaned, model };
+    }
+
+    lastError = `xAI returned an empty response for ${model}.`;
+  }
+
+  throw new Error(lastError);
+}
+
+function resolveProviderOrder(): ChatProvider[] {
+  const preferred = String(process.env.AI_CHAT_PROVIDER || "groq").trim().toLowerCase();
+  if (preferred === "xai" || preferred === "grok") {
+    return ["xai", "groq"];
+  }
+  return ["groq", "xai"];
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json().catch(() => ({}));
@@ -238,12 +382,29 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Please provide a user message." }, { status: 400 });
     }
 
-    const { reply, model } = await queryGroq(messages, context);
-    return NextResponse.json({ reply, provider: "groq", model });
+    const providers = resolveProviderOrder();
+    const errors: string[] = [];
+
+    for (const provider of providers) {
+      try {
+        if (provider === "xai") {
+          const { reply, model } = await queryXai(messages, context);
+          return NextResponse.json({ reply, provider: "xai", model });
+        }
+
+        const { reply, model } = await queryGroq(messages, context);
+        return NextResponse.json({ reply, provider: "groq", model });
+      } catch (providerError) {
+        const message = providerError instanceof Error ? providerError.message : "Provider request failed.";
+        errors.push(`${provider}: ${message}`);
+      }
+    }
+
+    throw new Error(errors.join(" | ") || "Unable to process chat request.");
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unable to process chat request.";
     console.error("[campaign-intelligence-chat]", message);
-    const status = message.includes("not configured") ? 503 : 500;
+    const status = message.toLowerCase().includes("not configured") ? 503 : 500;
     return NextResponse.json({ error: message }, { status });
   }
 }

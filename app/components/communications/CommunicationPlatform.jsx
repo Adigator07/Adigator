@@ -1,11 +1,12 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   MessageSquare, Plus, Search, Send, Paperclip, X, Check, CheckCheck,
-  Clock, Eye, FileText, Image as ImageIcon, Activity,
-  Loader2, RefreshCw, Archive,
+  FileText, Activity,
+  Loader2, RefreshCw,
 } from "lucide-react";
 import {
   fetchMyProfile,
@@ -19,6 +20,7 @@ import {
   logActivityEvent,
   submitCreativeReview,
 } from "../../lib/communications/communicationsService";
+import { useRouteLoadTelemetry } from "../../lib/routeTelemetry";
 import { useCommunicationRealtime, usePresence } from "../../hooks/useCommunicationRealtime";
 import { formatRelativeTime, formatFileSize, truncate, formatEventLabel, getEventIcon } from "../../lib/communications/formatters";
 import { canReviewCreative } from "../../lib/communications/permissions";
@@ -35,7 +37,7 @@ function Avatar({ name, online, size = "md" }) {
   const sz = size === "sm" ? "w-8 h-8 text-xs" : "w-10 h-10 text-sm";
   return (
     <div className="relative shrink-0">
-      <div className={`${sz} rounded-full bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center font-bold text-white`}>
+      <div className={`${sz} rounded-full bg-linear-to-br from-purple-500 to-blue-500 flex items-center justify-center font-bold text-white`}>
         {(name || "U")[0]?.toUpperCase()}
       </div>
       <span className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-[#0F1117] ${online ? "bg-emerald-400" : "bg-white/30"}`} />
@@ -103,7 +105,7 @@ function MessageBubble({ message, isOwn, onReviewCreative, canReview }) {
           <span className="text-[11px] text-white/40 mb-1 ml-1">{message.sender?.full_name || "User"}</span>
         )}
         <div className={`rounded-2xl px-4 py-2.5 ${isOwn ? "bg-[#4F7EF7] text-white rounded-br-md" : "bg-[#1F2435] border border-white/10 text-white/90 rounded-bl-md"}`}>
-          {message.body && <p className="text-sm whitespace-pre-wrap break-words">{message.body}</p>}
+          {message.body && <p className="text-sm whitespace-pre-wrap wrap-break-word">{message.body}</p>}
           {(message.attachments || []).map((att) => (
             att.file_type?.startsWith("image/") && !message.type?.includes("creative") ? (
               <a key={att.id} href={att.file_url || "#"} target="_blank" rel="noreferrer" className="block mt-2">
@@ -143,7 +145,7 @@ function ActivityTimeline({ events, loading }) {
         const label = formatEventLabel(event.event_type, userName, event.event_data || {});
         return (
           <div key={event.id} className="flex gap-3 relative pb-4">
-            {i < events.length - 1 && <div className="absolute left-[11px] top-6 bottom-0 w-px bg-white/10" />}
+            {i < events.length - 1 && <div className="absolute left-2.75 top-6 bottom-0 w-px bg-white/10" />}
             <div className="w-6 h-6 rounded-full bg-[#1F2435] border border-white/10 flex items-center justify-center text-xs shrink-0 z-10">
               {getEventIcon(event.event_type)}
             </div>
@@ -175,7 +177,7 @@ function CreativeReviewPanel({ attachment, onClose, onSubmit, submitting }) {
   return (
     <motion.div
       initial={{ x: 360 }} animate={{ x: 0 }} exit={{ x: 360 }}
-      className="w-[360px] border-l border-white/10 bg-[#181C27] flex flex-col shrink-0"
+      className="w-90 border-l border-white/10 bg-[#181C27] flex flex-col shrink-0"
     >
       <div className="p-4 border-b border-white/10 flex items-center justify-between">
         <div className="min-w-0">
@@ -236,29 +238,17 @@ function CreativeReviewPanel({ attachment, onClose, onSubmit, submitting }) {
   );
 }
 
-function NewConversationModal({ open, onClose, onCreated }) {
+function NewConversationModal({ onClose, onCreated, initialTitle = "", initialProjectRef = "" }) {
   const [step, setStep] = useState(1);
   const [recipientEmail, setRecipientEmail] = useState("");
   const [recipient, setRecipient] = useState(null);
-  const [title, setTitle] = useState("");
-  const [projectRef, setProjectRef] = useState("");
+  const [title, setTitle] = useState(initialTitle);
+  const [projectRef, setProjectRef] = useState(initialProjectRef);
   const [welcomeMessage, setWelcomeMessage] = useState("");
   const [files, setFiles] = useState([]);
   const [loading, setLoading] = useState(false);
   const [lookingUp, setLookingUp] = useState(false);
   const [error, setError] = useState("");
-
-  useEffect(() => {
-    if (!open) return;
-    setStep(1);
-    setRecipientEmail("");
-    setRecipient(null);
-    setTitle("");
-    setProjectRef("");
-    setWelcomeMessage("");
-    setFiles([]);
-    setError("");
-  }, [open]);
 
   const handleLookupRecipient = async () => {
     const email = recipientEmail.trim().toLowerCase();
@@ -304,8 +294,6 @@ function NewConversationModal({ open, onClose, onCreated }) {
       setLoading(false);
     }
   };
-
-  if (!open) return null;
 
   const canContinueStep1 = Boolean(recipient && title.trim());
 
@@ -433,6 +421,8 @@ function NewConversationModal({ open, onClose, onCreated }) {
 }
 
 export default function CommunicationPlatform() {
+  const searchParams = useSearchParams();
+  const shouldOpenNew = searchParams.get("open_new") === "1";
   const [profile, setProfile] = useState(null);
   const [conversations, setConversations] = useState([]);
   const [selectedId, setSelectedId] = useState(null);
@@ -445,13 +435,14 @@ export default function CommunicationPlatform() {
   const [draft, setDraft] = useState("");
   const [pendingFiles, setPendingFiles] = useState([]);
   const [sending, setSending] = useState(false);
-  const [showNewModal, setShowNewModal] = useState(false);
+  const [showNewModal, setShowNewModal] = useState(() => shouldOpenNew);
   const [rightPanel, setRightPanel] = useState("activity");
   const [reviewAttachment, setReviewAttachment] = useState(null);
   const [submittingReview, setSubmittingReview] = useState(false);
   const [error, setError] = useState("");
   const threadRef = useRef(null);
   const fileInputRef = useRef(null);
+  const markRouteReady = useRouteLoadTelemetry("communications");
 
   usePresence();
 
@@ -459,6 +450,8 @@ export default function CommunicationPlatform() {
   const canCreate = Boolean(profile?.id);
   const canReview = canReviewCreative(profile?.role);
   const copy = getCommunicationPageCopy(profile?.role);
+  const initialProjectRef = searchParams.get("project_ref") || "";
+  const initialConversationTitle = searchParams.get("title") || "";
 
   const loadConversations = useCallback(async () => {
     setLoadingConvs(true);
@@ -502,13 +495,34 @@ export default function CommunicationPlatform() {
 
   useEffect(() => {
     fetchMyProfile().then(setProfile).catch(() => {});
-    loadConversations();
+    const timer = window.setTimeout(() => {
+      void loadConversations();
+    }, 0);
+
+    return () => {
+      window.clearTimeout(timer);
+    };
   }, [loadConversations]);
 
   useEffect(() => {
+    if (!loadingConvs) {
+      markRouteReady("data_ready", {
+        conversationCount: conversations.length,
+        hasProfile: Boolean(profile?.id),
+      });
+    }
+  }, [conversations.length, loadingConvs, markRouteReady, profile?.id]);
+
+  useEffect(() => {
     if (!selectedId) return;
-    loadMessages(selectedId);
-    loadActivityFeed(selectedId);
+    const timer = window.setTimeout(() => {
+      void loadMessages(selectedId);
+      void loadActivityFeed(selectedId);
+    }, 0);
+
+    return () => {
+      window.clearTimeout(timer);
+    };
   }, [selectedId, loadMessages, loadActivityFeed]);
 
   useCommunicationRealtime(selectedId, {
@@ -617,7 +631,7 @@ export default function CommunicationPlatform() {
 
     <div className="h-[calc(100vh-12rem)] flex rounded-2xl border border-white/10 overflow-hidden bg-[#0F1117]">
       {/* Left: Conversation List */}
-      <div className="w-[280px] shrink-0 border-r border-white/10 flex flex-col bg-[#181C27]">
+      <div className="w-70 shrink-0 border-r border-white/10 flex flex-col bg-[#181C27]">
         <div className="p-4 border-b border-white/10 space-y-3">
           <div className="flex items-center justify-between">
             <h2 className="text-sm font-bold text-white flex items-center gap-2">
@@ -835,11 +849,14 @@ export default function CommunicationPlatform() {
         </div>
       )}
 
-      <NewConversationModal
-        open={showNewModal}
-        onClose={() => setShowNewModal(false)}
-        onCreated={(conv) => { loadConversations(); setSelectedId(conv.id); }}
-      />
+      {showNewModal ? (
+        <NewConversationModal
+          onClose={() => setShowNewModal(false)}
+          onCreated={(conv) => { void loadConversations(); setSelectedId(conv.id); }}
+          initialTitle={initialConversationTitle}
+          initialProjectRef={initialProjectRef}
+        />
+      ) : null}
     </div>
     </div>
   );

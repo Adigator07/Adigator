@@ -15,7 +15,7 @@ import {
 } from "@/app/lib/programmaticWorkflow";
 
 import type { AdvertiserCampaign } from "@/app/lib/advertiserStore";
-import type { ProgrammaticCampaignSnapshot } from "@/app/lib/programmaticCampaignStore";
+import type { CampaignSnapshot } from "@/app/lib/campaignSnapshot";
 import type { AnalyzerPlatform } from "@/app/lib/platforms/types";
 import { getPlatformAdapter } from "@/app/lib/platforms/registry";
 import {
@@ -42,6 +42,11 @@ import ProgrammaticAdGroupConfiguration, {
 import { ToolInput, ToolSelect, ToolTextarea } from "@/app/components/preview-tool/PreviewToolUi";
 import CampaignBriefInsightsPanel from "@/app/components/preview-tool/CampaignBriefInsightsPanel";
 import type { CampaignBriefInsights } from "@/app/lib/campaignBriefInsights";
+
+function formatImportedBudget(amountMicros?: number) {
+  if (!amountMicros) return "—";
+  return (Number(amountMicros) / 1_000_000).toFixed(2);
+}
 
 
 
@@ -79,7 +84,7 @@ type ProgrammaticStep1FieldsProps = {
 
   advertiserName?: string;
 
-  loadedCampaign: ProgrammaticCampaignSnapshot | null;
+  loadedCampaign: CampaignSnapshot | null;
 
   creativeAdditionMode: CreativeAdditionMode | "";
 
@@ -358,7 +363,7 @@ export default function ProgrammaticStep1Fields({
                   className={`rounded-xl border px-4 py-4 text-left transition ${
                     selected
                       ? "border-studio-accent bg-studio-accent/10 ring-1 ring-studio-accent"
-                      : "border-white/10 bg-white/[0.03] hover:border-white/25"
+                      : "border-white/10 bg-white/3 hover:border-white/25"
                   }`}
                 >
                   <span className="block text-sm font-semibold text-studio-text">{option.label}</span>
@@ -385,6 +390,8 @@ export default function ProgrammaticStep1Fields({
           campaignOwnerId={campaignOwnerId}
 
           campaignAccessToken={campaignAccessToken}
+
+          platform={platform}
 
           advertiserId={advertiserId}
 
@@ -424,6 +431,8 @@ export default function ProgrammaticStep1Fields({
 
           campaignAccessToken={campaignAccessToken}
 
+          platform={platform}
+
           advertiserId={advertiserId}
 
           advertiserName={advertiserName}
@@ -457,6 +466,8 @@ export default function ProgrammaticStep1Fields({
           campaignOwnerId={campaignOwnerId}
 
           campaignAccessToken={campaignAccessToken}
+
+          platform={platform}
 
           advertiserId={advertiserId}
 
@@ -492,6 +503,8 @@ export default function ProgrammaticStep1Fields({
 
           campaignAccessToken={campaignAccessToken}
 
+          platform={platform}
+
           advertiserId={advertiserId}
 
           advertiserName={advertiserName}
@@ -510,6 +523,45 @@ export default function ProgrammaticStep1Fields({
 
         />
 
+      ) : null}
+
+      {platform === "google_ads" && loadedCampaign?.importSource === "google_ads" ? (
+        <section className="space-y-5 rounded-2xl border border-cyan-400/20 bg-cyan-500/8 p-5">
+          <div>
+            <h3 className="studio-heading text-2xl font-bold tracking-tight text-studio-text">Imported Google Ads Summary</h3>
+            <p className="mt-1 text-studio-muted">
+              This campaign was imported from your connected Google Ads account and saved into Adigator. Review the imported details below before continuing.
+            </p>
+          </div>
+
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+            <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-studio-tertiary">Customer ID</p>
+              <p className="mt-2 text-sm font-semibold text-studio-text">{loadedCampaign.googleAdsCustomerId || "—"}</p>
+            </div>
+            <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-studio-tertiary">Campaign Status</p>
+              <p className="mt-2 text-sm font-semibold text-studio-text">{loadedCampaign.googleAdsCampaignStatus || "—"}</p>
+              <p className="mt-1 text-[11px] text-studio-tertiary">{loadedCampaign.googleAdsCampaignSource === "draft" ? "Source: Draft" : "Source: Published"}</p>
+            </div>
+            <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-studio-tertiary">Channel Summary</p>
+              <p className="mt-2 text-sm font-semibold text-studio-text">{loadedCampaign.googleAdsChannelSummary || loadedCampaign.googleAdsChannelType || "—"}</p>
+            </div>
+            <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-studio-tertiary">Start Date</p>
+              <p className="mt-2 text-sm font-semibold text-studio-text">{loadedCampaign.googleAdsStartDate || "—"}</p>
+            </div>
+            <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-studio-tertiary">End Date</p>
+              <p className="mt-2 text-sm font-semibold text-studio-text">{loadedCampaign.googleAdsEndDate || "—"}</p>
+            </div>
+            <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-studio-tertiary">Budget</p>
+              <p className="mt-2 text-sm font-semibold text-studio-text">{formatImportedBudget(loadedCampaign.googleAdsBudgetAmountMicros)}</p>
+            </div>
+          </div>
+        </section>
       ) : null}
 
 
@@ -770,7 +822,7 @@ export default function ProgrammaticStep1Fields({
                         className={`rounded-xl border px-4 py-3 text-left transition ${
                           selected
                             ? "border-studio-accent bg-studio-accent/10 ring-1 ring-studio-accent"
-                            : "border-white/10 bg-white/[0.03] hover:border-white/25"
+                            : "border-white/10 bg-white/3 hover:border-white/25"
                         }`}
                       >
                         <span className={`block text-sm font-semibold ${selected ? "text-studio-text" : "text-studio-text/90"}`}>

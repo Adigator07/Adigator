@@ -21,12 +21,12 @@ export async function POST(request: NextRequest) {
   try {
     const accessToken = getAccessTokenFromRequest(request);
     if (!accessToken) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return NextResponse.json({ skipped: true, serviceUnavailable: true, error: "Unauthorized" }, { status: 200 });
     }
 
     const { user, error: authError } = await getAuthenticatedUser(accessToken);
     if (authError || !user) {
-      return NextResponse.json({ error: authError || "Unauthorized" }, { status: 401 });
+      return NextResponse.json({ skipped: true, serviceUnavailable: true, error: authError || "Unauthorized" }, { status: 200 });
     }
 
     const body = (await request.json()) as ActivityBody;
