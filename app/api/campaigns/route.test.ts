@@ -83,5 +83,22 @@ describe("buildGoogleAdsImportedSnapshot", () => {
     expect(snapshot.googleAdsCampaignStatus).toBe("Draft");
     expect(snapshot.googleAdsDraftId).toBe("draft-5001");
     expect(snapshot.googleAdsChannelSummary).toBe("Video");
+    expect(snapshot.googleCampaignType).toBe("demand_gen");
+  });
+
+  it("maps display channels to the display campaign type", () => {
+    const snapshot = buildGoogleAdsImportedSnapshot(
+      makeCampaign({
+        id: "5002",
+        name: "Holiday Display",
+        channelType: "DISPLAY",
+        channelSummary: "Display",
+      }),
+      "owner-1",
+      "1234567890",
+      { landingUrl: "https://example.com", adGroupCount: 2 },
+    );
+
+    expect(snapshot.googleCampaignType).toBe("display");
   });
 });
