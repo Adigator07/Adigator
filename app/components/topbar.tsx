@@ -50,8 +50,14 @@ export default function Topbar({ user }: any) {
   }, [user?.id, user?.user_metadata?.role]);
 
   const handleLogout = async () => {
-    await signOut(getFirebaseClientAuth());
-    router.push("/login");
+    setShowProfile(false);
+    try {
+      await signOut(getFirebaseClientAuth());
+    } catch (error) {
+      console.warn("[Topbar] Sign out failed:", error);
+    } finally {
+      window.location.assign("/login");
+    }
   };
 
   const dropdownVariants = {
@@ -61,7 +67,7 @@ export default function Topbar({ user }: any) {
   const emailDomain = user?.email?.split("@")[1] || "";
 
   return (
-    <div className="h-16 shrink-0 border-b border-sky-100 bg-white/92 px-6 flex items-center justify-between gap-4">
+    <div className="relative z-50 h-16 shrink-0 border-b border-sky-100 bg-white/92 px-6 flex items-center justify-between gap-4">
       {/* Search */}
       <div className="relative flex-1 max-w-sm">
         <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -143,7 +149,7 @@ export default function Topbar({ user }: any) {
               <motion.div
                 variants={dropdownVariants} initial="hidden" animate="visible" exit="hidden"
                 transition={{ duration: 0.15 }}
-                className="absolute right-0 top-12 z-50 w-52 overflow-hidden rounded-2xl border border-sky-200 bg-white shadow-2xl"
+                className="absolute right-0 top-12 z-100 w-52 overflow-hidden rounded-2xl border border-sky-200 bg-white shadow-2xl"
               >
                 <div className="px-4 py-3 border-b border-white/10">
                   <p className="truncate text-xs font-bold text-slate-800">

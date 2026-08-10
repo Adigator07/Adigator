@@ -40,15 +40,20 @@ export default function Sidebar({ collapsed, setCollapsed, user }: any) {
   const { isOrgAdmin } = useOrgAuth();
 
   const handleLogout = async () => {
-    await signOut(getFirebaseClientAuth());
-    router.push("/login");
+    try {
+      await signOut(getFirebaseClientAuth());
+    } catch (error) {
+      console.warn("[Sidebar] Sign out failed:", error);
+    } finally {
+      window.location.assign("/login");
+    }
   };
 
   return (
     <motion.div
       animate={{ width: collapsed ? 68 : 256 }}
       transition={{ type: "spring", stiffness: 300, damping: 30 }}
-      className="min-h-screen border-r border-sky-200/80 bg-white/85 shadow-[8px_0_30px_-18px_rgba(14,116,144,0.22)] backdrop-blur-xl flex flex-col shrink-0 overflow-hidden"
+      className="relative z-20 min-h-screen border-r border-sky-200/80 bg-white/85 shadow-[8px_0_30px_-18px_rgba(14,116,144,0.22)] backdrop-blur-xl flex flex-col shrink-0 overflow-hidden"
     >
       {/* Logo */}
       <div className="h-16 flex items-center px-4 border-b border-sky-100 justify-between shrink-0">
@@ -75,7 +80,7 @@ export default function Sidebar({ collapsed, setCollapsed, user }: any) {
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 p-3 space-y-4 mt-1 overflow-y-auto scrollbar-none">
+      <nav className="flex-1 p-3 pb-6 space-y-4 mt-1 overflow-y-auto scrollbar-none">
         {NAV_SECTIONS.map((section) => (
           <div key={section.label}>
             {!collapsed && (
@@ -226,8 +231,8 @@ export default function Sidebar({ collapsed, setCollapsed, user }: any) {
         )}
       </nav>
 
-      {/* User footer */}
-      <div className="shrink-0 border-t border-sky-100 p-3">
+      {/* User footer — kept clear of Campaign Intelligence nav */}
+      <div className="relative z-20 shrink-0 border-t border-sky-100 bg-white/95 p-3 pt-4">
         {!collapsed ? (
           <div className="flex items-center gap-3 rounded-xl border border-sky-200 bg-sky-50/80 px-3 py-2.5">
             <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-linear-to-br from-sky-500 to-cyan-500 text-sm font-bold text-white">

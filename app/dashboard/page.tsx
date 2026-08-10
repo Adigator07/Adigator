@@ -119,7 +119,12 @@ export default function Dashboard() {
 
     const load = async () => {
       try {
-        const currentUser = await getClientUser();
+        const currentUser = await Promise.race([
+          getClientUser(),
+          new Promise<null>((resolve) => {
+            window.setTimeout(() => resolve(null), 4000);
+          }),
+        ]);
         if (!active) return;
 
         setUser(currentUser);
@@ -175,8 +180,17 @@ export default function Dashboard() {
     };
 
     void load();
+
+    const failSafe = window.setTimeout(() => {
+      if (active) {
+        setLoading(false);
+        setAdvertisersLoading(false);
+      }
+    }, 6000);
+
     return () => {
       active = false;
+      window.clearTimeout(failSafe);
     };
   }, []);
 
@@ -226,18 +240,19 @@ export default function Dashboard() {
 
   return (
     <>
-      {loading ? <AdigatorLaunchScreen /> : null}
-      <motion.div
-        initial={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 10 }}
-        animate={
-          loading
-            ? (reduceMotion ? { opacity: 0 } : { opacity: 0, y: 10 })
-            : { opacity: 1, y: 0 }
-        }
-        transition={stageTransition}
-        className="relative space-y-10 pb-10"
-      >
-        <div className="flex flex-col items-start justify-between gap-4 md:flex-row md:items-center">
+      <div className="relative min-h-[50vh]">
+        {loading ? <AdigatorLaunchScreen embedded /> : null}
+        <motion.div
+          initial={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 10 }}
+          animate={
+            loading
+              ? (reduceMotion ? { opacity: 0 } : { opacity: 0, y: 10 })
+              : { opacity: 1, y: 0 }
+          }
+          transition={stageTransition}
+          className="relative space-y-10 pb-10"
+        >
+        <div className="space-y-5">
           <div>
             <div className="mb-1 flex items-center gap-2 text-sky-600">
               <span className="text-xs font-bold uppercase tracking-widest">{today}</span>
@@ -251,16 +266,18 @@ export default function Dashboard() {
                 : "Your creative workflow at a glance"}
             </p>
           </div>
-          <Link href="/preview-tool?step=campaign-setup">
-            <motion.button
-              whileHover={hoverLift}
-              whileTap={hoverTap}
-              transition={{ duration: 0.2, ease: EASE }}
-              className="flex items-center gap-2 rounded-xl bg-linear-to-r from-sky-600 to-cyan-500 px-5 py-3 font-semibold text-white shadow-lg shadow-sky-500/25 transition-shadow hover:shadow-sky-500/40 premium-card-glow"
-            >
-              <Plus size={18} /> Open Campaign Intelligence Studio
-            </motion.button>
-          </Link>
+          <div>
+            <Link href="/preview-tool?step=campaign-setup">
+              <motion.button
+                whileHover={hoverLift}
+                whileTap={hoverTap}
+                transition={{ duration: 0.2, ease: EASE }}
+                className="inline-flex items-center gap-2 rounded-xl bg-linear-to-r from-sky-600 to-cyan-500 px-5 py-3 font-semibold text-white shadow-lg shadow-sky-500/25 transition-shadow hover:shadow-sky-500/40 premium-card-glow"
+              >
+                <Plus size={18} /> Open Campaign Intelligence Studio
+              </motion.button>
+            </Link>
+          </div>
         </div>
 
         <div>
@@ -383,6 +400,7 @@ export default function Dashboard() {
           </AnimatePresence>
         </div>
       </motion.div>
+      </div>
     </>
   );
 }
