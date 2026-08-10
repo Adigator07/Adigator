@@ -4,7 +4,7 @@ const TERMS_SECTIONS: LegalSection[] = [
   {
     title: "Our Service",
     paragraphs: [
-      "Adigator is a SaaS platform that provides pre-launch campaign validation tools. We help advertising teams review campaign assets, technical requirements, landing destinations, and operational readiness before campaign execution across Google Ads, Meta Ads, and programmatic channels.",
+      "Adigator is a SaaS product that provides campaign validation tools. We help advertising teams review campaign assets, technical requirements, landing destinations, and readiness before campaign execution across Google Ads, Meta Ads, and programmatic channels.",
       "Adigator is not a media-buying agency substitute by default. Final campaign decisions and media spend remain your responsibility.",
     ],
   },

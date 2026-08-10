@@ -24,7 +24,7 @@ const AdigatorPlatformSection = dynamic(
 
 const BELIEFS = [
   {
-    title: "Campaigns need a source of truth",
+    title: "Campaigns need a shared source of truth",
     body: "If intent, creative, destination, and tracking are not grounded in one shared context, quality becomes accidental.",
   },
   {
@@ -33,7 +33,7 @@ const BELIEFS = [
   },
   {
     title: "Operations deserve a system",
-    body: "Launches, swaps, renewals, and handoffs are workflows. They should have gates, not folklore.",
+    body: "Launches, swaps, renewals, and handoffs are workflows. They should have clear checks, not tribal knowledge.",
   },
   {
     title: "Memory compounds quality",
@@ -43,7 +43,7 @@ const BELIEFS = [
 
 const SOURCE_OF_TRUTH = [
   {
-    title: "One campaign intelligence layer",
+    title: "One campaign context layer",
     body: "Brief, objective, offer, and platform context become the reference every check points back to.",
   },
   {
@@ -64,14 +64,13 @@ export default function AboutPage() {
       <main className="pt-28">
         <section className="marketing-section marketing-section-compact mx-auto w-[min(1100px,92vw)]">
             <FadeIn>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#8A8A82]">About Adigator</p>
-              <h1 className="mt-4 text-[clamp(2.25rem,5.5vw,4rem)] font-black leading-[1.05] tracking-[-0.04em]">
+              <h1 className="text-[clamp(2.25rem,5.5vw,4rem)] font-black leading-[1.05] tracking-[-0.04em]">
                 We are building the validation layer campaign operations never had.
               </h1>
               <p className="mt-6 max-w-2xl text-lg leading-relaxed text-[#5A5A55] sm:text-xl">
-                Adigator is a SaaS platform that validates advertising campaigns — creatives, landing pages, and
-                campaign setup — before media spend begins. We help agencies, brands, and AdOps teams catch preventable
-                mistakes across Google Ads, Meta Ads, and programmatic channels.
+                Adigator helps agencies, brands, and AdOps teams check advertising campaigns before media spend
+                begins. That includes creatives, landing pages, and campaign setup across Google Ads, Meta Ads, and
+                programmatic channels.
               </p>
               <p className="mt-4 max-w-2xl text-base leading-relaxed text-[#5A5A55] sm:text-lg">
                 Optional Google Ads access uses Google OAuth. Users authorize Adigator to access their own Google Ads
@@ -96,16 +95,14 @@ export default function AboutPage() {
           <div className="mx-auto grid w-[min(1100px,92vw)] gap-8 lg:grid-cols-2">
             <FadeIn>
               <SectionHeader
-                eyebrow="Mission"
-                title="Make every campaign task validation-ready before execution."
-                description="We help agencies, brands, and AdOps teams catch misalignment across brief, creative, destination, and platform requirements, before spend begins."
+                title="Our mission"
+                description="Help every campaign task get validated before execution. We catch misalignment across brief, creative, destination, and platform requirements before spend begins."
               />
             </FadeIn>
             <FadeIn delay={0.08}>
               <SectionHeader
-                eyebrow="Vision"
-                title="A world where launch quality is governed, not improvised."
-                description="We believe campaign operations will standardize around shared readiness signals, just as other enterprise workflows standardized around systems of record."
+                title="Our vision"
+                description="A world where launch quality is managed with shared readiness signals, the same way other teams rely on a system of record."
               />
             </FadeIn>
           </div>
@@ -113,9 +110,8 @@ export default function AboutPage() {
 
         <section id="belief" className="marketing-section marketing-section-compact mx-auto w-[min(1100px,92vw)]">
           <SectionHeader
-            eyebrow="Belief"
             title="What we believe about campaign quality"
-            description="These principles shape the product, the methodology, and the way we talk about operational excellence."
+            description="These ideas shape the product, the methodology, and how we talk about day to day campaign work."
           />
           <div className="mt-8 grid gap-4 sm:grid-cols-2">
             {BELIEFS.map((item, i) => (
@@ -132,22 +128,19 @@ export default function AboutPage() {
         <SoftBand dark className="marketing-section-compact">
           <div className="mx-auto w-[min(900px,92vw)]">
             <FadeIn>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-white/45">
-                Founder story
-              </p>
-              <h2 className="mt-3 text-[clamp(1.75rem,3.5vw,2.75rem)] font-black leading-[1.12] tracking-[-0.035em] text-white">
+              <h2 className="text-[clamp(1.75rem,3.5vw,2.75rem)] font-black leading-[1.12] tracking-[-0.035em] text-white">
                 Built from the cost of preventable mistakes
               </h2>
               <div className="mt-6 space-y-4 text-base leading-relaxed text-white/70 sm:text-lg">
                 <p>
                   Adigator began with a pattern that kept repeating inside campaign operations: talented teams, strong
-                  creatives, and still-painful launches. The failures were rarely mysterious. They were seams:
+                  creatives, and still painful launches. The failures were rarely mysterious. They were seams:
                   handoffs, outdated links, mismatched offers, late technical rejects.
                 </p>
                 <p>
-                  Manual QA could not keep pace with how campaigns actually change: mid-flight swaps, landing-page
-                  updates, vendor trafficking, renewals that quietly reinherit last flight&apos;s defects. The industry
-                  needed a validation system, not another checklist buried in a deck.
+                  Manual QA could not keep pace with how campaigns actually change: creative swaps while ads are live,
+                  landing page updates, vendor trafficking, and renewals that quietly carry last flight&apos;s
+                  defects forward. The industry needed a validation system, not another checklist buried in a deck.
                 </p>
                 <p>
                   That is the company we are building: an operational source of truth that helps teams validate before
@@ -160,7 +153,6 @@ export default function AboutPage() {
 
         <section className="marketing-section marketing-section-compact mx-auto w-[min(1100px,92vw)]">
           <SectionHeader
-            eyebrow="Source of truth"
             title="Why campaigns need a source of truth"
             description="Without a shared operational reference, every team validates a different slice of reality."
           />
@@ -191,9 +183,8 @@ export default function AboutPage() {
         <section className="border-y border-[#DEDDD5] bg-[#FAFAF7] marketing-section-compact">
           <div className="mx-auto w-[min(1280px,92vw)]">
             <SectionHeader
-              eyebrow="Platform"
               title="The Adigator platform"
-              description="A pre-launch validation layer designed for campaign operations across channels, tasks, and team handoffs."
+              description="Validation designed for campaign operations across channels, tasks, and team handoffs."
             />
             <div className="mt-8">
               <AdigatorPlatformSection />
@@ -207,9 +198,8 @@ export default function AboutPage() {
           <div className="mx-auto w-[min(900px,92vw)] text-center">
             <SectionHeader
               center
-              eyebrow="Roadmap north star"
-              title="From campaign validation to operational intelligence"
-              description="We are extending validation into memory, enterprise workflow depth, and richer audience intelligence, without abandoning the operational core."
+              title="Where we are headed"
+              description="We are extending validation into memory, deeper enterprise workflows, and richer audience intelligence, without losing the operational core."
             />
           </div>
         </SoftBand>

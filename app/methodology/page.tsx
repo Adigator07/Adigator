@@ -22,15 +22,12 @@ export default function MethodologyPage() {
       <main className="pt-28">
         <section className="marketing-section marketing-section-compact mx-auto w-[min(1100px,92vw)]">
           <FadeIn>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#8A8A82]">
-              Documentation
-            </p>
-            <h1 className="mt-4 text-[clamp(2.25rem,5.5vw,4rem)] font-black leading-[1.05] tracking-[-0.04em]">
+            <h1 className="text-[clamp(2.25rem,5.5vw,4rem)] font-black leading-[1.05] tracking-[-0.04em]">
               Campaign Validation Methodology
             </h1>
             <p className="mt-6 max-w-2xl text-lg leading-relaxed text-[#5A5A55] sm:text-xl">
-              Adigator&apos;s five-layer framework turns campaign operations into a repeatable validation system,
-              from intelligence and alignment to technical checks, task gates, and institutional memory.
+              Adigator&apos;s five layer framework turns campaign operations into a repeatable validation system,
+              from context and alignment to technical checks, task reviews, and shared memory.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
               <Link href={MARKETING_CTA.href} className="marketing-btn-lime rounded-full px-7 py-3.5 text-sm font-bold">
@@ -49,7 +46,6 @@ export default function MethodologyPage() {
         <SoftBand className="marketing-section-compact">
           <div className="mx-auto w-[min(1100px,92vw)]">
             <SectionHeader
-              eyebrow="Foundation"
               title="Why we built this"
               description="Campaign quality collapses where tools, teams, and handoffs do not share a single source of truth."
             />
@@ -69,9 +65,8 @@ export default function MethodologyPage() {
 
         <section className="marketing-section marketing-section-compact mx-auto w-[min(1100px,92vw)]">
           <SectionHeader
-            eyebrow="Framework"
             title="Five layers of campaign validation"
-            description="Each layer has a clear purpose, a workflow, and an operational output your teams can act on."
+            description="Each layer has a clear purpose, a workflow, and an output your teams can act on."
           />
 
           <div className="mt-10 space-y-6">
@@ -110,9 +105,8 @@ export default function MethodologyPage() {
           <div className="mx-auto w-[min(1100px,92vw)]">
             <SectionHeader
               dark
-              eyebrow="System view"
               title="Validation is a pipeline, not a checklist"
-              description="Intelligence informs alignment. Alignment informs technical gates. Operational tasks keep the bar live. Memory makes the next cycle faster."
+              description="Context informs alignment. Alignment informs technical checks. Operational tasks keep the bar live. Memory makes the next cycle faster."
             />
             <div className="mt-10 flex flex-wrap gap-3">
               {METHODOLOGY_LAYERS.map((layer) => (

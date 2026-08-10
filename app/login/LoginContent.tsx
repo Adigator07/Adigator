@@ -247,6 +247,10 @@ export default function LoginContent() {
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [googleUsername, setGoogleUsername] = useState("");
+
+  useEffect(() => {
+    router.prefetch("/dashboard");
+  }, [router]);
   const [googleUsernameError, setGoogleUsernameError] = useState<string | null>(null);
   const [googleUsernameSaving, setGoogleUsernameSaving] = useState(false);
   const [pendingGoogleProfile, setPendingGoogleProfile] = useState<PendingGoogleProfile | null>(null);
@@ -276,13 +280,6 @@ export default function LoginContent() {
     } catch {
       // Ignore logging failures.
     }
-  }
-
-  async function getRoleAndStatus(uid: string): Promise<{ role: RegisterRole; status: AccountStatus | null }> {
-    const data = await getClientProfileData<{ role?: string; status?: AccountStatus }>(uid);
-    const role = (data?.role === "usa_client" ? "usa_client" : "end_client") as RegisterRole;
-    const status = (data?.status as AccountStatus | undefined) ?? null;
-    return { role, status };
   }
 
   async function getRoleAndStatusFast(
@@ -330,7 +327,7 @@ export default function LoginContent() {
         fullName?: string;
       }>(resolvedUser.uid),
       new Promise<null>((resolve) => {
-        window.setTimeout(() => resolve(null), 1200);
+        window.setTimeout(() => resolve(null), 250);
       }),
     ]);
     const shouldActivateProfile = !profile || profile.status === "pending_verification";
@@ -390,22 +387,7 @@ export default function LoginContent() {
       redirectedRef.current = true;
       const destination = getPostAuthRedirect(resolvedRole);
       authDebug("redirecting", { destination, resolvedRole, accountStatus });
-
-      try {
-        router.replace(destination);
-      } catch (error) {
-        authDebug("router_replace_failed", { message: error instanceof Error ? error.message : "unknown" });
-      }
-
-      const forceNavigate = () => {
-        if (window.location.pathname === "/login") {
-          authDebug("router_fallback_assign", { destination });
-          window.location.assign(destination);
-        }
-      };
-
-      window.setTimeout(forceNavigate, 300);
-      window.setTimeout(forceNavigate, 1200);
+      window.location.assign(destination);
     } finally {
       authDebug("finalize_end");
       finalizingRef.current = false;
@@ -708,8 +690,8 @@ export default function LoginContent() {
             <span className="block rounded-[23px] bg-[linear-gradient(120deg,rgba(255,255,255,0.96),rgba(232,245,255,0.94),rgba(220,242,255,0.9))] p-4 sm:p-5">
               <span className="flex items-start justify-between gap-3">
                 <span>
-                  <span className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">Launch faster</span>
-                  <span className="mt-2 block text-lg font-semibold text-slate-900">Open a platform workspace</span>
+                  <span className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">Sign in</span>
+                  <span className="mt-2 block text-lg font-semibold text-slate-900">Open your workspace</span>
                 </span>
                 <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-200/80 bg-slate-100/90 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-700">
                   options
@@ -898,7 +880,8 @@ export default function LoginContent() {
         return;
       }
 
-      const { role: resolvedRole, status: accountStatus } = await getRoleAndStatus(user.uid);
+      // Keep status check snappy — don't block navigation on a slow Firestore round-trip.
+      const { role: resolvedRole, status: accountStatus } = await getRoleAndStatusFast(user.uid, "end_client", 250);
       if (accountStatus && !isAccountLoginAllowed(accountStatus)) {
         await signOut(auth);
         setErrors({ form: getLoginBlockMessage(accountStatus) });
@@ -907,14 +890,9 @@ export default function LoginContent() {
 
       setSuccess(true);
       const destination = getPostAuthRedirect(resolvedRole);
-      const navigateToDashboard = () => {
-        if (window.location.pathname === "/login") {
-          window.location.assign(destination);
-        } else {
-          router.replace(destination);
-        }
-      };
-      window.setTimeout(navigateToDashboard, 500);
+      // Hard navigate immediately for a faster first paint of the dashboard shell.
+      window.location.assign(destination);
+      return;
     } catch {
       setErrors({
         form: isRegisterMode ? GENERIC_SIGNUP_RESPONSE_MESSAGE : LOGIN_SERVER_ERROR,
@@ -1041,16 +1019,8 @@ export default function LoginContent() {
       setPassword("");
       setConfirmPassword("");
       redirectedRef.current = true;
-      const destination = getPostAuthRedirect(pendingGoogleProfile.role);
-      const forceNavigate = () => {
-        if (window.location.pathname === "/login") {
-          window.location.assign(destination);
-        } else {
-          router.replace(destination);
-        }
-      };
-      forceNavigate();
-      window.setTimeout(forceNavigate, 1200);
+      window.location.assign(getPostAuthRedirect(pendingGoogleProfile.role));
+      return;
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unable to save your account details.";
       setGoogleUsernameError(message);

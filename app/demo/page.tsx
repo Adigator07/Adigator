@@ -12,7 +12,7 @@ const DEMO_POINTS = [
   },
   {
     title: "How to use the platform",
-    description: "Step 1 configures your campaign. Step 2 uploads and validates creatives. Step 3 delivers risk-based analysis. Step 4 previews placements across Google, Meta, and Programmatic contexts.",
+    description: "Step 1 configures your campaign. Step 2 uploads and validates creatives. Step 3 delivers analysis by risk. Step 4 previews placements across Google, Meta, and Programmatic contexts.",
   },
   {
     title: "Why teams benefit",
@@ -20,7 +20,7 @@ const DEMO_POINTS = [
   },
   {
     title: "Why users stay satisfied",
-    description: "Faster launch reviews, fewer rework cycles, and platform-native guidance that feels like working with a senior media strategist, not a generic checklist.",
+    description: "Faster launch reviews, fewer rework cycles, and guidance that feels like working with a senior media strategist, not a generic checklist.",
   },
 ];
 

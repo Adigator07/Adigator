@@ -22,15 +22,12 @@ export default function OperationalScenariosPage() {
       <main className="pt-28">
         <section className="marketing-section marketing-section-compact mx-auto w-[min(1100px,92vw)]">
           <FadeIn>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#8A8A82]">
-              Workflow examples
-            </p>
-            <h1 className="mt-4 text-[clamp(2.25rem,5.5vw,4rem)] font-black leading-[1.05] tracking-[-0.04em]">
+            <h1 className="text-[clamp(2.25rem,5.5vw,4rem)] font-black leading-[1.05] tracking-[-0.04em]">
               Operational Scenarios
             </h1>
             <p className="mt-6 max-w-2xl text-lg leading-relaxed text-[#5A5A55] sm:text-xl">
-              Real-world campaign validation workflows, not case studies. Each scenario shows the problem, the risk,
-              how Adigator helps, and the operational outcome.
+              Practical campaign validation workflows, not case studies. Each scenario shows the problem, the risk,
+              how Adigator helps, and the outcome.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
               <Link href={MARKETING_CTA.href} className="marketing-btn-lime rounded-full px-7 py-3.5 text-sm font-bold">
@@ -46,24 +43,10 @@ export default function OperationalScenariosPage() {
           </FadeIn>
         </section>
 
-        <SoftBand className="py-8">
-          <div className="mx-auto flex w-[min(1100px,92vw)] flex-wrap gap-2">
-            {["Campaign Validation Scenarios", "Workflow Examples", "Real-World Campaign Workflows"].map((label) => (
-              <span
-                key={label}
-                className="rounded-full border border-[#DEDDD5] bg-white px-4 py-2 text-xs font-semibold text-[#3D3D38]"
-              >
-                {label}
-              </span>
-            ))}
-          </div>
-        </SoftBand>
-
         <section className="marketing-section marketing-section-compact mx-auto w-[min(1100px,92vw)] space-y-8">
           <SectionHeader
-            eyebrow="Library"
             title="Campaign validation scenarios"
-            description="Use these as operational references for launch, optimization, handoff, and enterprise delivery."
+            description="Use these as references for launch, optimization, handoff, and enterprise delivery."
           />
 
           {OPERATIONAL_SCENARIOS.map((item, index) => (
@@ -137,8 +120,8 @@ export default function OperationalScenariosPage() {
         </SoftBand>
 
         <FinalCtaBand
-          title="Run your next workflow with a gate"
-          description="Whether you are launching, swapping, renewing, or handing off, validate before execution."
+          title="Run your next workflow with a clear check"
+          description="Whether you are launching, swapping, renewing, or handing off, validate before you execute."
           href={MARKETING_CTA.href}
           label={MARKETING_CTA.label}
         />

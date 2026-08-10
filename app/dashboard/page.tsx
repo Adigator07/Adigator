@@ -1,11 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import dynamic from "next/dynamic";
 import { getClientUser } from "../lib/supabaseAuthClient";
 import Link from "next/link";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { SkeletonStatCard } from "../components/SkeletonLoader";
-import AdigatorLaunchScreen from "../components/AdigatorLaunchScreen";
 import {
   fetchUserCreatives,
   fetchAnalyzerResultCreativeIds,
@@ -15,7 +15,6 @@ import {
   fetchUserDashboardAnalytics,
   computeCreativeCountStats,
 } from "../lib/userDashboardAnalytics";
-import UserAnalyticsCharts from "../components/dashboard/UserAnalyticsCharts";
 import AdvertisersSection from "../components/dashboard/AdvertisersSection";
 import { listAdvertisers, pruneInvalidAdvertisers, rebuildAdvertisersFromProgrammaticCampaigns, ADVERTISERS_STORAGE_KEY, type Advertiser } from "../lib/advertiserStore";
 import { PROGRAMMATIC_CAMPAIGNS_STORAGE_KEY } from "../lib/programmaticCampaignStore";
@@ -26,6 +25,12 @@ import {
 } from "lucide-react";
 import { useAdminAuth } from "../lib/admin-platform/AdminAuthContext";
 import { useOrgAuth } from "../lib/organization-platform/OrgAuthContext";
+import { getFirebaseClientAuthOrNull } from "../lib/firebase/client";
+
+const UserAnalyticsCharts = dynamic(() => import("../components/dashboard/UserAnalyticsCharts"), {
+  ssr: false,
+  loading: () => <div className="h-64 rounded-2xl border border-white/50 bg-white/70" />,
+});
 
 const EASE = [0.22, 1, 0.36, 1] as const;
 
@@ -80,11 +85,11 @@ export default function Dashboard() {
   const displayedAdvertisersProgress = advertisersLoading ? advertisersLoadingProgress : 100;
 
   const stageTransition = {
-    duration: reduceMotion ? 0 : 0.32,
+    duration: reduceMotion ? 0 : 0.18,
     ease: EASE,
   };
   const crossfadeTransition = {
-    duration: reduceMotion ? 0 : 0.28,
+    duration: reduceMotion ? 0 : 0.15,
     ease: EASE,
   };
   const hoverLift = reduceMotion ? undefined : { y: -2 };
@@ -119,56 +124,89 @@ export default function Dashboard() {
 
     const load = async () => {
       try {
-        const currentUser = await Promise.race([
-          getClientUser(),
-          new Promise<null>((resolve) => {
-            window.setTimeout(() => resolve(null), 4000);
-          }),
-        ]);
+        // Paint immediately from the in-memory Firebase session when available.
+        const authUser = getFirebaseClientAuthOrNull()?.currentUser;
+        if (authUser && active) {
+          setUser({
+            id: authUser.uid,
+            email: authUser.email,
+            user_metadata: { full_name: authUser.displayName || "" },
+          });
+        }
+
+        const currentUser = authUser
+          ? {
+              id: authUser.uid,
+              email: authUser.email,
+              user_metadata: { full_name: authUser.displayName || "" },
+            }
+          : await Promise.race([
+              getClientUser(),
+              new Promise<null>((resolve) => {
+                window.setTimeout(() => resolve(null), 1200);
+              }),
+            ]);
         if (!active) return;
 
         setUser(currentUser);
         if (!currentUser) {
           setAdvertisersLoading(false);
+          setLoading(false);
           return;
         }
 
-        const ownerIdPromise = resolveCampaignOwnerId();
-
-        void trackUserActivity("page_visit", {
-          action_label: "Dashboard visited",
-          metadata: { page: "dashboard" },
-        }, { dedupeKey: "page-visit-dashboard" });
-
-        const dataPromise = Promise.all([
-          fetchUserCreatives(),
-          fetchUserDashboardAnalytics(currentUser.id),
-          fetchAnalyzerResultCreativeIds(),
+        const ownerId = await Promise.race([
+          resolveCampaignOwnerId(),
+          Promise.resolve(currentUser.id),
         ]);
-
-        const ownerId = await ownerIdPromise;
         if (!active) return;
 
         setCampaignOwnerId(ownerId);
         rebuildAdvertisersFromProgrammaticCampaigns(ownerId);
         setAdvertisers(pruneInvalidAdvertisers(ownerId));
         setAdvertisersLoading(false);
+        // Show the workspace shell immediately; hydrate stats/charts after paint.
+        setLoading(false);
 
-        const [creatives, activityStats, analyzedCreativeIds] = await dataPromise;
+        // Defer non-critical network work so navigation feels instant.
+        window.setTimeout(() => {
+          if (!active) return;
+          void trackUserActivity("page_visit", {
+            action_label: "Dashboard visited",
+            metadata: { page: "dashboard" },
+          }, { dedupeKey: "page-visit-dashboard" });
+        }, 0);
+
+        const [creatives, activityStats, analyzedCreativeIds] = await Promise.all([
+          Promise.race([
+            fetchUserCreatives(),
+            new Promise<any[]>((resolve) => window.setTimeout(() => resolve([]), 1800)),
+          ]),
+          Promise.race([
+            fetchUserDashboardAnalytics(currentUser.id),
+            new Promise<DashboardAnalytics | null>((resolve) => window.setTimeout(() => resolve(null), 1800)),
+          ]),
+          Promise.race([
+            fetchAnalyzerResultCreativeIds(),
+            new Promise<string[]>((resolve) => window.setTimeout(() => resolve([]), 1800)),
+          ]),
+        ]);
         if (!active) return;
 
-        const counts = computeCreativeCountStats(creatives, activityStats, analyzedCreativeIds);
-        const platformSet = new Set(
-          activityStats.platformUsage.filter((p) => p.count > 0).map((p) => p.platform),
-        );
+        if (activityStats) {
+          const counts = computeCreativeCountStats(creatives, activityStats, analyzedCreativeIds);
+          const platformSet = new Set(
+            activityStats.platformUsage.filter((p) => p.count > 0).map((p) => p.platform),
+          );
 
-        setStats({
-          totalCreatives: counts.totalCreatives,
-          validCreatives: counts.validCreatives,
-          invalidCreatives: counts.invalidCreatives,
-          platformsUsed: platformSet.size,
-        });
-        setAnalytics(activityStats);
+          setStats({
+            totalCreatives: counts.totalCreatives,
+            validCreatives: counts.validCreatives,
+            invalidCreatives: counts.invalidCreatives,
+            platformsUsed: platformSet.size,
+          });
+          setAnalytics(activityStats);
+        }
       } catch (error) {
         console.warn("[Dashboard] Failed to load dashboard data:", error);
       } finally {
@@ -186,7 +224,7 @@ export default function Dashboard() {
         setLoading(false);
         setAdvertisersLoading(false);
       }
-    }, 6000);
+    }, 2200);
 
     return () => {
       active = false;
@@ -241,14 +279,9 @@ export default function Dashboard() {
   return (
     <>
       <div className="relative min-h-[50vh]">
-        {loading ? <AdigatorLaunchScreen embedded /> : null}
         <motion.div
-          initial={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 10 }}
-          animate={
-            loading
-              ? (reduceMotion ? { opacity: 0 } : { opacity: 0, y: 10 })
-              : { opacity: 1, y: 0 }
-          }
+          initial={reduceMotion ? false : { opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
           transition={stageTransition}
           className="relative space-y-10 pb-10"
         >
@@ -316,13 +349,14 @@ export default function Dashboard() {
 
         <div>
           <h2 className="mb-3 text-sm font-bold uppercase tracking-widest text-slate-500">Overview</h2>
-          <AnimatePresence mode="wait" initial={false}>
+          <AnimatePresence initial={false}>
             {loading ? (
               <motion.div
                 key="overview-loading"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
+                transition={{ duration: 0.15 }}
                 transition={crossfadeTransition}
                 className="space-y-4"
               >
@@ -376,7 +410,7 @@ export default function Dashboard() {
 
         <div>
           <h2 className="mb-3 text-sm font-bold uppercase tracking-widest text-slate-500">Activity Analytics</h2>
-          <AnimatePresence mode="wait" initial={false}>
+          <AnimatePresence initial={false}>
             {loading ? (
               <motion.div
                 key="analytics-loading"

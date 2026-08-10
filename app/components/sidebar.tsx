@@ -1,7 +1,7 @@
 "use client";
+import { useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { motion, AnimatePresence } from "framer-motion";
 import { signOut } from "firebase/auth";
 import { getFirebaseClientAuth } from "../lib/firebase/client";
 import { useAdminAuth } from "../lib/admin-platform/AdminAuthContext";
@@ -33,11 +33,47 @@ const NAV_SECTIONS = [
   },
 ];
 
+function navItemClass(active: boolean, collapsed: boolean, tone: "sky" | "amber" = "sky") {
+  const activeTone =
+    tone === "amber"
+      ? "border-amber-200 bg-linear-to-r from-amber-500/12 to-orange-500/10 text-amber-800"
+      : "border-sky-200 bg-linear-to-r from-sky-500/12 to-cyan-500/10 text-sky-800";
+  const idleTone =
+    tone === "amber"
+      ? "border-transparent text-slate-500 hover:bg-amber-50 hover:text-amber-700"
+      : "border-transparent text-slate-500 hover:bg-sky-50 hover:text-sky-700";
+
+  return `flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer relative group border transition-[color,background-color,border-color,transform] duration-150 ${
+    collapsed ? "" : "hover:translate-x-0.5"
+  } ${active ? activeTone : idleTone}`;
+}
+
 export default function Sidebar({ collapsed, setCollapsed, user }: any) {
   const pathname = usePathname();
   const router = useRouter();
   const { isAdmin } = useAdminAuth();
   const { isOrgAdmin } = useOrgAuth();
+
+  useEffect(() => {
+    const routes = [
+      "/dashboard",
+      "/dashboard/communications",
+      "/dashboard/qa",
+      "/projects",
+      "/downloads",
+      "/settings",
+      "/preview-tool",
+      "/intelligence",
+      "/preview",
+    ];
+    routes.forEach((route) => router.prefetch(route));
+
+    // Warm the heavy studio chunk so sidebar clicks feel instant.
+    const warm = window.setTimeout(() => {
+      void import("./PreviewTool");
+    }, 1200);
+    return () => window.clearTimeout(warm);
+  }, [router]);
 
   const handleLogout = async () => {
     try {
@@ -50,27 +86,18 @@ export default function Sidebar({ collapsed, setCollapsed, user }: any) {
   };
 
   return (
-    <motion.div
-      animate={{ width: collapsed ? 68 : 256 }}
-      transition={{ type: "spring", stiffness: 300, damping: 30 }}
-      className="relative z-20 min-h-screen border-r border-sky-200/80 bg-white/85 shadow-[8px_0_30px_-18px_rgba(14,116,144,0.22)] backdrop-blur-xl flex flex-col shrink-0 overflow-hidden"
+    <div
+      style={{ width: collapsed ? 68 : 256 }}
+      className="relative z-20 min-h-screen border-r border-sky-200/80 bg-white/92 shadow-[8px_0_30px_-18px_rgba(14,116,144,0.22)] flex flex-col shrink-0 overflow-hidden transition-[width] duration-200 ease-out"
     >
       {/* Logo */}
       <div className="h-16 flex items-center px-4 border-b border-sky-100 justify-between shrink-0">
-        <AnimatePresence>
-          {!collapsed && (
-            <motion.div
-              initial={{ opacity: 0, x: -10 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -10 }}
-              transition={{ duration: 0.15 }}
-              className="flex items-center gap-2"
-            >
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-linear-to-br from-sky-500 to-cyan-500 font-bold text-sm text-white shadow-lg shadow-sky-500/25 shrink-0">A</div>
-              <span className="text-lg font-extrabold tracking-tight text-slate-800">Adigator</span>
-            </motion.div>
-          )}
-        </AnimatePresence>
+        {!collapsed && (
+          <div className="flex items-center gap-2">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-linear-to-br from-sky-500 to-cyan-500 font-bold text-sm text-white shadow-lg shadow-sky-500/25 shrink-0">A</div>
+            <span className="text-lg font-extrabold tracking-tight text-slate-800">Adigator</span>
+          </div>
+        )}
         <button
           onClick={() => setCollapsed(!collapsed)}
           className="ml-auto flex h-8 w-8 items-center justify-center rounded-lg border border-sky-200 bg-sky-50 text-slate-500 transition hover:bg-sky-100 hover:text-sky-700 shrink-0"
@@ -91,37 +118,32 @@ export default function Sidebar({ collapsed, setCollapsed, user }: any) {
             <div className="space-y-0.5">
               {section.items.map((item) => {
                 const isDashboardHome = item.href === "/dashboard";
+                const hrefPath = item.href.split("?")[0];
                 const active = isDashboardHome
                   ? pathname === "/dashboard"
-                  : pathname === item.href || pathname.startsWith(`${item.href}/`);
+                  : pathname === hrefPath || pathname.startsWith(`${hrefPath}/`);
                 const Icon = item.icon;
                 return (
-                  <Link key={item.href + item.label} href={item.href}>
-                    <motion.div
-                      whileHover={{ x: collapsed ? 0 : 2 }}
-                      className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-150 cursor-pointer relative group ${
-                        active
-                          ? "border border-sky-200 bg-linear-to-r from-sky-500/12 to-cyan-500/10 text-sky-800"
-                          : "border border-transparent text-slate-500 hover:bg-sky-50 hover:text-sky-700"
-                      }`}
-                    >
+                  <Link
+                    key={item.href + item.label}
+                    href={item.href}
+                    prefetch
+                    onMouseEnter={() => {
+                      if (hrefPath === "/preview-tool") {
+                        void import("./PreviewTool");
+                      }
+                    }}
+                  >
+                    <div className={navItemClass(active, collapsed)}>
                       {active && (
                         <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-5 bg-linear-to-b from-purple-400 to-blue-400 rounded-r-full" />
                       )}
                       <Icon size={18} className="shrink-0" />
-                      <AnimatePresence>
-                        {!collapsed && (
-                          <motion.span
-                            initial={{ opacity: 0, width: 0 }}
-                            animate={{ opacity: 1, width: "auto" }}
-                            exit={{ opacity: 0, width: 0 }}
-                            transition={{ duration: 0.15 }}
-                            className="text-sm font-medium flex-1 truncate whitespace-nowrap overflow-hidden"
-                          >
-                            {item.label}
-                          </motion.span>
-                        )}
-                      </AnimatePresence>
+                      {!collapsed && (
+                        <span className="text-sm font-medium flex-1 truncate whitespace-nowrap overflow-hidden">
+                          {item.label}
+                        </span>
+                      )}
                       {!collapsed && item.badge && (
                         <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-bold border shrink-0 ${
                           item.badge === "CORE"
@@ -131,13 +153,12 @@ export default function Sidebar({ collapsed, setCollapsed, user }: any) {
                           {item.badge}
                         </span>
                       )}
-                      {/* Tooltip on collapsed */}
                       {collapsed && (
                         <div className="absolute left-full ml-3 z-50 whitespace-nowrap rounded-lg border border-sky-200 bg-white px-2 py-1 text-xs font-medium text-slate-700 opacity-0 transition pointer-events-none group-hover:opacity-100">
                           {item.label}
                         </div>
                       )}
-                    </motion.div>
+                    </div>
                   </Link>
                 );
               })}
@@ -152,35 +173,20 @@ export default function Sidebar({ collapsed, setCollapsed, user }: any) {
                 Organization
               </p>
             )}
-            <Link href="/dashboard/organization">
-              <motion.div
-                whileHover={{ x: collapsed ? 0 : 2 }}
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-150 cursor-pointer relative group ${
-                  pathname.startsWith("/dashboard/organization")
-                    ? "border border-sky-200 bg-linear-to-r from-sky-500/12 to-cyan-500/10 text-sky-800"
-                    : "border border-transparent text-slate-500 hover:bg-sky-50 hover:text-sky-700"
-                }`}
-              >
+            <Link href="/dashboard/organization" prefetch>
+              <div className={navItemClass(pathname.startsWith("/dashboard/organization"), collapsed)}>
                 <Building2 size={18} className="shrink-0 text-sky-400" />
-                <AnimatePresence>
-                  {!collapsed && (
-                    <motion.span
-                      initial={{ opacity: 0, width: 0 }}
-                      animate={{ opacity: 1, width: "auto" }}
-                      exit={{ opacity: 0, width: 0 }}
-                      transition={{ duration: 0.15 }}
-                      className="text-sm font-medium flex-1 truncate whitespace-nowrap overflow-hidden"
-                    >
-                      Organization Console
-                    </motion.span>
-                  )}
-                </AnimatePresence>
+                {!collapsed && (
+                  <span className="text-sm font-medium flex-1 truncate whitespace-nowrap overflow-hidden">
+                    Organization Console
+                  </span>
+                )}
                 {!collapsed && (
                   <span className="text-[9px] px-1.5 py-0.5 rounded-full font-bold border shrink-0 bg-sky-500/20 text-sky-300 border-sky-500/30">
                     ORG
                   </span>
                 )}
-              </motion.div>
+              </div>
             </Link>
           </div>
         )}
@@ -192,29 +198,14 @@ export default function Sidebar({ collapsed, setCollapsed, user }: any) {
                 Administration
               </p>
             )}
-            <Link href="/dashboard/admin">
-              <motion.div
-                whileHover={{ x: collapsed ? 0 : 2 }}
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-150 cursor-pointer relative group ${
-                  pathname.startsWith("/dashboard/admin")
-                    ? "border border-amber-200 bg-linear-to-r from-amber-500/12 to-orange-500/10 text-amber-800"
-                    : "border border-transparent text-slate-500 hover:bg-amber-50 hover:text-amber-700"
-                }`}
-              >
+            <Link href="/dashboard/admin" prefetch>
+              <div className={navItemClass(pathname.startsWith("/dashboard/admin"), collapsed, "amber")}>
                 <Shield size={18} className="shrink-0 text-amber-400" />
-                <AnimatePresence>
-                  {!collapsed && (
-                    <motion.span
-                      initial={{ opacity: 0, width: 0 }}
-                      animate={{ opacity: 1, width: "auto" }}
-                      exit={{ opacity: 0, width: 0 }}
-                      transition={{ duration: 0.15 }}
-                      className="text-sm font-medium flex-1 truncate whitespace-nowrap overflow-hidden"
-                    >
-                      Super Admin Console
-                    </motion.span>
-                  )}
-                </AnimatePresence>
+                {!collapsed && (
+                  <span className="text-sm font-medium flex-1 truncate whitespace-nowrap overflow-hidden">
+                    Super Admin Console
+                  </span>
+                )}
                 {!collapsed && (
                   <span className="text-[9px] px-1.5 py-0.5 rounded-full font-bold border shrink-0 bg-amber-500/20 text-amber-300 border-amber-500/30">
                     ADMIN
@@ -225,7 +216,7 @@ export default function Sidebar({ collapsed, setCollapsed, user }: any) {
                     Super Admin Console
                   </div>
                 )}
-              </motion.div>
+              </div>
             </Link>
           </div>
         )}
@@ -256,6 +247,6 @@ export default function Sidebar({ collapsed, setCollapsed, user }: any) {
           </button>
         )}
       </div>
-    </motion.div>
+    </div>
   );
 }

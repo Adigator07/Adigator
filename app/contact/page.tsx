@@ -78,7 +78,7 @@ export default function ContactPage() {
               to improve your campaign workflow, we&apos;d love to hear from you.
             </p>
             <p className="mx-auto mt-4 max-w-2xl text-sm leading-relaxed text-[#5C5C56]">
-              Adigator is a pre-launch campaign validation SaaS platform. Questions about connecting Google Ads via
+              Adigator is a campaign validation SaaS product. Questions about connecting Google Ads via
               OAuth? Read{" "}
               <Link href="/google-ads-oauth" className="font-semibold text-[#0D0D0D] underline underline-offset-2">
                 how Google Ads OAuth works

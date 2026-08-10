@@ -23,7 +23,7 @@ function isLocalDevHost() {
   return host === "localhost" || host === "127.0.0.1" || host === "::1";
 }
 
-async function resolveAuthUser(timeoutMs = 1500) {
+async function resolveAuthUser(timeoutMs = 600) {
   if (typeof window === "undefined") return null;
   if (!hasFirebaseClientConfig()) return null;
 

@@ -179,7 +179,7 @@ function PlatformModuleShowcase({ reduceMotion }: { reduceMotion: boolean }) {
             <div className="flex items-center gap-2">
               <Sparkles size={14} className="text-[#5A7A00]" aria-hidden />
               <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#6B7280]">
-                Platform Modules
+                Modules
               </p>
             </div>
             <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-emerald-700">
@@ -254,15 +254,12 @@ export default function AdigatorPlatformSection() {
           transition={{ duration: 0.6 }}
           className="min-w-0"
         >
-          <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#6B7280]">
-            Platform
-          </p>
-          <h2 className="mt-3 text-[clamp(1.75rem,3.5vw,2.75rem)] font-black leading-[1.12] tracking-[-0.035em]">
+          <h2 className="text-[clamp(1.75rem,3.5vw,2.75rem)] font-black leading-[1.12] tracking-[-0.035em]">
             The Adigator Platform
           </h2>
           <p className="mt-5 max-w-xl text-lg leading-relaxed text-[#5A5A55] sm:text-xl">
-            An intelligent platform that validates every campaign task, preserves campaign knowledge,
-            and helps enterprise teams execute with confidence.
+            Validate every campaign task, keep campaign knowledge in one place, and help teams execute with
+            confidence.
           </p>
 
           <div className="mt-6 flex flex-wrap gap-2">
@@ -281,7 +278,7 @@ export default function AdigatorPlatformSection() {
           </div>
 
           <p className="mt-8 text-base font-semibold leading-relaxed text-[#0D0D0D] sm:text-lg">
-            One platform. Every campaign task. Validated with intelligence.
+            One platform. Every campaign task. Clear readiness before you spend.
           </p>
 
           <div className="mt-6 flex flex-wrap gap-4">

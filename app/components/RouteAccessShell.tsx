@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Loader2, ShieldAlert } from "lucide-react";
 
+import { getFirebaseClientAuthOrNull } from "@/app/lib/firebase/client";
 import { getClientUser } from "@/app/lib/supabaseAuthClient";
 import { useRouteLoadTelemetry } from "@/app/lib/routeTelemetry";
 
@@ -14,13 +15,39 @@ type RouteAccessShellProps = {
   children: ReactNode;
 };
 
+function readSyncedUid(): string | null {
+  try {
+    return getFirebaseClientAuthOrNull()?.currentUser?.uid ?? null;
+  } catch {
+    return null;
+  }
+}
+
 export default function RouteAccessShell({ routeKey, title, children }: RouteAccessShellProps) {
-  const [checkingAuth, setCheckingAuth] = useState(true);
-  const [authenticated, setAuthenticated] = useState(false);
+  const syncedUid = readSyncedUid();
+  const [checkingAuth, setCheckingAuth] = useState(!syncedUid);
+  const [authenticated, setAuthenticated] = useState(Boolean(syncedUid));
   const markRouteReady = useRouteLoadTelemetry(routeKey);
 
   useEffect(() => {
     let active = true;
+
+    // Already signed in — paint children immediately; confirm in background.
+    if (syncedUid) {
+      markRouteReady("auth_checked", { authenticated: true, optimistic: true });
+      void getClientUser().then((user) => {
+        if (!active) return;
+        const isAuthenticated = Boolean(user?.id);
+        setAuthenticated(isAuthenticated);
+        setCheckingAuth(false);
+        if (!isAuthenticated) {
+          markRouteReady("auth_checked", { authenticated: false });
+        }
+      });
+      return () => {
+        active = false;
+      };
+    }
 
     void getClientUser()
       .then((user) => {
@@ -42,7 +69,7 @@ export default function RouteAccessShell({ routeKey, title, children }: RouteAcc
     return () => {
       active = false;
     };
-  }, [markRouteReady]);
+  }, [markRouteReady, syncedUid]);
 
   if (checkingAuth) {
     return (

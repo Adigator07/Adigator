@@ -9,7 +9,6 @@ import Sidebar from "../components/sidebar";
 import Topbar from "../components/topbar";
 import { AdminAuthProvider } from "../lib/admin-platform/AdminAuthContext";
 import { OrgAuthProvider } from "../lib/organization-platform/OrgAuthContext";
-import AdigatorLaunchScreen from "../components/AdigatorLaunchScreen";
 
 function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -47,6 +46,21 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
       return;
     }
 
+    // Optimistic paint: if Firebase already has a session (just logged in), show the shell immediately.
+    const current = auth.currentUser;
+    if (current) {
+      setUser({
+        id: current.uid,
+        email: current.email,
+        user_metadata: {
+          full_name: current.displayName || "",
+          role: "end_client",
+        },
+      });
+      setAuthReady(true);
+      authDebug("optimistic_ready", { uid: current.uid });
+    }
+
     const syncUser = async (firebaseUser: { uid: string; email: string | null; displayName: string | null } | null) => {
       authDebug("sync_start", { hasUser: Boolean(firebaseUser), uid: firebaseUser?.uid ?? null });
       if (!firebaseUser) {
@@ -56,10 +70,23 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
         return;
       }
 
+      // Show chrome first; hydrate profile details in the background.
+      setUser((prev: any) => prev?.id === firebaseUser.uid
+        ? prev
+        : {
+            id: firebaseUser.uid,
+            email: firebaseUser.email,
+            user_metadata: {
+              full_name: firebaseUser.displayName || "",
+              role: "end_client",
+            },
+          });
+      setAuthReady(true);
+
       const profile = await Promise.race([
         getClientProfileData<{ status?: string; role?: string; fullName?: string }>(firebaseUser.uid),
         new Promise<null>((resolve) => {
-          window.setTimeout(() => resolve(null), 1200);
+          window.setTimeout(() => resolve(null), 400);
         }),
       ]);
       const status = profile?.status || "active";
@@ -80,7 +107,6 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
           role: profile?.role || "end_client",
         },
       });
-      setAuthReady(true);
       authDebug("sync_ready", { role: profile?.role || "end_client" });
     };
 
@@ -106,13 +132,20 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
         authDebug("redirect_login_timeout");
         router.replace("/login");
       }
-    }, 8000);
+    }, 2500);
 
     return () => window.clearTimeout(timer);
   }, [authReady, isAdminRoute, isOrgRoute, router, user]);
 
   if (!authReady && !isAdminRoute && !isOrgRoute) {
-    return <AdigatorLaunchScreen />;
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-[#EEF4F7] text-slate-600">
+        <div className="text-center">
+          <div className="mx-auto h-9 w-9 animate-spin rounded-full border-2 border-sky-500 border-t-transparent" />
+          <p className="mt-4 text-sm font-medium">Opening dashboard…</p>
+        </div>
+      </div>
+    );
   }
 
   if (isAdminRoute || isOrgRoute) {
@@ -121,7 +154,6 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="relative flex min-h-screen overflow-hidden text-slate-800">
-      {/* Soft ambient wallpaper — paused automatically while scrolling */}
       <div className="pointer-events-none absolute inset-0 overflow-hidden [contain:paint]" aria-hidden>
         <div className="agi-dashboard-wallpaper" />
         <div className="agi-smoke-fog opacity-40" />

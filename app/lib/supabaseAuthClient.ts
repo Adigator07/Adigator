@@ -1,6 +1,6 @@
 import { onAuthStateChanged } from "firebase/auth";
 
-import { getFirebaseClientAuth } from "@/app/lib/firebase/client";
+import { getFirebaseClientAuth, getFirebaseClientAuthOrNull } from "@/app/lib/firebase/client";
 
 type ClientUser = {
   id: string;
@@ -52,42 +52,51 @@ export async function getClientSession(): Promise<ClientSession | null> {
   });
 }
 
-/** Resolve the signed-in user without redundant concurrent getUser() calls. */
+function toClientUser(user: { uid: string; email: string | null; displayName: string | null }): ClientUser {
+  return {
+    id: user.uid,
+    email: user.email,
+    user_metadata: {
+      full_name: user.displayName || "",
+    },
+  };
+}
+
+/** Resolve the signed-in user without waiting on ID token refresh. */
 export async function getClientUser(): Promise<ClientUser | null> {
-  const session = await getClientSession();
-  if (session?.user) return session.user;
+  const auth = getFirebaseClientAuthOrNull();
+  if (!auth) return null;
+
+  // Fast path: Firebase already restored the session from persistence.
+  if (auth.currentUser) {
+    return toClientUser(auth.currentUser);
+  }
 
   return runSerializedAuth(async () => {
-    const auth = getFirebaseClientAuth();
-    const user = auth.currentUser;
-    if (user) {
-      return {
-        id: user.uid,
-        email: user.email,
-        user_metadata: {
-          full_name: user.displayName || "",
-        },
-      };
+    if (auth.currentUser) {
+      return toClientUser(auth.currentUser);
     }
 
-    const resolved = await new Promise<ClientUser | null>((resolve) => {
-      const unsubscribe = onAuthStateChanged(auth, (nextUser) => {
+    return new Promise<ClientUser | null>((resolve) => {
+      let settled = false;
+      const finish = (value: ClientUser | null) => {
+        if (settled) return;
+        settled = true;
         unsubscribe();
-        if (!nextUser) {
-          resolve(null);
-          return;
-        }
-        resolve({
-          id: nextUser.uid,
-          email: nextUser.email,
-          user_metadata: {
-            full_name: nextUser.displayName || "",
-          },
-        });
-      });
-    });
+        if (typeof window !== "undefined") window.clearTimeout(timeout);
+        resolve(value);
+      };
 
-    return resolved;
+      const unsubscribe = onAuthStateChanged(auth, (nextUser) => {
+        finish(nextUser ? toClientUser(nextUser) : null);
+      });
+
+      // Don't hang route shells if auth never emits.
+      const timeout =
+        typeof window === "undefined"
+          ? (0 as unknown as number)
+          : window.setTimeout(() => finish(null), 1500);
+    });
   });
 }
 

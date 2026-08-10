@@ -52,7 +52,7 @@ export const CAMPAIGN_ERRORS: CampaignError[] = [
     scenario: "CTA language in creative does not match page actions or user expectations.",
     businessImpact: "Friction in the conversion path and weaker post-click performance.",
     detectionLogic: "Compare creative CTA verbs/intents with primary on-page actions and funnel steps.",
-    recommendedAction: "Align CTA wording and destination actions, then re-validate the creative-to-page path.",
+    recommendedAction: "Align CTA wording and destination actions, then revalidate the creative to page path.",
   },
   {
     id: "wrong-platform-specs",
@@ -112,9 +112,9 @@ export const CAMPAIGN_ERRORS: CampaignError[] = [
     id: "video-spec-errors",
     title: "Video Spec Errors",
     tags: ["Video", "Specs"],
-    scenario: "Video assets miss duration, ratio, safe-zone, or weight constraints.",
-    businessImpact: "Placement rejection and last-minute editor emergencies.",
-    detectionLogic: "Inspect video metadata against platform video rules and safe-zone guidance.",
+    scenario: "Video assets miss duration, ratio, safe zone, or weight constraints.",
+    businessImpact: "Placement rejection and last minute editor emergencies.",
+    detectionLogic: "Inspect video metadata against platform video rules and safe zone guidance.",
     recommendedAction: "Re-encode or reframe videos to compliant specs and confirm Story/Reels/display fit.",
   },
   {

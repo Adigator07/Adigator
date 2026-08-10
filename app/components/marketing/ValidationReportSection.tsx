@@ -155,7 +155,7 @@ export default function ValidationReportSection() {
           className="min-w-0"
         >
           <h2 className="text-[clamp(1.75rem,3.5vw,2.75rem)] font-black leading-[1.12] tracking-[-0.035em]">
-            Know Exactly What Needs Attention Before Execution
+            Know what needs attention before you execute
           </h2>
           <p className="mt-5 max-w-xl text-lg leading-relaxed text-[#5A5A55] sm:text-xl">
             Adigator doesn&apos;t just detect issues. It generates a structured validation report that tells your team

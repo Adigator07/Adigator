@@ -4,7 +4,7 @@ const PRIVACY_SECTIONS: LegalSection[] = [
   {
     title: "What Adigator Does",
     paragraphs: [
-      "Adigator is a pre-launch campaign validation SaaS platform. We help agencies, brands, and AdOps teams review creatives, campaign setup, landing pages, and platform readiness before media spend begins across Google Ads, Meta Ads, and programmatic channels.",
+      "Adigator is a campaign validation SaaS product. We help agencies, brands, and AdOps teams review creatives, campaign setup, landing pages, and platform readiness before media spend begins across Google Ads, Meta Ads, and programmatic channels.",
       "When you choose to connect Google Ads, Adigator uses Google OAuth so you can authorize access to Google Ads accounts that you already own or administer. We do not create Google Ads accounts for you, and we do not access accounts you have not authorized.",
     ],
   },

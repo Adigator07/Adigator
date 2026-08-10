@@ -95,8 +95,6 @@ const TICKER_BENEFITS = [
   "Programmatic",
 ];
 
-const HERO_PILLS = ["AI-ready validation", "Human-in-the-loop", "Launch faster"];
-
 const WHY_CAMPAIGNS_FAIL = [
   {
     title: "Handoffs hide the truth",
@@ -111,12 +109,12 @@ const WHY_CAMPAIGNS_FAIL = [
     body: "Wrong sizes, broken URLs, and missing UTMs become emergencies only after trafficking begins.",
   },
   {
-    title: "Swaps and renewals skip re-validation",
-    body: "Mid-flight changes inherit yesterday's assumptions and quietly reintroduce known failures.",
+    title: "Swaps and renewals skip checks",
+    body: "Changes made while a campaign is live often inherit old assumptions and quietly bring known issues back.",
   },
   {
     title: "Manual QA does not scale",
-    body: "Checklists drift by team, market, and deadline. Enterprise operations need a system, not folklore.",
+    body: "Checklists drift by team, market, and deadline. Growing operations need a shared system, not tribal knowledge.",
   },
   {
     title: "Spend starts before readiness is proven",
@@ -127,9 +125,9 @@ const WHY_CAMPAIGNS_FAIL = [
 const HOW_IT_WORKS = [
   {
     step: "Step 1",
-    title: "Capture campaign intelligence",
+    title: "Capture campaign context",
     items: ["Campaign Goal", "Ad Group Objective", "Vertical", "Offer Context", "Landing Page", "Platform"],
-    tag: "Intelligence",
+    tag: "Context",
   },
   {
     step: "Step 2",
@@ -139,14 +137,14 @@ const HOW_IT_WORKS = [
   },
   {
     step: "Step 3",
-    title: "Gate every operational task",
+    title: "Check every operational task",
     items: ["Setup", "Creative Swap", "Landing Update", "Renewal", "Handoff"],
     tag: "Operate",
   },
   {
     step: "Step 4",
-    title: "Ship launch-ready",
-    items: ["Preview", "Readiness Report", "PPTX Export", "Execution Confidence"],
+    title: "Ship when you are ready",
+    items: ["Preview", "Readiness Report", "PPTX Export", "Clear go ahead"],
     tag: "Launch",
   },
 ];
@@ -172,7 +170,7 @@ const UNDERSTANDS_ITEMS = [
 const PLATFORMS = [
   {
     name: "Meta Ads",
-    desc: "Feed, Story, Reels, and safe-zone validation before trafficking.",
+    desc: "Feed, Story, Reels, and safe zone checks before trafficking.",
     accent: "from-[#0081FB]/20 to-[#66b3ff]/20",
     renderIcon: () => <MetaIcon className="h-5 w-5" />,
   },
@@ -190,13 +188,13 @@ const PLATFORMS = [
   },
   {
     name: "Responsive Display",
-    desc: "Ratio and asset-set checks for Google Responsive Display Ads.",
+    desc: "Ratio and asset set checks for Google Responsive Display Ads.",
     accent: "from-[#0ea5e9]/20 to-[#14b8a6]/20",
     renderIcon: () => <Monitor size={20} />,
   },
   {
-    name: "Cross-device placements",
-    desc: "Desktop, mobile, and tablet fit across the package.",
+    name: "Desktop, mobile, and tablet",
+    desc: "Confirm the package fits across the devices you traffic to.",
     accent: "from-[#f59e0b]/20 to-[#ef4444]/20",
     renderIcon: () => <Smartphone size={20} />,
   },
@@ -206,15 +204,15 @@ const OPERATIONAL_VALUE = [
   {
     title: "One readiness signal",
     description:
-      "Replace fragmented QA threads with a shared campaign readiness report your creative, planning, and AdOps teams can trust.",
+      "Replace scattered QA threads with a shared readiness report that creative, planning, and AdOps can trust.",
   },
   {
     title: "Validate the change, not just the launch",
     description:
-      "Treat swaps, landing updates, renewals, and handoffs as first-class validation events so quality does not reset mid-flight.",
+      "Treat swaps, landing updates, renewals, and handoffs as real validation events so quality does not reset while ads are live.",
   },
   {
-    title: "Prevent the expensive failures",
+    title: "Catch expensive failures early",
     description:
       "Wrong destinations, expired offers, and spec rejects are cheap to catch before spend, and expensive afterward.",
   },
@@ -233,21 +231,21 @@ const BUILT_FOR = [
 ];
 
 const TEAM_OUTCOMES = [
-  "Standardize pre-launch validation across pods",
+  "Standardize validation before launch across pods",
   "Reduce rework between creative and AdOps",
   "Catch destination and tracking issues early",
   "Shorten QA cycles without lowering the bar",
-  "Protect client trust with auditable readiness",
-  "Keep renewals and swaps from inheriting defects",
-  "Scale quality without adding headcount folklore",
+  "Protect client trust with a clear readiness record",
+  "Keep renewals and swaps from inheriting old defects",
+  "Scale quality without relying on tribal knowledge",
 ];
 
 const WORKFLOW_STEPS = [
-  "Anchor validation in campaign intelligence, not isolated assets.",
+  "Start from campaign context, not isolated assets.",
   "Align creative, offer, and landing experience before trafficking.",
-  "Confirm platform specs, URLs, and tracking integrity.",
-  "Gate mid-flight tasks the same way you gate launches.",
-  "Leave a readiness trail your next renewal can reuse.",
+  "Confirm platform specs, URLs, and tracking.",
+  "Check live campaign changes the same way you check launches.",
+  "Leave a readiness record your next renewal can reuse.",
 ];
 
 export default function HomePage() {
@@ -285,23 +283,10 @@ export default function HomePage() {
 
             <div className="relative z-10 grid grid-cols-1 items-center gap-8 md:grid-cols-2 md:gap-10 lg:gap-12">
               <div className="min-w-0">
-                <motion.div
-                  initial={reduceMotion ? false : { opacity: 0, x: slideOffset("left", "md") }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ duration: reduceMotion ? 0 : 0.6, delay: reduceMotion ? 0 : 0.1, ease: [0.22, 1, 0.36, 1] }}
-                  className="mb-6 inline-flex flex-wrap gap-2"
-                >
-                  {HERO_PILLS.map((pill) => (
-                    <span key={pill} className="hero-floating-pill rounded-full border border-black/10 bg-white/80 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.24em] text-[#4B5563] backdrop-blur">
-                      {pill}
-                    </span>
-                  ))}
-                </motion.div>
-
                 <motion.h1
                   initial={reduceMotion ? false : { opacity: 0, x: slideOffset("left", "lg") }}
                   animate={{ opacity: 1, x: 0 }}
-                  transition={{ duration: reduceMotion ? 0 : 0.7, delay: reduceMotion ? 0 : 0.2, ease: [0.22, 1, 0.36, 1] }}
+                  transition={{ duration: reduceMotion ? 0 : 0.7, delay: reduceMotion ? 0 : 0.1, ease: [0.22, 1, 0.36, 1] }}
                   className="text-[clamp(2rem,4.5vw,3.25rem)] font-black leading-[1.08] tracking-[-0.035em]"
                 >
                   Catch Campaign Mistakes Before Media Spend Begins
@@ -310,11 +295,11 @@ export default function HomePage() {
                 <motion.p
                   initial={reduceMotion ? false : { opacity: 0, x: slideOffset("left", "md") }}
                   animate={{ opacity: 1, x: 0 }}
-                  transition={{ duration: reduceMotion ? 0 : 0.7, delay: reduceMotion ? 0 : 0.3, ease: [0.22, 1, 0.36, 1] }}
+                  transition={{ duration: reduceMotion ? 0 : 0.7, delay: reduceMotion ? 0 : 0.2, ease: [0.22, 1, 0.36, 1] }}
                   className="mt-6 max-w-2xl text-lg leading-relaxed text-[#5A5A55] sm:text-xl"
                 >
-                  The operational validation layer for modern AdOps. Catch misalignment across brief, creative,
-                  landing page, URLs, and platform requirements before media spend begins.
+                  Adigator helps AdOps teams check brief, creative, landing page, URLs, and platform requirements
+                  before media spend begins.
                 </motion.p>
 
                 <motion.div
@@ -343,24 +328,13 @@ export default function HomePage() {
                   transition={{ duration: reduceMotion ? 0 : 0.7, delay: reduceMotion ? 0 : 0.5, ease: [0.22, 1, 0.36, 1] }}
                   className="mt-8 flex flex-wrap gap-3 text-sm text-[#4B5563]"
                 >
-                  <span className="rounded-full border border-black/10 bg-white/70 px-3 py-2 backdrop-blur">Pre-launch confidence</span>
-                  <span className="rounded-full border border-black/10 bg-white/70 px-3 py-2 backdrop-blur">Cross-channel readiness</span>
-                  <span className="rounded-full border border-black/10 bg-white/70 px-3 py-2 backdrop-blur">Fast handoffs</span>
+                  <span className="rounded-full border border-black/10 bg-white/70 px-3 py-2 backdrop-blur">Confidence before launch</span>
+                  <span className="rounded-full border border-black/10 bg-white/70 px-3 py-2 backdrop-blur">Works across channels</span>
+                  <span className="rounded-full border border-black/10 bg-white/70 px-3 py-2 backdrop-blur">Faster handoffs</span>
                 </motion.div>
               </div>
 
               <div className="relative flex min-w-0 items-center justify-center py-4 lg:py-0 lg:pl-6">
-                <motion.div
-                  initial={reduceMotion ? false : { opacity: 0, x: slideOffset("right", "lg"), scale: 0.98 }}
-                  animate={{ opacity: 1, x: 0, scale: 1 }}
-                  transition={{ duration: reduceMotion ? 0 : 0.8, delay: reduceMotion ? 0 : 0.35, ease: [0.22, 1, 0.36, 1] }}
-                  className="hero-floating-card bottom-[10%] right-[2%] hidden rounded-2xl border border-black/10 bg-[#111111]/90 p-4 text-white shadow-[0_24px_70px_rgba(15,23,42,0.2)] lg:block"
-                >
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.32em] text-white/60">Runtime</p>
-                  <p className="mt-2 text-base font-semibold">Live readiness</p>
-                  <p className="mt-1 text-sm text-white/75">Warnings surface before spend starts.</p>
-                </motion.div>
-
                 <motion.div
                   initial={reduceMotion ? false : { opacity: 0, y: 12 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -417,15 +391,12 @@ export default function HomePage() {
         {/* Operational failure modes */}
         <section className="marketing-section marketing-section-compact mx-auto w-[min(1280px,92vw)]">
           <div className="mb-6 max-w-3xl">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#8A8A82]">
-              Operational reality
-            </p>
-            <h2 className="mt-3 text-3xl font-black leading-tight tracking-tight sm:text-4xl lg:text-5xl">
+            <h2 className="text-3xl font-black leading-tight tracking-tight sm:text-4xl lg:text-5xl">
               Where campaign operations break
             </h2>
             <p className="mt-4 text-lg leading-relaxed text-[#5A5A55]">
-              Most failures are not creative talent problems. They are system problems: seams, assumptions, and
-              missing gates between teams.
+              Most failures are not creative talent problems. They are process problems: handoffs, assumptions, and
+              missing checks between teams.
             </p>
           </div>
 
@@ -455,11 +426,8 @@ export default function HomePage() {
         <section className="bg-[#0D0D0D] py-10 text-white sm:py-12 md:py-14">
           <div className="mx-auto w-[min(1280px,92vw)]">
             <div className="mb-6 lg:mb-8">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-white/45">
-                Validation workflow
-              </p>
-              <h2 className="mt-3 text-3xl font-black tracking-tight sm:text-4xl lg:text-5xl">
-                From intelligence to execution confidence
+              <h2 className="text-3xl font-black tracking-tight sm:text-4xl lg:text-5xl">
+                From campaign context to a clear go ahead
               </h2>
             </div>
 
@@ -497,15 +465,12 @@ export default function HomePage() {
         {/* What Adigator understands */}
         <section className="marketing-section marketing-section-compact mx-auto w-[min(1280px,92vw)]">
           <div className="mb-6 max-w-3xl">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#8A8A82]">
-              Campaign intelligence
-            </p>
-            <h2 className="mt-3 text-3xl font-black leading-tight tracking-tight sm:text-4xl lg:text-5xl">
-              What Adigator understands
+            <h2 className="text-3xl font-black leading-tight tracking-tight sm:text-4xl lg:text-5xl">
+              What Adigator checks against
             </h2>
             <p className="mt-4 text-lg leading-relaxed text-[#5A5A55]">
-              Validation only works when the system understands campaign intent, then checks every asset and task
-              against that truth.
+              Validation only works when the product understands campaign intent, then checks every asset and task
+              against that shared context.
             </p>
           </div>
 
@@ -529,10 +494,7 @@ export default function HomePage() {
         {/* Platform coverage */}
         <section className="border-y border-[#DEDDD5] bg-[radial-gradient(circle_at_top_left,rgba(66,133,244,0.09),transparent_24%),radial-gradient(circle_at_bottom_right,rgba(200,240,77,0.12),transparent_24%),#FAFAF7] marketing-section-compact">
           <div className="mx-auto w-[min(1280px,92vw)]">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#8A8A82]">
-              The Adigator platform
-            </p>
-            <h2 className="mt-3 text-3xl font-black tracking-tight sm:text-4xl">
+            <h2 className="text-3xl font-black tracking-tight sm:text-4xl">
               Built for the channels you already run
             </h2>
             <p className="mt-4 max-w-2xl text-base leading-relaxed text-[#5A5A55]">
@@ -564,7 +526,7 @@ export default function HomePage() {
               ))}
             </div>
             <p className="mt-6 text-center text-sm font-semibold text-[#6B7280] sm:text-base">
-              More platform-specific validations coming soon
+              More channel checks coming soon
             </p>
           </div>
         </section>
@@ -573,7 +535,7 @@ export default function HomePage() {
         <section className="marketing-section marketing-section-compact mx-auto w-[min(1280px,92vw)]">
           <div className="mb-6 max-w-3xl">
             <h2 className="text-3xl font-black leading-tight tracking-tight sm:text-4xl lg:text-5xl">
-              Your Campaign Journey, Validated End-to-End
+              Your campaign journey, validated from start to finish
             </h2>
           </div>
 
@@ -593,11 +555,8 @@ export default function HomePage() {
             />
             <div className="order-1 lg:order-2">
           <div className="mb-6">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#8A8A82]">
-              Operational outcomes
-            </p>
-            <h2 className="mt-3 text-3xl font-black tracking-tight sm:text-4xl lg:text-5xl">
-              Built for operational teams
+            <h2 className="text-3xl font-black tracking-tight sm:text-4xl lg:text-5xl">
+              Built for the teams who ship campaigns
             </h2>
           </div>
 
@@ -699,7 +658,7 @@ export default function HomePage() {
               Validate before you spend.
             </h2>
             <p className="mt-4 max-w-xl text-base text-white/60">
-              Give AdOps a readiness gate, not another after-the-fact escalation.
+              Give AdOps a readiness check before launch, not another cleanup after something goes wrong.
             </p>
             <Link
               href={MARKETING_CTA.href}
@@ -712,7 +671,7 @@ export default function HomePage() {
       </main>
 
       <MarketingFooter
-        description="The pre launch campaign validation platform for agencies, brands, and AdOps teams who validate before spend, not after complaints."
+        description="Campaign validation for agencies, brands, and AdOps teams who check work before spend, not after complaints."
       />
 
       <style jsx global>{`

@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { Inter, JetBrains_Mono, Cormorant_Garamond } from "next/font/google";
 import BrowserExtensionErrorGuard from "./components/BrowserExtensionErrorGuard";
 import FxPauseOnHidden from "./components/FxPauseOnHidden";
+import NavigationProgress from "./components/NavigationProgress";
 import "./globals.css";
 
 const inter = Inter({
@@ -47,7 +49,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html
       lang="en"
       className={`dark ${inter.variable} ${jetbrainsMono.variable} ${cormorant.variable}`}
-      data-scroll-behavior="smooth"
+      data-scroll-behavior="auto"
       suppressHydrationWarning
     >
       <body
@@ -57,6 +59,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       >
         <BrowserExtensionErrorGuard />
         <FxPauseOnHidden />
+        <Suspense fallback={null}>
+          <NavigationProgress />
+        </Suspense>
         {children}
       </body>
     </html>

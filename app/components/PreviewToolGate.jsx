@@ -18,6 +18,7 @@ import {
 import { MARKETING_SIGN_IN } from "@/app/lib/siteNavigation";
 import { useRouteLoadTelemetry } from "@/app/lib/routeTelemetry";
 import { AdigatorOrbitLoader } from "@/app/components/ui/AdigatorOrbitLoader";
+import { getFirebaseClientAuthOrNull } from "@/app/lib/firebase/client";
 
 const PreviewTool = dynamic(() => import("./PreviewTool"), {
   ssr: false,
@@ -40,7 +41,8 @@ const PreviewTool = dynamic(() => import("./PreviewTool"), {
 export default function PreviewToolGate() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [ready, setReady] = useState(false);
+  const syncedAuthed = Boolean(getFirebaseClientAuthOrNull()?.currentUser);
+  const [ready, setReady] = useState(syncedAuthed);
   const [blocked, setBlocked] = useState(false);
   const [blockReason, setBlockReason] = useState("unknown");
   const markRouteReady = useRouteLoadTelemetry("preview-tool");
@@ -68,7 +70,16 @@ export default function PreviewToolGate() {
 
     (async () => {
       const demoRequest = isDemoEntry(searchParams);
-      let authed = await isAuthenticatedUser();
+      // Synced Firebase session → open studio immediately; confirm access in background.
+      let authed = syncedAuthed || (await isAuthenticatedUser());
+
+      if (authed) {
+        clearGuestDemoRestriction();
+        setBlocked(false);
+        setReady(true);
+        markRouteReady("ready", { blocked: false, authed: true, optimistic: syncedAuthed });
+        return;
+      }
 
       if (demoRequest && !authed) {
         resetPreviewToolForDemo();
@@ -83,8 +94,8 @@ export default function PreviewToolGate() {
       if (!active) return;
 
       if (!authed && !access.allowed && access.reason === "demo_exhausted") {
-        // Guard against delayed auth hydration causing false guest blocking.
-        await new Promise((resolve) => window.setTimeout(resolve, 700));
+        // Brief wait only when we have no synced session (auth may still be hydrating).
+        await new Promise((resolve) => window.setTimeout(resolve, 250));
         authed = await isAuthenticatedUser();
         if (authed) {
           clearGuestDemoRestriction();
@@ -93,10 +104,6 @@ export default function PreviewToolGate() {
           markRouteReady("ready", { blocked: false, authed: true });
           return;
         }
-      }
-
-      if (authed) {
-        clearGuestDemoRestriction();
       }
 
       if (!access.allowed) {
@@ -123,7 +130,7 @@ export default function PreviewToolGate() {
         endGuestDemoSession();
       }
     };
-  }, [markRouteReady, router, searchParams]);
+  }, [markRouteReady, router, searchParams, syncedAuthed]);
 
   if (!ready) {
     return (

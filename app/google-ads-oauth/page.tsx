@@ -36,16 +36,12 @@ export default function GoogleAdsOAuthPage() {
 
       <main className="pt-28">
         <article className="marketing-section marketing-section-compact mx-auto w-[min(820px,92vw)] pb-16">
-          <p className="text-sm font-semibold uppercase tracking-[0.14em] text-[#6B7280]">
-            Integrations · Google Ads
-          </p>
-          <h1 className="mt-3 text-[clamp(2rem,4.5vw,3rem)] font-black leading-tight tracking-[-0.035em]">
+          <h1 className="text-[clamp(2rem,4.5vw,3rem)] font-black leading-tight tracking-[-0.035em]">
             How users connect Google Ads via OAuth
           </h1>
           <p className="mt-6 text-base leading-relaxed text-[#5A5A55] sm:text-lg">
-            Adigator is a legitimate SaaS application for pre-launch campaign validation. Our optional Google Ads
-            integration uses Google OAuth so customers can authorize Adigator to access Google Ads accounts they own
-            or administer.
+            Adigator is a SaaS product for campaign validation before launch. Our optional Google Ads integration uses
+            Google OAuth so customers can authorize Adigator to access Google Ads accounts they own or administer.
           </p>
 
           <div className="mt-8 rounded-2xl border border-[#C8F04D]/40 bg-[#F7FCE8] px-5 py-5 sm:px-6">

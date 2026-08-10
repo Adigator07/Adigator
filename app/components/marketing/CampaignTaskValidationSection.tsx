@@ -113,11 +113,11 @@ export default function CampaignTaskValidationSection() {
         className="max-w-3xl"
       >
         <h2 className="text-[clamp(1.75rem,3.5vw,2.75rem)] font-black leading-[1.12] tracking-[-0.035em]">
-          Every Campaign Task Deserves Validation
+          Every campaign task deserves a validation check
         </h2>
         <p className="mt-5 text-lg leading-relaxed text-[#5A5A55] sm:text-xl">
-          Whether you&apos;re launching a new campaign, adding creatives, updating landing pages, or renewing an
-          existing campaign, every task should be validated before execution to reduce rework and operational risk.
+          Whether you are launching a new campaign, adding creatives, updating landing pages, or renewing an
+          existing flight, each task should be checked before execution so teams spend less time on rework.
         </p>
       </motion.div>
 

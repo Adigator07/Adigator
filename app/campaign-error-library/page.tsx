@@ -50,10 +50,7 @@ export default function CampaignErrorLibraryPage() {
       <main className="pt-28">
         <section className="marketing-section marketing-section-compact mx-auto w-[min(1100px,92vw)]">
           <FadeIn>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#8A8A82]">
-              Documentation
-            </p>
-            <h1 className="mt-4 text-[clamp(2.25rem,5.5vw,4rem)] font-black leading-[1.05] tracking-[-0.04em]">
+            <h1 className="text-[clamp(2.25rem,5.5vw,4rem)] font-black leading-[1.05] tracking-[-0.04em]">
               Campaign Error Library
             </h1>
             <p className="mt-6 max-w-2xl text-lg leading-relaxed text-[#5A5A55] sm:text-xl">
@@ -176,7 +173,7 @@ export default function CampaignErrorLibraryPage() {
 
         <FinalCtaBand
           title="Catch these errors before spend"
-          description="Adigator turns known failure patterns into pre-launch detection, so your team fixes issues while they are still cheap."
+          description="Adigator turns known failure patterns into checks before launch, so your team fixes issues while they are still cheap."
           href={MARKETING_CTA.href}
           label={MARKETING_CTA.label}
         />

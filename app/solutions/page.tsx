@@ -27,7 +27,7 @@ const OPERATIONAL_RISKS = [
   },
   {
     title: "Destination failures",
-    body: "Wrong or broken URLs turn paid traffic into wasted spend within minutes of go-live.",
+    body: "Wrong or broken URLs turn paid traffic into wasted spend within minutes of going live.",
   },
   {
     title: "Offer and CTA drift",
@@ -35,7 +35,7 @@ const OPERATIONAL_RISKS = [
   },
   {
     title: "Spec rejects at the worst time",
-    body: "Dimension, weight, and placement issues become last-minute remakes instead of early gates.",
+    body: "Dimension, weight, and placement issues become last minute remakes instead of early checks.",
   },
   {
     title: "Renewals that reintroduce defects",
@@ -43,33 +43,33 @@ const OPERATIONAL_RISKS = [
   },
   {
     title: "No shared readiness signal",
-    body: "Teams argue in threads and decks because there is no system-level pass/fail for execution.",
+    body: "Teams argue in threads and decks because there is no clear pass or fail for execution.",
   },
 ];
 
 const VALIDATION_WORKFLOW = [
-  { label: "Establish campaign intelligence", detail: "Brief, objective, vertical, offer, and platform context." },
+  { label: "Establish campaign context", detail: "Brief, objective, vertical, offer, and platform context." },
   { label: "Validate alignment", detail: "Creative, messaging, offers, and landing continuity." },
   { label: "Validate technical readiness", detail: "Specs, URLs, UTMs, placements, and tracking." },
-  { label: "Gate the operational task", detail: "Setup, swap, update, renewal, or handoff." },
-  { label: "Release with a readiness trail", detail: "Shared signal for AdOps and stakeholders." },
+  { label: "Check the operational task", detail: "Setup, swap, update, renewal, or handoff." },
+  { label: "Release with a readiness record", detail: "Shared signal for AdOps and stakeholders." },
 ];
 
 const PLATFORM_OUTCOMES = [
   {
-    title: "Pre-launch validation",
+    title: "Validation before launch",
     body: "Catch preventable mismatches before media systems ever see the package.",
   },
   {
-    title: "Task-level gates",
-    body: "Re-validate what mid-flight changes can break, without restarting the whole program.",
+    title: "Task level checks",
+    body: "Revalidate what live campaign changes can break, without restarting the whole program.",
   },
   {
-    title: "Cross-channel coverage",
+    title: "Coverage across channels",
     body: "Meta, Google, and programmatic constraints evaluated in the same operational language.",
   },
   {
-    title: "Auditable readiness",
+    title: "Clear readiness records",
     body: "Give client teams and partners a shared record of what passed and what still blocks.",
   },
 ];
@@ -77,13 +77,13 @@ const PLATFORM_OUTCOMES = [
 const LIFECYCLE = [
   { stage: "Setup", detail: "Validate the full package before trafficking." },
   { stage: "Launch", detail: "Release only when readiness clears." },
-  { stage: "Optimize", detail: "Gate swaps, page updates, and audience changes." },
+  { stage: "Optimize", detail: "Check swaps, page updates, and audience changes." },
   { stage: "Renew", detail: "Re-check freshness and inherited assumptions." },
-  { stage: "Handoff", detail: "Package a clean execution state for AdOps/vendors." },
+  { stage: "Handoff", detail: "Package a clean execution state for AdOps and vendors." },
 ];
 
 const COVERAGE = [
-  "Campaign brief & objective continuity",
+  "Campaign brief and objective continuity",
   "Creative messaging and offer alignment",
   "Landing page continuity",
   "URL health and destination integrity",
@@ -104,13 +104,12 @@ export default function SolutionsPage() {
       <main className="pt-28">
         <section className="marketing-section marketing-section-compact mx-auto w-[min(1100px,92vw)]">
           <FadeIn>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#8A8A82]">Solutions</p>
-            <h1 className="mt-4 text-[clamp(2.25rem,5.5vw,4rem)] font-black leading-[1.05] tracking-[-0.04em]">
+            <h1 className="text-[clamp(2.25rem,5.5vw,4rem)] font-black leading-[1.05] tracking-[-0.04em]">
               How Adigator solves campaign operation problems
             </h1>
             <p className="mt-6 max-w-2xl text-lg leading-relaxed text-[#5A5A55] sm:text-xl">
-              This page is about operations, not marketing slogans. Adigator installs a validation gate between
-              campaign work and execution so preventable errors never become live spend.
+              Adigator sits between campaign work and execution. It gives teams a validation check so preventable
+              errors never become live spend.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
               <Link href={MARKETING_CTA.href} className="marketing-btn-lime rounded-full px-7 py-3.5 text-sm font-bold">
@@ -128,9 +127,8 @@ export default function SolutionsPage() {
 
         <section id="risks" className="marketing-section marketing-section-compact mx-auto w-[min(1100px,92vw)]">
           <SectionHeader
-            eyebrow="Operational risks"
-            title="The failures we eliminate before execution"
-            description="These are the recurring campaign-operation failures that drain budget, time, and client trust."
+            title="The failures we stop before execution"
+            description="These are the recurring campaign operation failures that drain budget, time, and client trust."
           />
           <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {OPERATIONAL_RISKS.map((item, i) => (
@@ -148,9 +146,8 @@ export default function SolutionsPage() {
           <div className="mx-auto grid w-[min(1100px,92vw)] gap-10 lg:grid-cols-2 lg:items-start">
             <SectionHeader
               dark
-              eyebrow="Validation workflow"
-              title="A repeatable gate for every campaign task"
-              description="Adigator does not replace your teams. It gives them a shared operational sequence before anything ships."
+              title="A repeatable check for every campaign task"
+              description="Adigator does not replace your teams. It gives them a shared sequence before anything ships."
             />
             <div className="rounded-[24px] border border-white/10 bg-white/[0.04] p-6 sm:p-8">
               <WorkflowSteps steps={VALIDATION_WORKFLOW} dark />
@@ -160,8 +157,7 @@ export default function SolutionsPage() {
 
         <section id="platform" className="marketing-section marketing-section-compact mx-auto w-[min(1100px,92vw)]">
           <SectionHeader
-            eyebrow="Platform"
-            title="What the platform changes in day-to-day operations"
+            title="What changes in day to day operations"
             description="Concrete outcomes for the people who build, approve, and traffic campaigns."
           />
           <div className="mt-8 grid gap-4 sm:grid-cols-2">
@@ -179,8 +175,7 @@ export default function SolutionsPage() {
         <SoftBand className="marketing-section-compact">
           <div className="mx-auto w-[min(1100px,92vw)]">
             <SectionHeader
-              eyebrow="Campaign lifecycle"
-              title="Validation across the entire campaign lifecycle"
+              title="Validation across the full campaign lifecycle"
               description="Setup is only the beginning. Real operations continue through optimization, renewal, and handoff."
             />
             <div className="mt-8 grid gap-3 sm:grid-cols-5">
@@ -212,9 +207,8 @@ export default function SolutionsPage() {
           <div className="mx-auto w-[min(1100px,92vw)]">
             <SectionHeader
               dark
-              eyebrow="Validation coverage"
               title="What gets checked before execution"
-              description="A practical coverage set designed for campaign operations, not vanity feature lists."
+              description="A practical coverage set for campaign operations, not a vanity feature list."
             />
             <div className="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {COVERAGE.map((item) => (
@@ -227,7 +221,7 @@ export default function SolutionsPage() {
               ))}
             </div>
             <p className="mt-8 text-sm text-white/55">
-              Prefer failure-pattern detail? Browse the{" "}
+              Prefer failure pattern detail? Browse the{" "}
               <Link href="/campaign-error-library" className="font-semibold text-[#C8F04D] hover:underline">
                 Campaign Error Library
               </Link>
@@ -241,8 +235,8 @@ export default function SolutionsPage() {
         </section>
 
         <FinalCtaBand
-          title="Install the gate before the next campaign task"
-          description="Stop treating launch quality as a heroic scramble. Make validation the default operational step."
+          title="Add the check before your next campaign task"
+          description="Stop treating launch quality as a last minute scramble. Make validation a normal step in the workflow."
           href={MARKETING_CTA.href}
           label={MARKETING_CTA.label}
         />

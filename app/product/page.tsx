@@ -217,36 +217,27 @@ export default function ProductPage() {
         <section className="px-4 pb-14 pt-28 sm:px-6 lg:px-8">
           <div className="mx-auto grid w-[min(1320px,92vw)] gap-14 lg:grid-cols-[1.02fr_0.98fr] lg:items-center">
             <div>
-              <motion.span
+              <motion.h1
                 custom={0}
                 initial="hidden"
                 animate="visible"
                 variants={fadeUp}
-                className="inline-flex rounded-full border border-[#D8D7CF] bg-white px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-[#5B5B55]"
+                className="text-[clamp(4.1rem,8vw,5.8rem)] font-black leading-[0.94] tracking-[-0.055em]"
               >
-                Products
-              </motion.span>
-              <motion.h1
-                custom={1}
-                initial="hidden"
-                animate="visible"
-                variants={fadeUp}
-                className="mt-8 text-[clamp(4.1rem,8vw,5.8rem)] font-black leading-[0.94] tracking-[-0.055em]"
-              >
-                Advertising, optimized.
-                <span className="block">Performance, maximized.</span>
+                Advertising tools that
+                <span className="block">help teams ship cleaner.</span>
               </motion.h1>
               <motion.p
-                custom={2}
+                custom={1}
                 initial="hidden"
                 animate="visible"
                 variants={fadeUp}
                 className="mt-6 max-w-2xl text-lg leading-relaxed text-[#66665F]"
               >
-                Leading your market starts with intelligent tools and deeper insights.
+                Validate creatives, preview placements, and get a clear readiness view before you traffic spend.
               </motion.p>
               <motion.div
-                custom={3}
+                custom={2}
                 initial="hidden"
                 animate="visible"
                 variants={fadeUp}
@@ -271,12 +262,6 @@ export default function ProductPage() {
               className="relative mx-auto w-full max-w-[560px]"
             >
               <div className="relative rounded-[32px] border border-[#DDDCD4] bg-white p-5 shadow-[0_18px_50px_rgba(15,15,15,0.05)]">
-                <div className="absolute -left-4 top-10 rounded-full border border-[#D7D6CE] bg-[#0D0D0D] px-4 py-2 text-xs font-semibold uppercase tracking-[0.14em] text-white">
-                  Product UI
-                </div>
-                <div className="absolute -right-4 bottom-14 rounded-full border border-[#D7D6CE] bg-[#C8F04D] px-4 py-2 text-xs font-semibold uppercase tracking-[0.14em] text-[#0D0D0D]">
-                  Live insights
-                </div>
                 <div className="rounded-[24px] border border-[#E5E4DC] bg-[#F0EFE8] p-4">
                   <div className="grid gap-4 md:grid-cols-[1.08fr_0.92fr] md:items-center rounded-[22px] bg-[#0D0D0D] p-4">
                     <Image
@@ -289,9 +274,9 @@ export default function ProductPage() {
                     />
                     <div className="space-y-3 rounded-[20px] border border-white/10 bg-white/5 p-4 text-white">
                       {[
-                        ["Analyze Creative", "10-layer decision pipeline"],
-                        ["Preview Engine", "10 environment families"],
-                        ["Export Layer", "Stakeholder-ready PPTX output"],
+                        ["Analyze Creative", "Multi layer decision pipeline"],
+                        ["Preview Engine", "Placement previews across channels"],
+                        ["Export Layer", "PPTX reports ready for stakeholders"],
                       ].map((item) => (
                         <div key={item[0]} className="rounded-2xl border border-white/10 bg-white/5 p-3">
                           <p className="text-xs uppercase tracking-[0.16em] text-white/45">{item[0]}</p>
@@ -309,7 +294,7 @@ export default function ProductPage() {
         <section id="overview" className="bg-[#0D0D0D] px-4 py-14 sm:py-16 text-white sm:px-6 lg:px-8">
           <div className="mx-auto w-[min(1320px,92vw)] text-center">
             <h2 className="text-[clamp(2.2rem,4vw,3rem)] font-black tracking-[-0.04em]">
-              The complete, AI-powered advertising solution
+              The complete advertising workflow in one place
             </h2>
             <p className="mt-6 text-[clamp(1.2rem,2.2vw,1.9rem)] font-semibold text-[#C8F04D]">
               10 analysis layers, 3 platform matrices, and 10 preview environments in one workflow.
@@ -378,7 +363,7 @@ export default function ProductPage() {
               transition={{ duration: 0.6 }}
             >
               <h2 className="text-[clamp(2.5rem,4.8vw,4rem)] font-black leading-[1] tracking-[-0.05em]">
-                Your AI-powered command center for campaign performance
+                Your command center for campaign performance
               </h2>
               <p className="mt-6 max-w-xl text-lg leading-relaxed text-[#66665F]">
                 Adigator's advertising intelligence orchestrator evaluates creative assets through extraction, attention analysis,
@@ -648,7 +633,7 @@ export default function ProductPage() {
           <div>
             <p className="text-2xl font-black tracking-tight">Adigator</p>
             <p className="mt-4 max-w-xs text-sm leading-relaxed text-white/60">
-              AI-powered advertising intelligence for validation, preview, and launch-ready decision making.
+              Advertising intelligence for validation, preview, and clearer decisions before launch.
             </p>
           </div>
 

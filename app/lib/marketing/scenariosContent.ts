@@ -18,24 +18,24 @@ export const OPERATIONAL_SCENARIOS: OperationalScenario[] = [
     category: "Launch",
     scenario: "A new campaign is assembled from brief, creatives, destinations, and platform targeting.",
     problem: "Assets look complete in isolation, but objective, creative promise, and landing experience diverge.",
-    risk: "Launch slips, last-minute rework, and early-performance failure from preventable mismatches.",
+    risk: "Launch slips, last minute rework, and early performance failure from preventable mismatches.",
     howAdigatorHelps:
       "Validates the full setup package (brief intent, creative fit, landing continuity, URLs, UTMs, and specs) before AdOps executes.",
     outcome: "Teams enter trafficking with a shared readiness signal instead of hope.",
-    timeline: "Pre-launch · 1 validation cycle before trafficking",
+    timeline: "Before launch · 1 validation cycle before trafficking",
     workflow: ["Ingest brief", "Validate creatives", "Check destinations", "Confirm specs", "Approve for execution"],
   },
   {
     id: "creative-swap",
     title: "Creative Swap",
     category: "Optimization",
-    scenario: "Performance or brand needs require replacing live creatives mid-flight.",
+    scenario: "Performance or brand needs require replacing creatives while the campaign is live.",
     problem: "New creatives inherit old assumptions about offers, CTAs, and landing pages.",
     risk: "Messaging drift, outdated promotions, and broken continuity after the swap.",
     howAdigatorHelps:
-      "Re-validates the swapped assets against current campaign intelligence, destinations, and platform requirements.",
+      "Revalidates the swapped assets against current campaign context, destinations, and platform requirements.",
     outcome: "Swaps ship faster with confidence that version changes did not break the story.",
-    timeline: "In-flight · same-day validation gate",
+    timeline: "While live · same day validation check",
     workflow: ["Identify change set", "Diff vs. approved state", "Re-check alignment", "Confirm destinations", "Release to AdOps"],
   },
   {
@@ -46,9 +46,9 @@ export const OPERATIONAL_SCENARIOS: OperationalScenario[] = [
     problem: "Creative still points to old offers, CTAs, or proof points that no longer exist on-page.",
     risk: "Trust erosion, lower conversion, and brand inconsistency across paid journeys.",
     howAdigatorHelps:
-      "Detects creative-to-page and offer mismatches after the destination changes, before the update is considered complete.",
+      "Detects creative to page and offer mismatches after the destination changes, before the update is considered complete.",
     outcome: "Landing changes stay synchronized with live creative and campaign intent.",
-    timeline: "Pre-publish · validation before page cutover",
+    timeline: "Before publish · validation before page cutover",
     workflow: ["Capture page delta", "Compare creative claims", "Validate CTAs & offers", "Confirm URL integrity", "Sign off cutover"],
   },
   {
@@ -61,7 +61,7 @@ export const OPERATIONAL_SCENARIOS: OperationalScenario[] = [
     howAdigatorHelps:
       "Runs destination integrity checks (reachability, redirect sanity, and campaign alignment) before links are trafficked.",
     outcome: "Broken or wrong destinations are blocked from becoming live traffic leaks.",
-    timeline: "Pre-traffic · hard gate",
+    timeline: "Before traffic · hard gate",
     workflow: ["Collect destination set", "Probe URL health", "Validate alignment", "Flag failures", "Require correction"],
   },
   {
@@ -74,7 +74,7 @@ export const OPERATIONAL_SCENARIOS: OperationalScenario[] = [
     howAdigatorHelps:
       "Treats renewal as a fresh operational task: re-validates freshness, links, compliance, and continuity against current context.",
     outcome: "Renewals inherit intelligence without inheriting stale defects.",
-    timeline: "Pre-renewal · compressed re-validation",
+    timeline: "Before renewal · compressed revalidation",
     workflow: ["Load prior memory", "Identify stale assets", "Re-validate package", "Close open risks", "Approve renewal"],
   },
   {
@@ -87,7 +87,7 @@ export const OPERATIONAL_SCENARIOS: OperationalScenario[] = [
     howAdigatorHelps:
       "Runs addition-focused checks for dimensions, messaging alignment, placement compatibility, and destination continuity.",
     outcome: "Scale without diluting the launch bar.",
-    timeline: "Anytime · per-batch validation",
+    timeline: "Anytime · per batch validation",
     workflow: ["Upload additions", "Spec validation", "Message alignment", "Placement fit", "Merge into approved set"],
   },
   {
@@ -100,7 +100,7 @@ export const OPERATIONAL_SCENARIOS: OperationalScenario[] = [
     howAdigatorHelps:
       "Surfaces message-to-audience tension using campaign intelligence so creative and offers can be reassessed with the update.",
     outcome: "Audience changes trigger purposeful creative and offer review, not silent drift.",
-    timeline: "Pre-update · advisory + gates",
+    timeline: "Before update · advisory plus checks",
     workflow: ["Capture audience delta", "Review creative claims", "Check offer relevance", "Flag mismatches", "Approve update"],
   },
   {
@@ -113,7 +113,7 @@ export const OPERATIONAL_SCENARIOS: OperationalScenario[] = [
     howAdigatorHelps:
       "Packages a validated readiness state so vendors execute against a clear gate instead of reconstructing intent.",
     outcome: "Outsourcing becomes execution, not re-discovery.",
-    timeline: "Pre-handoff · package + sign-off",
+    timeline: "Before handoff · package and sign off",
     workflow: ["Finalize assets", "Run full validation", "Export readiness", "Hand off package", "Track exceptions"],
   },
   {
@@ -121,13 +121,13 @@ export const OPERATIONAL_SCENARIOS: OperationalScenario[] = [
     title: "Agency Workflow",
     category: "Team",
     scenario: "Account, creative, and AdOps teams collaborate across client campaigns under tight SLAs.",
-    problem: "Each team validates different slices; nobody owns end-to-end coherence.",
+    problem: "Each team validates different slices; nobody owns coherence across the full workflow.",
     risk: "Client escalations, rushed launches, and inconsistent QA standards by pod.",
     howAdigatorHelps:
-      "Creates a shared operational validation layer that standardizes readiness across client teams and roles.",
+      "Creates a shared validation layer that standardizes readiness across client teams and roles.",
     outcome: "Agency pods share one readiness language and fewer surprise defects.",
     timeline: "Continuous · embedded in delivery cadence",
-    workflow: ["Brief intake", "Cross-team validation", "Issue ownership", "Client-ready report", "Traffic with confidence"],
+    workflow: ["Brief intake", "Cross-team validation", "Issue ownership", "Client ready report", "Traffic with confidence"],
   },
   {
     id: "enterprise-workflow",

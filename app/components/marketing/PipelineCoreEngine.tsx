@@ -383,7 +383,7 @@ export default function PipelineCoreEngine() {
 
             <div className="grid w-full items-center gap-6 lg:grid-cols-[1fr_auto_1fr] lg:gap-8">
               <div className="order-2 flex justify-center lg:order-1 lg:justify-end">
-                <BrainPanel title="Left Brain" nodes={LEFT_BRAIN} activeIndex={activeLeftBrain} side="left" />
+                <BrainPanel title="Technical checks" nodes={LEFT_BRAIN} activeIndex={activeLeftBrain} side="left" />
               </div>
 
               <div className="order-1 flex justify-center lg:order-2">
@@ -391,7 +391,7 @@ export default function PipelineCoreEngine() {
               </div>
 
               <div className="order-3 flex justify-center lg:justify-start">
-                <BrainPanel title="Right Brain" nodes={RIGHT_BRAIN} activeIndex={activeRightBrain} side="right" />
+                <BrainPanel title="Creative checks" nodes={RIGHT_BRAIN} activeIndex={activeRightBrain} side="right" />
               </div>
             </div>
           </div>
@@ -407,7 +407,7 @@ export default function PipelineCoreEngine() {
 
       <div className="border-t border-white/5 bg-[#111111]/90 px-4 py-2.5 backdrop-blur-sm sm:px-5">
         <p className="text-center text-[11px] text-white/45 sm:text-xs">
-          Campaign Task → Adigator Validation Engine → Left Brain &amp; Right Brain → Final Outcome
+          Campaign Task → Adigator Validation Engine → Technical &amp; Creative checks → Final Outcome
         </p>
       </div>
     </div>

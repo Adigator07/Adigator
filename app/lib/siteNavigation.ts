@@ -45,7 +45,7 @@ export const GOOGLE_ADS_START = {
 };
 
 export const MARKETING_FOOTER_DESCRIPTION =
-  "The pre-launch campaign validation layer for agencies and brands who refuse to waste media spend on preventable errors.";
+  "Campaign validation for agencies and brands who would rather catch mistakes before spend, not after they go live.";
 
 export const MARKETING_FOOTER_PRODUCT_LINKS: MarketingFooterLink[] = [
   { label: "Solutions", href: "/solutions" },
