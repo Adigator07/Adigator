@@ -3,8 +3,17 @@
 import { FormEvent, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ArrowRight, Loader2, Check } from "lucide-react";
-import { motion, useReducedMotion, type Variants } from "framer-motion";
+import {
+  ArrowRight,
+  BadgeCheck,
+  BugOff,
+  ChevronDown,
+  Loader2,
+  Check,
+  Rocket,
+  Wallet,
+} from "lucide-react";
+import { AnimatePresence, motion, useReducedMotion, type Variants } from "framer-motion";
 import {
   browserLocalPersistence,
   EmailAuthProvider,
@@ -46,6 +55,11 @@ import {
   getFirebaseClientFirestoreOrNull,
 } from "@/app/lib/firebase/client";
 import { getClientProfileData } from "@/app/lib/firestore/clientProfiles";
+import {
+  GoogleAdsIcon,
+  MetaIcon,
+  TradeDeskIcon,
+} from "@/app/components/brand/PlatformBrandIcons";
 
 type RegisterRole = Extract<UserRole, "usa_client" | "end_client">;
 
@@ -63,28 +77,57 @@ const VALIDATION_STATS = [
   {
     title: "Campaign Validation",
     value: "48 Campaigns Validated",
-    accent: "text-emerald-400",
+    accent: "text-emerald-600",
+    iconWrap: "bg-emerald-50 text-emerald-600 ring-emerald-200/80",
+    Icon: BadgeCheck,
     check: true,
   },
   {
     title: "Launch Ready",
     value: "96% Average Readiness Score",
-    accent: "text-[#00D4FF]",
+    accent: "text-sky-600",
+    iconWrap: "bg-sky-50 text-sky-600 ring-sky-200/80",
+    Icon: Rocket,
     check: false,
   },
   {
     title: "Budget Risk",
     value: "-$14,800 Potential Waste Prevented",
-    accent: "text-amber-300",
+    accent: "text-amber-600",
+    iconWrap: "bg-amber-50 text-amber-600 ring-amber-200/80",
+    Icon: Wallet,
     check: false,
   },
   {
     title: "Issues Prevented",
     value: "127 Critical Issues Fixed",
-    accent: "text-violet-300",
+    accent: "text-violet-600",
+    iconWrap: "bg-violet-50 text-violet-600 ring-violet-200/80",
+    Icon: BugOff,
     check: false,
   },
-];
+] as const;
+
+const PLATFORM_OPTION_MOTION = {
+  google_ads: {
+    initial: { opacity: 0, x: -28, rotate: -4, scale: 0.94 },
+    animate: { opacity: 1, x: 0, rotate: 0, scale: 1 },
+    exit: { opacity: 0, x: -16, rotate: -3, scale: 0.96 },
+    transition: { type: "spring", stiffness: 420, damping: 28, mass: 0.7 },
+  },
+  meta: {
+    initial: { opacity: 0, y: 22, scale: 0.82 },
+    animate: { opacity: 1, y: 0, scale: 1 },
+    exit: { opacity: 0, y: 12, scale: 0.9 },
+    transition: { type: "spring", stiffness: 380, damping: 22, mass: 0.65 },
+  },
+  programmatic: {
+    initial: { opacity: 0, x: 28, rotateX: 55, transformPerspective: 700 },
+    animate: { opacity: 1, x: 0, rotateX: 0, transformPerspective: 700 },
+    exit: { opacity: 0, x: 18, rotateX: 35, transformPerspective: 700 },
+    transition: { type: "spring", stiffness: 340, damping: 26, mass: 0.75 },
+  },
+} as const;
 
 const inputClassName =
   "h-[3.25rem] w-full rounded-xl border border-[#E8E6DF] bg-white/90 px-4 text-[15px] text-[#0D0D0D] shadow-[inset_0_1px_2px_rgba(15,23,42,0.04)] outline-none transition placeholder:text-[#9CA3AF] focus:border-[#0D0D0D]/30 focus:bg-white focus:shadow-[0_0_0_3px_rgba(13,13,13,0.06)]";
@@ -182,32 +225,6 @@ type HiTechInputProps = {
   className?: string;
 };
 
-function GoogleAdsIcon({ className = "h-4 w-4" }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" className={className} aria-hidden="true" focusable="false">
-      <path d="M10.65 3.35a3.9 3.9 0 0 1 5.37 1.43l4.95 8.58a3.9 3.9 0 1 1-6.76 3.9l-4.95-8.58a3.9 3.9 0 0 1 1.39-5.33Z" fill="#4285F4" />
-      <path d="M7.35 6.1a3.9 3.9 0 0 1 1.43 5.34L4.38 19a3.9 3.9 0 1 1-6.76-3.9l4.4-7.57A3.9 3.9 0 0 1 7.35 6.1Z" fill="#34A853" transform="translate(3 0)" />
-      <circle cx="18.15" cy="17.6" r="2.1" fill="#FBBC04" />
-    </svg>
-  );
-}
-
-function MetaIcon({ className = "h-4 w-4" }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" className={className} aria-hidden="true" focusable="false">
-      <path d="M11.2 4.4c-4.2 0-7.6 3.4-7.6 7.6 0 4.2 3.4 7.6 7.6 7.6 4.2 0 7.6-3.4 7.6-7.6 0-4.2-3.4-7.6-7.6-7.6Zm-3.4 7.7c0-1.8 1.4-3.2 3.2-3.2 1.4 0 2.3.7 2.8 1.8l.7-1.7h1.5l-1.8 4.4c-.3.8-.8 1.2-1.5 1.2-.9 0-1.6-.6-1.9-1.7l-.7 1.7H8.3l1.4-3.5Zm6.3 0c0 1.8-1.4 3.2-3.2 3.2-1.4 0-2.3-.7-2.8-1.8l-.7 1.7h-1.5l1.8-4.4c.3-.8.8-1.2 1.5-1.2.9 0 1.6.6 1.9 1.7l.7-1.7h1.5l-1.5 3.5Z" fill="currentColor" />
-    </svg>
-  );
-}
-
-function ProgrammaticIcon({ className = "h-4 w-4" }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" className={className} aria-hidden="true" focusable="false">
-      <path d="M4 6.5A2.5 2.5 0 0 1 6.5 4h11A2.5 2.5 0 0 1 20 6.5v11a2.5 2.5 0 0 1-2.5 2.5h-11A2.5 2.5 0 0 1 4 17.5v-11Zm2.5-.5a.5.5 0 0 0-.5.5v11c0 .28.22.5.5.5h11a.5.5 0 0 0 .5-.5v-11a.5.5 0 0 0-.5-.5h-11Zm1.8 3.2a.8.8 0 0 1 1.13 0l2.4 1.8a.8.8 0 0 1 0 1.3l-2.4 1.8a.8.8 0 0 1-1.13-1.3l1.8-1.35-1.8-1.35a.8.8 0 0 1 0-1.3Zm3.6 0a.8.8 0 0 1 1.13 0l2.4 1.8a.8.8 0 0 1 0 1.3l-2.4 1.8a.8.8 0 0 1-1.13-1.3l1.8-1.35-1.8-1.35a.8.8 0 0 1 0-1.3Z" fill="currentColor" />
-    </svg>
-  );
-}
-
 export default function LoginContent() {
   const router = useRouter();
   const reduceMotion = useReducedMotion();
@@ -234,6 +251,8 @@ export default function LoginContent() {
   const [resetMessage, setResetMessage] = useState<string | null>(null);
   const [signupSuccessMessage, setSignupSuccessMessage] = useState<string | null>(null);
   const [submitPulse, setSubmitPulse] = useState(false);
+  const [platformMenuOpen, setPlatformMenuOpen] = useState(true);
+  const [footerPlatformMenuOpen, setFooterPlatformMenuOpen] = useState(true);
   const queryStatusError = isPendingQuery
     ? LOGIN_PENDING_APPROVAL_ERROR
     : isDisabledQuery
@@ -567,24 +586,180 @@ export default function LoginContent() {
 
   const platformOptions = [
     {
-      key: "google_ads",
+      key: "google_ads" as const,
       label: "Google Ads",
-      ctaLabel: "Open Google Ads login",
-      icon: <GoogleAdsIcon className="h-4 w-4" />,
+      subtitle: "Ads Manager workspace",
+      ctaLabel: "Open Google Ads",
+      icon: <GoogleAdsIcon className="h-7 w-7" />,
+      iconBg: "bg-white",
+      tint: "from-blue-500/15 via-sky-400/10 to-transparent",
+      ring: "ring-blue-200/80",
     },
     {
-      key: "meta",
+      key: "meta" as const,
       label: "Meta",
-      ctaLabel: "Open Meta Ads Manager",
-      icon: <MetaIcon className="h-4 w-4" />,
+      subtitle: "Ads Manager & campaigns",
+      ctaLabel: "Open Meta Ads",
+      icon: <MetaIcon className="h-7 w-7" />,
+      iconBg: "bg-white",
+      tint: "from-[#0081FB]/15 via-indigo-400/10 to-transparent",
+      ring: "ring-indigo-200/80",
     },
     {
-      key: "programmatic",
+      key: "programmatic" as const,
       label: "Programmatic",
-      ctaLabel: "Open Trade Desk login",
-      icon: <ProgrammaticIcon className="h-4 w-4" />,
+      subtitle: "Trade Desk login",
+      ctaLabel: "Open Trade Desk",
+      icon: <TradeDeskIcon className="h-7 w-7" />,
+      iconBg: "bg-white",
+      tint: "from-neutral-500/10 via-rose-400/10 to-transparent",
+      ring: "ring-neutral-200/80",
     },
-  ] as const;
+  ];
+
+  function renderPlatformLauncher({
+    open,
+    onToggle,
+    source,
+    compact = false,
+  }: {
+    open: boolean;
+    onToggle: () => void;
+    source: string;
+    compact?: boolean;
+  }) {
+    return (
+      <div className={compact ? "relative" : "relative mb-4"}>
+        <button
+          type="button"
+          aria-expanded={open}
+          onClick={onToggle}
+          className={`group relative w-full overflow-hidden text-left transition ${
+            compact
+              ? "rounded-3xl border border-[#E8E6DF] bg-[linear-gradient(135deg,#FFFFFF_0%,#F7F5EF_100%)] p-4 shadow-[0_12px_30px_rgba(15,23,42,0.08)] hover:-translate-y-0.5"
+              : "rounded-3xl border border-white/14 bg-[linear-gradient(135deg,rgba(255,255,255,0.16),rgba(255,255,255,0.06))] p-px shadow-[0_18px_55px_rgba(0,0,0,0.12)] backdrop-blur-md"
+          }`}
+        >
+          {compact ? (
+            <>
+              <span className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(0,212,255,0.16),transparent_38%),radial-gradient(circle_at_bottom_right,rgba(16,185,129,0.16),transparent_42%)]" />
+              <span className="relative flex w-full items-center justify-between gap-3">
+                <span className="flex items-center gap-3">
+                  <span className="flex h-11 w-11 items-center justify-center rounded-full border border-[#E8E6DF] bg-white/80 shadow-sm">
+                    <span className="flex -space-x-1.5">
+                      <span className="flex h-5 w-5 items-center justify-center rounded-full bg-white shadow-sm ring-1 ring-slate-200">
+                        <GoogleAdsIcon className="h-3.5 w-3.5" />
+                      </span>
+                      <span className="flex h-5 w-5 items-center justify-center rounded-full bg-white shadow-sm ring-1 ring-slate-200">
+                        <MetaIcon className="h-3.5 w-3.5" />
+                      </span>
+                      <span className="flex h-5 w-5 items-center justify-center rounded-full bg-white shadow-sm ring-1 ring-slate-200">
+                        <TradeDeskIcon className="h-3.5 w-3.5" />
+                      </span>
+                    </span>
+                  </span>
+                  <span className="ml-1">
+                    <span className="block text-[11px] font-semibold uppercase tracking-[0.16em] text-[#6B7280]">Quick access</span>
+                    <span className="mt-1 block text-sm font-semibold text-[#0D0D0D]">
+                      {open ? "Pick a platform below" : "Open platform options"}
+                    </span>
+                  </span>
+                </span>
+                <span className="relative inline-flex items-center gap-2 rounded-full bg-[#0D0D0D] px-3 py-2 text-sm font-semibold text-white">
+                  {open ? "Close" : "Options"}
+                  <ChevronDown size={14} className={`transition duration-300 ${open ? "rotate-180" : ""}`} />
+                </span>
+              </span>
+            </>
+          ) : (
+            <span className="block rounded-[23px] bg-[linear-gradient(120deg,rgba(255,255,255,0.96),rgba(232,245,255,0.94),rgba(220,242,255,0.9))] p-4 sm:p-5">
+              <span className="flex items-start justify-between gap-3">
+                <span>
+                  <span className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">Launch faster</span>
+                  <span className="mt-2 block text-lg font-semibold text-slate-900">Open a platform workspace</span>
+                </span>
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-200/80 bg-slate-100/90 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-700">
+                  options
+                  <ChevronDown
+                    size={12}
+                    className={`transition duration-300 ${open ? "rotate-180" : ""}`}
+                    aria-hidden
+                  />
+                </span>
+              </span>
+              <span className="mt-4 flex items-center gap-2">
+                <span className="relative flex h-11 w-11 items-center justify-center rounded-full border border-slate-200/80 bg-white shadow-sm">
+                  <span className="flex -space-x-1.5">
+                    <span className="flex h-5 w-5 items-center justify-center rounded-full bg-white shadow-sm ring-1 ring-slate-200">
+                      <GoogleAdsIcon className="h-3.5 w-3.5" />
+                    </span>
+                    <span className="flex h-5 w-5 items-center justify-center rounded-full bg-white shadow-sm ring-1 ring-slate-200">
+                      <MetaIcon className="h-3.5 w-3.5" />
+                    </span>
+                  </span>
+                </span>
+                <span className="ml-2 inline-flex items-center gap-2 rounded-full border border-slate-200/80 bg-white/70 px-3 py-2 text-sm font-semibold text-slate-700 transition group-hover:bg-white">
+                  {open ? "Hide platforms" : "Choose platform"}
+                  <ArrowRight size={14} className={`shrink-0 transition duration-300 ${open ? "rotate-90" : ""}`} />
+                </span>
+              </span>
+            </span>
+          )}
+        </button>
+
+        <AnimatePresence initial={false}>
+          {open ? (
+            <motion.div
+              key={`${source}-options`}
+              initial={shouldReduceMotion ? { opacity: 1, height: "auto" } : { opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              exit={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, height: 0 }}
+              transition={{ duration: 0.34, ease: [0.22, 1, 0.36, 1] }}
+              className="overflow-hidden"
+            >
+              <div className="mt-3 grid gap-2 [perspective:900px]">
+                {platformOptions.map((option, index) => {
+                  const motionPreset = PLATFORM_OPTION_MOTION[option.key];
+                  return (
+                    <motion.button
+                      key={option.key}
+                      type="button"
+                      initial={shouldReduceMotion ? false : motionPreset.initial}
+                      animate={motionPreset.animate}
+                      exit={shouldReduceMotion ? undefined : motionPreset.exit}
+                      transition={
+                        shouldReduceMotion
+                          ? { duration: 0.2 }
+                          : { ...motionPreset.transition, delay: index * 0.07 }
+                      }
+                      onClick={() => {
+                        void openPlatformFromLogin(option.key, source);
+                      }}
+                      className={`group/option relative flex w-full items-center gap-3 overflow-hidden rounded-2xl border border-slate-200/80 bg-white/90 p-3 text-left shadow-[0_10px_28px_rgba(15,23,42,0.06)] ring-1 ${option.ring} transition hover:-translate-y-0.5 hover:bg-white`}
+                      style={{ transformOrigin: "50% 0%" }}
+                    >
+                      <span className={`pointer-events-none absolute inset-0 bg-linear-to-br ${option.tint}`} aria-hidden />
+                      <span className={`relative flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-slate-200/80 shadow-sm ${option.iconBg}`}>
+                        {option.icon}
+                      </span>
+                      <span className="relative min-w-0 flex-1">
+                        <span className="block text-sm font-semibold text-slate-900">{option.label}</span>
+                        <span className="mt-0.5 block truncate text-xs text-slate-500">{option.subtitle}</span>
+                      </span>
+                      <span className="relative inline-flex items-center gap-1 rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-semibold text-slate-700 transition group-hover/option:bg-slate-900 group-hover/option:text-white">
+                        Open
+                        <ArrowRight size={12} aria-hidden />
+                      </span>
+                    </motion.button>
+                  );
+                })}
+              </div>
+            </motion.div>
+          ) : null}
+        </AnimatePresence>
+      </div>
+    );
+  }
 
   useEffect(() => {
     return () => {
@@ -895,15 +1070,22 @@ export default function LoginContent() {
               className="mt-8 grid grid-cols-2 gap-4"
               variants={shouldReduceMotion ? undefined : statGridVariants}
             >
-              {VALIDATION_STATS.map((stat) => (
+              {VALIDATION_STATS.map((stat) => {
+                const StatIcon = stat.Icon;
+                return (
                 <motion.div
                   key={stat.title}
                   className="rounded-2xl border border-slate-200/80 bg-white/80 px-5 py-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.6)] backdrop-blur-sm transition duration-200 hover:-translate-y-0.5 hover:border-slate-300 hover:bg-white"
                   variants={shouldReduceMotion ? undefined : statCardVariants}
-                  whileHover={shouldReduceMotion ? undefined : { y: -4, borderColor: "rgba(255,255,255,0.22)" }}
+                  whileHover={shouldReduceMotion ? undefined : { y: -4, borderColor: "rgba(148,163,184,0.55)" }}
                 >
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">{stat.title}</p>
-                  <p className={`mt-2 text-[15px] font-bold leading-snug ${stat.accent}`}>
+                  <div className="flex items-start justify-between gap-3">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">{stat.title}</p>
+                    <span className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ring-1 ${stat.iconWrap}`}>
+                      <StatIcon size={18} aria-hidden />
+                    </span>
+                  </div>
+                  <p className={`mt-3 text-[15px] font-bold leading-snug ${stat.accent}`}>
                     {stat.check ? (
                       <span className="inline-flex items-start gap-1.5">
                         <Check size={16} className="mt-0.5 shrink-0" aria-hidden />
@@ -914,44 +1096,18 @@ export default function LoginContent() {
                     )}
                   </p>
                 </motion.div>
-              ))}
+                );
+              })}
             </motion.div>
           </motion.div>
 
           <motion.div className="relative z-10" variants={shouldReduceMotion ? undefined : panelVariants}>
-            <motion.div
-              variants={shouldReduceMotion ? undefined : heroCardVariants}
-              className="mb-4"
-            >
-              <button
-                type="button"
-                onClick={() => {
-                  void openPlatformFromLogin("google_ads", "login-left-panel");
-                }}
-                className="group relative w-full overflow-hidden rounded-3xl border border-white/14 bg-[linear-gradient(135deg,rgba(255,255,255,0.16),rgba(255,255,255,0.06))] p-px text-left shadow-[0_18px_55px_rgba(0,0,0,0.22)] backdrop-blur-md"
-              >
-                <span className="block rounded-[23px] bg-[linear-gradient(120deg,rgba(3,15,44,0.96),rgba(0,111,255,0.78),rgba(0,212,255,0.56))] p-4 sm:p-5">
-                  <span className="flex items-start justify-between gap-3">
-                    <span>
-                      <span className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">Launch faster</span>
-                      <span className="mt-2 block text-lg font-semibold text-slate-900">Open your Google Ads workspace</span>
-                    </span>
-                    <span className="rounded-full border border-slate-200/80 bg-slate-100/90 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-700">
-                      quick
-                    </span>
-                  </span>
-
-                  <span className="mt-4 flex items-center gap-2">
-                    <span className="relative flex h-11 w-11 items-center justify-center rounded-full border border-white/15 bg-white/12 shadow-[0_0_0_1px_rgba(255,255,255,0.08)]">
-                      <GoogleAdsIcon className="h-4 w-4 text-[#00D4FF]" />
-                    </span>
-                    <span className="ml-2 inline-flex items-center gap-2 rounded-full border border-slate-200/80 bg-white/70 px-3 py-2 text-sm font-semibold text-slate-700 transition group-hover:bg-white">
-                      Continue to Google Ads
-                      <ArrowRight size={14} className="shrink-0" />
-                    </span>
-                  </span>
-                </span>
-              </button>
+            <motion.div variants={shouldReduceMotion ? undefined : heroCardVariants}>
+              {renderPlatformLauncher({
+                open: platformMenuOpen,
+                onToggle: () => setPlatformMenuOpen((prev) => !prev),
+                source: "login-left-panel",
+              })}
             </motion.div>
 
             <p className="text-sm text-slate-600">
@@ -1218,28 +1374,12 @@ export default function LoginContent() {
                   transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
                   className="mt-10"
                 >
-                  <button
-                    type="button"
-                    onClick={() => {
-                      void openPlatformFromLogin("google_ads", "login-form-footer");
-                    }}
-                    className="group relative flex w-full items-center justify-between gap-3 overflow-hidden rounded-3xl border border-[#E8E6DF] bg-[linear-gradient(135deg,#FFFFFF_0%,#F7F5EF_100%)] p-4 text-left shadow-[0_12px_30px_rgba(15,23,42,0.08)] transition hover:-translate-y-0.5"
-                  >
-                    <span className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(0,212,255,0.16),transparent_38%),radial-gradient(circle_at_bottom_right,rgba(16,185,129,0.16),transparent_42%),radial-gradient(circle_at_center,rgba(14,165,233,0.12),transparent_34%)]" />
-                    <span className="relative flex items-center gap-3">
-                      <span className="flex h-11 w-11 items-center justify-center rounded-full border border-[#E8E6DF] bg-white/80 shadow-sm">
-                        <GoogleAdsIcon className="h-4 w-4 text-[#00D4FF]" />
-                      </span>
-                      <span className="ml-1">
-                        <span className="block text-[11px] font-semibold uppercase tracking-[0.16em] text-[#6B7280]">Quick access</span>
-                        <span className="mt-1 block text-sm font-semibold text-[#0D0D0D]">Open Google Ads from the sign-in screen</span>
-                      </span>
-                    </span>
-                    <span className="relative inline-flex items-center gap-2 rounded-full bg-[#0D0D0D] px-3 py-2 text-sm font-semibold text-white">
-                      Open
-                      <ArrowRight size={14} />
-                    </span>
-                  </button>
+                  {renderPlatformLauncher({
+                    open: footerPlatformMenuOpen,
+                    onToggle: () => setFooterPlatformMenuOpen((prev) => !prev),
+                    source: "login-form-footer",
+                    compact: true,
+                  })}
                 </motion.div>
 
                 <p className="mt-6 text-sm text-[#6B7280]">

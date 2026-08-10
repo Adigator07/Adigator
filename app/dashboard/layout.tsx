@@ -9,6 +9,7 @@ import Sidebar from "../components/sidebar";
 import Topbar from "../components/topbar";
 import { AdminAuthProvider } from "../lib/admin-platform/AdminAuthContext";
 import { OrgAuthProvider } from "../lib/organization-platform/OrgAuthContext";
+import AdigatorLaunchScreen from "../components/AdigatorLaunchScreen";
 
 function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -99,14 +100,7 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
   }, [authReady, isAdminRoute, isOrgRoute, router, user]);
 
   if (!authReady && !isAdminRoute && !isOrgRoute) {
-    return (
-      <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,rgba(14,165,233,0.18),transparent_36%),linear-gradient(135deg,#f7fbff_0%,#eef7ff_55%,#f5faff_100%)] text-slate-700 flex items-center justify-center">
-        <div className="flex flex-col items-center gap-3 rounded-3xl border border-sky-200/80 bg-white/80 px-8 py-7 shadow-[0_20px_60px_-24px_rgba(14,116,144,0.28)] backdrop-blur-xl">
-          <div className="h-10 w-10 animate-spin rounded-full border-4 border-sky-200 border-t-sky-600" />
-          <p className="text-sm text-slate-600">Loading your dashboard…</p>
-        </div>
-      </div>
-    );
+    return <AdigatorLaunchScreen />;
   }
 
   if (isAdminRoute || isOrgRoute) {
@@ -114,11 +108,23 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,rgba(14,165,233,0.14),transparent_36%),linear-gradient(135deg,#f8fbff_0%,#eef8ff_55%,#f6fbff_100%)] text-slate-800 flex">
-      <Sidebar collapsed={sidebarCollapsed} setCollapsed={setSidebarCollapsed} user={user} />
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <Topbar user={user} />
-        <main className="flex-1 overflow-y-auto bg-transparent p-8">{children}</main>
+    <div className="relative flex min-h-screen overflow-hidden text-slate-800">
+      {/* Animated smoky wallpaper */}
+      <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
+        <div className="agi-dashboard-wallpaper" />
+        <div className="agi-smoke-fog opacity-80" />
+        <div className="agi-smoke-fog agi-smoke-fog--b opacity-60" />
+        <div className="agi-fog-layer" />
+        <div className="agi-light-cycle opacity-65" />
+        <div className="agi-dashboard-grain" />
+      </div>
+
+      <div className="relative z-10 flex min-h-screen w-full">
+        <Sidebar collapsed={sidebarCollapsed} setCollapsed={setSidebarCollapsed} user={user} />
+        <div className="flex flex-1 flex-col overflow-hidden">
+          <Topbar user={user} />
+          <main className="flex-1 overflow-y-auto bg-transparent p-8">{children}</main>
+        </div>
       </div>
     </div>
   );

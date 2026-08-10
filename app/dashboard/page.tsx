@@ -1,11 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import AdigatorLaunchScreen from "../components/AdigatorLaunchScreen";
 import { getClientUser } from "../lib/supabaseAuthClient";
 import Link from "next/link";
-import { motion } from "framer-motion";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { SkeletonStatCard } from "../components/SkeletonLoader";
+import AdigatorLaunchScreen from "../components/AdigatorLaunchScreen";
 import {
   fetchUserCreatives,
   fetchAnalyzerResultCreativeIds,
@@ -27,8 +27,8 @@ import {
 import { useAdminAuth } from "../lib/admin-platform/AdminAuthContext";
 import { useOrgAuth } from "../lib/organization-platform/OrgAuthContext";
 
-const fade = { hidden: { opacity: 0, y: 16 }, visible: { opacity: 1, y: 0 } };
-const stagger = { hidden: {}, visible: { transition: { staggerChildren: 0.08 } } };
+const EASE = [0.22, 1, 0.36, 1] as const;
+
 type DashboardUser = Awaited<ReturnType<typeof getClientUser>>;
 type DashboardAnalytics = Awaited<ReturnType<typeof fetchUserDashboardAnalytics>>;
 
@@ -42,23 +42,20 @@ function DashboardLoadingPanel({
   progress: number;
 }) {
   return (
-    <div className="relative overflow-hidden rounded-2xl border border-sky-200/80 bg-[linear-gradient(145deg,rgba(255,255,255,0.94),rgba(240,249,255,0.96))] p-5 shadow-[0_18px_45px_-24px_rgba(14,116,144,0.22)]">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(56,189,248,0.14),transparent_38%),radial-gradient(circle_at_bottom_right,rgba(14,165,233,0.1),transparent_36%)]" />
-      <div className="relative">
-        <div className="mb-4 flex items-center justify-between gap-3">
-          <div>
-            <p className="text-xs font-bold uppercase tracking-[0.22em] text-sky-700">{title}</p>
-            <p className="mt-1 text-sm text-slate-500">{subtitle}</p>
-          </div>
-          <div className="rounded-2xl border border-sky-200 bg-white/80 px-3 py-2 text-right shadow-sm">
-            <p className="text-2xl font-black text-slate-800">{progress}%</p>
-            <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">Loaded</p>
-          </div>
+    <div className="relative flex flex-col items-center justify-center py-6 text-center">
+      <p className="text-xs font-bold uppercase tracking-[0.22em] text-sky-700">{title}</p>
+      <p className="mt-1 text-sm text-slate-500">{subtitle}</p>
+      <div className="mt-4 w-full max-w-xs">
+        <div className="mb-2 flex items-center justify-between text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">
+          <span>Loaded</span>
+          <span>{progress}%</span>
         </div>
-        <div className="h-3 overflow-hidden rounded-full bg-sky-100/80">
-          <div
-            className="h-full rounded-full bg-linear-to-r from-sky-500 via-cyan-400 to-emerald-400 transition-[width] duration-300 ease-out"
-            style={{ width: `${progress}%` }}
+        <div className="h-2.5 overflow-hidden rounded-full bg-sky-100/80">
+          <motion.div
+            className="h-full rounded-full bg-linear-to-r from-sky-500 via-cyan-400 to-emerald-400"
+            initial={false}
+            animate={{ width: `${progress}%` }}
+            transition={{ duration: 0.35, ease: "easeOut" }}
           />
         </div>
       </div>
@@ -67,6 +64,7 @@ function DashboardLoadingPanel({
 }
 
 export default function Dashboard() {
+  const reduceMotion = useReducedMotion();
   const [user, setUser] = useState<DashboardUser>(null);
   const [stats, setStats] = useState({ totalCreatives: 0, validCreatives: 0, invalidCreatives: 0, platformsUsed: 0 });
   const [analytics, setAnalytics] = useState<DashboardAnalytics | null>(null);
@@ -76,11 +74,21 @@ export default function Dashboard() {
   const [advertisersLoading, setAdvertisersLoading] = useState(true);
   const [overviewLoadingProgress, setOverviewLoadingProgress] = useState(12);
   const [advertisersLoadingProgress, setAdvertisersLoadingProgress] = useState(10);
-  const [launchVisible, setLaunchVisible] = useState(true);
   const { isAdmin } = useAdminAuth();
   const { isOrgAdmin, organizationName, memberRole } = useOrgAuth();
   const displayedOverviewProgress = loading ? overviewLoadingProgress : 100;
   const displayedAdvertisersProgress = advertisersLoading ? advertisersLoadingProgress : 100;
+
+  const stageTransition = {
+    duration: reduceMotion ? 0 : 0.32,
+    ease: EASE,
+  };
+  const crossfadeTransition = {
+    duration: reduceMotion ? 0 : 0.28,
+    ease: EASE,
+  };
+  const hoverLift = reduceMotion ? undefined : { y: -2 };
+  const hoverTap = reduceMotion ? undefined : { y: 0 };
 
   useEffect(() => {
     if (!loading) return undefined;
@@ -162,7 +170,6 @@ export default function Dashboard() {
         if (active) {
           setLoading(false);
           setAdvertisersLoading(false);
-          setLaunchVisible(false);
         }
       }
     };
@@ -210,124 +217,171 @@ export default function Dashboard() {
   const firstName = user?.user_metadata?.full_name?.split(" ")[0] || user?.email?.split("@")[0] || "there";
   const today = new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
 
+  const overviewStats = [
+    { label: "Total Creatives", value: stats.totalCreatives, Icon: ImageIcon, color: "from-blue-500/20 to-blue-600/10", border: "border-blue-500/25", text: "text-blue-400" },
+    { label: "Valid Creatives", value: stats.validCreatives, Icon: TrendingUp, color: "from-green-500/20 to-green-600/10", border: "border-green-500/25", text: "text-green-400" },
+    { label: "Invalid", value: stats.invalidCreatives, Icon: Zap, color: "from-red-500/20 to-red-600/10", border: "border-red-500/25", text: "text-red-400" },
+    { label: "Platforms Used", value: stats.platformsUsed, Icon: Eye, color: "from-purple-500/20 to-purple-600/10", border: "border-purple-500/25", text: "text-purple-400" },
+  ];
+
   return (
     <>
-      {launchVisible ? <AdigatorLaunchScreen durationMs={1200} /> : null}
-      <motion.div variants={stagger} initial="hidden" animate="visible" className="space-y-10 pb-10">
-
-      <motion.div variants={fade} className="flex flex-col items-start justify-between gap-4 md:flex-row md:items-center">
-        <div>
-          <div className="mb-1 flex items-center gap-2 text-sky-600">
-            <span className="text-xs font-bold uppercase tracking-widest">{today}</span>
-          </div>
-          <h1 className="text-3xl font-extrabold leading-tight text-slate-800">
-            Good day, {firstName}
-          </h1>
-          <p className="mt-1 text-sm text-slate-500">
-            {organizationName
-              ? `Your personal workspace · ${organizationName}${memberRole ? ` (${memberRole.replace("_", " ")})` : ""}`
-              : "Your creative workflow at a glance"}
-          </p>
-        </div>
-        <Link href="/preview-tool?step=campaign-setup">
-          <motion.button
-            whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.96 }}
-            className="flex items-center gap-2 rounded-xl bg-linear-to-r from-sky-600 to-cyan-500 px-5 py-3 font-semibold text-white shadow-lg shadow-sky-500/25 transition-shadow hover:shadow-sky-500/40 premium-card-glow"
-          >
-            <Plus size={18} /> Open Campaign Intelligence Studio
-          </motion.button>
-        </Link>
-      </motion.div>
-
-      <motion.div variants={fade}>
-        <h2 className="mb-3 text-sm font-bold uppercase tracking-widest text-slate-500">Quick Actions</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {[
-            { href: "/preview-tool?step=campaign-setup", icon: Plus, label: "Campaign Intelligence Studio", sub: "Launch Campaign Setup through Preview Studio", color: "from-purple-600 to-blue-600" },
-            { href: "/preview-tool?step=campaign-intelligence", icon: Clock, label: "Resume Campaign Intelligence", sub: "Continue where you left off", color: "from-blue-600 to-cyan-600" },
-            { href: "/dashboard/qa", icon: ShieldCheck, label: "QA Workspace", sub: "Review readiness, alerts, and launch recommendations", color: "from-emerald-600 to-cyan-600" },
-            ...(isOrgAdmin ? [{ href: "/dashboard/organization", icon: Building2, label: "Organization Console", sub: "Manage teams, users, and org activity", color: "from-sky-600 to-blue-600" }] : []),
-            ...(isAdmin ? [{ href: "/dashboard/admin", icon: Shield, label: "Super Admin Console", sub: "Organizations, users, analytics & platform health", color: "from-amber-600 to-orange-600" }] : []),
-          ].map((a) => {
-            const Icon = a.icon;
-            return (
-              <Link key={a.href + a.label} href={a.href}>
-                <motion.div
-                  whileHover={{ scale: 1.02, y: -3 }}
-                  transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
-                  className="group relative flex cursor-pointer items-center gap-4 overflow-hidden rounded-2xl border border-sky-200/80 bg-white/90 p-4 transition-all hover:border-sky-300 hover:bg-sky-50/70 premium-card premium-card-glow"
-                >
-                  <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-linear-to-br ${a.color} shadow-sm`}>
-                    <Icon size={20} className="text-white" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-semibold text-slate-800">{a.label}</p>
-                    <p className="text-xs text-slate-500">{a.sub}</p>
-                  </div>
-                  <ArrowRight size={16} className="shrink-0 text-slate-400 transition group-hover:text-sky-600" />
-                </motion.div>
-              </Link>
-            );
-          })}
-        </div>
-      </motion.div>
-
-      <motion.div variants={fade}>
-        <h2 className="mb-3 text-sm font-bold uppercase tracking-widest text-slate-500">Overview</h2>
-        {loading ? (
-          <div className="space-y-4">
-            <DashboardLoadingPanel
-              title="Overview Sync"
-              subtitle="Preparing strategic metrics, platform usage, and validation history."
-              progress={displayedOverviewProgress}
-            />
-            <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
-              {[...Array(4)].map((_, i) => <SkeletonStatCard key={i} />)}
+      {loading ? <AdigatorLaunchScreen /> : null}
+      <motion.div
+        initial={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 10 }}
+        animate={
+          loading
+            ? (reduceMotion ? { opacity: 0 } : { opacity: 0, y: 10 })
+            : { opacity: 1, y: 0 }
+        }
+        transition={stageTransition}
+        className="relative space-y-10 pb-10"
+      >
+        <div className="flex flex-col items-start justify-between gap-4 md:flex-row md:items-center">
+          <div>
+            <div className="mb-1 flex items-center gap-2 text-sky-600">
+              <span className="text-xs font-bold uppercase tracking-widest">{today}</span>
             </div>
+            <h1 className="text-3xl font-extrabold leading-tight text-slate-800">
+              Good day, {firstName}
+            </h1>
+            <p className="mt-1 text-sm text-slate-500">
+              {organizationName
+                ? `Your personal workspace · ${organizationName}${memberRole ? ` (${memberRole.replace("_", " ")})` : ""}`
+                : "Your creative workflow at a glance"}
+            </p>
           </div>
-        ) : (
-          <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
+          <Link href="/preview-tool?step=campaign-setup">
+            <motion.button
+              whileHover={hoverLift}
+              whileTap={hoverTap}
+              transition={{ duration: 0.2, ease: EASE }}
+              className="flex items-center gap-2 rounded-xl bg-linear-to-r from-sky-600 to-cyan-500 px-5 py-3 font-semibold text-white shadow-lg shadow-sky-500/25 transition-shadow hover:shadow-sky-500/40 premium-card-glow"
+            >
+              <Plus size={18} /> Open Campaign Intelligence Studio
+            </motion.button>
+          </Link>
+        </div>
+
+        <div>
+          <h2 className="mb-3 text-sm font-bold uppercase tracking-widest text-slate-500">Quick Actions</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {[
-              { label: "Total Creatives", value: stats.totalCreatives, Icon: ImageIcon, color: "from-blue-500/20 to-blue-600/10", border: "border-blue-500/20", text: "text-blue-400" },
-              { label: "Valid Creatives", value: stats.validCreatives, Icon: TrendingUp, color: "from-green-500/20 to-green-600/10", border: "border-green-500/20", text: "text-green-400" },
-              { label: "Invalid", value: stats.invalidCreatives, Icon: Zap, color: "from-red-500/20 to-red-600/10", border: "border-red-500/20", text: "text-red-400" },
-              { label: "Platforms Used", value: stats.platformsUsed, Icon: Eye, color: "from-purple-500/20 to-purple-600/10", border: "border-purple-500/20", text: "text-purple-400" },
-            ].map((s) => (
-              <motion.div
-                key={s.label}
-                whileHover={{ scale: 1.02, y: -3 }}
-                transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
-                className={`rounded-2xl border ${s.border} bg-white/90 p-5 transition-all shadow-[0_18px_45px_-24px_rgba(14,116,144,0.3)] premium-card premium-card-glow`}
-              >
-                <div className={`mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-linear-to-br ${s.color}`}>
-                  <s.Icon size={20} className={`${s.text}`} />
-                </div>
-                <p className="text-3xl font-extrabold text-slate-800">{s.value.toLocaleString()}</p>
-                <p className="mt-1 text-sm text-slate-500">{s.label}</p>
-              </motion.div>
-            ))}
+              { href: "/preview-tool?step=campaign-setup", icon: Plus, label: "Campaign Intelligence Studio", sub: "Launch Campaign Setup through Preview Studio", color: "from-purple-600 to-blue-600" },
+              { href: "/preview-tool?step=campaign-intelligence", icon: Clock, label: "Resume Campaign Intelligence", sub: "Continue where you left off", color: "from-blue-600 to-cyan-600" },
+              { href: "/dashboard/qa", icon: ShieldCheck, label: "QA Workspace", sub: "Review readiness, alerts, and launch recommendations", color: "from-emerald-600 to-cyan-600" },
+              ...(isOrgAdmin ? [{ href: "/dashboard/organization", icon: Building2, label: "Organization Console", sub: "Manage teams, users, and org activity", color: "from-sky-600 to-blue-600" }] : []),
+              ...(isAdmin ? [{ href: "/dashboard/admin", icon: Shield, label: "Super Admin Console", sub: "Organizations, users, analytics & platform health", color: "from-amber-600 to-orange-600" }] : []),
+            ].map((a) => {
+              const Icon = a.icon;
+              return (
+                <Link key={a.href + a.label} href={a.href}>
+                  <motion.div
+                    whileHover={hoverLift}
+                    whileTap={hoverTap}
+                    transition={{ duration: 0.2, ease: EASE }}
+                    className="group relative flex cursor-pointer items-center gap-4 overflow-hidden rounded-2xl border border-white/70 bg-white/65 p-4 shadow-[0_18px_50px_-28px_rgba(14,116,144,0.35)] backdrop-blur-xl transition-all hover:border-sky-200/90 hover:bg-white/80 premium-card premium-card-glow"
+                  >
+                    <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-linear-to-br ${a.color} shadow-sm`}>
+                      <Icon size={20} className="text-white" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-semibold text-slate-800">{a.label}</p>
+                      <p className="text-xs text-slate-500">{a.sub}</p>
+                    </div>
+                    <ArrowRight size={16} className="shrink-0 text-slate-400 transition group-hover:text-sky-600" />
+                  </motion.div>
+                </Link>
+              );
+            })}
           </div>
-        )}
-        {!loading && stats.validCreatives > 0 && stats.invalidCreatives > 0 ? (
-          <p className="mt-2 text-xs text-slate-400">
-            Valid and invalid counts are cumulative across your upload history. A creative fixed after an initial failure may appear in both totals.
-          </p>
-        ) : null}
-      </motion.div>
+        </div>
 
-      <motion.div variants={fade}>
-        <AdvertisersSection advertisers={advertisers} loading={advertisersLoading} ownerId={campaignOwnerId} loadingProgress={displayedAdvertisersProgress} />
-      </motion.div>
+        <div>
+          <h2 className="mb-3 text-sm font-bold uppercase tracking-widest text-slate-500">Overview</h2>
+          <AnimatePresence mode="wait" initial={false}>
+            {loading ? (
+              <motion.div
+                key="overview-loading"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={crossfadeTransition}
+                className="space-y-4"
+              >
+                <DashboardLoadingPanel
+                  title="Overview Sync"
+                  subtitle="Preparing strategic metrics, platform usage, and validation history."
+                  progress={displayedOverviewProgress}
+                />
+                <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
+                  {[...Array(4)].map((_, i) => <SkeletonStatCard key={i} />)}
+                </div>
+              </motion.div>
+            ) : (
+              <motion.div
+                key="overview-ready"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={crossfadeTransition}
+              >
+                <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
+                  {overviewStats.map((s) => (
+                    <motion.div
+                      key={s.label}
+                      whileHover={hoverLift}
+                      whileTap={hoverTap}
+                      transition={{ duration: 0.2, ease: EASE }}
+                      className={`rounded-2xl border ${s.border} bg-white/65 p-5 shadow-[0_18px_45px_-24px_rgba(14,116,144,0.3)] backdrop-blur-xl transition-all premium-card premium-card-glow`}
+                    >
+                      <div className={`mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-linear-to-br ${s.color}`}>
+                        <s.Icon size={20} className={`${s.text}`} />
+                      </div>
+                      <p className="text-3xl font-extrabold text-slate-800">{s.value.toLocaleString()}</p>
+                      <p className="mt-1 text-sm text-slate-500">{s.label}</p>
+                    </motion.div>
+                  ))}
+                </div>
+                {stats.validCreatives > 0 && stats.invalidCreatives > 0 ? (
+                  <p className="mt-2 text-xs text-slate-400">
+                    Valid and invalid counts are cumulative across your upload history. A creative fixed after an initial failure may appear in both totals.
+                  </p>
+                ) : null}
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
 
-      <motion.div variants={fade}>
-        <h2 className="mb-3 text-sm font-bold uppercase tracking-widest text-slate-500">Activity Analytics</h2>
-        {loading ? (
-          <div className="h-64 animate-pulse rounded-2xl border border-white/10 bg-white/5" />
-        ) : (
-          <UserAnalyticsCharts analytics={analytics} />
-        )}
-      </motion.div>
+        <div>
+          <AdvertisersSection advertisers={advertisers} loading={advertisersLoading} ownerId={campaignOwnerId} loadingProgress={displayedAdvertisersProgress} />
+        </div>
 
+        <div>
+          <h2 className="mb-3 text-sm font-bold uppercase tracking-widest text-slate-500">Activity Analytics</h2>
+          <AnimatePresence mode="wait" initial={false}>
+            {loading ? (
+              <motion.div
+                key="analytics-loading"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={crossfadeTransition}
+                className="h-64 rounded-2xl border border-white/50 bg-white/40 backdrop-blur-md"
+              />
+            ) : (
+              <motion.div
+                key="analytics-ready"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={crossfadeTransition}
+              >
+                <UserAnalyticsCharts analytics={analytics} />
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
       </motion.div>
     </>
   );

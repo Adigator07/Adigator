@@ -63,25 +63,33 @@ export default function AboutPage() {
 
       <main className="pt-28">
         <section className="marketing-section marketing-section-compact mx-auto w-[min(1100px,92vw)]">
-          <FadeIn>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#8A8A82]">About Adigator</p>
-            <h1 className="mt-4 text-[clamp(2.25rem,5.5vw,4rem)] font-black leading-[1.05] tracking-[-0.04em]">
-              We are building the validation layer campaign operations never had.
-            </h1>
-            <p className="mt-6 max-w-2xl text-lg leading-relaxed text-[#5A5A55] sm:text-xl">
-              Adigator exists because modern campaign delivery became faster than the systems that protect launch
-              quality. Our company story starts with a simple conviction: preventable campaign errors should never
-              reach media spend.
-            </p>
-            <div className="mt-8 flex flex-wrap gap-3">
-              <Link href={MARKETING_CTA.href} className="marketing-btn-lime rounded-full px-7 py-3.5 text-sm font-bold">
-                {MARKETING_CTA.label}
-              </Link>
-              <Link href="/methodology" className="marketing-btn-outline rounded-full px-7 py-3.5 text-sm font-semibold">
-                Read our methodology
-              </Link>
-            </div>
-          </FadeIn>
+            <FadeIn>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#8A8A82]">About Adigator</p>
+              <h1 className="mt-4 text-[clamp(2.25rem,5.5vw,4rem)] font-black leading-[1.05] tracking-[-0.04em]">
+                We are building the validation layer campaign operations never had.
+              </h1>
+              <p className="mt-6 max-w-2xl text-lg leading-relaxed text-[#5A5A55] sm:text-xl">
+                Adigator is a SaaS platform that validates advertising campaigns — creatives, landing pages, and
+                campaign setup — before media spend begins. We help agencies, brands, and AdOps teams catch preventable
+                mistakes across Google Ads, Meta Ads, and programmatic channels.
+              </p>
+              <p className="mt-4 max-w-2xl text-base leading-relaxed text-[#5A5A55] sm:text-lg">
+                Optional Google Ads access uses Google OAuth. Users authorize Adigator to access their own Google Ads
+                accounts (or accounts they administer). See{" "}
+                <Link href="/google-ads-oauth" className="font-semibold text-[#0D0D0D] underline underline-offset-2">
+                  how Google Ads OAuth works
+                </Link>
+                .
+              </p>
+              <div className="mt-8 flex flex-wrap gap-3">
+                <Link href={MARKETING_CTA.href} className="marketing-btn-lime rounded-full px-7 py-3.5 text-sm font-bold">
+                  {MARKETING_CTA.label}
+                </Link>
+                <Link href="/methodology" className="marketing-btn-outline rounded-full px-7 py-3.5 text-sm font-semibold">
+                  Read our methodology
+                </Link>
+              </div>
+            </FadeIn>
         </section>
 
         <SoftBand className="marketing-section-compact">

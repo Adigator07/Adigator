@@ -53,7 +53,20 @@ export default function MarketingFooter({ description = MARKETING_FOOTER_DESCRIP
 
         <div className="mt-10 flex flex-col gap-3 border-t border-[#DDDCD4] pt-6 text-sm text-[#66665F] sm:flex-row sm:items-center sm:justify-between">
           <span>© 2026 Adigator. All rights reserved.</span>
-          <p className="text-xs sm:text-sm">Pre-launch campaign validation for modern AdOps teams.</p>
+          <div className="flex flex-wrap gap-x-4 gap-y-2 text-xs sm:justify-end sm:text-sm">
+            <Link href="/privacy" className="transition-colors hover:text-[#0D0D0D]">
+              Privacy
+            </Link>
+            <Link href="/terms" className="transition-colors hover:text-[#0D0D0D]">
+              Terms
+            </Link>
+            <Link href="/contact" className="transition-colors hover:text-[#0D0D0D]">
+              Contact
+            </Link>
+            <Link href="/google-ads-oauth" className="transition-colors hover:text-[#0D0D0D]">
+              Google Ads OAuth
+            </Link>
+          </div>
         </div>
       </div>
     </footer>

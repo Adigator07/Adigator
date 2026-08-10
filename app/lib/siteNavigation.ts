@@ -15,6 +15,15 @@ export const MARKETING_NAV_LINKS: MarketingNavLink[] = [
   { label: "Contact", href: "/contact", hint: "Get in touch with our team" },
 ];
 
+/** Public policy URLs Google / reviewers commonly check */
+export const MARKETING_TRUST_LINKS: MarketingFooterLink[] = [
+  { label: "What Adigator does", href: "/about" },
+  { label: "Privacy Policy", href: "/privacy" },
+  { label: "Terms of Service", href: "/terms" },
+  { label: "Contact", href: "/contact" },
+  { label: "Google Ads OAuth", href: "/google-ads-oauth" },
+];
+
 export const MARKETING_CTA = {
   label: "Try Free",
   href: "/preview-tool?demo=1&step=campaign-setup",
@@ -49,10 +58,12 @@ export const MARKETING_FOOTER_RESOURCE_LINKS: MarketingFooterLink[] = [
   { label: "Validation Methodology", href: "/methodology" },
   { label: "Operational Scenarios", href: "/operational-scenarios" },
   { label: "Campaign Error Library", href: "/campaign-error-library" },
+  { label: "Google Ads OAuth", href: "/google-ads-oauth" },
 ];
 
 export const MARKETING_FOOTER_LEGAL_LINKS: MarketingFooterLink[] = [
   { label: "Privacy Policy", href: "/privacy" },
   { label: "Terms of Service", href: "/terms" },
   { label: "Contact Us", href: "/contact" },
+  { label: "Google Ads Connection", href: "/google-ads-oauth" },
 ];

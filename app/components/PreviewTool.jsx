@@ -9,6 +9,7 @@ import EditCreativeModal from "./EditCreativeModal";
 import CreativeCard from "./CreativeCard";
 import AnalysisPanel from "./AnalysisPanel";
 import { getFirebaseClientAuth } from "../lib/firebase/client";
+import { PlatformBrandIcon } from "./brand/PlatformBrandIcons";
 import {
   compareStrategicEntries,
   getEntryPayload,
@@ -5756,8 +5757,6 @@ export default function PreviewTool() {
                 </div>
                 <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
                   {PLATFORMS.map((p) => {
-                    const initial = p.title.split(" ")[0][0];
-
                     return (
                       <ToolSelectionCard key={p.id} selected={platform === p.id} onClick={() => handlePlatformSelect(p.id)}>
                         <div className="relative overflow-hidden rounded-[1.4rem] border border-white/10 bg-slate-950/35 p-5 shadow-[0_20px_60px_-28px_rgba(15,23,42,0.65)]">
@@ -5770,8 +5769,8 @@ export default function PreviewTool() {
                             className="relative z-10 flex items-start justify-between gap-3"
                           >
                             <div className="flex items-center gap-3">
-                              <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/25 bg-slate-950/55 text-lg font-black text-white shadow-[0_0_22px_rgba(255,255,255,0.15)]">
-                                {initial}
+                              <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/25 bg-white shadow-[0_0_22px_rgba(255,255,255,0.18)]">
+                                <PlatformBrandIcon platform={p.id} className="h-7 w-7" />
                               </div>
                               <div>
                                 <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-studio-muted">Ad network</p>

@@ -2,16 +2,20 @@
 
 import { motion, useReducedMotion } from "framer-motion";
 import { useEffect, useState } from "react";
+import { AdigatorOrbitLoader } from "@/app/components/ui/AdigatorOrbitLoader";
+import { GoogleAdsIcon, MetaIcon, TradeDeskIcon } from "@/app/components/brand/PlatformBrandIcons";
 
 type AdigatorLaunchScreenProps = {
+  /** Auto-dismiss after ms. Omit to stay until the parent unmounts. */
   durationMs?: number;
 };
 
-export default function AdigatorLaunchScreen({ durationMs = 1200 }: AdigatorLaunchScreenProps) {
+export default function AdigatorLaunchScreen({ durationMs }: AdigatorLaunchScreenProps) {
   const reduceMotion = useReducedMotion();
   const [visible, setVisible] = useState(true);
 
   useEffect(() => {
+    if (durationMs == null) return;
     const timer = window.setTimeout(() => setVisible(false), durationMs);
     return () => window.clearTimeout(timer);
   }, [durationMs]);
@@ -26,38 +30,34 @@ export default function AdigatorLaunchScreen({ durationMs = 1200 }: AdigatorLaun
       className="fixed inset-0 z-9999 flex items-center justify-center overflow-hidden bg-[#050816] text-white"
     >
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(14,165,233,0.22),transparent_42%),radial-gradient(circle_at_bottom_right,rgba(16,185,129,0.18),transparent_40%)]" />
+      <div className="agi-light-cycle opacity-50" aria-hidden />
+      <div className="agi-fog-layer opacity-30 mix-blend-screen" aria-hidden />
       <div className="pointer-events-none absolute inset-0 opacity-30 bg-[linear-gradient(rgba(255,255,255,0.04)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.04)_1px,transparent_1px)] bg-size-[56px_56px]" />
 
       <motion.div
         initial={reduceMotion ? false : { y: 16, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
-        transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
+        transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
         className="relative z-10 flex flex-col items-center"
       >
-        <motion.div
-          animate={reduceMotion ? undefined : { letterSpacing: ["0.12em", "0.22em", "0.12em"] }}
-          transition={reduceMotion ? undefined : { duration: 1.1, repeat: Infinity, ease: "easeInOut" }}
-          className="text-center text-[clamp(2.4rem,5vw,4rem)] font-black tracking-[0.12em] text-white"
-        >
-          Adigator
-        </motion.div>
+        <AdigatorOrbitLoader
+          size="lg"
+          tone="dark"
+          label="Loading your dashboard"
+          hint="Catch Campaign Mistakes Before Media Spend Begins"
+        />
 
-        <motion.div
-          initial={reduceMotion ? false : { width: 0, opacity: 0.6 }}
-          animate={reduceMotion ? { width: 140, opacity: 1 } : { width: 140, opacity: 1 }}
-          transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
-          className="mt-4 h-1 overflow-hidden rounded-full bg-white/15"
-        >
-          <motion.div
-            animate={reduceMotion ? undefined : { x: ["-110%", "110%"] }}
-            transition={reduceMotion ? undefined : { duration: 1.2, repeat: Infinity, ease: "linear" }}
-            className="h-full w-1/3 rounded-full bg-linear-to-r from-sky-400 via-cyan-300 to-emerald-400"
-          />
-        </motion.div>
-
-        <p className="mt-4 text-sm font-medium uppercase tracking-[0.28em] text-white/65">
-          preparing your workspace
-        </p>
+        <div className="mt-6 flex items-center gap-2">
+          <span className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/15 bg-white/10">
+            <GoogleAdsIcon className="h-5 w-5" />
+          </span>
+          <span className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/15 bg-white/10">
+            <MetaIcon className="h-5 w-5" />
+          </span>
+          <span className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/15 bg-white/10">
+            <TradeDeskIcon className="h-5 w-5" />
+          </span>
+        </div>
       </motion.div>
     </motion.div>
   );

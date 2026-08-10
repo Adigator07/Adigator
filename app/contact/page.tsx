@@ -12,6 +12,7 @@ const HELP_OPTIONS = [
   "Partnership",
   "Product Question",
   "Technical Support",
+  "Google Ads OAuth / Connection",
   "Other",
 ] as const;
 
@@ -73,8 +74,16 @@ export default function ContactPage() {
               Let&apos;s Talk About Your Campaigns
             </h1>
             <p className="mt-6 text-lg leading-relaxed text-[#5C5C56] sm:text-xl">
-              Whether you&apos;re exploring Adigator, booking a demo, or looking to improve your campaign workflow,
-              we&apos;d love to hear from you.
+              Whether you&apos;re exploring Adigator, booking a demo, asking about Google Ads OAuth access, or looking
+              to improve your campaign workflow, we&apos;d love to hear from you.
+            </p>
+            <p className="mx-auto mt-4 max-w-2xl text-sm leading-relaxed text-[#5C5C56]">
+              Adigator is a pre-launch campaign validation SaaS platform. Questions about connecting Google Ads via
+              OAuth? Read{" "}
+              <Link href="/google-ads-oauth" className="font-semibold text-[#0D0D0D] underline underline-offset-2">
+                how Google Ads OAuth works
+              </Link>{" "}
+              or email us below.
             </p>
           </div>
 
@@ -228,12 +237,39 @@ export default function ContactPage() {
                   href="mailto:hello@adigator.in"
                   className="mt-4 inline-flex items-center gap-2 text-base font-semibold text-[#0D0D0D] transition hover:text-[#2D2D27]"
                 >
-                  <span aria-hidden>📧</span>
                   hello@adigator.in
                 </a>
                 <p className="mt-3 text-sm leading-relaxed text-[#5C5C56]">
                   We typically respond within 1 business day.
                 </p>
+                <div className="mt-5 space-y-2 border-t border-[#DEDDD5] pt-5 text-sm text-[#5C5C56]">
+                  <p>
+                    Privacy:{" "}
+                    <a href="mailto:privacy@adigator.in" className="font-semibold text-[#0D0D0D] underline underline-offset-2">
+                      privacy@adigator.in
+                    </a>
+                  </p>
+                  <p>
+                    Legal:{" "}
+                    <a href="mailto:legal@adigator.in" className="font-semibold text-[#0D0D0D] underline underline-offset-2">
+                      legal@adigator.in
+                    </a>
+                  </p>
+                  <p>
+                    Policies:{" "}
+                    <Link href="/privacy" className="font-semibold text-[#0D0D0D] underline underline-offset-2">
+                      Privacy
+                    </Link>
+                    {" · "}
+                    <Link href="/terms" className="font-semibold text-[#0D0D0D] underline underline-offset-2">
+                      Terms
+                    </Link>
+                    {" · "}
+                    <Link href="/google-ads-oauth" className="font-semibold text-[#0D0D0D] underline underline-offset-2">
+                      Google Ads OAuth
+                    </Link>
+                  </p>
+                </div>
               </div>
 
               <div className="rounded-[28px] border border-[#DEDDD5] bg-[#FAFAF7] px-6 py-8 sm:px-8 sm:py-9">

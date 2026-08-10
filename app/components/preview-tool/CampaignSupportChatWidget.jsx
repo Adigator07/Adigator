@@ -4,8 +4,17 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { Bot, Expand, MessageCircle, Minimize2, X } from "lucide-react";
+import { GoogleAdsIcon, MetaIcon, TradeDeskIcon } from "@/app/components/brand/PlatformBrandIcons";
 
 const CHAT_MODE_PREFERENCE_KEY = "adigator_support_chat_mode_preference";
+
+const WIDGET_BORDER_CYCLE = [
+  "border-sky-300/45 shadow-[0_32px_90px_rgba(14,165,233,0.28)]",
+  "border-emerald-300/45 shadow-[0_32px_90px_rgba(16,185,129,0.28)]",
+  "border-violet-300/45 shadow-[0_32px_90px_rgba(139,92,246,0.28)]",
+  "border-amber-300/45 shadow-[0_32px_90px_rgba(245,158,11,0.25)]",
+  "border-rose-300/45 shadow-[0_32px_90px_rgba(244,63,94,0.28)]",
+];
 
 export default function CampaignSupportChatWidget({
   step,
@@ -23,7 +32,16 @@ export default function CampaignSupportChatWidget({
   const [smallWindowOpen, setSmallWindowOpen] = useState(false);
   const [rememberModeChoice, setRememberModeChoice] = useState(false);
   const [preferredMode, setPreferredMode] = useState(null);
+  const [borderIndex, setBorderIndex] = useState(0);
   const pickerRef = useRef(null);
+
+  useEffect(() => {
+    if (reduceMotion) return undefined;
+    const timer = window.setInterval(() => {
+      setBorderIndex((prev) => (prev + 1) % WIDGET_BORDER_CYCLE.length);
+    }, 2500);
+    return () => window.clearInterval(timer);
+  }, [reduceMotion]);
 
   const context = useMemo(() => ({
     step,
@@ -136,12 +154,23 @@ export default function CampaignSupportChatWidget({
             initial={reduceMotion ? false : { opacity: 0, y: 16, scale: 0.96 }}
             animate={reduceMotion ? undefined : { opacity: 1, y: 0, scale: 1 }}
             exit={reduceMotion ? undefined : { opacity: 0, y: 12, scale: 0.98 }}
-            className="fixed bottom-24 right-5 z-90 h-[min(78vh,700px)] w-[min(96vw,430px)] overflow-hidden rounded-3xl border border-rose-200/35 bg-[#090f1f] shadow-[0_32px_90px_rgba(6,8,18,0.65)]"
+            className={`agi-chat-bg-cycle fixed bottom-24 right-5 z-90 h-[min(78vh,700px)] w-[min(96vw,430px)] overflow-hidden rounded-3xl border bg-[#090f1f] ${WIDGET_BORDER_CYCLE[borderIndex]}`}
           >
-            <div className="flex items-center justify-between border-b border-white/10 bg-[linear-gradient(120deg,rgba(45,12,18,0.96),rgba(22,8,14,0.94))] px-4 py-3">
+            <div className="flex items-center justify-between border-b border-white/10 bg-[linear-gradient(120deg,rgba(12,28,48,0.96),rgba(14,22,38,0.94))] px-4 py-3">
               <div className="flex items-center gap-2 text-white">
                 <MessageCircle size={16} />
                 <p className="text-xs font-semibold uppercase tracking-[0.14em]">Adigator Chat Help</p>
+                <span className="ml-1 inline-flex items-center gap-1">
+                  <span className="inline-flex h-5 w-5 items-center justify-center rounded-md bg-white/95">
+                    <GoogleAdsIcon className="h-3 w-3" />
+                  </span>
+                  <span className="inline-flex h-5 w-5 items-center justify-center rounded-md bg-white/95">
+                    <MetaIcon className="h-3 w-3" />
+                  </span>
+                  <span className="inline-flex h-5 w-5 items-center justify-center rounded-md bg-white/95">
+                    <TradeDeskIcon className="h-3 w-3" />
+                  </span>
+                </span>
               </div>
               <div className="flex items-center gap-2">
                 <button

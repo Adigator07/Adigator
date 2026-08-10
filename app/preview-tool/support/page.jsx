@@ -4,8 +4,18 @@ import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion, useReducedMotion } from "framer-motion";
 import { ArrowLeft, Clock3, Send, Sparkles } from "lucide-react";
+import { GoogleAdsIcon, MetaIcon, TradeDeskIcon } from "@/app/components/brand/PlatformBrandIcons";
 
 const CONTEXT_STORAGE_KEY = "adigator_support_context";
+
+const CHAT_BG_PALETTE = [
+  "linear-gradient(145deg,#090d16,#0c1324 52%,#0b1a2d 100%)",
+  "linear-gradient(145deg,#0d1520,#102033 52%,#0e2438 100%)",
+  "linear-gradient(145deg,#101820,#12263a 52%,#123048 100%)",
+  "linear-gradient(145deg,#0f1a22,#14302c 52%,#123528 100%)",
+  "linear-gradient(145deg,#16121f,#241833 52%,#2a1a38 100%)",
+  "linear-gradient(145deg,#1a1520,#2a1830 52%,#301828 100%)",
+];
 
 const INITIAL_MESSAGE = {
   role: "assistant",
@@ -170,9 +180,11 @@ function SupportPageContent() {
   const [context, setContext] = useState({});
   const scrollRef = useRef(null);
   const [agentIndex, setAgentIndex] = useState(0);
+  const [bgIndex, setBgIndex] = useState(0);
   const isSmallWindowMode = searchParams.get("mode") === "small";
 
   const activeAgent = ASSISTANT_AGENTS[agentIndex % ASSISTANT_AGENTS.length];
+  const activeBackground = CHAT_BG_PALETTE[bgIndex % CHAT_BG_PALETTE.length];
 
   useEffect(() => {
     const timer = window.setInterval(() => {
@@ -181,6 +193,14 @@ function SupportPageContent() {
 
     return () => window.clearInterval(timer);
   }, []);
+
+  useEffect(() => {
+    if (reduceMotion) return undefined;
+    const timer = window.setInterval(() => {
+      setBgIndex((prev) => (prev + 1) % CHAT_BG_PALETTE.length);
+    }, 2500);
+    return () => window.clearInterval(timer);
+  }, [reduceMotion]);
 
   useEffect(() => {
     setContext(buildInitialContext());
@@ -274,15 +294,19 @@ function SupportPageContent() {
   };
 
   return (
-    <div className={`relative w-full overflow-hidden bg-[linear-gradient(145deg,#090d16,#0c1324_52%,#0b1a2d_100%)] text-white ${isSmallWindowMode ? "h-full min-h-full" : "min-h-screen"}`}>
+    <div
+      className={`agi-chat-bg-cycle relative w-full overflow-hidden text-white ${isSmallWindowMode ? "h-full min-h-full" : "min-h-screen"}`}
+      style={{ background: activeBackground }}
+    >
       <div className="agi-login-grid" aria-hidden />
       <div className="agi-login-scan opacity-70" aria-hidden />
+      <div className="agi-fog-layer opacity-25 mix-blend-screen" aria-hidden />
       <div className="agi-login-orb agi-login-orb--a opacity-70" aria-hidden style={{ filter: "blur(74px)" }} />
       <div className="agi-login-orb agi-login-orb--b opacity-65" aria-hidden style={{ filter: "blur(80px)" }} />
       <motion.div
-        animate={reduceMotion ? undefined : { opacity: [0.08, 0.2, 0.1, 0.18, 0.08] }}
-        transition={{ duration: 20, repeat: Infinity, ease: "easeInOut" }}
-        className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_24%,rgba(59,130,246,0.18),transparent_42%),radial-gradient(circle_at_84%_74%,rgba(56,189,248,0.16),transparent_44%),radial-gradient(circle_at_52%_62%,rgba(147,197,253,0.12),transparent_52%)]"
+        animate={reduceMotion ? undefined : { opacity: [0.08, 0.22, 0.12, 0.2, 0.08] }}
+        transition={{ duration: 2.5, repeat: Infinity, ease: "easeInOut" }}
+        className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_24%,rgba(125,211,252,0.2),transparent_42%),radial-gradient(circle_at_84%_74%,rgba(167,243,208,0.16),transparent_44%),radial-gradient(circle_at_52%_62%,rgba(196,181,253,0.14),transparent_52%)]"
       />
       <div className="pointer-events-none absolute inset-0 opacity-12 bg-[linear-gradient(rgba(255,255,255,0.04)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.04)_1px,transparent_1px)] bg-size-[30px_30px]" />
       {!isSmallWindowMode ? (
@@ -319,6 +343,17 @@ function SupportPageContent() {
               <div>
                 <p className="text-sm font-semibold uppercase tracking-[0.16em] text-sky-100">Adigator Chat Help</p>
                 <p className="text-xs text-sky-50/82">{activeAgent.name} · {activeAgent.title}</p>
+              </div>
+              <div className="ml-2 hidden items-center gap-1.5 sm:flex">
+                <span className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-white/20 bg-white/90">
+                  <GoogleAdsIcon className="h-4 w-4" />
+                </span>
+                <span className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-white/20 bg-white/90">
+                  <MetaIcon className="h-4 w-4" />
+                </span>
+                <span className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-white/20 bg-white/90">
+                  <TradeDeskIcon className="h-4 w-4" />
+                </span>
               </div>
             </div>
           </div>

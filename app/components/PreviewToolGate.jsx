@@ -17,15 +17,20 @@ import {
 } from "@/app/lib/demoAccess";
 import { MARKETING_SIGN_IN } from "@/app/lib/siteNavigation";
 import { useRouteLoadTelemetry } from "@/app/lib/routeTelemetry";
+import { AdigatorOrbitLoader } from "@/app/components/ui/AdigatorOrbitLoader";
 
 const PreviewTool = dynamic(() => import("./PreviewTool"), {
   ssr: false,
   loading: () => (
-    <div className="min-h-screen bg-[#0B1220] flex items-center justify-center">
-      <div className="flex flex-col items-center gap-4">
-        <div className="w-12 h-12 border-4 border-purple-500 border-t-transparent rounded-full motion-safe:animate-spin motion-reduce:animate-none" />
-        <p className="text-white/40 text-sm font-medium">Loading Campaign Intelligence Studio...</p>
-      </div>
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#0B1220]">
+      <div className="agi-fog-layer opacity-20 mix-blend-screen" aria-hidden />
+      <div className="agi-light-cycle opacity-35" aria-hidden />
+      <AdigatorOrbitLoader
+        size="lg"
+        tone="dark"
+        label="Loading Campaign Intelligence Studio"
+        hint="Catch Campaign Mistakes Before Media Spend Begins"
+      />
     </div>
   ),
 });
@@ -120,11 +125,15 @@ export default function PreviewToolGate() {
 
   if (!ready) {
     return (
-      <div className="min-h-screen bg-[#0B1220] flex items-center justify-center">
-        <div className="flex flex-col items-center gap-4">
-          <div className="w-12 h-12 border-4 border-purple-500 border-t-transparent rounded-full motion-safe:animate-spin motion-reduce:animate-none" />
-          <p className="text-white/40 text-sm font-medium">Preparing Campaign Intelligence Studio...</p>
-        </div>
+      <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#0B1220]">
+        <div className="agi-fog-layer opacity-20 mix-blend-screen" aria-hidden />
+        <div className="agi-light-cycle opacity-35" aria-hidden />
+        <AdigatorOrbitLoader
+          size="lg"
+          tone="dark"
+          label="Preparing Campaign Intelligence Studio"
+          hint="Catch Campaign Mistakes Before Media Spend Begins"
+        />
       </div>
     );
   }

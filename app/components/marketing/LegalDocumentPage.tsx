@@ -95,7 +95,11 @@ function LegalDocumentPage({
             <Link href="/contact" className="font-medium text-[#0D0D0D] underline underline-offset-2">
               Contact us
             </Link>{" "}
-            for general inquiries.
+            for general inquiries. Learn how{" "}
+            <Link href="/google-ads-oauth" className="font-medium text-[#0D0D0D] underline underline-offset-2">
+              Google Ads OAuth connection
+            </Link>{" "}
+            works.
           </p>
         </article>
       </main>

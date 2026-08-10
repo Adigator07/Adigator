@@ -4,6 +4,7 @@ import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { Check, Copy, Lock, Pencil } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { calculateScale } from "@/app/lib/scalingEngine";
+import { AdigatorOrbitLoader } from "@/app/components/ui/AdigatorOrbitLoader";
 
 const EXPO_OUT = [0.16, 1, 0.3, 1];
 
@@ -347,9 +348,8 @@ export function ScaledAdFrame({ width, height, children, className = "" }) {
 
 export function PreviewLoadingState({ label = "Generating platform templates…" }) {
   return (
-    <div className="studio-card flex flex-col items-center justify-center rounded-2xl py-20 text-center">
-      <div className="h-10 w-10 animate-spin rounded-full border-2 border-studio-accent border-t-transparent" />
-      <p className="mt-4 text-sm text-studio-muted">{label}</p>
+    <div className="relative flex flex-col items-center justify-center py-16 text-center">
+      <AdigatorOrbitLoader size="md" tone="light" label="Loading" hint={label} />
     </div>
   );
 }

@@ -29,6 +29,11 @@ import MarketingNav from "@/app/components/MarketingNav";
 import MarketingFooter from "@/app/components/MarketingFooter";
 import { IllustrationSkeleton } from "@/app/components/illustrations/IllustrationWrapper";
 import { STORYSET_ILLUSTRATIONS } from "@/app/lib/storysetIllustrations";
+import {
+  GoogleAdsIcon,
+  MetaIcon,
+  TradeDeskIcon,
+} from "@/app/components/brand/PlatformBrandIcons";
 
 const IllustrationWrapper = dynamic(
   () => import("@/app/components/illustrations/IllustrationWrapper"),
@@ -165,16 +170,36 @@ const UNDERSTANDS_ITEMS = [
 ];
 
 const PLATFORMS = [
-  { name: "Meta Ads", desc: "Feed, Story, Reels, and safe-zone validation before trafficking.", icon: Megaphone, accent: "from-[#ff5f6d]/20 to-[#ffc371]/20" },
-  { name: "Google Ads", desc: "Display, RDA, and Demand Gen requirements in one readiness pass.", icon: Target, accent: "from-[#4285f4]/20 to-[#34a853]/20" },
-  { name: "Programmatic Display", desc: "RTB sizes, file weight, and placement compatibility.", icon: BarChart3, accent: "from-[#8b5cf6]/20 to-[#38bdf8]/20" },
+  {
+    name: "Meta Ads",
+    desc: "Feed, Story, Reels, and safe-zone validation before trafficking.",
+    accent: "from-[#0081FB]/20 to-[#66b3ff]/20",
+    renderIcon: () => <MetaIcon className="h-5 w-5" />,
+  },
+  {
+    name: "Google Ads",
+    desc: "Display, RDA, and Demand Gen requirements in one readiness pass.",
+    accent: "from-[#4285f4]/20 to-[#34a853]/20",
+    renderIcon: () => <GoogleAdsIcon className="h-5 w-5" />,
+  },
+  {
+    name: "Programmatic Display",
+    desc: "RTB sizes, file weight, and placement compatibility.",
+    accent: "from-[#111111]/15 to-[#E01933]/20",
+    renderIcon: () => <TradeDeskIcon className="h-5 w-5" />,
+  },
   {
     name: "Responsive Display",
     desc: "Ratio and asset-set checks for Google Responsive Display Ads.",
-    icon: Monitor,
     accent: "from-[#0ea5e9]/20 to-[#14b8a6]/20",
+    renderIcon: () => <Monitor size={20} />,
   },
-  { name: "Cross-device placements", desc: "Desktop, mobile, and tablet fit across the package.", icon: Smartphone, accent: "from-[#f59e0b]/20 to-[#ef4444]/20" },
+  {
+    name: "Cross-device placements",
+    desc: "Desktop, mobile, and tablet fit across the package.",
+    accent: "from-[#f59e0b]/20 to-[#ef4444]/20",
+    renderIcon: () => <Smartphone size={20} />,
+  },
 ];
 
 const OPERATIONAL_VALUE = [
@@ -239,10 +264,13 @@ export default function HomePage() {
   };
 
   return (
-    <div className="marketing-page relative min-h-screen overflow-hidden scroll-smooth bg-[#F5F5F0] text-[#0D0D0D]">
+    <div className="marketing-page relative min-h-screen overflow-hidden scroll-smooth bg-[#EEF2F4] text-[#0D0D0D]">
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div className="absolute left-1/2 -top-32 h-112 w-md -translate-x-1/2 rounded-full bg-[radial-gradient(circle,rgba(0,212,255,0.26)_0%,rgba(0,212,255,0.12)_34%,rgba(0,212,255,0.04)_62%,transparent_100%)] blur-3xl" aria-hidden />
-        <div className="absolute -bottom-24 -right-16 h-96 w-96 rounded-full bg-[radial-gradient(circle,rgba(34,211,238,0.18)_0%,rgba(34,211,238,0.08)_45%,transparent_80%)] blur-3xl" aria-hidden />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_60%_at_50%_-10%,rgba(255,255,255,0.9),transparent_55%),linear-gradient(180deg,#F4F7F8_0%,#E8EEF2_45%,#F1F5F7_100%)]" aria-hidden />
+        <div className="agi-smoke-fog" aria-hidden />
+        <div className="agi-smoke-fog agi-smoke-fog--b" aria-hidden />
+        <div className="agi-fog-layer agi-fog-layer--soft" aria-hidden />
+        <div className="agi-light-cycle opacity-70" aria-hidden />
       </div>
       <MarketingNav activePath="/" />
 
@@ -253,19 +281,11 @@ export default function HomePage() {
             initial={reduceMotion ? false : { opacity: 0, x: slideOffset("left", "lg") }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: reduceMotion ? 0 : 0.75, ease: [0.22, 1, 0.36, 1] }}
-            className="relative overflow-hidden rounded-[36px] border border-black/10 bg-[linear-gradient(135deg,rgba(255,255,255,0.96),rgba(248,248,241,0.98))] p-6 shadow-[0_30px_90px_rgba(15,23,42,0.08)] sm:p-8 lg:p-10"
+            className="relative overflow-hidden rounded-[36px] border border-white/50 bg-white/55 p-6 shadow-[0_30px_90px_rgba(15,23,42,0.08)] backdrop-blur-xl sm:p-8 lg:p-10"
           >
-            <div className="hero-ambient-grid pointer-events-none absolute inset-0" />
-            <motion.div
-              animate={reduceMotion ? { opacity: 0.7 } : { opacity: [0.6, 0.9, 0.65], scale: [1, 1.04, 1] }}
-              transition={{ duration: 7, repeat: Infinity, ease: "easeInOut" }}
-              className="hero-orb hero-orb-a"
-            />
-            <motion.div
-              animate={reduceMotion ? { opacity: 0.7 } : { opacity: [0.55, 0.8, 0.6], scale: [1, 1.06, 1] }}
-              transition={{ duration: 9, repeat: Infinity, ease: "easeInOut", delay: 0.7 }}
-              className="hero-orb hero-orb-b"
-            />
+            <div className="agi-smoke-fog opacity-50" aria-hidden />
+            <div className="agi-fog-layer opacity-40" aria-hidden />
+            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.55),transparent_45%)]" />
 
             <div className="relative z-10 grid grid-cols-1 items-center gap-8 md:grid-cols-2 md:gap-10 lg:gap-12">
               <div className="min-w-0">
@@ -534,8 +554,8 @@ export default function HomePage() {
                   className="platform-card group relative overflow-hidden rounded-3xl border border-[#DEDDD5] bg-white/90 p-5 shadow-[0_18px_40px_rgba(15,23,42,0.06)] backdrop-blur"
                 >
                   <div className={`absolute inset-x-0 top-0 h-1 bg-linear-to-r ${platform.accent}`} />
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#EEF0E7] text-[#0D0D0D] transition-transform duration-300 group-hover:scale-110">
-                    <platform.icon size={18} />
+                  <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-[#E8E6DF] bg-white text-[#0D0D0D] shadow-sm transition-transform duration-300 group-hover:scale-110">
+                    {platform.renderIcon()}
                   </div>
                   <h3 className="mt-3 text-base font-black tracking-tight">{platform.name}</h3>
                   <p className="mt-2 text-sm leading-relaxed text-[#5B5B55]">{platform.desc}</p>
