@@ -30,9 +30,7 @@ export default function AdigatorLaunchScreen({ durationMs }: AdigatorLaunchScree
       className="fixed inset-0 z-9999 flex items-center justify-center overflow-hidden bg-[#050816] text-white"
     >
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(14,165,233,0.22),transparent_42%),radial-gradient(circle_at_bottom_right,rgba(16,185,129,0.18),transparent_40%)]" />
-      <div className="agi-light-cycle opacity-50" aria-hidden />
-      <div className="agi-fog-layer opacity-30 mix-blend-screen" aria-hidden />
-      <div className="pointer-events-none absolute inset-0 opacity-30 bg-[linear-gradient(rgba(255,255,255,0.04)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.04)_1px,transparent_1px)] bg-size-[56px_56px]" />
+      <div className="pointer-events-none absolute inset-0 opacity-25 bg-[linear-gradient(rgba(255,255,255,0.04)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.04)_1px,transparent_1px)] bg-size-[56px_56px]" />
 
       <motion.div
         initial={reduceMotion ? false : { y: 16, opacity: 0 }}

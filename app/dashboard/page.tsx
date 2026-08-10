@@ -280,7 +280,7 @@ export default function Dashboard() {
                     whileHover={hoverLift}
                     whileTap={hoverTap}
                     transition={{ duration: 0.2, ease: EASE }}
-                    className="group relative flex cursor-pointer items-center gap-4 overflow-hidden rounded-2xl border border-white/70 bg-white/65 p-4 shadow-[0_18px_50px_-28px_rgba(14,116,144,0.35)] backdrop-blur-xl transition-all hover:border-sky-200/90 hover:bg-white/80 premium-card premium-card-glow"
+                    className="group relative flex cursor-pointer items-center gap-4 overflow-hidden rounded-2xl border border-white/70 bg-white/88 p-4 shadow-[0_18px_50px_-28px_rgba(14,116,144,0.35)] transition-all hover:border-sky-200/90 hover:bg-white premium-card premium-card-glow"
                   >
                     <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-linear-to-br ${a.color} shadow-sm`}>
                       <Icon size={20} className="text-white" />
@@ -333,7 +333,7 @@ export default function Dashboard() {
                       whileHover={hoverLift}
                       whileTap={hoverTap}
                       transition={{ duration: 0.2, ease: EASE }}
-                      className={`rounded-2xl border ${s.border} bg-white/65 p-5 shadow-[0_18px_45px_-24px_rgba(14,116,144,0.3)] backdrop-blur-xl transition-all premium-card premium-card-glow`}
+                      className={`rounded-2xl border ${s.border} bg-white/88 p-5 shadow-[0_18px_45px_-24px_rgba(14,116,144,0.3)] transition-all premium-card premium-card-glow`}
                     >
                       <div className={`mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-linear-to-br ${s.color}`}>
                         <s.Icon size={20} className={`${s.text}`} />
@@ -367,7 +367,7 @@ export default function Dashboard() {
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
                 transition={crossfadeTransition}
-                className="h-64 rounded-2xl border border-white/50 bg-white/40 backdrop-blur-md"
+                className="h-64 rounded-2xl border border-white/50 bg-white/70"
               />
             ) : (
               <motion.div

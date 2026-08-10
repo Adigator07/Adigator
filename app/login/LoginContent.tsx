@@ -51,9 +51,13 @@ import { REGISTRATION_ROLES, getPostAuthRedirect } from "@/app/lib/communication
 import type { UserRole } from "@/app/lib/communications/types";
 import { DISPLAY_NAME_PATTERN } from "@/app/lib/auth/sanitize";
 import {
-  getFirebaseClientAuth,
+  getFirebaseClientAuthOrNull,
   getFirebaseClientFirestoreOrNull,
+  hasFirebaseClientConfig,
 } from "@/app/lib/firebase/client";
+
+const FIREBASE_CONFIG_ERROR =
+  "Authentication is not configured yet. Add the Firebase environment variables and restart the app.";
 import { getClientProfileData } from "@/app/lib/firestore/clientProfiles";
 import {
   GoogleAdsIcon,
@@ -310,7 +314,12 @@ export default function LoginContent() {
     finalizingRef.current = true;
     authDebug("finalize_start", { uid: resolvedUser.uid, hasEmail: Boolean(resolvedUser.email) });
 
-    const auth = getFirebaseClientAuth();
+    const auth = getFirebaseClientAuthOrNull();
+    if (!auth) {
+      setErrors({ form: FIREBASE_CONFIG_ERROR });
+      finalizingRef.current = false;
+      return;
+    }
     const firestore = getFirebaseClientFirestoreOrNull();
     const profileRef = firestore ? doc(firestore, "userProfiles", resolvedUser.uid) : null;
     const profile = await Promise.race([
@@ -404,7 +413,15 @@ export default function LoginContent() {
   }
 
   useEffect(() => {
-    const auth = getFirebaseClientAuth();
+    if (!hasFirebaseClientConfig()) {
+      authDebug("firebase_config_missing");
+      setErrors({ form: FIREBASE_CONFIG_ERROR });
+      return;
+    }
+
+    const auth = getFirebaseClientAuthOrNull();
+    if (!auth) return;
+
     authDebug("persistence_init");
     void setPersistence(auth, browserLocalPersistence).catch(() => {
       // Keep default persistence if the browser blocks persistence APIs.
@@ -413,7 +430,11 @@ export default function LoginContent() {
   }, []);
 
   useEffect(() => {
-    const auth = getFirebaseClientAuth();
+    if (!hasFirebaseClientConfig()) return;
+
+    const auth = getFirebaseClientAuthOrNull();
+    if (!auth) return;
+
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       authDebug("onAuthStateChanged", { hasUser: Boolean(user), uid: user?.uid ?? null });
       if (!user) {
@@ -434,10 +455,14 @@ export default function LoginContent() {
   }, []);
 
   useEffect(() => {
+    if (!hasFirebaseClientConfig()) return;
+
     let active = true;
 
     void (async () => {
-      const auth = getFirebaseClientAuth();
+      const auth = getFirebaseClientAuthOrNull();
+      if (!auth) return;
+
       authDebug("redirect_result_start");
       try {
         const redirectResult = await Promise.race([
@@ -511,7 +536,7 @@ export default function LoginContent() {
 
   const logOutboundGoogleAdsClick = async (source: string, destination = "google_ads_start") => {
     try {
-      const user = getFirebaseClientAuth().currentUser;
+      const user = getFirebaseClientAuthOrNull()?.currentUser;
       if (!user) return;
       const token = await user.getIdToken();
       if (!token) return;
@@ -782,8 +807,13 @@ export default function LoginContent() {
         setErrors({ form: GENERIC_AUTH_VALIDATION_ERROR });
         return;
       }
+      const auth = getFirebaseClientAuthOrNull();
+      if (!auth) {
+        setErrors({ form: FIREBASE_CONFIG_ERROR });
+        return;
+      }
       triggerSubmitPulse();
-      await sendPasswordResetEmail(getFirebaseClientAuth(), trimmed);
+      await sendPasswordResetEmail(auth, trimmed);
       setResetMessage(PASSWORD_RESET_REQUEST_MESSAGE);
     } catch {
       setResetMessage(PASSWORD_RESET_REQUEST_MESSAGE);
@@ -819,7 +849,11 @@ export default function LoginContent() {
     setSignupSuccessMessage(null);
 
     try {
-      const auth = getFirebaseClientAuth();
+      const auth = getFirebaseClientAuthOrNull();
+      if (!auth) {
+        setErrors({ form: FIREBASE_CONFIG_ERROR });
+        return;
+      }
       const db = getFirebaseClientFirestoreOrNull();
 
       if (isRegisterMode) {
@@ -894,7 +928,12 @@ export default function LoginContent() {
     setGoogleLoading(true);
 
     try {
-      const auth = getFirebaseClientAuth();
+      const auth = getFirebaseClientAuthOrNull();
+      if (!auth) {
+        setErrors({ form: FIREBASE_CONFIG_ERROR });
+        setGoogleLoading(false);
+        return;
+      }
       await setPersistence(auth, browserLocalPersistence).catch(() => {
         // Continue with default persistence when browser restrictions apply.
       });
@@ -953,7 +992,11 @@ export default function LoginContent() {
     triggerSubmitPulse();
 
     try {
-      const auth = getFirebaseClientAuth();
+      const auth = getFirebaseClientAuthOrNull();
+      if (!auth) {
+        setGoogleUsernameError(FIREBASE_CONFIG_ERROR);
+        return;
+      }
       const currentUser = auth.currentUser;
       if (!currentUser || currentUser.uid !== pendingGoogleProfile.uid) {
         throw new Error("Your Google session changed. Please sign in again.");
@@ -1050,14 +1093,16 @@ export default function LoginContent() {
               <div className="agi-login-hero-glow absolute inset-x-8 top-6 h-[72%] rounded-full" aria-hidden />
               <motion.div
                 initial={shouldReduceMotion ? false : { y: 18, opacity: 0, scale: 0.98 }}
-                animate={shouldReduceMotion ? { opacity: 1, y: 0, scale: 1 } : { y: [0, -5, 0], opacity: 1, scale: 1 }}
-                transition={shouldReduceMotion ? { duration: 0.6 } : { duration: 2.6, repeat: Infinity, ease: "easeInOut" }}
-                className="relative overflow-hidden rounded-[26px] border border-slate-200/80 bg-[linear-gradient(135deg,rgba(255,255,255,0.96),rgba(232,245,255,0.94),rgba(255,255,255,0.9))] p-3 shadow-[0_24px_70px_rgba(15,23,42,0.10)] backdrop-blur-md"
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+                className={`relative overflow-hidden rounded-[26px] border border-slate-200/80 bg-[linear-gradient(135deg,rgba(255,255,255,0.96),rgba(232,245,255,0.94),rgba(255,255,255,0.9))] p-3 shadow-[0_24px_70px_rgba(15,23,42,0.10)] ${shouldReduceMotion ? "" : "agi-login-hero-float"}`}
               >
                 <img
                   src="/assets/illustrations/storyset/analysis-amico.svg"
                   alt="Adigator dashboard illustration"
                   className="agi-login-hero-illustration w-full rounded-[20px]"
+                  loading="eager"
+                  decoding="async"
                 />
               </motion.div>
             </motion.div>

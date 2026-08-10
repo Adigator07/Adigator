@@ -5762,11 +5762,8 @@ export default function PreviewTool() {
                         <div className="relative overflow-hidden rounded-[1.4rem] border border-white/10 bg-slate-950/35 p-5 shadow-[0_20px_60px_-28px_rgba(15,23,42,0.65)]">
                           <div className={`absolute inset-0 bg-linear-to-br ${p.color}`} />
                           <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.24),transparent_55%)]" />
-                          <motion.div
-                            initial={false}
-                            animate={platform === p.id ? { y: [0, -4, 0], scale: [1, 1.02, 1], rotate: [0, -1.2, 1.2, 0] } : { y: 0, scale: 1, rotate: 0 }}
-                            transition={{ duration: 2.6, repeat: Infinity, ease: "easeInOut" }}
-                            className="relative z-10 flex items-start justify-between gap-3"
+                          <div
+                            className={`relative z-10 flex items-start justify-between gap-3 ${platform === p.id ? "agi-platform-idle" : ""}`}
                           >
                             <div className="flex items-center gap-3">
                               <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/25 bg-white shadow-[0_0_22px_rgba(255,255,255,0.18)]">
@@ -5780,7 +5777,7 @@ export default function PreviewTool() {
                             <div className={`rounded-full border px-2.5 py-1 text-[11px] font-semibold ${platform === p.id ? "border-cyan-400/40 bg-cyan-400/15 text-cyan-200" : "border-white/15 bg-white/10 text-studio-muted"}`}>
                               {platform === p.id ? "Selected" : "Choose"}
                             </div>
-                          </motion.div>
+                          </div>
 
                           <p className="relative z-10 mt-4 text-sm leading-relaxed text-studio-muted">{p.desc}</p>
                         </div>

@@ -52,8 +52,8 @@
 }
 
 @keyframes pulse-glow {
-  0%, 100% { box-shadow: 0 0 12px rgba(103, 232, 249, 0.26); }
-  50% { box-shadow: 0 0 28px rgba(103, 232, 249, 0.42), 0 0 64px rgba(59, 130, 246, 0.18); }
+  0%, 100% { opacity: 0.7; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.08); }
 }
 
 @keyframes reveal-up {
@@ -64,7 +64,8 @@
 *, *::before, *::after { box-sizing: border-box; }
 
 html {
-  scroll-behavior: smooth;
+  /* Instant scroll is smoother with layered ambient FX; anchors can opt into smooth. */
+  scroll-behavior: auto;
   background: var(--bg);
 }
 
@@ -93,6 +94,8 @@ a {
 
 .marketing-page .marketing-section {
   scroll-margin-top: 5rem;
+  content-visibility: auto;
+  contain-intrinsic-size: 1px 720px;
 }
 
 .marketing-page .marketing-section-compact {
@@ -112,7 +115,9 @@ a {
 
 .illustration-wrapper--revealed .illustration-inline,
 .illustration-wrapper--revealed .illustration-motion-inner > img {
-  animation: illustration-gentle-float 5.5s ease-in-out infinite;
+  animation: illustration-gentle-float 7.5s ease-in-out infinite;
+  transform: translateZ(0);
+  will-change: transform;
 }
 
 @keyframes illustration-gentle-float {
@@ -1138,46 +1143,126 @@ img, video {
 .hero-orb {
   position: absolute;
   border-radius: 999px;
-  filter: blur(42px);
   pointer-events: none;
+  transform: translateZ(0);
+  will-change: transform, opacity;
+  contain: paint;
 }
 
 .hero-orb-a {
   left: -4%;
   top: 4%;
-  width: 280px;
-  height: 280px;
-  background: radial-gradient(circle, rgba(200, 240, 77, 0.36), transparent 66%);
+  width: 320px;
+  height: 320px;
+  background: radial-gradient(circle, rgba(200, 240, 77, 0.36) 0%, rgba(167, 243, 208, 0.2) 42%, transparent 70%);
   animation: agi-hero-orb-a 10s ease-in-out infinite;
 }
 
 .hero-orb-b {
   right: -2%;
   bottom: -8%;
-  width: 320px;
-  height: 320px;
-  background: radial-gradient(circle, rgba(125, 211, 252, 0.28), transparent 64%);
+  width: 360px;
+  height: 360px;
+  background: radial-gradient(circle, rgba(125, 211, 252, 0.28) 0%, rgba(186, 230, 253, 0.16) 44%, transparent 70%);
   animation: agi-hero-orb-b 10s ease-in-out infinite;
 }
 
 @keyframes agi-hero-orb-a {
-  0% { background: radial-gradient(circle, rgba(200, 240, 77, 0.36), transparent 66%); }
-  25% { background: radial-gradient(circle, rgba(167, 243, 208, 0.34), transparent 66%); }
-  50% { background: radial-gradient(circle, rgba(253, 224, 71, 0.3), transparent 66%); }
-  75% { background: radial-gradient(circle, rgba(196, 181, 253, 0.3), transparent 66%); }
-  100% { background: radial-gradient(circle, rgba(200, 240, 77, 0.36), transparent 66%); }
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); opacity: 0.9; }
+  25% { transform: translate3d(2%, -1%, 0) scale(1.04); opacity: 1; }
+  50% { transform: translate3d(-1%, 2%, 0) scale(1.08); opacity: 0.85; }
+  75% { transform: translate3d(1%, 1%, 0) scale(1.03); opacity: 0.95; }
 }
 
 @keyframes agi-hero-orb-b {
-  0% { background: radial-gradient(circle, rgba(125, 211, 252, 0.28), transparent 64%); }
-  25% { background: radial-gradient(circle, rgba(186, 230, 253, 0.32), transparent 64%); }
-  50% { background: radial-gradient(circle, rgba(167, 243, 208, 0.26), transparent 64%); }
-  75% { background: radial-gradient(circle, rgba(254, 215, 170, 0.28), transparent 64%); }
-  100% { background: radial-gradient(circle, rgba(125, 211, 252, 0.28), transparent 64%); }
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); opacity: 0.88; }
+  25% { transform: translate3d(-2%, 1%, 0) scale(1.05); opacity: 1; }
+  50% { transform: translate3d(1%, -2%, 0) scale(1.07); opacity: 0.82; }
+  75% { transform: translate3d(-1%, -1%, 0) scale(1.02); opacity: 0.94; }
 }
 
 .hero-floating-pill {
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3);
+}
+
+@keyframes agi-hero-float {
+  0%, 100% { transform: translate3d(0, 0, 0) rotate(0deg); }
+  50% { transform: translate3d(0, -8px, 0) rotate(0.6deg); }
+}
+
+.agi-hero-float {
+  animation: agi-hero-float 7s ease-in-out infinite;
+  transform: translateZ(0);
+  will-change: transform;
+}
+
+.agi-platform-idle {
+  animation: agi-hero-float 3.2s ease-in-out infinite;
+  transform: translateZ(0);
+}
+
+@keyframes agi-journey-sweep {
+  0% { transform: translate3d(-30%, 0, 0); }
+  100% { transform: translate3d(30%, 0, 0); }
+}
+
+@keyframes agi-journey-pulse-move {
+  0% { transform: translate3d(0, -50%, 0); opacity: 0.2; }
+  10% { opacity: 1; }
+  100% { transform: translate3d(1150%, -50%, 0); opacity: 0.2; }
+}
+
+@keyframes agi-journey-shimmer {
+  0% { transform: translate3d(-120%, 0, 0); }
+  100% { transform: translate3d(220%, 0, 0); }
+}
+
+@keyframes agi-journey-step-pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.03); }
+}
+
+@keyframes agi-journey-arrow-pulse {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 1; }
+}
+
+.agi-journey-sweep {
+  background-image: linear-gradient(90deg, transparent 0%, rgba(200, 240, 77, 0.08) 45%, transparent 70%);
+  background-size: 180% 100%;
+  animation: agi-journey-sweep 16s linear infinite;
+  transform: translateZ(0);
+  contain: paint;
+}
+
+.agi-journey-pulse {
+  animation: agi-journey-pulse-move 14s linear infinite;
+  transform: translate3d(0, -50%, 0);
+  will-change: transform;
+}
+
+.agi-journey-shimmer {
+  animation: agi-journey-shimmer 2.2s ease-in-out infinite;
+  transform: translateZ(0);
+}
+
+.agi-journey-step-active {
+  animation: agi-journey-step-pulse 1.6s ease-in-out infinite;
+  transform: translateZ(0);
+}
+
+.agi-journey-arrow {
+  animation: agi-journey-arrow-pulse 1.2s ease-in-out infinite;
+}
+
+html.agi-fx-paused .agi-hero-float,
+html.agi-fx-paused .agi-platform-idle,
+html.agi-fx-paused .agi-journey-sweep,
+html.agi-fx-paused .agi-journey-pulse,
+html.agi-fx-paused .agi-journey-shimmer,
+html.agi-fx-paused .agi-journey-step-active,
+html.agi-fx-paused .agi-journey-arrow {
+  animation-play-state: paused !important;
 }
 
 @media (max-width: 768px) {
@@ -1190,17 +1275,22 @@ img, video {
 }
 
 /* Adigator orbit loader — crocodile mark forms inside spinning ring */
+.agi-orbit {
+  contain: layout paint;
+  transform: translateZ(0);
+}
+
 .agi-orbit-glow {
   position: absolute;
-  inset: 10%;
+  inset: 6%;
   border-radius: 999px;
-  background: radial-gradient(circle, rgba(56, 189, 248, 0.28), transparent 68%);
-  filter: blur(18px);
-  animation: agi-orbit-pulse 1.6s ease-in-out infinite;
+  background: radial-gradient(circle, rgba(56, 189, 248, 0.32) 0%, rgba(56, 189, 248, 0.12) 42%, transparent 72%);
+  animation: agi-orbit-pulse 2.2s ease-in-out infinite;
+  transform: translateZ(0);
 }
 
 .agi-orbit-glow--dark {
-  background: radial-gradient(circle, rgba(56, 189, 248, 0.38), transparent 68%);
+  background: radial-gradient(circle, rgba(56, 189, 248, 0.4) 0%, rgba(56, 189, 248, 0.14) 44%, transparent 72%);
 }
 
 .agi-orbit-ring {
@@ -1209,7 +1299,8 @@ img, video {
   border-radius: 999px;
   border: 2px solid rgba(125, 211, 252, 0.35);
   border-top-color: rgba(14, 165, 233, 0.95);
-  animation: agi-orbit-spin 1.05s linear infinite;
+  animation: agi-orbit-spin 1.35s linear infinite;
+  transform: translateZ(0);
 }
 
 .agi-orbit-ring--inner {
@@ -1218,7 +1309,7 @@ img, video {
   border-color: rgba(103, 232, 249, 0.28);
   border-bottom-color: rgba(236, 72, 153, 0.9);
   animation-direction: reverse;
-  animation-duration: 1.45s;
+  animation-duration: 1.85s;
 }
 
 .agi-orbit-ring--dark {
@@ -1230,27 +1321,29 @@ img, video {
   overflow: hidden;
   isolation: isolate;
   border-radius: 999px;
-  filter: drop-shadow(0 14px 28px rgba(56, 189, 248, 0.28));
+  box-shadow: 0 14px 28px rgba(56, 189, 248, 0.22);
+  contain: paint;
 }
 
 .agi-croc-glow {
   background: conic-gradient(
     from 0deg,
-    rgba(56, 189, 248, 0.35),
-    rgba(52, 211, 153, 0.3),
-    rgba(129, 140, 248, 0.32),
-    rgba(244, 114, 182, 0.3),
-    rgba(251, 191, 36, 0.32),
-    rgba(56, 189, 248, 0.35)
+    rgba(56, 189, 248, 0.28),
+    rgba(52, 211, 153, 0.22),
+    rgba(129, 140, 248, 0.24),
+    rgba(244, 114, 182, 0.22),
+    rgba(251, 191, 36, 0.24),
+    rgba(56, 189, 248, 0.28)
   );
-  filter: blur(18px);
-  opacity: 0.5;
-  animation: agi-croc-glow-spin 3s linear infinite;
+  opacity: 0.42;
+  animation: agi-croc-glow-spin 4.5s linear infinite;
+  transform: translateZ(0);
 }
 
-/* Exact PNG — wipe-draw */
+/* Exact PNG — soft reveal (opacity/scale only; no clip-path) */
 .agi-croc-ink {
-  animation: agi-croc-draw-wipe 3s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+  animation: agi-croc-draw-wipe 4s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+  transform: translateZ(0);
 }
 
 .agi-croc-ink--light {
@@ -1265,8 +1358,9 @@ img, video {
 /* Exact PNG colorized via SVG mask */
 .agi-croc-color {
   opacity: 0;
-  animation: agi-croc-color-in 3s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+  animation: agi-croc-color-in 4s cubic-bezier(0.22, 1, 0.36, 1) infinite;
   pointer-events: none;
+  transform: translateZ(0);
 }
 
 .agi-croc-pen {
@@ -1284,88 +1378,31 @@ img, video {
     rgba(251, 191, 36, 0.9),
     rgba(52, 211, 153, 0)
   );
-  filter: blur(0.5px);
   opacity: 0;
-  animation: agi-croc-pen-travel 3s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+  animation: agi-croc-pen-travel 4s cubic-bezier(0.22, 1, 0.36, 1) infinite;
   pointer-events: none;
   z-index: 2;
+  transform: translateZ(0);
 }
 
 @keyframes agi-croc-draw-wipe {
-  0% {
-    clip-path: inset(0 100% 0 0);
-    opacity: 0.15;
-  }
-  6% { opacity: 1; }
-  40% {
-    clip-path: inset(0 0 0 0);
-    opacity: 1;
-  }
-  68% {
-    clip-path: inset(0 0 0 0);
-    opacity: 0.25;
-  }
-  84% {
-    clip-path: inset(0 0 0 0);
-    opacity: 0.08;
-  }
-  100% {
-    clip-path: inset(0 100% 0 0);
-    opacity: 0.1;
-  }
+  0%, 100% { opacity: 0.2; transform: scale(0.98); }
+  12%, 55% { opacity: 1; transform: scale(1); }
+  78% { opacity: 0.35; transform: scale(1); }
+  90% { opacity: 0.12; transform: scale(0.99); }
 }
 
 @keyframes agi-croc-color-in {
-  0%, 28% {
-    opacity: 0;
-    clip-path: inset(0 100% 0 0);
-    transform: scale(0.96);
-  }
-  44% {
-    opacity: 1;
-    clip-path: inset(0 0 0 0);
-    transform: scale(1.02);
-  }
-  70% {
-    opacity: 1;
-    clip-path: inset(0 0 0 0);
-    transform: scale(1);
-  }
-  84% {
-    opacity: 1;
-    clip-path: inset(0 0 0 0);
-    transform: scale(1);
-  }
-  93% {
-    opacity: 0;
-    clip-path: inset(0 0 0 0);
-    transform: scale(0.98);
-  }
-  100% {
-    opacity: 0;
-    clip-path: inset(0 100% 0 0);
-    transform: scale(0.96);
-  }
+  0%, 24%, 100% { opacity: 0; transform: scale(0.97); }
+  40%, 68% { opacity: 1; transform: scale(1); }
+  84% { opacity: 0.2; transform: scale(0.99); }
 }
 
 @keyframes agi-croc-pen-travel {
-  0% {
-    left: -8%;
-    opacity: 0;
-  }
-  6% { opacity: 1; }
-  40% {
-    left: 96%;
-    opacity: 1;
-  }
-  48% {
-    left: 102%;
-    opacity: 0;
-  }
-  100% {
-    left: 102%;
-    opacity: 0;
-  }
+  0% { transform: translate3d(-12%, 0, 0); opacity: 0; }
+  8% { opacity: 1; }
+  42% { transform: translate3d(980%, 0, 0); opacity: 1; }
+  52%, 100% { transform: translate3d(1040%, 0, 0); opacity: 0; }
 }
 
 @keyframes agi-croc-glow-spin {
@@ -1381,68 +1418,124 @@ img, video {
   50% { opacity: 1; transform: scale(1.04); }
 }
 
-/* Smoky fog + color-shifting haze */
+/* Soft haze layers — pre-softened gradients, transform/opacity only */
 .agi-fog-layer {
   position: absolute;
-  inset: -12%;
+  inset: -18%;
   pointer-events: none;
   background:
-    radial-gradient(ellipse 70% 50% at 18% 28%, rgba(255, 255, 255, 0.62), transparent 62%),
-    radial-gradient(ellipse 55% 48% at 78% 22%, rgba(186, 230, 253, 0.42), transparent 60%),
-    radial-gradient(ellipse 60% 55% at 52% 82%, rgba(209, 250, 229, 0.38), transparent 64%),
-    radial-gradient(ellipse 45% 40% at 40% 50%, rgba(254, 243, 199, 0.22), transparent 58%);
-  filter: blur(34px);
-  opacity: 0.78;
-  animation: agi-fog-drift 16s ease-in-out infinite alternate;
-  mix-blend-mode: soft-light;
+    radial-gradient(ellipse 70% 50% at 18% 28%, rgba(255, 255, 255, 0.55), transparent 68%),
+    radial-gradient(ellipse 55% 48% at 78% 22%, rgba(186, 230, 253, 0.34), transparent 66%),
+    radial-gradient(ellipse 60% 55% at 52% 82%, rgba(209, 250, 229, 0.3), transparent 68%),
+    radial-gradient(ellipse 45% 40% at 40% 50%, rgba(254, 243, 199, 0.16), transparent 64%);
+  opacity: 0.45;
+  animation: agi-fog-drift 22s ease-in-out infinite alternate;
+  transform: translateZ(0);
+  contain: paint;
 }
 
 .agi-fog-layer--soft {
-  opacity: 0.5;
-  animation-duration: 22s;
+  opacity: 0.38;
+  animation-duration: 28s;
   animation-delay: -5s;
 }
 
 .agi-smoke-fog {
   position: absolute;
-  inset: -25%;
+  inset: -28%;
   pointer-events: none;
   background:
-    radial-gradient(ellipse 48% 42% at 22% 30%, rgba(45, 212, 191, 0.28), transparent 70%),
-    radial-gradient(ellipse 42% 38% at 78% 24%, rgba(56, 189, 248, 0.26), transparent 68%),
-    radial-gradient(ellipse 50% 44% at 62% 78%, rgba(251, 146, 60, 0.18), transparent 72%),
-    radial-gradient(ellipse 40% 36% at 30% 72%, rgba(250, 204, 21, 0.16), transparent 70%);
-  filter: blur(64px) saturate(1.05);
-  opacity: 0.75;
-  mix-blend-mode: multiply;
-  animation: agi-smoke-color 14s ease-in-out infinite;
+    radial-gradient(ellipse 48% 42% at 22% 30%, rgba(45, 212, 191, 0.2), transparent 72%),
+    radial-gradient(ellipse 42% 38% at 78% 24%, rgba(56, 189, 248, 0.18), transparent 70%),
+    radial-gradient(ellipse 50% 44% at 62% 78%, rgba(251, 146, 60, 0.12), transparent 74%),
+    radial-gradient(ellipse 40% 36% at 30% 72%, rgba(250, 204, 21, 0.1), transparent 72%);
+  opacity: 0.48;
+  animation: agi-smoke-color 20s ease-in-out infinite;
+  transform: translateZ(0);
+  contain: paint;
 }
 
 .agi-smoke-fog--b {
-  inset: -30%;
-  opacity: 0.55;
-  animation-duration: 18s;
+  inset: -32%;
+  opacity: 0.34;
+  animation-duration: 26s;
   animation-delay: -6s;
   animation-direction: reverse;
-  mix-blend-mode: soft-light;
   background:
-    radial-gradient(ellipse 44% 40% at 70% 40%, rgba(14, 165, 233, 0.22), transparent 70%),
-    radial-gradient(ellipse 50% 46% at 28% 68%, rgba(16, 185, 129, 0.2), transparent 72%),
-    radial-gradient(ellipse 38% 34% at 50% 20%, rgba(253, 186, 116, 0.16), transparent 68%);
+    radial-gradient(ellipse 44% 40% at 70% 40%, rgba(14, 165, 233, 0.16), transparent 72%),
+    radial-gradient(ellipse 50% 46% at 28% 68%, rgba(16, 185, 129, 0.14), transparent 74%),
+    radial-gradient(ellipse 38% 34% at 50% 20%, rgba(253, 186, 116, 0.1), transparent 70%);
 }
 
 .agi-light-cycle {
   position: absolute;
-  inset: -18%;
+  inset: -20%;
   pointer-events: none;
   background:
-    radial-gradient(circle at 16% 24%, rgba(125, 211, 252, 0.3), transparent 36%),
-    radial-gradient(circle at 84% 30%, rgba(110, 231, 183, 0.26), transparent 38%),
-    radial-gradient(circle at 48% 80%, rgba(253, 224, 71, 0.16), transparent 40%),
-    radial-gradient(circle at 68% 58%, rgba(251, 146, 60, 0.14), transparent 34%);
-  filter: blur(42px);
-  animation: agi-light-cycle 12s ease-in-out infinite;
-  opacity: 0.8;
+    radial-gradient(circle at 16% 24%, rgba(125, 211, 252, 0.24), transparent 42%),
+    radial-gradient(circle at 84% 30%, rgba(110, 231, 183, 0.2), transparent 44%),
+    radial-gradient(circle at 48% 80%, rgba(253, 224, 71, 0.12), transparent 46%),
+    radial-gradient(circle at 68% 58%, rgba(251, 146, 60, 0.1), transparent 40%);
+  animation: agi-light-cycle 18s ease-in-out infinite;
+  opacity: 0.55;
+  transform: translateZ(0);
+  contain: paint;
+}
+
+/* Pause decorative FX while hidden, scrolling, or navigating */
+html.agi-fx-paused .agi-fog-layer,
+html.agi-fx-paused .agi-smoke-fog,
+html.agi-fx-paused .agi-light-cycle,
+html.agi-fx-paused .agi-orbit-glow,
+html.agi-fx-paused .agi-orbit-ring,
+html.agi-fx-paused .agi-croc-glow,
+html.agi-fx-paused .agi-croc-ink,
+html.agi-fx-paused .agi-croc-color,
+html.agi-fx-paused .agi-croc-pen,
+html.agi-fx-paused .agi-login-grid,
+html.agi-fx-paused .agi-login-scan,
+html.agi-fx-paused .agi-login-orb,
+html.agi-fx-paused .agi-login-hero-float,
+html.agi-fx-paused .agi-login-form-shell::after,
+html.agi-fx-paused .neon-orb,
+html.agi-fx-paused .hero-orb,
+html.agi-fx-paused .illustration-wrapper--revealed .illustration-inline,
+html.agi-fx-paused .illustration-wrapper--revealed .illustration-motion-inner > img,
+html.agi-fx-paused .ticker-track,
+html.agi-fx-paused .modules-track,
+html.agi-fx-paused .marketing-marquee-track {
+  animation-play-state: paused !important;
+}
+
+/* Blend modes are the main scroll jank source — neutralize while interacting */
+html.agi-scrolling .agi-fog-layer,
+html.agi-scrolling .agi-smoke-fog,
+html.agi-navigating .agi-fog-layer,
+html.agi-navigating .agi-smoke-fog {
+  mix-blend-mode: normal !important;
+  opacity: 0.22 !important;
+}
+
+html.agi-scrolling .agi-light-cycle,
+html.agi-navigating .agi-light-cycle,
+html.agi-scrolling .neon-orb,
+html.agi-navigating .neon-orb {
+  opacity: 0.18 !important;
+}
+
+/* Avoid hover/transition paint work mid-scroll */
+html.agi-scrolling .saas-hover,
+html.agi-scrolling .premium-card,
+html.agi-scrolling .hero-live-card,
+html.agi-scrolling .studio-card {
+  transition: none !important;
+}
+
+html.agi-scrolling .illustration-wrapper--revealed .illustration-inline,
+html.agi-scrolling .illustration-wrapper--revealed .illustration-motion-inner > img,
+html.agi-scrolling .agi-hero-float,
+html.agi-scrolling .agi-platform-idle {
+  will-change: auto !important;
 }
 
 /* Dashboard shell wallpaper — cool mist canvas for smoky color fog */
@@ -1460,11 +1553,12 @@ img, video {
 .agi-dashboard-grain {
   position: absolute;
   inset: 0;
-  opacity: 0.035;
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-  background-size: 180px 180px;
-  mix-blend-mode: multiply;
+  opacity: 0.028;
+  background-image:
+    radial-gradient(rgba(15, 23, 42, 0.045) 0.6px, transparent 0.7px);
+  background-size: 3px 3px;
   pointer-events: none;
+  contain: strict;
 }
 
 /* Soft shifting aurora — teal / coral / gold / sky (not purple) */
@@ -1577,49 +1671,40 @@ img, video {
 @keyframes agi-smoke-color {
   0% {
     transform: translate3d(0, 0, 0) scale(1) rotate(0deg);
-    filter: blur(64px) saturate(1.05) hue-rotate(0deg);
     opacity: 0.7;
   }
   33% {
     transform: translate3d(3%, -2%, 0) scale(1.08) rotate(3deg);
-    filter: blur(70px) saturate(1.15) hue-rotate(28deg);
     opacity: 0.85;
   }
   66% {
     transform: translate3d(-3%, 3%, 0) scale(1.05) rotate(-2deg);
-    filter: blur(66px) saturate(1.1) hue-rotate(70deg);
     opacity: 0.78;
   }
   100% {
     transform: translate3d(0, 0, 0) scale(1) rotate(0deg);
-    filter: blur(64px) saturate(1.05) hue-rotate(120deg);
     opacity: 0.7;
   }
 }
 
 @keyframes agi-light-cycle {
   0% {
-    filter: blur(42px) hue-rotate(0deg);
     opacity: 0.65;
     transform: translate3d(0, 0, 0) scale(1);
   }
   25% {
-    filter: blur(46px) hue-rotate(35deg);
     opacity: 0.85;
     transform: translate3d(2%, -1%, 0) scale(1.04);
   }
   50% {
-    filter: blur(44px) hue-rotate(80deg);
     opacity: 0.72;
     transform: translate3d(-1%, 2%, 0) scale(1.06);
   }
   75% {
-    filter: blur(48px) hue-rotate(130deg);
     opacity: 0.88;
     transform: translate3d(1%, 1%, 0) scale(1.03);
   }
   100% {
-    filter: blur(42px) hue-rotate(180deg);
     opacity: 0.65;
     transform: translate3d(0, 0, 0) scale(1);
   }
@@ -1643,6 +1728,7 @@ img, video {
   }
 
   .agi-orbit-ring,
+  .agi-orbit-glow,
   .agi-fog-layer,
   .agi-smoke-fog,
   .agi-light-cycle,
@@ -1651,14 +1737,20 @@ img, video {
   .agi-croc-glow,
   .agi-croc-ink,
   .agi-croc-color,
-  .agi-croc-pen {
+  .agi-croc-pen,
+  .agi-hero-float,
+  .agi-platform-idle,
+  .agi-journey-sweep,
+  .agi-journey-pulse,
+  .agi-journey-shimmer,
+  .agi-journey-step-active,
+  .agi-journey-arrow {
     animation: none !important;
   }
 
   .agi-croc-ink,
   .agi-croc-color {
     opacity: 1 !important;
-    clip-path: none !important;
     transform: none !important;
   }
 

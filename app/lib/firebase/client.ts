@@ -55,11 +55,17 @@ export function getFirebaseClientAuth() {
   return getAuth(getFirebaseClientApp());
 }
 
+export function getFirebaseClientAuthOrNull() {
+  if (!hasFirebaseClientConfig()) return null;
+  return getFirebaseClientAuth();
+}
+
 export function getFirebaseClientFirestore() {
   return getFirestore(getFirebaseClientApp());
 }
 
 export function getFirebaseClientFirestoreOrNull() {
+  if (!hasFirebaseClientConfig()) return null;
   try {
     return getFirebaseClientFirestore();
   } catch {

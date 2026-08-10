@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { onIdTokenChanged, signOut } from "firebase/auth";
-import { getFirebaseClientAuth } from "../lib/firebase/client";
+import { getFirebaseClientAuthOrNull, hasFirebaseClientConfig } from "../lib/firebase/client";
 import { getClientProfileData } from "../lib/firestore/clientProfiles";
 import Sidebar from "../components/sidebar";
 import Topbar from "../components/topbar";
@@ -33,7 +33,19 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
   };
 
   useEffect(() => {
-    const auth = getFirebaseClientAuth();
+    if (!hasFirebaseClientConfig()) {
+      setUser(null);
+      setAuthReady(true);
+      authDebug("firebase_config_missing");
+      return;
+    }
+
+    const auth = getFirebaseClientAuthOrNull();
+    if (!auth) {
+      setUser(null);
+      setAuthReady(true);
+      return;
+    }
 
     const syncUser = async (firebaseUser: { uid: string; email: string | null; displayName: string | null } | null) => {
       authDebug("sync_start", { hasUser: Boolean(firebaseUser), uid: firebaseUser?.uid ?? null });
@@ -89,8 +101,8 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
     if (user) return;
 
     const timer = window.setTimeout(() => {
-      const auth = getFirebaseClientAuth();
-      if (!auth.currentUser) {
+      const auth = getFirebaseClientAuthOrNull();
+      if (!auth?.currentUser) {
         authDebug("redirect_login_timeout");
         router.replace("/login");
       }
@@ -109,13 +121,10 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="relative flex min-h-screen overflow-hidden text-slate-800">
-      {/* Animated smoky wallpaper */}
-      <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
+      {/* Soft ambient wallpaper — paused automatically while scrolling */}
+      <div className="pointer-events-none absolute inset-0 overflow-hidden [contain:paint]" aria-hidden>
         <div className="agi-dashboard-wallpaper" />
-        <div className="agi-smoke-fog opacity-80" />
-        <div className="agi-smoke-fog agi-smoke-fog--b opacity-60" />
-        <div className="agi-fog-layer" />
-        <div className="agi-light-cycle opacity-65" />
+        <div className="agi-smoke-fog opacity-40" />
         <div className="agi-dashboard-grain" />
       </div>
 
@@ -123,7 +132,7 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
         <Sidebar collapsed={sidebarCollapsed} setCollapsed={setSidebarCollapsed} user={user} />
         <div className="flex flex-1 flex-col overflow-hidden">
           <Topbar user={user} />
-          <main className="flex-1 overflow-y-auto bg-transparent p-8">{children}</main>
+          <main className="flex-1 overflow-y-auto overscroll-contain bg-transparent p-8 [scrollbar-gutter:stable]">{children}</main>
         </div>
       </div>
     </div>

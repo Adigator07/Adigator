@@ -23,8 +23,10 @@ const PreviewTool = dynamic(() => import("./PreviewTool"), {
   ssr: false,
   loading: () => (
     <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#0B1220]">
-      <div className="agi-fog-layer opacity-20 mix-blend-screen" aria-hidden />
-      <div className="agi-light-cycle opacity-35" aria-hidden />
+      <div
+        className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(14,165,233,0.18),transparent_42%),radial-gradient(circle_at_bottom_right,rgba(16,185,129,0.12),transparent_40%)]"
+        aria-hidden
+      />
       <AdigatorOrbitLoader
         size="lg"
         tone="dark"
@@ -126,8 +128,10 @@ export default function PreviewToolGate() {
   if (!ready) {
     return (
       <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#0B1220]">
-        <div className="agi-fog-layer opacity-20 mix-blend-screen" aria-hidden />
-        <div className="agi-light-cycle opacity-35" aria-hidden />
+        <div
+          className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(14,165,233,0.18),transparent_42%),radial-gradient(circle_at_bottom_right,rgba(16,185,129,0.12),transparent_40%)]"
+          aria-hidden
+        />
         <AdigatorOrbitLoader
           size="lg"
           tone="dark"
@@ -142,12 +146,11 @@ export default function PreviewToolGate() {
     return (
       <div className="relative min-h-screen overflow-hidden bg-[linear-gradient(145deg,#19060a,#0f0305_45%,#160509)] text-white flex items-center justify-center px-6">
         <div className="agi-login-grid" aria-hidden />
-        <div className="agi-login-scan" aria-hidden />
-        <div className="pointer-events-none absolute -left-24 top-10 h-88 w-88 rounded-full bg-[radial-gradient(circle,rgba(244,63,94,0.34),transparent_70%)] blur-3xl" />
-        <div className="pointer-events-none absolute -right-24 bottom-0 h-88 w-88 rounded-full bg-[radial-gradient(circle,rgba(239,68,68,0.3),transparent_70%)] blur-3xl" />
+        <div className="pointer-events-none absolute -left-24 top-10 h-88 w-88 rounded-full bg-[radial-gradient(circle,rgba(244,63,94,0.34)_0%,rgba(244,63,94,0.1)_42%,transparent_72%)]" />
+        <div className="pointer-events-none absolute -right-24 bottom-0 h-88 w-88 rounded-full bg-[radial-gradient(circle,rgba(239,68,68,0.3)_0%,rgba(239,68,68,0.1)_44%,transparent_72%)]" />
         <div className="pointer-events-none absolute inset-0 opacity-10 bg-[linear-gradient(rgba(255,255,255,0.04)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.04)_1px,transparent_1px)] bg-size-[28px_28px]" />
 
-        <div className="relative max-w-lg rounded-3xl border border-rose-200/30 bg-white/5 p-8 text-center backdrop-blur-xl shadow-[0_25px_70px_rgba(127,29,29,0.5)]">
+        <div className="relative max-w-lg rounded-3xl border border-rose-200/30 bg-white/8 p-8 text-center shadow-[0_25px_70px_rgba(127,29,29,0.5)]">
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-rose-200">Demo Limit Reached</p>
           <h1 className="mt-3 text-2xl font-black text-white">Your free demo session has been used</h1>
           <p className="mt-3 text-sm leading-relaxed text-rose-50/85">

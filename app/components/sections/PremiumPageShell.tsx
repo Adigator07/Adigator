@@ -12,8 +12,7 @@ type PremiumPageShellProps = {
 
 export default function PremiumPageShell({ children }: PremiumPageShellProps) {
   const [showGrain, setShowGrain] = useState(false);
-  const [isScrolling, setIsScrolling] = useState(false);
-  const [performanceTier, setPerformanceTier] = useState<PerformanceTier>("full");
+  const [performanceTier, setPerformanceTier] = useState<PerformanceTier>("lite");
 
   useEffect(() => {
     const media = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -46,24 +45,9 @@ export default function PremiumPageShell({ children }: PremiumPageShellProps) {
     return () => media.removeEventListener("change", onChange);
   }, [performanceTier]);
 
-  useEffect(() => {
-    let timeout: ReturnType<typeof setTimeout> | null = null;
-    const onScroll = () => {
-      setIsScrolling(true);
-      if (timeout) clearTimeout(timeout);
-      timeout = setTimeout(() => setIsScrolling(false), 160);
-    };
-
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => {
-      if (timeout) clearTimeout(timeout);
-      window.removeEventListener("scroll", onScroll);
-    };
-  }, []);
-
   return (
-    <main className="relative min-h-screen bg-[#020617] text-white" data-scrolling={isScrolling ? "true" : "false"}>
-      <PremiumParticles density="medium" mode={performanceTier} />
+    <main className="relative min-h-screen bg-[#020617] text-white">
+      {performanceTier === "full" ? <PremiumParticles density="low" mode={performanceTier} /> : null}
       {showGrain && <div className="grain" />}
 
       <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
@@ -75,12 +59,11 @@ export default function PremiumPageShell({ children }: PremiumPageShellProps) {
             left: "-12%",
             width: 560,
             height: 560,
-            background: "radial-gradient(circle, rgba(139,92,246,0.14) 0%, transparent 68%)",
-            filter: "blur(64px)",
-            willChange: "transform",
+            background: "radial-gradient(circle, rgba(139,92,246,0.16) 0%, rgba(139,92,246,0.05) 42%, transparent 72%)",
+            transform: "translateZ(0)",
           }}
           animate={performanceTier === "lite" ? {} : { x: [0, 28, -18, 0], y: [0, -18, 12, 0] }}
-          transition={{ duration: 28, repeat: Infinity, ease: "easeInOut" }}
+          transition={{ duration: 36, repeat: Infinity, ease: "easeInOut" }}
         />
         {performanceTier !== "lite" && (
           <motion.div
@@ -90,12 +73,11 @@ export default function PremiumPageShell({ children }: PremiumPageShellProps) {
               right: "-10%",
               width: 460,
               height: 460,
-              background: "radial-gradient(circle, rgba(59,130,246,0.11) 0%, transparent 68%)",
-              filter: "blur(56px)",
-              willChange: "transform",
+              background: "radial-gradient(circle, rgba(59,130,246,0.13) 0%, rgba(59,130,246,0.04) 44%, transparent 72%)",
+              transform: "translateZ(0)",
             }}
             animate={{ x: [0, -22, 14, 0], y: [0, 16, -12, 0] }}
-            transition={{ duration: 32, repeat: Infinity, ease: "easeInOut" }}
+            transition={{ duration: 40, repeat: Infinity, ease: "easeInOut" }}
           />
         )}
 

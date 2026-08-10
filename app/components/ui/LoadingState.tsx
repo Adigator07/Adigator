@@ -19,8 +19,10 @@ export function LoadingState({
 
   return (
     <div className={`relative flex flex-col items-center justify-center px-4 py-10 text-center ${className}`}>
-      <div className="agi-smoke-fog opacity-50" aria-hidden />
-      <div className="agi-fog-layer opacity-40" aria-hidden />
+      <div
+        className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_35%,rgba(56,189,248,0.12),transparent_55%),radial-gradient(circle_at_70%_70%,rgba(16,185,129,0.08),transparent_50%)]"
+        aria-hidden
+      />
       <div className="relative z-10 flex flex-col items-center">
         <AdigatorOrbitLoader label={title} hint={description} size="lg" tone="light" />
 

@@ -29,10 +29,20 @@ export default function MarketingNav({ activePath, showCta = true }: MarketingNa
   const [isGoogleAccount, setIsGoogleAccount] = useState(false);
 
   useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 14);
+    let frame = 0;
+    const onScroll = () => {
+      if (frame) return;
+      frame = window.requestAnimationFrame(() => {
+        frame = 0;
+        setScrolled(window.scrollY > 14);
+      });
+    };
     onScroll();
     window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      if (frame) window.cancelAnimationFrame(frame);
+    };
   }, []);
 
   useEffect(() => {
@@ -60,10 +70,10 @@ export default function MarketingNav({ activePath, showCta = true }: MarketingNa
 
   return (
     <nav
-      className={`marketing-page fixed inset-x-0 top-0 z-50 transition-all duration-300 ${
+      className={`marketing-page fixed inset-x-0 top-0 z-50 py-4 transition-[background-color,box-shadow] duration-200 md:py-5 ${
         scrolled
-          ? "bg-[#F5F5F0]/95 py-3 shadow-[0_8px_25px_rgba(15,23,42,0.08)] backdrop-blur"
-          : "bg-transparent py-5 md:py-6"
+          ? "bg-[#F5F5F0]/97 shadow-[0_8px_25px_rgba(15,23,42,0.08)]"
+          : "bg-transparent shadow-none"
       }`}
     >
       <div className="mx-auto flex w-[min(1280px,92vw)] items-center justify-between gap-3">

@@ -61,7 +61,7 @@ export default function Topbar({ user }: any) {
   const emailDomain = user?.email?.split("@")[1] || "";
 
   return (
-    <div className="h-16 shrink-0 border-b border-sky-100 bg-white/75 px-6 backdrop-blur-xl flex items-center justify-between gap-4">
+    <div className="h-16 shrink-0 border-b border-sky-100 bg-white/92 px-6 flex items-center justify-between gap-4">
       {/* Search */}
       <div className="relative flex-1 max-w-sm">
         <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />

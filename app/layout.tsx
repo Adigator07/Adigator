@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter, JetBrains_Mono, Cormorant_Garamond } from "next/font/google";
 import BrowserExtensionErrorGuard from "./components/BrowserExtensionErrorGuard";
+import FxPauseOnHidden from "./components/FxPauseOnHidden";
 import "./globals.css";
 
 const inter = Inter({
@@ -55,6 +56,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         suppressHydrationWarning
       >
         <BrowserExtensionErrorGuard />
+        <FxPauseOnHidden />
         {children}
       </body>
     </html>

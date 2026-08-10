@@ -40,15 +40,15 @@ function AdigatorCrocodileMark({
       />
 
       <div className="absolute inset-[10%] flex items-center justify-center overflow-hidden rounded-full">
-        {/* Exact artwork — wipe draw (white bg neutralized with multiply on light) */}
         <img
           src={CROC_SRC}
           alt=""
           className={`agi-croc-ink h-full w-full object-contain ${isDark ? "agi-croc-ink--dark" : "agi-croc-ink--light"}`}
           draggable={false}
+          decoding="async"
         />
 
-        {/* Exact artwork colorized */}
+        {/* Static colorized overlay — same look, no SVG SMIL recolor loop */}
         <svg
           viewBox="0 0 420 340"
           className="agi-croc-color absolute inset-0 h-full w-full"
@@ -57,20 +57,11 @@ function AdigatorCrocodileMark({
         >
           <defs>
             <linearGradient id="agiExactCrocGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor="#38BDF8">
-                <animate attributeName="stop-color" values="#38BDF8;#34D399;#818CF8;#F472B6;#FBBF24;#38BDF8" dur="2.5s" repeatCount="indefinite" />
-              </stop>
-              <stop offset="35%" stopColor="#34D399">
-                <animate attributeName="stop-color" values="#34D399;#818CF8;#F472B6;#FBBF24;#38BDF8;#34D399" dur="2.5s" repeatCount="indefinite" />
-              </stop>
-              <stop offset="70%" stopColor="#F472B6">
-                <animate attributeName="stop-color" values="#F472B6;#FBBF24;#38BDF8;#34D399;#818CF8;#F472B6" dur="2.5s" repeatCount="indefinite" />
-              </stop>
-              <stop offset="100%" stopColor="#FBBF24">
-                <animate attributeName="stop-color" values="#FBBF24;#38BDF8;#34D399;#818CF8;#F472B6;#FBBF24" dur="2.5s" repeatCount="indefinite" />
-              </stop>
+              <stop offset="0%" stopColor="#38BDF8" />
+              <stop offset="35%" stopColor="#34D399" />
+              <stop offset="70%" stopColor="#F472B6" />
+              <stop offset="100%" stopColor="#FBBF24" />
             </linearGradient>
-
             <filter id="agiExactCrocInvert" colorInterpolationFilters="sRGB">
               <feColorMatrix
                 type="matrix"
@@ -81,7 +72,6 @@ function AdigatorCrocodileMark({
                    0 0 0 1 0"
               />
             </filter>
-
             <mask id="agiExactCrocMask" maskUnits="userSpaceOnUse" x="0" y="0" width="420" height="340">
               <image
                 href={CROC_SRC}
@@ -94,7 +84,6 @@ function AdigatorCrocodileMark({
               />
             </mask>
           </defs>
-
           <rect
             x="0"
             y="0"

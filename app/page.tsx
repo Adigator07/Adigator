@@ -265,12 +265,10 @@ export default function HomePage() {
 
   return (
     <div className="marketing-page relative min-h-screen overflow-hidden scroll-smooth bg-[#EEF2F4] text-[#0D0D0D]">
-      <div className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_60%_at_50%_-10%,rgba(255,255,255,0.9),transparent_55%),linear-gradient(180deg,#F4F7F8_0%,#E8EEF2_45%,#F1F5F7_100%)]" aria-hidden />
-        <div className="agi-smoke-fog" aria-hidden />
-        <div className="agi-smoke-fog agi-smoke-fog--b" aria-hidden />
-        <div className="agi-fog-layer agi-fog-layer--soft" aria-hidden />
-        <div className="agi-light-cycle opacity-70" aria-hidden />
+      <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden [contain:strict]" aria-hidden>
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_60%_at_50%_-10%,rgba(255,255,255,0.9),transparent_55%),linear-gradient(180deg,#F4F7F8_0%,#E8EEF2_45%,#F1F5F7_100%)]" />
+        <div className="agi-smoke-fog opacity-45" />
+        <div className="agi-light-cycle opacity-35" />
       </div>
       <MarketingNav activePath="/" />
 
@@ -281,10 +279,8 @@ export default function HomePage() {
             initial={reduceMotion ? false : { opacity: 0, x: slideOffset("left", "lg") }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: reduceMotion ? 0 : 0.75, ease: [0.22, 1, 0.36, 1] }}
-            className="relative overflow-hidden rounded-[36px] border border-white/50 bg-white/55 p-6 shadow-[0_30px_90px_rgba(15,23,42,0.08)] backdrop-blur-xl sm:p-8 lg:p-10"
+            className="relative overflow-hidden rounded-[36px] border border-white/50 bg-white/80 p-6 shadow-[0_30px_90px_rgba(15,23,42,0.08)] sm:p-8 lg:p-10"
           >
-            <div className="agi-smoke-fog opacity-50" aria-hidden />
-            <div className="agi-fog-layer opacity-40" aria-hidden />
             <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.55),transparent_45%)]" />
 
             <div className="relative z-10 grid grid-cols-1 items-center gap-8 md:grid-cols-2 md:gap-10 lg:gap-12">
@@ -366,9 +362,10 @@ export default function HomePage() {
                 </motion.div>
 
                 <motion.div
-                  animate={reduceMotion ? { opacity: 1, y: 0 } : { y: [0, -10, 0], rotate: [-1, 1, -1] }}
-                  transition={{ duration: reduceMotion ? 0 : 6, repeat: Infinity, ease: "easeInOut" }}
-                  className="relative w-full"
+                  initial={reduceMotion ? false : { opacity: 0, y: 12 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: reduceMotion ? 0 : 0.7, ease: [0.22, 1, 0.36, 1] }}
+                  className={`relative w-full ${reduceMotion ? "" : "agi-hero-float"}`}
                 >
                   <div
                     className="pointer-events-none absolute left-1/2 top-1/2 h-[min(100%,500px)] w-[min(92%,560px)] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(circle,rgba(200,240,77,0.22)_0%,rgba(200,240,77,0.06)_45%,transparent_72%)]"
@@ -438,7 +435,7 @@ export default function HomePage() {
                 key={item.title}
                 initial={reduceMotion ? false : { opacity: 0, x: i % 2 === 0 ? slideOffset("left", "md") : slideOffset("right", "md") }}
                 whileInView={{ opacity: 1, x: 0 }}
-                viewport={{ once: true }}
+                viewport={{ once: true, amount: 0.2, margin: "80px 0px" }}
                 transition={{ delay: i * 0.06 }}
                 className="saas-hover rounded-2xl border border-[#DEDDD5] bg-white p-6 shadow-[0_12px_24px_rgba(15,23,42,0.05)] sm:p-7"
               >
@@ -548,7 +545,7 @@ export default function HomePage() {
                   key={platform.name}
                   initial={reduceMotion ? false : { opacity: 0, x: i % 2 === 0 ? slideOffset("left", "md") : slideOffset("right", "md") }}
                   whileInView={{ opacity: 1, x: 0 }}
-                  viewport={{ once: true }}
+                  viewport={{ once: true, amount: 0.2, margin: "80px 0px" }}
                   transition={{ delay: i * 0.05, duration: 0.35 }}
                   whileHover={{ y: -6, scale: 1.01, rotate: -0.5 }}
                   className="platform-card group relative overflow-hidden rounded-3xl border border-[#DEDDD5] bg-white/90 p-5 shadow-[0_18px_40px_rgba(15,23,42,0.06)] backdrop-blur"
@@ -610,7 +607,7 @@ export default function HomePage() {
                 key={feature.title}
                 initial={reduceMotion ? false : { opacity: 0, x: i % 2 === 0 ? slideOffset("left", "md") : slideOffset("right", "md") }}
                 whileInView={{ opacity: 1, x: 0 }}
-                viewport={{ once: true }}
+                viewport={{ once: true, amount: 0.2, margin: "80px 0px" }}
                 transition={{ duration: 0.45, delay: i * 0.08 }}
                 whileHover={{ y: -6, scale: 1.01 }}
                 className="saas-hover rounded-3xl border border-[#DEDDD5] bg-white/90 p-6 shadow-[0_18px_36px_rgba(15,23,42,0.05)] sm:p-8"
@@ -636,7 +633,7 @@ export default function HomePage() {
                   key={item}
                   initial={reduceMotion ? false : { opacity: 0, x: slideOffset("left", "sm") }}
                   whileInView={{ opacity: 1, x: 0 }}
-                  viewport={{ once: true }}
+                  viewport={{ once: true, amount: 0.2, margin: "80px 0px" }}
                   transition={{ duration: 0.4 }}
                   whileHover={{ x: 4, scale: 1.01 }}
                   className="flex items-start gap-3 rounded-[18px] border border-[#DEDDD5] bg-white/80 p-3 shadow-[0_10px_24px_rgba(15,23,42,0.04)]"
@@ -719,10 +716,6 @@ export default function HomePage() {
       />
 
       <style jsx global>{`
-        html {
-          scroll-behavior: smooth;
-        }
-
         .hero-live-card {
           transition: transform 0.28s ease, box-shadow 0.28s ease, border-color 0.28s ease;
         }

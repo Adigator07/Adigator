@@ -299,14 +299,11 @@ function SupportPageContent() {
       style={{ background: activeBackground }}
     >
       <div className="agi-login-grid" aria-hidden />
-      <div className="agi-login-scan opacity-70" aria-hidden />
-      <div className="agi-fog-layer opacity-25 mix-blend-screen" aria-hidden />
-      <div className="agi-login-orb agi-login-orb--a opacity-70" aria-hidden style={{ filter: "blur(74px)" }} />
-      <div className="agi-login-orb agi-login-orb--b opacity-65" aria-hidden style={{ filter: "blur(80px)" }} />
-      <motion.div
-        animate={reduceMotion ? undefined : { opacity: [0.08, 0.22, 0.12, 0.2, 0.08] }}
-        transition={{ duration: 2.5, repeat: Infinity, ease: "easeInOut" }}
-        className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_24%,rgba(125,211,252,0.2),transparent_42%),radial-gradient(circle_at_84%_74%,rgba(167,243,208,0.16),transparent_44%),radial-gradient(circle_at_52%_62%,rgba(196,181,253,0.14),transparent_52%)]"
+      <div className="agi-login-orb agi-login-orb--a opacity-55" aria-hidden />
+      <div className="agi-login-orb agi-login-orb--b opacity-50" aria-hidden />
+      <div
+        className="pointer-events-none absolute inset-0 opacity-16 bg-[radial-gradient(circle_at_20%_24%,rgba(125,211,252,0.2),transparent_42%),radial-gradient(circle_at_84%_74%,rgba(167,243,208,0.16),transparent_44%),radial-gradient(circle_at_52%_62%,rgba(196,181,253,0.14),transparent_52%)]"
+        aria-hidden
       />
       <div className="pointer-events-none absolute inset-0 opacity-12 bg-[linear-gradient(rgba(255,255,255,0.04)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.04)_1px,transparent_1px)] bg-size-[30px_30px]" />
       {!isSmallWindowMode ? (
