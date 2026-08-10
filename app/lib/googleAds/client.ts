@@ -379,12 +379,17 @@ export async function getGoogleAdsCampaignImportDetails(
     results?: Array<{ adGroupAd?: { ad?: Record<string, unknown> } }>;
   };
 
-  const landingUrl = (landingPayload.results || [])
-    .map((row) => row?.adGroupAd?.ad?.finalUrls)
-    .find((value) => Array.isArray(value) && value[0])?.[0];
+  let landingUrl: string | undefined;
+  for (const row of landingPayload.results || []) {
+    const finalUrls = row?.adGroupAd?.ad?.finalUrls;
+    if (Array.isArray(finalUrls) && typeof finalUrls[0] === "string") {
+      landingUrl = finalUrls[0];
+      break;
+    }
+  }
 
   return {
-    landingUrl: typeof landingUrl === "string" ? landingUrl : undefined,
+    landingUrl,
     adGroupCount,
   };
 }

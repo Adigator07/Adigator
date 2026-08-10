@@ -105,7 +105,7 @@ export default function ProjectsPage() {
   );
 
   const platformOptions = useMemo(() => {
-    const platforms = new Set();
+    const platforms = new Set<string>();
     advertisers.forEach((advertiser) => {
       advertiser.campaigns.forEach((campaign) => {
         if (campaign.platform) platforms.add(campaign.platform);

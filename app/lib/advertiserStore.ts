@@ -267,7 +267,7 @@ export function persistAdvertiserCampaignSelection(options: {
   ownerId: string;
   advertiserId?: string;
   advertiserName: string;
-  campaign: Omit<AdvertiserCampaign, "updatedAt"> & {
+  campaign: Omit<AdvertiserCampaign, "updatedAt" | "adGroups"> & {
     updatedAt?: string;
     adGroups?: AdvertiserAdGroup[];
     creatives?: Array<Record<string, unknown>>;

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion, useReducedMotion } from "framer-motion";
 import { ArrowLeft, Clock3, Send, Sparkles } from "lucide-react";
@@ -160,7 +160,7 @@ function MessageBody({ content }) {
   );
 }
 
-export default function SupportPage() {
+function SupportPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const reduceMotion = useReducedMotion();
@@ -449,5 +449,13 @@ export default function SupportPage() {
         </footer>
       </div>
     </div>
+  );
+}
+
+export default function SupportPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-[#07111f]" />}>
+      <SupportPageContent />
+    </Suspense>
   );
 }

@@ -7,13 +7,23 @@ import { ArrowLeft, Gauge, RefreshCcw } from "lucide-react";
 import RouteAccessShell from "@/app/components/RouteAccessShell";
 import { getStoredRouteTelemetry } from "@/app/lib/routeTelemetry";
 
+type TelemetryEntry = {
+  id: string;
+  type: string;
+  surface: string;
+  label: string;
+  ok: boolean;
+  durationMs: number;
+  recordedAt: string;
+};
+
 function TelemetryPageContent() {
-  const [entries, setEntries] = useState([]);
+  const [entries, setEntries] = useState<TelemetryEntry[]>([]);
   const [surfaceFilter, setSurfaceFilter] = useState("all");
 
   useEffect(() => {
     const load = () => {
-      setEntries(getStoredRouteTelemetry().slice().reverse());
+      setEntries(getStoredRouteTelemetry().slice().reverse() as TelemetryEntry[]);
     };
 
     load();
@@ -47,7 +57,7 @@ function TelemetryPageContent() {
           </div>
           <button
             type="button"
-            onClick={() => setEntries(getStoredRouteTelemetry().slice().reverse())}
+            onClick={() => setEntries(getStoredRouteTelemetry().slice().reverse() as TelemetryEntry[])}
             className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-semibold text-white/85 transition hover:bg-white/10"
           >
             <RefreshCcw size={16} /> Refresh

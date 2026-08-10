@@ -20,22 +20,25 @@ import {
   writeGoogleAdsSession,
 } from "@/app/lib/googleAds/session";
 import type { CampaignSnapshot, CampaignIdOption } from "@/app/lib/campaignSnapshot";
+import type { GoogleCampaignType } from "@/app/lib/googleCampaignTypes";
+import { isAnalyzerPlatform, type AnalyzerPlatform } from "@/app/lib/platforms/types";
 
 export const runtime = "nodejs";
-
-const VALID_PLATFORMS = new Set(["google_ads", "meta_ads", "programmatic"]);
 
 function json(success: boolean, data: unknown, error: string | null, status = 200) {
   return NextResponse.json({ success, data, error }, { status });
 }
 
-function normalizePlatform(value: unknown): string {
+function normalizePlatform(value: unknown): AnalyzerPlatform {
   const platform = String(value || "programmatic");
-  return VALID_PLATFORMS.has(platform) ? platform : "programmatic";
+  return isAnalyzerPlatform(platform) ? platform : "programmatic";
 }
 
-function mapGoogleAdsChannelToCampaignType(channelType: string): "display" | "video" {
-  return channelType === "VIDEO" ? "video" : "display";
+function mapGoogleAdsChannelToCampaignType(channelType: string): GoogleCampaignType {
+  const channel = String(channelType || "").toUpperCase();
+  if (channel === "DEMAND_GEN") return "demand_gen";
+  if (channel === "VIDEO") return "demand_gen";
+  return "display";
 }
 
 function inferVerticalFromGoogleCampaignName(campaignName: string): string {
@@ -199,12 +202,12 @@ async function listGoogleAdsCampaignIdOptions(request: NextRequest, campaignName
   const normalizedName = campaignName.trim().toLowerCase();
   const campaigns = await listGoogleAdsCampaigns(accessToken, customerId, 200);
   const drafts = await listGoogleAdsDraftCampaigns(accessToken, customerId, 200);
-  const options = [...campaigns, ...drafts]
+  const options: CampaignIdOption[] = [...campaigns, ...drafts]
     .filter((campaign) => campaign.name.trim().toLowerCase().includes(normalizedName))
     .map((campaign) => ({
       id: campaign.id,
       campaignName: campaign.name,
-      platform: "google_ads",
+      platform: "google_ads" as const,
       updatedAt: new Date().toISOString(),
     }));
 
@@ -395,7 +398,7 @@ export async function GET(request: NextRequest) {
       options = (data || []).map((row) => ({
         id: row.id,
         campaignName: row.campaign_name,
-        platform: row.platform,
+        platform: normalizePlatform(row.platform),
         updatedAt: row.updated_at,
       }));
     }

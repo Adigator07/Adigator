@@ -85,7 +85,7 @@ export async function GET(request: NextRequest) {
       buildGoogleAdsSessionPayload(
         refreshedSession ? { ...session, ...refreshedSession, email: refreshedSession.email || session.email } : session,
         {
-          customerId: account?.customerId || customerId || null,
+          customerId: account?.customerId || customerId || undefined,
           account: account ? {
             name: account.name,
             currencyCode: account.currencyCode,
