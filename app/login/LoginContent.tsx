@@ -414,13 +414,21 @@ export default function LoginContent() {
 
   useEffect(() => {
     if (!hasFirebaseClientConfig()) {
-      authDebug("firebase_config_missing");
-      setErrors({ form: FIREBASE_CONFIG_ERROR });
+      authDebug("firebase_config_missing", {
+        missing: typeof window !== "undefined"
+          ? "client_bundle_missing_public_firebase_env"
+          : "server_missing_public_firebase_env",
+      });
+      // Soft notice only — do not hard-block the form UI.
+      setErrors((prev) => prev.form ? prev : { form: FIREBASE_CONFIG_ERROR });
       return;
     }
 
     const auth = getFirebaseClientAuthOrNull();
     if (!auth) return;
+
+    // Clear a stale config warning once Firebase is available.
+    setErrors((prev) => (prev.form === FIREBASE_CONFIG_ERROR ? {} : prev));
 
     authDebug("persistence_init");
     void setPersistence(auth, browserLocalPersistence).catch(() => {
