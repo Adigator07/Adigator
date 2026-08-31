@@ -1,8 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import { ExternalLink, RefreshCw, Link2, CheckCircle2 } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { ExternalLink, RefreshCw, Link2 } from "lucide-react";
 import { getFirebaseClientAuth } from "@/app/lib/firebase/client";
+import { syncGoogleAdsIntoAdigator } from "@/app/lib/googleAds/syncClient";
 
 async function readJsonResponse(response, fallbackMessage) {
   const text = await response.text();
@@ -39,22 +40,43 @@ function ProgrammaticIcon({ className = "h-4 w-4" }) {
   );
 }
 
+function openAdsWorkspaceTab() {
+  const tab = window.open("https://ads.google.com/aw/campaigns", "_blank", "noopener,noreferrer");
+  if (tab) tab.opener = null;
+}
+
+function toCampaignList(entries) {
+  return (Array.isArray(entries) ? entries : []).map((entry) => ({
+    id: String(entry.id || ""),
+    name: entry.campaignName || entry.name || "Untitled campaign",
+    status: entry.googleAdsCampaignStatus || entry.status || "",
+    sourceType: entry.googleAdsCampaignSource || entry.sourceType || "published",
+    channelType: entry.googleAdsChannelType || entry.channelType || "",
+    customerId: entry.googleAdsCustomerId || entry.customerId || "",
+    loginCustomerId: entry.loginCustomerId || "",
+    snapshot: Array.isArray(entry.creatives) && entry.creatives.length ? entry : null,
+  }));
+}
+
 export default function GoogleAdsConnectPanel({
   enabled,
   activePlatform = "all",
   onImportCampaign,
-  campaignName = "",
-  campaignId = "",
 }) {
   const [loadingSession, setLoadingSession] = useState(false);
   const [connected, setConnected] = useState(false);
   const [email, setEmail] = useState("");
   const [error, setError] = useState("");
-  const [importCampaignName, setImportCampaignName] = useState(campaignName);
-  const [importCampaignId, setImportCampaignId] = useState(campaignId);
-  const [importLoading, setImportLoading] = useState(false);
-  const [importSuccess, setImportSuccess] = useState("");
+  const [statusMessage, setStatusMessage] = useState("");
+  const [customerId, setCustomerId] = useState("");
+  const [availableCampaigns, setAvailableCampaigns] = useState([]);
+  const [loadingCampaigns, setLoadingCampaigns] = useState(false);
+  const [activeCampaignId, setActiveCampaignId] = useState("");
 
+  const pendingOpenAdsRef = useRef(false);
+  const awaitingReturnRef = useRef(false);
+  const activeCampaignIdRef = useRef("");
+  const lastPullAtRef = useRef(0);
   const currentAppEmail = getFirebaseClientAuth().currentUser?.email || "";
   const isGoogle = activePlatform === "google_ads" || activePlatform === "all";
   const isMeta = activePlatform === "meta_ads" || activePlatform === "all";
@@ -66,7 +88,6 @@ export default function GoogleAdsConnectPanel({
       if (!user) return;
       const token = await user.getIdToken();
       if (!token) return;
-
       await fetch("/api/activity/log", {
         method: "POST",
         headers: {
@@ -76,15 +97,11 @@ export default function GoogleAdsConnectPanel({
         body: JSON.stringify({
           action_type: "google_ads_outbound_click",
           action_label: "Google Ads outbound redirect",
-          metadata: {
-            source,
-            via: "button",
-            destination,
-          },
+          metadata: { source, via: "button", destination },
         }),
       });
     } catch {
-      // Best-effort logging only; never block outbound navigation.
+      // Best-effort logging only.
     }
   }, []);
 
@@ -94,7 +111,6 @@ export default function GoogleAdsConnectPanel({
       if (!user) return;
       const token = await user.getIdToken();
       if (!token) return;
-
       await fetch("/api/activity/log", {
         method: "POST",
         headers: {
@@ -104,156 +120,295 @@ export default function GoogleAdsConnectPanel({
         body: JSON.stringify({
           action_type: `${platform}_outbound_click`,
           action_label: `${platform} outbound redirect`,
-          metadata: {
-            source,
-            via: "button",
-            platform,
-            destination,
-          },
+          metadata: { source, via: "button", platform, destination },
         }),
       });
     } catch {
-      // Best-effort logging only; never block outbound navigation.
+      // Best-effort logging only.
     }
   }, []);
 
-  const openOAuth = useCallback((useDifferent = false, loginHint = email || currentAppEmail) => {
+  const applySessionPayload = useCallback((payload) => {
+    const nextConnected = Boolean(payload.connected);
+    const nextCustomerId = String(payload.customerId || "").trim();
+    setConnected(nextConnected);
+    setEmail(payload.email || "");
+    setCustomerId(nextCustomerId);
+    if (Array.isArray(payload.campaigns) && payload.campaigns.length) {
+      setAvailableCampaigns(toCampaignList(payload.campaigns));
+    }
+    return {
+      nextConnected,
+      nextCustomerId,
+      campaigns: Array.isArray(payload.campaigns) ? payload.campaigns : [],
+    };
+  }, []);
+
+  const refreshSession = useCallback(async () => {
+    if (!enabled) return { nextConnected: false, nextCustomerId: "", campaigns: [] };
+    setLoadingSession(true);
+    try {
+      const response = await fetch("/api/google-ads/session", { cache: "no-store" });
+      const payload = await readJsonResponse(response, "Unable to read Google Ads session.");
+      if (payload.error && !payload.connected) {
+        setError(payload.error);
+      } else if (payload.error && !(Array.isArray(payload.campaigns) && payload.campaigns.length)) {
+        setError(String(payload.error));
+      }
+      const result = applySessionPayload(payload);
+      if (!result.nextConnected) setAvailableCampaigns([]);
+      return result;
+    } catch (err) {
+      setConnected(false);
+      setEmail("");
+      setCustomerId("");
+      setAvailableCampaigns([]);
+      setError(err?.message || "Unable to connect to Google Ads.");
+      return { nextConnected: false, nextCustomerId: "", campaigns: [] };
+    } finally {
+      setLoadingSession(false);
+    }
+  }, [enabled, applySessionPayload]);
+
+  const populateCampaign = useCallback((snapshotOrCampaign) => {
+    if (!snapshotOrCampaign || typeof onImportCampaign !== "function") return;
+    const id = String(snapshotOrCampaign.id || "");
+    setActiveCampaignId(id);
+    activeCampaignIdRef.current = id;
+    onImportCampaign(snapshotOrCampaign);
+  }, [onImportCampaign]);
+
+  const pullCampaignsIntoAdigator = useCallback(async ({ populate = true } = {}) => {
+    setError("");
+    const session = await refreshSession();
+    if (!session.nextConnected) return [];
+
+    const user = getFirebaseClientAuth().currentUser;
+    setLoadingCampaigns(true);
+    setStatusMessage("Fetching campaigns from Google Ads...");
+
+    try {
+      let snapshots = [];
+      const params = new URLSearchParams({ includeDrafts: "1", limit: "80" });
+      if (session.nextCustomerId || customerId) params.set("customerId", session.nextCustomerId || customerId);
+      const response = await fetch(`/api/google-ads/campaigns?${params.toString()}`, { cache: "no-store" });
+      const payload = await readJsonResponse(response, "Unable to load Google Ads campaigns.");
+      snapshots = Array.isArray(payload.campaigns) ? payload.campaigns : [];
+      if (!snapshots.length && payload?.error) {
+        setError(String(payload.error));
+      }
+
+      const list = toCampaignList(snapshots);
+      setAvailableCampaigns(list);
+
+      if (snapshots.length) {
+        setStatusMessage(`Loaded ${snapshots.length} campaign${snapshots.length === 1 ? "" : "s"} from Google Ads.`);
+      } else {
+        setStatusMessage("No live or draft campaigns were found on this Google Ads account yet.");
+      }
+
+      if (user) {
+        void (async () => {
+          try {
+            const token = await user.getIdToken();
+            if (!token) return;
+            await syncGoogleAdsIntoAdigator({
+              accessToken: token,
+              ownerId: user.uid,
+              customerId: session.nextCustomerId || customerId || undefined,
+              advertiserName: "Google Ads",
+            });
+          } catch {
+            // List display does not depend on background persistence.
+          }
+        })();
+      }
+
+      return snapshots;
+    } catch (err) {
+      setError(err?.message || "Unable to fetch Google Ads campaigns.");
+      setStatusMessage("");
+      return [];
+    } finally {
+      setLoadingCampaigns(false);
+    }
+  }, [refreshSession, customerId]);
+
+  const startGoogleAdsOAuth = useCallback((useDifferent = false) => {
     const params = new URLSearchParams();
     if (useDifferent) params.set("useDifferent", "1");
-    const resolvedLoginHint = String(loginHint || "").trim();
-    if (!useDifferent && resolvedLoginHint) params.set("loginHint", resolvedLoginHint);
-    const query = params.toString();
-    const url = `/api/google-ads/oauth/start${query ? `?${query}` : ""}`;
-    window.open(url, "google-ads-oauth", "popup=yes,width=540,height=760");
-  }, [email, currentAppEmail]);
+    const loginHint = String(email || currentAppEmail || "").trim();
+    if (!useDifferent && loginHint) params.set("loginHint", loginHint);
+    params.set("returnTo", `${window.location.pathname}${window.location.search || ""}`);
+    params.set("popup", "1");
+    const url = `/api/google-ads/oauth/start?${params.toString()}`;
+    const popup = window.open(url, "google-ads-oauth", "popup=yes,width=540,height=760");
+    if (!popup) {
+      params.set("popup", "0");
+      window.location.assign(`/api/google-ads/oauth/start?${params.toString()}`);
+      return;
+    }
+    let polls = 0;
+    const timer = window.setInterval(() => {
+      polls += 1;
+      void refreshSession();
+      if (polls >= 20) window.clearInterval(timer);
+    }, 2000);
+    window.setTimeout(() => window.clearInterval(timer), 45000);
+  }, [email, currentAppEmail, refreshSession]);
 
-  const openGoogleAdsLogin = useCallback((source = "preview-google-ads-connect") => {
-    void logOutboundGoogleAdsClick(source, "google_ads_direct_open");
-    const loginUrl = "https://ads.google.com/aw/accounts";
-    const tab = window.open(loginUrl, "_blank", "noopener,noreferrer");
-    if (tab) tab.opener = null;
-  }, [logOutboundGoogleAdsClick]);
+  const openGoogleAdsWorkspace = useCallback(async () => {
+    void logOutboundGoogleAdsClick("preview-open-ads-website", "google_ads_campaigns");
+    awaitingReturnRef.current = true;
+    setError("");
+    setStatusMessage("");
 
-  const openGoogleAdsAccount = useCallback((source = "preview-google-ads-account") => {
-    const destination = "https://ads.google.com/aw/accounts";
-    void logOutboundGoogleAdsClick(source, "google_ads_accounts_list");
-    const tab = window.open(destination, "_blank", "noopener,noreferrer");
-    if (tab) tab.opener = null;
-  }, [logOutboundGoogleAdsClick]);
+    const session = await refreshSession();
+    if (!session.nextConnected) {
+      pendingOpenAdsRef.current = true;
+      setStatusMessage("Authorize Google Ads, then your workspace will open.");
+      startGoogleAdsOAuth(false);
+      return;
+    }
+
+    openAdsWorkspaceTab();
+    setStatusMessage("Finish your work in Google Ads. When you return here, campaigns are loaded automatically.");
+  }, [logOutboundGoogleAdsClick, refreshSession, startGoogleAdsOAuth]);
 
   const openPlatformLogin = useCallback((platform, source = "preview-platform-direct") => {
     const destinations = {
-      google_ads: "https://ads.google.com/aw/accounts",
+      google_ads: "https://ads.google.com/aw/campaigns",
       meta: "https://www.facebook.com/adsmanager",
       programmatic: "https://www.thetradedesk.com/us/login",
     };
-
     const destination = destinations[platform];
     if (!destination) return;
-
     void logOutboundPlatformClick(platform, source, `${platform}_direct_open`);
     const tab = window.open(destination, "_blank", "noopener,noreferrer");
     if (tab) tab.opener = null;
   }, [logOutboundPlatformClick]);
 
-  const refreshSession = useCallback(async () => {
-    if (!enabled) return;
-    setLoadingSession(true);
-    setError("");
-    try {
-      const response = await fetch("/api/google-ads/session", { cache: "no-store" });
-      const payload = await readJsonResponse(response, "Unable to read Google Ads session.");
-      setConnected(Boolean(payload.connected));
-      setEmail(payload.email || "");
-    } catch (err) {
-      setConnected(false);
-      setEmail("");
-      setError(err?.message || "Unable to connect to Google Ads.");
-    } finally {
-      setLoadingSession(false);
-    }
-  }, [enabled]);
-
   useEffect(() => {
     if (!enabled) return;
-    void refreshSession();
-  }, [enabled, refreshSession]);
+    let cancelled = false;
+    void (async () => {
+      const session = await refreshSession();
+      if (cancelled || !session.nextConnected) return;
+      await pullCampaignsIntoAdigator({ populate: false });
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [enabled, refreshSession, pullCampaignsIntoAdigator]);
 
   useEffect(() => {
-    setImportCampaignName(campaignName || "");
-  }, [campaignName]);
-
-  useEffect(() => {
-    setImportCampaignId(campaignId || "");
-  }, [campaignId]);
-
-  useEffect(() => {
-    const handler = (event) => {
-      if (!event?.data || event.data.type !== "google-ads-auth") return;
-      if (event.data.ok) {
-        void refreshSession();
-      } else {
-        setError(event.data.message || "Google Ads login failed.");
+    const handleAuthResult = async (payload) => {
+      if (!payload || payload.type !== "google-ads-auth") return;
+      if (!payload.ok) {
+        setError(payload.message || "Google Ads login failed.");
+        return;
+      }
+      await pullCampaignsIntoAdigator({ populate: true });
+      if (pendingOpenAdsRef.current) {
+        pendingOpenAdsRef.current = false;
+        openAdsWorkspaceTab();
+        setStatusMessage("Finish your work in Google Ads. When you return here, campaigns are loaded automatically.");
       }
     };
+
+    const handler = (event) => {
+      void handleAuthResult(event?.data);
+    };
     window.addEventListener("message", handler);
-    return () => window.removeEventListener("message", handler);
-  }, [refreshSession]);
 
-  const importFromConnectedGoogleAds = useCallback(async () => {
-    setImportSuccess("");
-    setError("");
+    const onStorage = (event) => {
+      if (event.key !== "adigator_google_ads_oauth_result" || !event.newValue) return;
+      try {
+        void handleAuthResult(JSON.parse(event.newValue));
+      } catch {
+        // Ignore malformed auth payloads.
+      }
+    };
+    window.addEventListener("storage", onStorage);
 
-    if (!connected) {
-      setError("Google Ads is not connected yet. Connect first, then import.");
-      return;
-    }
-
-    const name = String(importCampaignName || "").trim();
-    const id = String(importCampaignId || "").trim();
-    if (!name && !id) {
-      setError("Enter campaign name or campaign ID to import from Google Ads.");
-      return;
-    }
-
-    const user = getFirebaseClientAuth().currentUser;
-    if (!user) {
-      setError("Sign in to Adigator first. Import saves campaigns under your Adigator account.");
-      return;
-    }
-
-    setImportLoading(true);
+    let channel;
     try {
-      const token = await user.getIdToken();
-      if (!token) throw new Error("Unable to verify Adigator session. Please sign in again.");
-
-      const params = new URLSearchParams({ platform: "google_ads" });
-      if (name) params.set("campaign_name", name);
-      if (id) params.set("campaign_id", id);
-
-      const response = await fetch(`/api/campaigns?${params.toString()}`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      const payload = await readJsonResponse(response, "Unable to import campaign from Google Ads.");
-      if (!payload?.data) {
-        throw new Error("No matching campaign found in connected Google Ads account. Check name or ID and retry.");
+      if ("BroadcastChannel" in window) {
+        channel = new BroadcastChannel("adigator-google-ads-auth");
+        channel.onmessage = (event) => {
+          void handleAuthResult(event.data);
+        };
       }
-
-      const imported = payload.data;
-      if (typeof onImportCampaign === "function") {
-        onImportCampaign(imported);
-      }
-
-      const sourceLabel = imported.googleAdsCampaignSource === "draft" ? "Draft" : "Published";
-      setImportSuccess(`Imported ${sourceLabel} campaign and saved it in Adigator.`);
-    } catch (err) {
-      setError(err?.message || "Google Ads import failed.");
-    } finally {
-      setImportLoading(false);
+    } catch {
+      channel = null;
     }
-  }, [connected, importCampaignId, importCampaignName, onImportCampaign]);
+
+    try {
+      const stored = window.localStorage.getItem("adigator_google_ads_oauth_result");
+      if (stored) {
+        void handleAuthResult(JSON.parse(stored));
+        window.localStorage.removeItem("adigator_google_ads_oauth_result");
+      }
+    } catch {
+      // Ignore storage access issues.
+    }
+
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("google_ads") === "connected") {
+      void pullCampaignsIntoAdigator({ populate: true });
+    }
+
+    return () => {
+      window.removeEventListener("message", handler);
+      window.removeEventListener("storage", onStorage);
+      if (channel) channel.close();
+    };
+  }, [pullCampaignsIntoAdigator]);
+
+  useEffect(() => {
+    const onReturnToAdigator = () => {
+      if (document.visibilityState === "hidden") return;
+      if (!awaitingReturnRef.current) return;
+      const now = Date.now();
+      if (now - lastPullAtRef.current < 2500) return;
+      lastPullAtRef.current = now;
+      void pullCampaignsIntoAdigator({ populate: true });
+    };
+    window.addEventListener("focus", onReturnToAdigator);
+    document.addEventListener("visibilitychange", onReturnToAdigator);
+    return () => {
+      window.removeEventListener("focus", onReturnToAdigator);
+      document.removeEventListener("visibilitychange", onReturnToAdigator);
+    };
+  }, [pullCampaignsIntoAdigator]);
+
+  const loadSelectedCampaign = useCallback(async (campaign) => {
+    if (!campaign) return;
+    if (campaign.snapshot) {
+      populateCampaign(campaign.snapshot);
+      return;
+    }
+
+    setLoadingCampaigns(true);
+    setError("");
+    try {
+      const params = new URLSearchParams();
+      if (campaign.name) params.set("campaignName", campaign.name);
+      if (campaign.id) params.set("campaignId", campaign.id);
+      if (campaign.customerId || customerId) params.set("customerId", campaign.customerId || customerId);
+      if (campaign.loginCustomerId) params.set("loginCustomerId", campaign.loginCustomerId);
+      const response = await fetch(`/api/google-ads/campaigns?${params.toString()}`, { cache: "no-store" });
+      const payload = await readJsonResponse(response, "Unable to load campaign details from Google Ads.");
+      const snapshot = payload?.data || payload?.campaign;
+      if (!snapshot) throw new Error("That campaign could not be loaded from Google Ads.");
+      populateCampaign(snapshot);
+      setStatusMessage(`Loaded ${snapshot.campaignName || campaign.name} from Google Ads.`);
+    } catch (err) {
+      setError(err?.message || "Unable to load campaign details from Google Ads.");
+    } finally {
+      setLoadingCampaigns(false);
+    }
+  }, [customerId, populateCampaign]);
 
   if (!enabled) return null;
 
@@ -262,96 +417,126 @@ export default function GoogleAdsConnectPanel({
       <button
         type="button"
         onClick={() => {
-          void refreshSession();
+          awaitingReturnRef.current = true;
+          void pullCampaignsIntoAdigator({ populate: true });
         }}
         className="absolute right-3 top-3 inline-flex items-center gap-2 rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-xs font-semibold text-studio-text hover:bg-white/10 md:right-4 md:top-4"
       >
-        <RefreshCw size={14} /> Refresh
+        <RefreshCw size={14} className={loadingCampaigns || loadingSession ? "animate-spin" : ""} /> Refresh
       </button>
 
       <div className={`grid gap-3 ${isGoogle && isMeta && isProgrammatic ? "xl:grid-cols-3" : "xl:grid-cols-1"}`}>
         {isGoogle ? (
           <div className="rounded-2xl border border-white/15 bg-black/10 p-3">
-            <div className="flex items-start justify-between gap-3">
+            <div className="flex items-start justify-between gap-3 pr-16">
               <div>
                 <p className="text-sm font-semibold text-studio-text">Google Ads</p>
-                <p className="mt-1 text-xs leading-5 text-studio-tertiary">Use your own Google account to connect and open Ads workspace.</p>
+                <p className="mt-1 text-xs leading-5 text-studio-tertiary">
+                  Sign in with Google Ads to load every live campaign and draft into this section. Campaign Details is filled automatically.
+                </p>
               </div>
-              <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${connected ? "bg-studio-success/15 text-studio-success" : "bg-white/10 text-studio-text"}`}>
-                {connected ? "Connected" : "Connect"}
-              </span>
+              {connected ? (
+                <span className="rounded-full bg-studio-success/15 px-2.5 py-1 text-[11px] font-semibold text-studio-success">
+                  Connected
+                </span>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => startGoogleAdsOAuth(false)}
+                  disabled={loadingSession}
+                  className="rounded-full border border-cyan-300/40 bg-cyan-500/20 px-2.5 py-1 text-[11px] font-semibold text-cyan-100 disabled:opacity-60"
+                >
+                  Connect
+                </button>
+              )}
             </div>
 
-            <div className="mt-3 flex flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={() => openOAuth(false)}
-                disabled={loadingSession}
-                className="inline-flex items-center gap-2 rounded-xl bg-studio-accent px-3 py-2 text-sm font-semibold text-[#071225] disabled:opacity-60"
-              >
-                <Link2 size={15} /> Continue with Google
-              </button>
-              <button
-                type="button"
-                onClick={() => openGoogleAdsLogin("preview-connect-disconnected")}
-                className="inline-flex items-center gap-2 rounded-xl border border-white/20 bg-white/5 px-3 py-2 text-sm font-semibold text-studio-text"
-              >
-                <ExternalLink size={15} /> Open Google Ads
-              </button>
-            </div>
-
-            <div className="mt-4 space-y-3 rounded-xl border border-cyan-400/20 bg-cyan-500/8 p-3">
-              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-cyan-200">Import Campaign Into Adigator</p>
-              <p className="text-xs leading-5 text-studio-tertiary">Supports published and draft campaigns from your connected Google Ads account.</p>
-
-              <div className="grid gap-2 md:grid-cols-2">
-                <input
-                  type="text"
-                  value={importCampaignName}
-                  onChange={(event) => setImportCampaignName(event.target.value)}
-                  placeholder="Campaign name"
-                  className="rounded-xl border border-white/15 bg-black/30 px-3 py-2 text-sm text-studio-text outline-none placeholder:text-studio-tertiary focus:border-cyan-400/40"
-                />
-                <input
-                  type="text"
-                  value={importCampaignId}
-                  onChange={(event) => setImportCampaignId(event.target.value)}
-                  placeholder="Campaign ID"
-                  className="rounded-xl border border-white/15 bg-black/30 px-3 py-2 text-sm text-studio-text outline-none placeholder:text-studio-tertiary focus:border-cyan-400/40"
-                />
-              </div>
-
+            <div className="mt-4 flex flex-wrap gap-2">
               <button
                 type="button"
                 onClick={() => {
-                  void importFromConnectedGoogleAds();
+                  pendingOpenAdsRef.current = false;
+                  setError("");
+                  setStatusMessage("Opening Google Ads login...");
+                  startGoogleAdsOAuth(false);
                 }}
-                disabled={importLoading || loadingSession}
-                className="inline-flex items-center gap-2 rounded-xl bg-studio-accent px-3 py-2 text-sm font-semibold text-[#071225] disabled:opacity-60"
+                disabled={loadingSession}
+                className="inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-semibold text-slate-900 shadow-[0_0_0_1px_rgba(255,255,255,0.2)] hover:bg-slate-100 disabled:opacity-60"
               >
-                {importLoading ? <RefreshCw size={15} className="animate-spin" /> : <CheckCircle2 size={15} />}
-                {importLoading ? "Importing..." : "Import & Save in Adigator"}
+                <Link2 size={16} />
+                {connected ? "Reconnect Google Ads" : "Sign in with Google Ads"}
               </button>
-
-              {importSuccess ? (
-                <p className="text-xs font-semibold text-studio-success">{importSuccess}</p>
-              ) : null}
+              <button
+                type="button"
+                onClick={() => {
+                  void openGoogleAdsWorkspace();
+                }}
+                disabled={loadingSession}
+                className="inline-flex items-center gap-2 rounded-xl border border-white/25 bg-white/10 px-4 py-2.5 text-sm font-semibold text-white hover:bg-white/15 disabled:opacity-60"
+              >
+                <ExternalLink size={16} /> Open Ads website
+              </button>
             </div>
 
             {connected ? (
               <div className="mt-3 rounded-xl border border-studio-success/25 bg-studio-success/10 px-3 py-2 text-xs font-semibold text-studio-success">
-                Connected {email ? `as ${email}` : "to Google Ads"}
+                Signed in {email ? `as ${email}` : "to Google Ads"}. All campaigns below were loaded from your account.
               </div>
             ) : (
-              <button
-                type="button"
-                onClick={() => openOAuth(true)}
-                disabled={loadingSession}
-                className="mt-3 inline-flex items-center gap-2 rounded-xl border border-white/20 bg-white/5 px-3 py-2 text-sm font-semibold text-studio-text disabled:opacity-60"
-              >
-                <ExternalLink size={15} /> Use a different Google account
-              </button>
+              <p className="mt-3 text-xs leading-5 text-studio-tertiary">
+                Use Sign in with Google Ads first. After Google authorization, every campaign and draft appears in this list.
+              </p>
             )}
+
+            <div className="mt-4 space-y-2">
+              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-cyan-200">Your Google Ads campaigns</p>
+              {statusMessage ? (
+                <p className="text-xs leading-5 text-studio-tertiary">{statusMessage}</p>
+              ) : null}
+              {loadingCampaigns && availableCampaigns.length === 0 ? (
+                <p className="text-xs text-studio-tertiary">Loading campaigns from Google Ads...</p>
+              ) : availableCampaigns.length > 0 ? (
+                <div className="max-h-64 space-y-2 overflow-y-auto pr-1">
+                  {availableCampaigns.map((campaign) => {
+                    const isDraft = campaign.sourceType === "draft" || campaign.status === "Draft";
+                    const selected = activeCampaignId && campaign.id === activeCampaignId;
+                    return (
+                      <button
+                        key={campaign.id || campaign.name}
+                        type="button"
+                        onClick={() => {
+                          void loadSelectedCampaign(campaign);
+                        }}
+                        className={`flex w-full items-start justify-between gap-3 rounded-xl border px-3 py-2 text-left ${
+                          selected
+                            ? "border-cyan-400/40 bg-cyan-500/10"
+                            : "border-white/10 bg-black/25 hover:border-cyan-400/30 hover:bg-cyan-500/10"
+                        }`}
+                      >
+                        <span className="min-w-0">
+                          <span className="block truncate text-sm font-semibold text-studio-text">
+                            {campaign.name}
+                          </span>
+                          <span className="mt-1 block text-[11px] text-studio-tertiary">
+                            {campaign.id ? `ID ${campaign.id}` : "No ID"}
+                            {campaign.channelType ? ` · ${String(campaign.channelType).replace(/_/g, " ")}` : ""}
+                          </span>
+                        </span>
+                        <span className="shrink-0 rounded-full border border-white/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-studio-muted">
+                          {isDraft ? "Draft" : campaign.status || "Live"}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : (
+                <p className="text-xs text-studio-tertiary">
+                  {connected
+                    ? "No campaigns were returned for this Google login yet. Use Refresh, or Reconnect Google Ads with the same Google account that owns the live campaign."
+                    : "Sign in with Google Ads to see every campaign and draft here."}
+                </p>
+              )}
+            </div>
           </div>
         ) : null}
 

@@ -27,5 +27,6 @@ describe("buildGoogleAdsSessionPayload", () => {
     expect(payload.customerId).toBe("1234567890");
     expect(payload.campaigns).toHaveLength(1);
     expect(payload.message).toContain("connected");
+    expect(payload.error).toBeNull();
   });
 });

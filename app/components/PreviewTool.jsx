@@ -5,6 +5,10 @@ import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import dynamic from "next/dynamic";
 const PreviewStudio = dynamic(() => import("./PreviewStudio"), { ssr: false, loading: () => <div className="py-20 text-center text-[#c8c8d4] text-sm">Loading preview studio…</div> });
+const ProgrammaticStep1Fields = dynamic(() => import("./preview-tool/ProgrammaticStep1Fields"), {
+  ssr: false,
+  loading: () => <div className="py-10 text-center text-sm text-[#c8c8d4]">Loading campaign details…</div>,
+});
 import EditCreativeModal from "./EditCreativeModal";
 import CreativeCard from "./CreativeCard";
 import AnalysisPanel from "./AnalysisPanel";
@@ -98,6 +102,9 @@ import {
 } from "../lib/creativeRoles";
 import { buildReplacementComparisonReport } from "../lib/creativeReplacementComparison";
 import { normalizeGoogleCampaignType } from "../lib/googleCampaignTypes";
+import { getObjectiveTitle } from "../lib/campaignObjectives";
+import { mapGoogleAdsImportedCreativesToTool } from "../lib/googleAds/importedCreatives";
+import { mapMetaAdsImportedCreativesToTool } from "../lib/metaAds/importedCreatives";
 import { warmDashboardCampaignCaches } from "../lib/dashboardCampaignCache";
 import { resolveCreativePreviewContext } from "../lib/creativePreviewContext";
 import {
@@ -140,6 +147,7 @@ import {
   persistProgrammaticCampaignToApi,
   fetchCampaignFromApi,
   persistCampaignToApi,
+  importGoogleAdsCampaignFromSession,
 } from "../lib/campaignApi";
 import { resolveCampaignOwnerId } from "../lib/campaignOwnerScope";
 import { getPlatformAdapter } from "../lib/platforms/registry";
@@ -164,6 +172,7 @@ import {
   syncAdvertiserFromProgrammaticSnapshot,
 } from "../lib/advertiserStore";
 import GoogleAdsConnectPanel from "./preview-tool/GoogleAdsConnectPanel";
+import MetaAdsConnectPanel from "./preview-tool/MetaAdsConnectPanel";
 import ProgrammaticFolderSections from "./preview-tool/ProgrammaticFolderSections";
 import { getImageFilesFromDataTransfer, preventDropDefaults } from "../lib/folderUpload";
 import {
@@ -178,28 +187,16 @@ import CampaignAssistantModal from "./preview-tool/CampaignAssistantModal";
 import CampaignSupportChatWidget from "./preview-tool/CampaignSupportChatWidget";
 import MissingSetupFieldsPanel from "./preview-tool/MissingSetupFieldsPanel";
 import {
+  getMissingCampaignDetailFields,
   getMissingSetupFields,
   getRecommendedCampaignDetailFields,
   isSetupComplete,
 } from "@/app/lib/setupRequiredFields";
+import { isAdigatorVerticalId } from "@/app/lib/googleAds/inferVertical";
 
 function buildImportedGoogleAdsBrief(snapshot) {
   if (!snapshot || snapshot.importSource !== "google_ads") return snapshot?.campaignBrief || "";
-  if (snapshot.campaignBrief?.trim()) return snapshot.campaignBrief;
-
-  const budgetLine = snapshot.googleAdsBudgetAmountMicros
-    ? `Budget: ${(Number(snapshot.googleAdsBudgetAmountMicros) / 1_000_000).toFixed(2)} in account currency.`
-    : "";
-
-  return [
-    `Imported from Google Ads${snapshot.googleAdsCustomerId ? ` account ${snapshot.googleAdsCustomerId}` : ""}.`,
-    snapshot.googleAdsChannelType ? `Channel: ${snapshot.googleAdsChannelType}.` : "",
-    snapshot.googleAdsCampaignStatus ? `Status: ${snapshot.googleAdsCampaignStatus}.` : "",
-    snapshot.googleAdsStartDate ? `Start date: ${snapshot.googleAdsStartDate}.` : "",
-    snapshot.googleAdsEndDate ? `End date: ${snapshot.googleAdsEndDate}.` : "",
-    budgetLine,
-    snapshot.campaignGoal ? `Suggested goal: ${snapshot.campaignGoal}.` : "",
-  ].filter(Boolean).join(" ");
+  return String(snapshot.campaignBrief || "").trim();
 }
 import {
   buildCampaignAssistantFingerprint,
@@ -976,6 +973,7 @@ export default function PreviewTool() {
   });
   const mountRef = useRef(false);
   const configHydratedRef = useRef(false);
+  const skipLocalConfigHydrateRef = useRef(false);
 
   const [creatives, setCreatives] = useState([]);
   const [isHydratingCreatives, setIsHydratingCreatives] = useState(true);
@@ -1106,6 +1104,7 @@ export default function PreviewTool() {
   useEffect(() => {
     if (step <= 1 || configHydratedRef.current || typeof window === "undefined") return;
     configHydratedRef.current = true;
+    if (skipLocalConfigHydrateRef.current) return;
 
     const storedPlatform = localStorage.getItem("adigator_platform");
     if (
@@ -1571,7 +1570,8 @@ export default function PreviewTool() {
     && Boolean(loadedCampaignSnapshot)
     && activeProgrammaticAdGroups.length > 0;
   const usesProgrammaticFolderSections = (isProgrammatic && !isProgrammaticUrlUtmFlow)
-    || platformSetupUsesAdGroups;
+    || platformSetupUsesAdGroups
+    || (isGoogleAds && creatives.some((creative) => creative?.importedFromGoogleAds));
   const programmaticUsesMultiFolder = isProgrammaticSetup
     || platformSetupUsesAdGroups
     || renewalUsesAdGroups
@@ -1638,6 +1638,7 @@ export default function PreviewTool() {
     googleCampaignType: platform === "google_ads" ? googleCampaignType : undefined,
     campaignBrief,
     campaignName,
+    adType,
     landingUrl,
     programmaticTaskType,
     programmaticAdGroupCount,
@@ -1659,6 +1660,7 @@ export default function PreviewTool() {
     googleCampaignType,
     campaignBrief,
     campaignName,
+    adType,
     landingUrl,
     programmaticTaskType,
     programmaticAdGroupCount,
@@ -1682,6 +1684,13 @@ export default function PreviewTool() {
     () => getRecommendedCampaignDetailFields(setupFieldContext),
     [setupFieldContext],
   );
+
+  const missingCampaignDetailFields = useMemo(
+    () => getMissingCampaignDetailFields(setupFieldContext),
+    [setupFieldContext],
+  );
+
+  const hasRequiredCampaignDetails = missingCampaignDetailFields.length === 0;
 
   const isConfigComplete = isSetupComplete(setupFieldContext);
   const isStepOneReady = Boolean(platform);
@@ -1707,15 +1716,26 @@ export default function PreviewTool() {
 
   const applyCampaignConfigFromSnapshot = useCallback((snapshot) => {
     setActiveCampaignId(snapshot.id);
+    if (snapshot.id) {
+      setLookupCampaignId(String(snapshot.id));
+      localStorage.setItem(ACTIVE_CAMPAIGN_STORAGE_KEY, snapshot.id);
+    }
     setCampaignName(snapshot.campaignName);
     setCampaignBrief(buildImportedGoogleAdsBrief(snapshot));
-    setCampaignVertical(snapshot.vertical);
+    setCampaignVertical(isAdigatorVerticalId(snapshot.vertical) ? snapshot.vertical : null);
     setLandingUrl(snapshot.landingUrl);
     setCampaignGoal(snapshot.campaignGoal || null);
     setCampaignAudienceStage(snapshot.campaignAudienceStage || null);
     setCampaignProductFocus(snapshot.campaignProductFocus || "");
     setGoogleCampaignType(normalizeGoogleCampaignType(snapshot.googleCampaignType));
-    setProgrammaticAdGroupCount(snapshot.programmaticAdGroupCount ?? "");
+    if (snapshot.campaignTaskType || snapshot.programmaticTaskType) {
+      setProgrammaticTaskType(snapshot.campaignTaskType || snapshot.programmaticTaskType);
+    }
+    setProgrammaticAdGroupCount(
+      snapshot.programmaticAdGroupCount
+      ?? snapshot.googleAdGroupCount
+      ?? "",
+    );
     const normalizedGroups = normalizeProgrammaticAdGroups(snapshot.programmaticAdGroups || []);
     setProgrammaticAdGroups(normalizedGroups);
     setSelectedProgrammaticAdGroupIds(
@@ -1732,7 +1752,47 @@ export default function PreviewTool() {
     if (typeof snapshot.showSlotLabels === "boolean") setShowSlotLabels(snapshot.showSlotLabels);
     if (snapshot.advertiserName) setAdvertiserName(snapshot.advertiserName);
     if (snapshot.advertiserId) setAdvertiserId(snapshot.advertiserId);
+    const importedChannel = String(snapshot.googleAdsChannelType || "").toUpperCase();
+    if (isVideoObjective(snapshot.campaignGoal, snapshot.platform || "google_ads") || importedChannel === "VIDEO") {
+      setAdType("video");
+    } else {
+      setAdType("display");
+    }
     localStorage.setItem(ACTIVE_CAMPAIGN_STORAGE_KEY, snapshot.id);
+  }, []);
+
+  const applyImportedGoogleAdsCreatives = useCallback((snapshot) => {
+    if (!snapshot || snapshot.importSource !== "google_ads") return [];
+    const groups = Array.isArray(snapshot.programmaticAdGroups) ? snapshot.programmaticAdGroups : [];
+    if (groups.length) {
+      setProgrammaticAdGroups(normalizeProgrammaticAdGroups(groups));
+      setProgrammaticAdGroupCount(groups.length);
+      setSelectedProgrammaticAdGroupIds(groups.map((group) => String(group.id)));
+    }
+    const mappedCreatives = mapGoogleAdsImportedCreativesToTool(snapshot.creatives || [], groups);
+    if (!mappedCreatives.length) return [];
+    setCreatives(mappedCreatives);
+    if (mappedCreatives.some((creative) => creative.mediaType === "video" || creative.type === "video")) {
+      setAdType("video");
+    }
+    return mappedCreatives;
+  }, []);
+
+  const applyImportedMetaAdsCreatives = useCallback((snapshot) => {
+    if (!snapshot || snapshot.importSource !== "meta_ads") return [];
+    const groups = Array.isArray(snapshot.programmaticAdGroups) ? snapshot.programmaticAdGroups : [];
+    if (groups.length) {
+      setProgrammaticAdGroups(normalizeProgrammaticAdGroups(groups));
+      setProgrammaticAdGroupCount(groups.length);
+      setSelectedProgrammaticAdGroupIds(groups.map((group) => String(group.id)));
+    }
+    const mappedCreatives = mapMetaAdsImportedCreativesToTool(snapshot.creatives || [], groups);
+    if (!mappedCreatives.length) return [];
+    setCreatives(mappedCreatives);
+    if (mappedCreatives.some((creative) => creative.mediaType === "video" || creative.type === "video")) {
+      setAdType("video");
+    }
+    return mappedCreatives;
   }, []);
 
   const applyCreativeReplacementLoad = useCallback(async (snapshot) => {
@@ -2014,12 +2074,31 @@ export default function PreviewTool() {
       })
       : getCampaignById(resolvedId, campaignOwnerId);
 
+    if (!match && isGoogleLookup) {
+      try {
+        const imported = await importGoogleAdsCampaignFromSession({
+          campaignName: resolvedName,
+          campaignId: resolvedId,
+        });
+        if (imported) {
+          match = {
+            ...imported,
+            ownerId: campaignOwnerId || imported.ownerId,
+            platform: "google_ads",
+          };
+          upsertCampaign(match);
+        }
+      } catch (fetchError) {
+        const errorText = fetchError instanceof Error ? fetchError.message : "Google Ads import failed.";
+        if (!/unauthorized/i.test(errorText)) {
+          setCreativeAdditionFindError(errorText);
+          return;
+        }
+      }
+    }
+
     if (!match) {
       const token = await getAccessToken();
-      if (!token && isGoogleLookup) {
-        setCreativeAdditionFindError("Google Ads account is not connected. Sign in and connect Google Ads, then retry import.");
-        return;
-      }
       if (token) {
         try {
           const fetched = platform === "programmatic"
@@ -2037,13 +2116,16 @@ export default function PreviewTool() {
           match = fetched;
         } catch (fetchError) {
           const errorText = fetchError instanceof Error ? fetchError.message : "Campaign lookup failed.";
-          setCreativeAdditionFindError(errorText);
-          return;
+          if (!isGoogleLookup || !/unauthorized/i.test(errorText)) {
+            setCreativeAdditionFindError(errorText);
+            return;
+          }
         }
-        if (match && match.ownerId && match.ownerId !== campaignOwnerId) {
+        if (match && match.ownerId && match.ownerId !== campaignOwnerId && match.importSource !== "google_ads") {
           match = null;
         }
         if (match) {
+          match = { ...match, ownerId: campaignOwnerId || match.ownerId };
           if (platform === "programmatic") {
             upsertProgrammaticCampaign({ ...match, ownerId: campaignOwnerId });
           } else {
@@ -2084,10 +2166,13 @@ export default function PreviewTool() {
     if (isCreativeAdditionTask(programmaticTaskType)) {
       sessionSyncInitializedRef.current = false;
       applyCampaignConfigFromSnapshot(match);
+      applyImportedGoogleAdsCreatives(match);
       addToast("Campaign found. Choose how to proceed.", "success");
       return;
     }
-  }, [lookupCampaignId, campaignName, campaignOwnerId, programmaticTaskType, platform, getAccessToken, applyCampaignConfigFromSnapshot, applyCreativeReplacementLoad, applyCampaignRenewalLoad, applyUrlUtmCampaignLoad, addToast]);
+    applyCampaignConfigFromSnapshot(match);
+    applyImportedGoogleAdsCreatives(match);
+  }, [lookupCampaignId, campaignName, campaignOwnerId, programmaticTaskType, platform, getAccessToken, applyCampaignConfigFromSnapshot, applyImportedGoogleAdsCreatives, applyCreativeReplacementLoad, applyCampaignRenewalLoad, applyUrlUtmCampaignLoad, addToast]);
 
   const reportDeepLinkHandledRef = useRef("");
 
@@ -2309,6 +2394,16 @@ export default function PreviewTool() {
       programmaticAdGroups,
       selectedProgrammaticAdGroupIds,
       applyProgrammaticAdGroupsToAll,
+      importSource: loadedCampaignSnapshot?.importSource,
+      googleAdsCustomerId: loadedCampaignSnapshot?.googleAdsCustomerId,
+      googleAdsCampaignStatus: loadedCampaignSnapshot?.googleAdsCampaignStatus,
+      googleAdsChannelType: loadedCampaignSnapshot?.googleAdsChannelType,
+      googleAdsChannelSummary: loadedCampaignSnapshot?.googleAdsChannelSummary,
+      googleAdsCampaignSource: loadedCampaignSnapshot?.googleAdsCampaignSource,
+      googleAdsDraftId: loadedCampaignSnapshot?.googleAdsDraftId,
+      googleAdsBudgetAmountMicros: loadedCampaignSnapshot?.googleAdsBudgetAmountMicros,
+      googleAdsStartDate: loadedCampaignSnapshot?.googleAdsStartDate,
+      googleAdsEndDate: loadedCampaignSnapshot?.googleAdsEndDate,
       creatives: creatives.map(stripCreativeForPersistence),
       analysisResult: Array.isArray(resolvedAnalysis) ? resolvedAnalysis : null,
       urlValidation: urlValidation || readStoredUrlValidation(),
@@ -2324,6 +2419,7 @@ export default function PreviewTool() {
       updatedAt: new Date().toISOString(),
       ...platformAdapter.buildSnapshotExtensions({
         googleCampaignType,
+        googleAdGroupCount: programmaticAdGroupCount,
         programmaticAdGroupCount,
         programmaticAdGroups,
         selectedProgrammaticAdGroupIds,
@@ -2848,7 +2944,7 @@ export default function PreviewTool() {
     setCampaignGoal(nextGoal);
     if (platformChanged) {
       setGoogleCampaignType("display");
-      setProgrammaticTaskType("");
+      setProgrammaticTaskType(id === "google_ads" ? "campaign_setup" : "");
       setProgrammaticAdGroupCount("");
       setProgrammaticAdGroups([]);
       setSelectedProgrammaticAdGroupIds([]);
@@ -3201,6 +3297,11 @@ export default function PreviewTool() {
   const handleGoogleAdsCampaignImport = useCallback((campaign) => {
     if (!campaign) return;
 
+    skipLocalConfigHydrateRef.current = true;
+    configHydratedRef.current = true;
+    setPlatform("google_ads");
+    setProgrammaticTaskType("campaign_setup");
+
     const importedSnapshot = campaign.importSource === "google_ads" ? campaign : null;
     const resolvedName = (typeof campaign.campaignName === "string" ? campaign.campaignName : campaign.name || "").trim();
     const resolvedId = String(campaign.id || "").trim();
@@ -3209,21 +3310,30 @@ export default function PreviewTool() {
       setCampaignName(resolvedName);
     }
 
-    if (resolvedId) setLookupCampaignId(resolvedId);
+    if (resolvedId) {
+      setLookupCampaignId(resolvedId);
+      setActiveCampaignId(resolvedId);
+      localStorage.setItem(ACTIVE_CAMPAIGN_STORAGE_KEY, resolvedId);
+    }
 
     const suggestedGoal = typeof campaign.suggestedGoal === "string"
       ? campaign.suggestedGoal.trim()
       : (typeof campaign.campaignGoal === "string" ? campaign.campaignGoal.trim() : "");
-    if (!campaignGoal && suggestedGoal) {
+    if (suggestedGoal) {
       setCampaignGoal(suggestedGoal);
     }
 
-    const channel = String(campaign.channelType || "").toUpperCase();
-    if (channel === "DISPLAY" || channel === "VIDEO") {
+    const channel = String(campaign.channelType || campaign.googleAdsChannelType || "").toUpperCase();
+    if (channel === "DEMAND_GEN" || channel === "VIDEO") {
+      setGoogleCampaignType("demand_gen");
+    } else if (channel === "PERFORMANCE_MAX") {
+      setGoogleCampaignType("responsive_display");
+    } else if (channel === "DISPLAY" || channel === "SEARCH") {
       setGoogleCampaignType("display");
     }
 
-    if (campaignOwnerId && resolvedName) {
+    const persistImportedSelection = (groups = [], goal = suggestedGoal) => {
+      if (!campaignOwnerId || !resolvedName) return;
       persistAdvertiserCampaignSelection({
         ownerId: campaignOwnerId,
         advertiserName: advertiserName.trim() || "Google Ads",
@@ -3234,12 +3344,18 @@ export default function PreviewTool() {
           platform: "google_ads",
           validated: Boolean(campaign.validated ?? false),
           updatedAt: new Date().toISOString(),
-          adGroups: [],
-          campaignGoal: typeof campaign.suggestedGoal === "string" ? campaign.suggestedGoal : undefined,
+          adGroups: groups.map((group) => ({
+            id: String(group.id),
+            name: String(group.name || ""),
+            objective: String(group.objective || goal || ""),
+            objectiveLabel: getObjectiveTitle(group.objective || goal, "google_ads"),
+            creatives: [],
+          })),
+          campaignGoal: goal || undefined,
           vertical: campaign.vertical || undefined,
         },
       });
-    }
+    };
 
     if (importedSnapshot) {
       const normalizedImported = {
@@ -3248,21 +3364,120 @@ export default function PreviewTool() {
         campaignName: resolvedName || importedSnapshot.campaignName,
         ownerId: campaignOwnerId || importedSnapshot.ownerId,
         platform: "google_ads",
+        campaignTaskType: importedSnapshot.campaignTaskType || "campaign_setup",
       };
+      setProgrammaticTaskType(normalizedImported.campaignTaskType);
       applyCampaignConfigFromSnapshot(normalizedImported);
       setLoadedCampaignSnapshot(normalizedImported);
+      const groups = Array.isArray(normalizedImported.programmaticAdGroups)
+        ? normalizedImported.programmaticAdGroups
+        : [];
+      persistImportedSelection(groups, normalizedImported.campaignGoal || suggestedGoal);
+      applyImportedGoogleAdsCreatives(normalizedImported);
       if (normalizedImported.ownerId) {
         upsertCampaign(normalizedImported);
       }
       const sourceLabel = normalizedImported.googleAdsCampaignSource === "draft" ? "Draft" : "Published";
-      addToast(`Imported Google Ads ${sourceLabel} campaign saved in Adigator.`, "success");
+      addToast(`Google Ads ${sourceLabel.toLowerCase()} campaign loaded. Details, ad groups, and creatives are filled in for you.`, "success");
       setSetupPromptHighlighted(false);
+      if (step !== 2) {
+        router.push(stepHref(2), { scroll: true });
+      }
       return;
     }
 
+    persistImportedSelection();
     setSetupPromptHighlighted(false);
     addToast(`Imported Google Ads campaign: ${resolvedName || resolvedId}`, "success");
-  }, [advertiserId, advertiserName, campaignGoal, campaignOwnerId, addToast, applyCampaignConfigFromSnapshot]);
+    if (step !== 2) {
+      router.push(stepHref(2), { scroll: true });
+    }
+  }, [advertiserId, advertiserName, campaignOwnerId, addToast, applyCampaignConfigFromSnapshot, applyImportedGoogleAdsCreatives, router, step, stepHref]);
+
+  const handleMetaAdsCampaignImport = useCallback((campaign) => {
+    if (!campaign) return;
+
+    skipLocalConfigHydrateRef.current = true;
+    configHydratedRef.current = true;
+    setPlatform("meta_ads");
+    setProgrammaticTaskType("campaign_setup");
+
+    const importedSnapshot = campaign.importSource === "meta_ads" ? campaign : null;
+    const resolvedName = (typeof campaign.campaignName === "string" ? campaign.campaignName : campaign.name || "").trim();
+    const resolvedId = String(campaign.id || "").trim();
+
+    if (resolvedName) setCampaignName(resolvedName);
+    if (resolvedId) {
+      setLookupCampaignId(resolvedId);
+      setActiveCampaignId(resolvedId);
+      localStorage.setItem(ACTIVE_CAMPAIGN_STORAGE_KEY, resolvedId);
+    }
+
+    const suggestedGoal = typeof campaign.campaignGoal === "string"
+      ? campaign.campaignGoal.trim()
+      : (typeof campaign.suggestedGoal === "string" ? campaign.suggestedGoal.trim() : "");
+    if (suggestedGoal) setCampaignGoal(suggestedGoal);
+
+    const persistImportedSelection = (groups = [], goal = suggestedGoal) => {
+      if (!campaignOwnerId || !resolvedName) return;
+      persistAdvertiserCampaignSelection({
+        ownerId: campaignOwnerId,
+        advertiserName: advertiserName.trim() || "Meta Ads",
+        advertiserId: advertiserId || undefined,
+        campaign: {
+          id: String(campaign.id || resolvedName),
+          name: resolvedName,
+          platform: "meta_ads",
+          validated: Boolean(campaign.validated ?? false),
+          updatedAt: new Date().toISOString(),
+          adGroups: groups.map((group) => ({
+            id: String(group.id),
+            name: String(group.name || ""),
+            objective: String(group.objective || goal || ""),
+            objectiveLabel: getObjectiveTitle(group.objective || goal, "meta_ads"),
+            creatives: [],
+          })),
+          campaignGoal: goal || undefined,
+          vertical: campaign.vertical || undefined,
+        },
+      });
+    };
+
+    if (importedSnapshot) {
+      const normalizedImported = {
+        ...importedSnapshot,
+        id: resolvedId || importedSnapshot.id,
+        campaignName: resolvedName || importedSnapshot.campaignName,
+        ownerId: campaignOwnerId || importedSnapshot.ownerId,
+        platform: "meta_ads",
+        campaignTaskType: importedSnapshot.campaignTaskType || "campaign_setup",
+      };
+      setProgrammaticTaskType(normalizedImported.campaignTaskType);
+      applyCampaignConfigFromSnapshot(normalizedImported);
+      setLoadedCampaignSnapshot(normalizedImported);
+      const groups = Array.isArray(normalizedImported.programmaticAdGroups)
+        ? normalizedImported.programmaticAdGroups
+        : [];
+      persistImportedSelection(groups, normalizedImported.campaignGoal || suggestedGoal);
+      applyImportedMetaAdsCreatives(normalizedImported);
+      if (normalizedImported.ownerId) {
+        upsertCampaign(normalizedImported);
+      }
+      addToast("Meta Ads campaign loaded. Details, ad sets, and creatives are filled in for you.", "success");
+      setSetupPromptHighlighted(false);
+      if (step !== 2) {
+        router.push(stepHref(2), { scroll: true });
+      }
+      return;
+    }
+
+    persistImportedSelection();
+    setSetupPromptHighlighted(false);
+    addToast(`Imported Meta Ads campaign: ${resolvedName || resolvedId}`, "success");
+    if (step !== 2) {
+      router.push(stepHref(2), { scroll: true });
+    }
+  }, [advertiserId, advertiserName, campaignOwnerId, addToast, applyCampaignConfigFromSnapshot, applyImportedMetaAdsCreatives, router, step, stepHref]);
 
   const selectedPlatformConfig = PLATFORMS.find((p) => p.id === platform);
   const availableGoals = platform ? (PLATFORM_GOAL_SETS[platform] || PROGRAMMATIC_GOALS) : [];
@@ -3367,15 +3582,24 @@ export default function PreviewTool() {
   useEffect(() => {
     setSizeReviewAcknowledged(false);
   }, [needsReviewCreatives.map((c) => c.id).join(",")]);
-  const canAdvanceToAnalysis = uploadedCreatives.length > 0
+  const hasGoogleAdsImportedDetails = Boolean(
+    isGoogleAds
+    && loadedCampaignSnapshot?.importSource === "google_ads"
+    && String(campaignName || "").trim()
+    && String(activeCampaignId || lookupCampaignId || loadedCampaignSnapshot?.id || "").trim(),
+  );
+  const canAdvanceToAnalysis = hasRequiredCampaignDetails
+    && (uploadedCreatives.length > 0 || hasGoogleAdsImportedDetails)
     && (needsReviewCreatives.length === 0 || sizeReviewAcknowledged)
     && (
       !programmaticUsesMultiFolder
+      || hasGoogleAdsImportedDetails
       || activeProgrammaticAdGroups.every((group) => creatives.some((creative) => creative.adGroupId === group.id && creative.valid))
     )
     && (
       !isProgrammaticCreativeReplacementFlow
       || baselineCreatives.some((creative) => creative.valid)
+      || hasGoogleAdsImportedDetails
     )
     && (
       !isProgrammaticUrlUtmFlow
@@ -3482,12 +3706,29 @@ export default function PreviewTool() {
       addToast("Select a platform to continue.", "error");
       return;
     }
-    if (step === 2 && !canAdvanceToAnalysis) return;
+    if (step === 2 && missingCampaignDetailFields.length > 0) {
+      addToast(
+        `Complete required fields: ${missingCampaignDetailFields.map((field) => field.label).join(", ")}.`,
+        "error",
+      );
+      return;
+    }
+    if (step === 2 && !canAdvanceToAnalysis) {
+      addToast(
+        hasGoogleAdsImportedDetails
+          ? "Review the imported Google Ads campaign details, then continue."
+          : "Upload and validate at least one creative before continuing.",
+        "error",
+      );
+      return;
+    }
 
-    if (step === 1 && isPlatformSetup) {
+    if ((step === 1 || step === 2) && isPlatformSetup) {
       if (!activeCampaignId) {
-        const newCampaignId = generateCampaignId(platform || "programmatic");
+        const importedId = String(lookupCampaignId || loadedCampaignSnapshot?.id || "").trim();
+        const newCampaignId = importedId || generateCampaignId(platform || "programmatic");
         setActiveCampaignId(newCampaignId);
+        if (!lookupCampaignId) setLookupCampaignId(newCampaignId);
         localStorage.setItem(ACTIVE_CAMPAIGN_STORAGE_KEY, newCampaignId);
       }
       await persistProgrammaticCampaignSnapshot();
@@ -3526,6 +3767,7 @@ export default function PreviewTool() {
     step,
     isStepOneReady,
     canAdvanceToAnalysis,
+    missingCampaignDetailFields,
     effectiveTotalSteps,
     stepHref,
     router,
@@ -3547,6 +3789,9 @@ export default function PreviewTool() {
     programmaticTaskType,
     persistProgrammaticCampaignSnapshot,
     addToast,
+    hasGoogleAdsImportedDetails,
+    lookupCampaignId,
+    loadedCampaignSnapshot,
   ]);
 
   const goBack = useCallback(() => {
@@ -3642,6 +3887,7 @@ export default function PreviewTool() {
     localStorage.removeItem(ACTIVE_CAMPAIGN_STORAGE_KEY);
 
     configHydratedRef.current = false;
+    skipLocalConfigHydrateRef.current = false;
 
     try {
       writeStoredWorkflow({
@@ -3724,10 +3970,10 @@ export default function PreviewTool() {
   // Guard against entering Campaign Intelligence without creatives
   useEffect(() => {
     if (!mountRef.current) return;
-    if (step === 3 && uploadedCreatives.length === 0) {
+    if (step === 3 && uploadedCreatives.length === 0 && !hasGoogleAdsImportedDetails) {
       router.push(stepHref(2), { scroll: true });
     }
-  }, [step, uploadedCreatives.length, router, stepHref]);
+  }, [step, uploadedCreatives.length, hasGoogleAdsImportedDetails, router, stepHref]);
 
   useEffect(() => {
     if (!mountRef.current || sessionInitRef.current) return;
@@ -5269,27 +5515,32 @@ export default function PreviewTool() {
     persistProgrammaticCampaignSnapshot,
   ]);
 
-  const isVideoPreviewStudio = isVideoAdTypeSelected
-    || isVideoObjectiveSelected
-    || validCreatives.some((c) => c.mediaType === "video");
+  const isVideoPreviewStudio = platform === "google_ads"
+    ? (isVideoAdTypeSelected || isVideoObjectiveSelected)
+    : (
+      isVideoAdTypeSelected
+      || isVideoObjectiveSelected
+      || validCreatives.some((c) => c.mediaType === "video")
+    );
 
   const previewEngineCreatives = useMemo(
     () => validCreatives.map((creative, index) => {
       const payload = getEntryPayload(analysisResult?.[index]) || {};
       const previewContext = resolveCreativePreviewContext(payload, campaignVertical || "general");
       const signalHeadline = payload?.signals?.headline || payload?.extraction_signals?.headline || "";
+      const importedHeadline = creative.headline || creative.title || "";
       const safeHeadline = isVideoPreviewStudio
         ? (creative.name || "Sponsored video")
-        : (signalHeadline || payload?.main_strategic_problem || creative.name || "");
+        : (importedHeadline || signalHeadline || payload?.main_strategic_problem || creative.name || "");
       return {
         id: creative.id,
         name: creative.name,
         url: creative.url || creative.imageDataUrl || creative.image || "",
-        size: creative.size,
+        size: creative.size || creative.validation?.size || "1200x628",
         analyzerOutput: isVideoPreviewStudio ? undefined : payload,
         ctaText: isVideoPreviewStudio
           ? "Learn More"
-          : (payload?.signals?.cta || payload?.extraction_signals?.cta || ""),
+          : (payload?.signals?.cta || payload?.extraction_signals?.cta || creative.text || ""),
         headline: safeHeadline,
         previewVertical: previewContext.creativeVertical,
         previewTemplate: previewContext.templateId,
@@ -5696,13 +5947,18 @@ export default function PreviewTool() {
         return;
       }
       if (targetStep > 2 && !canAdvanceToAnalysis) {
-        addToast("Upload and validate at least one creative before continuing.", "error");
+        addToast(
+          missingCampaignDetailFields.length
+            ? `Complete required fields: ${missingCampaignDetailFields.map((field) => field.label).join(", ")}.`
+            : "Finish Campaign Details before continuing.",
+          "error",
+        );
         return;
       }
-      if (targetStep >= 3 && uploadedCreatives.length === 0) return;
+      if (targetStep >= 3 && uploadedCreatives.length === 0 && !hasGoogleAdsImportedDetails) return;
       router.push(stepHref(targetStep), { scroll: true });
     },
-    [step, isStepOneReady, canAdvanceToAnalysis, uploadedCreatives.length, router, stepHref, addToast],
+    [step, isStepOneReady, canAdvanceToAnalysis, missingCampaignDetailFields, uploadedCreatives.length, hasGoogleAdsImportedDetails, router, stepHref, addToast],
   );
 
 
@@ -5795,20 +6051,130 @@ export default function PreviewTool() {
                     </h3>
                     <p className="mt-1 text-studio-muted">
                       {platform === "meta_ads"
-                        ? "Open Meta Ads Manager with its own direct login route."
+                        ? "Sign in with Meta Ads to load campaigns automatically, or create a new paused campaign."
                         : platform === "programmatic"
                           ? "Open your programmatic workspace to continue the workflow."
-                          : "Connect your Google Ads account to import campaign details."}
+                          : "Sign in with Google Ads to load campaigns automatically."}
                     </p>
                   </div>
-                  <GoogleAdsConnectPanel
-                    enabled={true}
-                    activePlatform={platform}
-                    onImportCampaign={handleGoogleAdsCampaignImport}
-                    campaignName={campaignName}
-                    campaignId={lookupCampaignId}
-                  />
+                  {platform === "meta_ads" ? (
+                    <MetaAdsConnectPanel
+                      enabled={true}
+                      onImportCampaign={handleMetaAdsCampaignImport}
+                    />
+                  ) : (
+                    <GoogleAdsConnectPanel
+                      enabled={true}
+                      activePlatform={platform}
+                      onImportCampaign={handleGoogleAdsCampaignImport}
+                    />
+                  )}
                 </motion.section>
+              ) : null}
+
+              <div className="flex gap-4 pt-4">
+                <ToolNavBtn variant="back" onClick={goBack}>← Back</ToolNavBtn>
+                <ToolNavBtn onClick={goNext} disabled={!isStepOneReady}>Next: Campaign Details →</ToolNavBtn>
+              </div>
+            </motion.div>
+          )}
+
+          {step === 2 && (
+            <motion.div key="step-2" variants={stepPanelVariants} initial="hidden" animate="visible" exit="exit" className="space-y-8 pb-28">
+              <ToolSectionHeader
+                step={2}
+                title="Campaign Details"
+                description={platform === "google_ads"
+                  ? "Imported Google Ads fields are filled in automatically. Review them, then upload creatives."
+                  : platform === "meta_ads"
+                    ? "Imported Meta Ads fields are filled in automatically. Review them, then upload creatives."
+                    : "Confirm campaign details, then upload creatives to continue."}
+              />
+
+              {platform ? (
+                <ProgrammaticStep1Fields
+                  platform={platform}
+                  taskType={programmaticTaskType}
+                  adGroupCount={programmaticAdGroupCount}
+                  adGroups={programmaticAdGroups}
+                  selectedAdGroupIds={selectedProgrammaticAdGroupIds}
+                  applyAdGroupsToAll={applyProgrammaticAdGroupsToAll}
+                  campaignName={campaignName}
+                  campaignBrief={campaignBrief}
+                  campaignProductFocus={campaignProductFocus}
+                  googleCampaignType={googleCampaignType}
+                  campaignVertical={campaignVertical}
+                  landingUrl={landingUrl}
+                  lookupCampaignId={lookupCampaignId}
+                  campaignId={activeCampaignId}
+                  campaignOwnerId={campaignOwnerId}
+                  campaignAccessToken={campaignAccessToken}
+                  advertiserId={advertiserId}
+                  advertiserName={advertiserName}
+                  loadedCampaign={loadedCampaignSnapshot}
+                  creativeAdditionMode={creativeAdditionMode}
+                  creativeAdditionFindError={creativeAdditionFindError}
+                  verticals={VERTICALS}
+                  adType={adType}
+                  onAdTypeChange={setAdType}
+                  objectiveOptions={(platformAdapter.getObjectives?.() || []).map((item) => ({
+                    id: item.id,
+                    label: item.title || item.label,
+                  }))}
+                  supportsCustomObjective={isProgrammatic}
+                  onTaskTypeChange={handleProgrammaticTaskTypeChange}
+                  onAdGroupCountChange={handleProgrammaticAdGroupCountChange}
+                  onAdGroupNameChange={handleProgrammaticAdGroupNameChange}
+                  onAdGroupObjectiveChange={handleProgrammaticAdGroupObjectiveChange}
+                  onAdGroupCustomObjectiveChange={handleProgrammaticAdGroupCustomObjectiveChange}
+                  onAddAdGroup={handleAddProgrammaticAdGroup}
+                  onRemoveAdGroup={handleRemoveProgrammaticAdGroup}
+                  onSelectedAdGroupIdsChange={handleSelectedProgrammaticAdGroupIdsChange}
+                  onApplyAdGroupsToAllChange={handleApplyProgrammaticAdGroupsToAllChange}
+                  onCampaignNameChange={setCampaignName}
+                  onCampaignBriefChange={setCampaignBrief}
+                  onCampaignProductFocusChange={setCampaignProductFocus}
+                  onGoogleCampaignTypeChange={setGoogleCampaignType}
+                  onLandingUrlChange={handleLandingUrlChange}
+                  onVerticalChange={setCampaignVertical}
+                  onLookupCampaignIdChange={setLookupCampaignId}
+                  onFindCampaign={() => { void handleFindProgrammaticCampaign(); }}
+                  onAdvertiserCampaignSelect={handleAdvertiserCampaignSelect}
+                  onCreativeAdditionModeChange={handleCreativeAdditionModeChange}
+                  campaignIntent={resolvedCampaignIntent}
+                  effectiveCampaignGoal={effectiveCampaignGoal}
+                />
+              ) : (
+                <ToolSurface>
+                  <p className="text-sm text-studio-muted">Select a platform on Platform Setup first, then return here to fill campaign details.</p>
+                </ToolSurface>
+              )}
+
+              {usesProgrammaticFolderSections && (programmaticAdGroups.length > 0 || creatives.length > 0) ? (
+                <ProgrammaticFolderSections
+                  folders={activeProgrammaticAdGroups}
+                  creatives={step2FolderCreatives}
+                  isLoading={isLoading || isHydratingCreatives}
+                  editingId={editingId}
+                  editingName={editingName}
+                  targetSizeByCreative={targetSizeByCreative}
+                  compressingCreativeIds={compressingCreativeIds}
+                  fixingCreativeIds={fixingCreativeIds}
+                  isBulkCompressing={isBulkCompressing}
+                  onFolderSelect={handleProgrammaticFolderSelect}
+                  onRemoveCreative={removeCreative}
+                  onStartEdit={startEdit}
+                  onEditingNameChange={setEditingName}
+                  onSaveEdit={saveEdit}
+                  onCancelEdit={() => setEditingId(null)}
+                  onDownloadCreative={downloadCreative}
+                  onTargetSizeChange={handleTargetSizeChange}
+                  onCompressCreative={(id, options) => { void compressCreative(id, options); }}
+                  onEditCreative={setEditModalCreative}
+                  onApplyFix={applyCreativeFix}
+                  resolveObjectiveLabel={(objective) => getObjectiveTitle(objective, platform)}
+                  allowVideo={(group) => adType === "video" || isVideoObjective(group.objective || campaignGoal, platform)}
+                />
               ) : null}
 
               {!usesProgrammaticFolderSections && creatives.length > 0 ? (
@@ -6362,7 +6728,7 @@ export default function PreviewTool() {
               </div>
               </div>
 
-              {(platform === "programmatic" ? validCreatives.length > 0 : Boolean(platform)) && (
+              {(validCreatives.length > 0) && (
                 <div className="studio-shell rounded-3xl p-6 md:p-8 shadow-studio">
                   <PreviewStudio
                   platform={platform}
@@ -6372,14 +6738,14 @@ export default function PreviewTool() {
                     name: c.name,
                     url: c.url,
                     fullUrl: c.fullUrl,
-                    size: c.size,
+                    size: c.size || c.validation?.size || "1200x628",
                     mediaType: c.mediaType,
                     mimeType: c.mimeType,
                     videoUrl: c.mediaType === "video" ? c.fullUrl : undefined,
                     posterUrl: c.mediaType === "video" ? c.url : undefined,
                   }))}
                   vertical={campaignVertical || "general"}
-                  goal={campaignGoal || "awareness"}
+                  goal={resolveApiGoal(campaignGoal, platform) || "awareness"}
                   brandName={previewTemplateContext.brandName}
                   targetAudience={previewTemplateContext.targetAudience}
                   tone={previewTemplateContext.tone}
@@ -6406,11 +6772,11 @@ export default function PreviewTool() {
                 </div>
               )}
 
-              {platform === "programmatic" && validCreatives.length === 0 && (
+              {validCreatives.length === 0 && (
                 <ToolSurface className="flex flex-col items-center justify-center py-16 text-center">
                   <span className="mb-4 text-4xl">🌐</span>
                   <p className="font-semibold text-studio-text">No valid creatives to preview</p>
-                  <p className="mt-1 text-sm text-studio-muted">Upload and validate a creative in step 2 first.</p>
+                  <p className="mt-1 text-sm text-studio-muted">Upload or import a creative in step 2 first.</p>
                 </ToolSurface>
               )}
 

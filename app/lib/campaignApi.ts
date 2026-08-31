@@ -59,6 +59,53 @@ export async function fetchCampaignIdsByName(
   }
 }
 
+export async function importGoogleAdsCampaignFromSession({
+  campaignName,
+  campaignId,
+}: {
+  campaignName?: string;
+  campaignId?: string;
+} = {}): Promise<CampaignSnapshot | null> {
+  const name = String(campaignName || "").trim();
+  const id = String(campaignId || "").trim();
+  if (!name && !id) return null;
+
+  const params = new URLSearchParams();
+  if (name) params.set("campaignName", name);
+  if (id) params.set("campaignId", id);
+  const response = await fetch(`/api/google-ads/campaigns?${params.toString()}`, { cache: "no-store" });
+  const payload = await parseJsonResponse(response);
+  if (!response.ok) {
+    throw new Error(String(payload?.error || "Unable to import that campaign from Google Ads."));
+  }
+  return (payload?.data || payload?.campaign || null) as CampaignSnapshot | null;
+}
+
+export async function fetchGoogleAdsCampaignIdOptions(campaignName: string): Promise<CampaignIdOption[]> {
+  const trimmed = campaignName.trim().toLowerCase();
+  if (!trimmed) return [];
+  try {
+    const response = await fetch("/api/google-ads/campaigns?limit=80", { cache: "no-store" });
+    const payload = await parseJsonResponse(response);
+    if (!response.ok || !Array.isArray(payload?.campaigns)) return [];
+    return payload.campaigns
+      .filter((campaign: { name?: string; campaignName?: string }) => {
+        const name = String(campaign.campaignName || campaign.name || "").trim().toLowerCase();
+        return name.includes(trimmed);
+      })
+      .map((campaign: { id?: string; name?: string; campaignName?: string }) => ({
+        id: String(campaign.id || ""),
+        campaignName: String(campaign.campaignName || campaign.name || ""),
+        platform: "google_ads" as const,
+        updatedAt: new Date().toISOString(),
+      }))
+      .filter((option: CampaignIdOption) => option.id);
+  } catch (error) {
+    console.warn("[Adigator] Google Ads campaign ID lookup failed:", error);
+    return [];
+  }
+}
+
 export async function fetchCampaignFromApi({
   campaignName,
   campaignId,

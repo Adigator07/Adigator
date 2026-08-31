@@ -4,8 +4,8 @@
  */
 
 export const WORKFLOW_STEPS = [
-  { id: 1, slug: "campaign-setup", label: "Campaign Setup" },
-  { id: 2, slug: "creative-validation", label: "Creative Validation" },
+  { id: 1, slug: "campaign-setup", label: "Platform Setup" },
+  { id: 2, slug: "campaign-details", aliases: ["creative-validation"], label: "Campaign Details" },
   { id: 3, slug: "campaign-intelligence", label: "Campaign Intelligence" },
   { id: 4, slug: "preview-studio", label: "Preview Studio" },
 ];
@@ -21,7 +21,9 @@ export function clampWorkflowStep(value) {
 export function resolveWorkflowStep(param) {
   if (param == null || param === "") return 1;
   const normalized = String(param).trim().toLowerCase();
-  const bySlug = WORKFLOW_STEPS.find((step) => step.slug === normalized);
+  const bySlug = WORKFLOW_STEPS.find((step) => (
+    step.slug === normalized || (Array.isArray(step.aliases) && step.aliases.includes(normalized))
+  ));
   if (bySlug) return bySlug.id;
   return clampWorkflowStep(normalized);
 }

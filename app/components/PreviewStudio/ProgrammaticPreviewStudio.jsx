@@ -64,6 +64,7 @@ export default function ProgrammaticPreviewStudio({
   initialTemplateId = null,
   initialPreviewDevice = null,
   initialPreviewCreativeId = null,
+  minimalChrome = false,
 }) {
   const [activeTemplate, setActiveTemplate] = useState(
     () => initialTemplateId || PROGRAMMATIC_DISPLAY_WEBSITE_ENVIRONMENTS[0],
@@ -136,13 +137,18 @@ export default function ProgrammaticPreviewStudio({
 
   const selectedSourceDeviceValidation = useMemo(() => {
     if (!selectedSource) return { supported: true, message: null };
+    // Website previews render the creative on a publisher page; IAB size gates
+    // should not hide desktop/mobile views for imported Google Ads assets.
+    if (minimalChrome) return { supported: true, message: null };
+    const size = selectedSource.size || selectedSource.validation?.size;
+    if (!size) return { supported: true, message: null };
     return validatePreviewDeviceCompatibility({
       platform: "programmatic",
       placementId: PROGRAMMATIC_PREVIEW_PLACEMENT,
       device,
-      size: selectedSource.size || selectedSource.validation?.size,
+      size,
     });
-  }, [selectedSource, device]);
+  }, [selectedSource, device, minimalChrome]);
 
   const getSupportedDevices = useCallback(
     (size) => getSupportedDevicesForCreative("programmatic", PROGRAMMATIC_PREVIEW_PLACEMENT, size),
@@ -177,21 +183,25 @@ export default function ProgrammaticPreviewStudio({
 
   return (
     <div className="space-y-6">
-      <StudioTabBar
-        tabs={TEMPLATE_TABS}
-        activeTab={activeTemplate}
-        onChange={setActiveTemplate}
-        layoutIdPrefix="programmatic-templates"
-        compact
-      />
+      {minimalChrome ? null : (
+        <StudioTabBar
+          tabs={TEMPLATE_TABS}
+          activeTab={activeTemplate}
+          onChange={setActiveTemplate}
+          layoutIdPrefix="programmatic-templates"
+          compact
+        />
+      )}
 
       <StudioContentPanel panelKey={activeTemplate} className="space-y-5">
+        {minimalChrome ? null : (
         <p className="-mt-2 text-xs text-studio-muted">
           Each creative gets its own publisher preview based on its detected category.
           {selectedPreviewContext ? (
             <> Detected for this creative: <strong className="text-studio-text">{formatVerticalLabel(selectedPreviewContext.creativeVertical)}</strong> · auto template <strong className="text-studio-text">{PROGRAMMATIC_ENVIRONMENT_LABELS[selectedPreviewContext.templateId] || selectedPreviewContext.templateId}</strong>.</>
           ) : null}
         </p>
+        )}
 
         <CompatibleCreativePicker
           sourceCreatives={sourceCreatives}
@@ -211,12 +221,14 @@ export default function ProgrammaticPreviewStudio({
             onChange={setDevice}
             layoutIdPrefix="programmatic-device"
           />
+          {minimalChrome ? null : (
           <StudioToolbar
             count={canPreview ? 1 : 0}
             device={device}
             onRegenerate={cacheOnly ? undefined : handleRegenerate}
             isRegenerating={isRegenerating}
           />
+          )}
         </div>
 
         {isRegenerating ? (

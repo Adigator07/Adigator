@@ -54,10 +54,14 @@ export type CampaignSnapshot = {
   googleAdsBudgetAmountMicros?: number;
   googleAdsStartDate?: string;
   googleAdsEndDate?: string;
-  importSource?: "google_ads";
+  importSource?: "google_ads" | "meta_ads";
   /** Meta Ads extensions */
   metaCampaignType?: "advantage_plus" | "manual" | "";
   metaAdSetCount?: number | "";
+  metaAdsAdAccountId?: string;
+  metaAdsCampaignStatus?: string;
+  metaAdsObjective?: string;
+  metaAdsCampaignSource?: "published" | "draft";
   /** Last selected preview template/placement for Step 4 export context */
   lastPreviewTemplateId?: string;
   lastPreviewDevice?: "desktop" | "mobile";

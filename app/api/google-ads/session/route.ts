@@ -1,10 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import {
-  getGoogleAdsAccountDetails,
-  listAccessibleCustomerResourceNames,
-  listGoogleAdsCampaigns,
-  refreshGoogleAdsAccessToken,
-} from "@/app/lib/googleAds/client";
+import { refreshGoogleAdsAccessToken } from "@/app/lib/googleAds/client";
 import {
   clearGoogleAdsSession,
   readGoogleAdsSession,
@@ -18,7 +13,15 @@ export function buildGoogleAdsSessionPayload(
   details?: {
     customerId?: string;
     account?: { name?: string; currencyCode?: string; timeZone?: string };
-    campaigns?: Array<{ id: string; name: string; status: string; suggestedGoal?: string }>;
+    campaigns?: Array<{
+      id: string;
+      name: string;
+      status: string;
+      suggestedGoal?: string;
+      sourceType?: "published" | "draft";
+      channelType?: string;
+    }>;
+    error?: string;
   },
 ) {
   const connected = Boolean(session?.accessToken);
@@ -32,12 +35,13 @@ export function buildGoogleAdsSessionPayload(
     customerId: details?.customerId || null,
     account: details?.account || null,
     campaigns: details?.campaigns || [],
+    error: details?.error || null,
   };
 }
 
 async function resolveAccessToken(request: NextRequest) {
   const session = readGoogleAdsSession(request);
-  if (!session?.accessToken) return { accessToken: null as string | null, session, refreshedSession: null as any };
+  if (!session?.accessToken) return { accessToken: null as string | null, session, refreshedSession: null as typeof session };
 
   const now = Date.now();
   const willExpireSoon = session.expiryAt ? session.expiryAt - now < 60_000 : false;
@@ -76,38 +80,20 @@ export async function GET(request: NextRequest) {
       return NextResponse.json(buildGoogleAdsSessionPayload(session));
     }
 
-    const resourceNames = await listAccessibleCustomerResourceNames(accessToken);
-    const customerId = resourceNames[0]?.split("/")[1] || "";
-    const account = customerId ? await getGoogleAdsAccountDetails(accessToken, customerId) : undefined;
-    const campaigns = customerId ? await listGoogleAdsCampaigns(accessToken, customerId, 5) : [];
+    const activeSession = refreshedSession
+      ? { ...session, ...refreshedSession, email: refreshedSession.email || session.email }
+      : session;
 
-    const response = NextResponse.json(
-      buildGoogleAdsSessionPayload(
-        refreshedSession ? { ...session, ...refreshedSession, email: refreshedSession.email || session.email } : session,
-        {
-          customerId: account?.customerId || customerId || undefined,
-          account: account ? {
-            name: account.name,
-            currencyCode: account.currencyCode,
-            timeZone: account.timeZone,
-          } : undefined,
-          campaigns,
-        },
-      ),
-    );
-
+    const response = NextResponse.json(buildGoogleAdsSessionPayload(activeSession));
     if (refreshedSession) writeGoogleAdsSession(response, refreshedSession);
     return response;
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unable to refresh Google Ads status.";
-    const response = NextResponse.json(
-      buildGoogleAdsSessionPayload(session, {
-        campaigns: [],
-      }),
-    );
-    if (/invalid_grant|unauthorized|401/i.test(message)) {
-      clearGoogleAdsSession(response);
-      return NextResponse.json({
+    const isAuthFailure = /invalid_grant|unauthenticated|invalid_token/i.test(message)
+      && !/developer.?token|permission.?denied|403/i.test(message);
+
+    if (isAuthFailure) {
+      const response = NextResponse.json({
         connected: false,
         expired: true,
         message: "Google Ads connection expired. Please reconnect.",
@@ -115,8 +101,18 @@ export async function GET(request: NextRequest) {
         customerId: null,
         account: null,
         campaigns: [],
+        error: message,
       });
+      clearGoogleAdsSession(response);
+      return response;
     }
+
+    const response = NextResponse.json(
+      buildGoogleAdsSessionPayload(session, {
+        campaigns: [],
+        error: message,
+      }),
+    );
     return response;
   }
 }

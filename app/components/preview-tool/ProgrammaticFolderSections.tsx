@@ -74,7 +74,7 @@ function creativesForFolder(folderId: string, creatives: CreativeItem[], singleF
   if (singleFolder) {
     return creatives;
   }
-  return creatives.filter((creative) => creative.adGroupId === folderId);
+  return creatives.filter((creative) => String(creative.adGroupId || "") === String(folderId));
 }
 
 function CreativeActions({
@@ -267,9 +267,20 @@ export default function ProgrammaticFolderSections({
         setExtractingGroupId((current) => (current === group.id ? null : current));
       });
   }, [uploadFilesForGroup, groupAllowsVideo]);
+  const folderIds = new Set(folders.map((folder) => String(folder.id)));
+  const unmatchedCreatives = folders.length
+    ? creatives.filter((creative) => !folderIds.has(String(creative.adGroupId || "")))
+    : creatives;
   const groups = singleFolder
     ? [{ id: "programmatic-folder", name: singleFolderLabel, objective: "" as const }]
-    : folders;
+    : folders.length > 0
+      ? [
+          ...folders,
+          ...(unmatchedCreatives.length
+            ? [{ id: "__unmatched_imported__", name: "Imported creatives", objective: "" as const }]
+            : []),
+        ]
+      : [{ id: "imported-creatives", name: "Imported creatives", objective: "" as const }];
 
   return (
     <div className="space-y-6">
@@ -279,7 +290,10 @@ export default function ProgrammaticFolderSections({
         const acceptTypes = folderAllowsVideo
           ? "image/*,video/mp4,video/quicktime,video/webm,.mp4,.mov,.webm"
           : "image/*";
-        const folderCreatives = creativesForFolder(group.id, creatives, singleFolder);
+        const isCatchAll = group.id === "__unmatched_imported__" || group.id === "imported-creatives";
+        const folderCreatives = isCatchAll
+          ? unmatchedCreatives
+          : creativesForFolder(group.id, creatives, singleFolder);
         const validFolderCreatives = folderCreatives.filter((creative) => creative.valid && isRenderableCreative(creative));
         const invalidFolderCreatives = folderCreatives.filter((creative) => !creative.valid || !isRenderableCreative(creative));
         const folderValidation = buildValidationSummary(
@@ -296,8 +310,8 @@ export default function ProgrammaticFolderSections({
                 </div>
                 <p className="mt-1 text-sm text-studio-muted">
                   {folderCreatives.length > 0
-                    ? `${folderCreatives.length} creative${folderCreatives.length === 1 ? "" : "s"} in this folder`
-                    : "No creatives uploaded for this folder yet"}
+                    ? `${folderCreatives.length} creative${folderCreatives.length === 1 ? "" : "s"} in this ad group`
+                    : "No creatives imported for this ad group yet. Uploading extras is optional."}
                   {group.objective ? ` · Objective: ${resolveObjectiveLabel ? resolveObjectiveLabel(group.objective) : group.objective}` : ""}
                 </p>
               </div>
@@ -364,7 +378,7 @@ export default function ProgrammaticFolderSections({
                   : folderAllowsVideo ? "Click to select images or videos" : "Click to select creatives"}
               </p>
               <p className="mt-1 text-xs text-studio-muted">
-                Drag and drop {folderAllowsVideo ? "images or videos" : "files or folders"}, or use “Select folder” to upload a whole folder. Changes only affect {displayName}.
+                Imported Google Ads creatives appear below. Optionally drag extra {folderAllowsVideo ? "images or videos" : "files"} here — changes only affect {displayName}.
               </p>
               <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
                 <button

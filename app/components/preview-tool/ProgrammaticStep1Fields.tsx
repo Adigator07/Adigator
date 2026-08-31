@@ -35,9 +35,7 @@ import ProgrammaticCampaignRenewalPanel from "@/app/components/preview-tool/Prog
 
 import ProgrammaticUrlValidationUtmPanel from "@/app/components/preview-tool/ProgrammaticUrlValidationUtmPanel";
 
-import ProgrammaticAdGroupConfiguration, {
-  type AdGroupObjectiveOption,
-} from "@/app/components/preview-tool/ProgrammaticAdGroupConfiguration";
+import type { AdGroupObjectiveOption } from "@/app/components/preview-tool/ProgrammaticAdGroupConfiguration";
 
 import { ToolInput, ToolSelect, ToolTextarea } from "@/app/components/preview-tool/PreviewToolUi";
 import CampaignBriefInsightsPanel from "@/app/components/preview-tool/CampaignBriefInsightsPanel";
@@ -142,14 +140,6 @@ export default function ProgrammaticStep1Fields({
   platform,
   taskType,
 
-  adGroupCount,
-
-  adGroups,
-
-  selectedAdGroupIds,
-
-  applyAdGroupsToAll,
-
   campaignName,
 
   campaignBrief,
@@ -181,28 +171,10 @@ export default function ProgrammaticStep1Fields({
   verticals,
   adType = "display",
   onAdTypeChange,
-  objectiveOptions,
-  supportsCustomObjective,
   campaignIntent = "",
   onBriefInsightsChange,
   effectiveCampaignGoal = "",
   onTaskTypeChange,
-
-  onAdGroupCountChange,
-
-  onAdGroupNameChange,
-
-  onAdGroupObjectiveChange,
-
-  onAdGroupCustomObjectiveChange,
-
-  onAddAdGroup,
-
-  onRemoveAdGroup,
-
-  onSelectedAdGroupIdsChange,
-
-  onApplyAdGroupsToAllChange,
 
   onCampaignNameChange,
 
@@ -227,11 +199,6 @@ export default function ProgrammaticStep1Fields({
   const taskTypeOptions = platformAdapter.taskTypes;
   const isProgrammatic = platform === "programmatic";
   const showAdTypeSelector = isProgrammaticCampaignSetup(taskType);
-  const adGroupObjectiveOptions = objectiveOptions;
-  const adGroupSupportsCustomObjective = supportsCustomObjective ?? isProgrammatic;
-  const adGroupDescription = isProgrammatic
-    ? "Name each ad group and set its objective. You can add more ad groups after choosing an initial count."
-    : `Name each ad group and set its ${platformAdapter.shortLabel} objective. Each ad group gets its own creative folder and objective-specific analysis.`;
 
   const isCampaignSetup = isProgrammaticCampaignSetup(taskType);
 
@@ -256,38 +223,6 @@ export default function ProgrammaticStep1Fields({
     && (!isCampaignRenewal || Boolean(loadedCampaign))
 
     && (!isUrlUtmUpdate || Boolean(loadedCampaign));
-
-
-
-  const showAdGroupSetup = isCampaignSetup;
-
-  const showAdGroupSelection = (
-
-    (isCreativeAddition && Boolean(creativeAdditionMode) && Boolean(loadedCampaign) && adGroups.length > 0)
-
-    || (isCreativeReplacement && Boolean(loadedCampaign) && adGroups.length > 0)
-
-    || (isCampaignRenewal && Boolean(loadedCampaign) && adGroups.length > 0)
-
-    || (isUrlUtmUpdate && Boolean(loadedCampaign) && adGroups.length > 0)
-
-  );
-
-
-
-  const adGroupSelectionDescription = isCreativeAddition
-
-    ? "Select the ad group(s) where you want to upload new creatives."
-
-    : isCreativeReplacement
-
-      ? "Select the ad group(s) where you want to replace creatives."
-
-      : isCampaignRenewal
-
-        ? "Renewal applies to all ad groups by default. Uncheck to limit changes to specific ad groups."
-
-        : "Select the ad group(s) that should receive URL and UTM updates, or apply to all.";
 
 
 
@@ -530,7 +465,7 @@ export default function ProgrammaticStep1Fields({
           <div>
             <h3 className="studio-heading text-2xl font-bold tracking-tight text-studio-text">Imported Google Ads Summary</h3>
             <p className="mt-1 text-studio-muted">
-              This campaign was imported from your connected Google Ads account and saved into Adigator. Review the imported details below before continuing.
+              This campaign was imported from your connected Google Ads account. Name, brief, URL, objective, type, ad groups, and creatives are populated automatically for Creative Validation and Campaign Intelligence.
             </p>
           </div>
 
@@ -566,65 +501,6 @@ export default function ProgrammaticStep1Fields({
 
 
 
-      {showAdGroupSetup ? (
-
-        <ProgrammaticAdGroupConfiguration
-          mode="setup"
-          adGroupCount={adGroupCount}
-          adGroups={adGroups}
-          description={adGroupDescription}
-          objectiveOptions={adGroupObjectiveOptions}
-          supportsCustomObjective={adGroupSupportsCustomObjective}
-          onAdGroupCountChange={onAdGroupCountChange}
-
-          onAdGroupNameChange={onAdGroupNameChange}
-
-          onAdGroupObjectiveChange={onAdGroupObjectiveChange}
-
-          onAdGroupCustomObjectiveChange={onAdGroupCustomObjectiveChange}
-
-          onAddAdGroup={onAddAdGroup}
-
-          onRemoveAdGroup={onRemoveAdGroup}
-
-        />
-
-      ) : null}
-
-
-
-      {showAdGroupSelection ? (
-
-        <ProgrammaticAdGroupConfiguration
-          mode="select"
-          adGroupCount={adGroupCount}
-          adGroups={adGroups}
-          selectedGroupIds={selectedAdGroupIds}
-          applyToAll={applyAdGroupsToAll}
-          allowEditStructure
-          description={`${adGroupSelectionDescription} You can add new ad groups for additional creatives without affecting existing groups.`}
-          objectiveOptions={adGroupObjectiveOptions}
-          supportsCustomObjective={adGroupSupportsCustomObjective}
-          onAdGroupNameChange={onAdGroupNameChange}
-
-          onAdGroupObjectiveChange={onAdGroupObjectiveChange}
-
-          onAdGroupCustomObjectiveChange={onAdGroupCustomObjectiveChange}
-
-          onAddAdGroup={onAddAdGroup}
-
-          onRemoveAdGroup={onRemoveAdGroup}
-
-          onSelectedGroupIdsChange={onSelectedAdGroupIdsChange}
-
-          onApplyToAllChange={onApplyAdGroupsToAllChange}
-
-        />
-
-      ) : null}
-
-
-
       {showCampaignDetails ? (
 
         <section className="space-y-5">
@@ -636,8 +512,9 @@ export default function ProgrammaticStep1Fields({
             <p className="mt-1 text-studio-muted">
 
               {isCampaignDetailsReadOnly
-
-                ? "Loaded campaign settings are fixed for reference. Continue to upload creatives in the next step."
+                ? loadedCampaign?.importSource === "google_ads"
+                  ? "Imported Google Ads details, ad groups, and creatives are already filled in. Review them below — extra uploads are optional."
+                  : "Loaded campaign settings are fixed for reference. Continue to upload creatives below."
 
                 : isCreativeAddition || isCreativeReplacement
 
@@ -649,7 +526,7 @@ export default function ProgrammaticStep1Fields({
 
                   : isUrlUtmUpdate
 
-                    ? "Review loaded campaign context. URL and UTM updates happen in Step 2."
+                    ? "Review loaded campaign context. URL and UTM updates happen below."
 
                     : isCampaignSetup
 
@@ -709,13 +586,15 @@ export default function ProgrammaticStep1Fields({
 
               <div>
 
-                <label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-[#9a9aad]">
+                <label htmlFor="campaign-name" className="mb-2 block text-xs font-semibold uppercase tracking-wide text-[#9a9aad]">
 
-                  Campaign Name
+                  Campaign Name <span className="text-red-500">*</span>
 
                 </label>
 
                 <ToolInput
+
+                  id="campaign-name"
 
                   type="text"
 
@@ -725,13 +604,17 @@ export default function ProgrammaticStep1Fields({
 
                   placeholder="e.g. Q2 Running Shoes Awareness"
 
+                  required
+
+                  aria-required="true"
+
                 />
 
               </div>
 
             ) : null}
 
-            {isCampaignSetup && campaignId ? (
+            {isCampaignSetup && (campaignId || lookupCampaignId || loadedCampaign?.id) ? (
 
               <div>
 
@@ -745,7 +628,7 @@ export default function ProgrammaticStep1Fields({
 
                   type="text"
 
-                  value={campaignId}
+                  value={campaignId || lookupCampaignId || loadedCampaign?.id || ""}
 
                   readOnly
 
@@ -755,7 +638,9 @@ export default function ProgrammaticStep1Fields({
 
                 <p className="mt-2 text-xs text-studio-tertiary">
 
-                  Auto-generated for this campaign. Use this ID with the campaign name to load this campaign later.
+                  {platform === "google_ads"
+                    ? "Filled automatically from the Google Ads campaign you imported."
+                    : "Auto-generated for this campaign. Use this ID with the campaign name to load this campaign later."}
 
                 </p>
 
@@ -796,9 +681,9 @@ export default function ProgrammaticStep1Fields({
             ) : null}
 
             {showAdTypeSelector ? (
-              <div>
+              <div id="campaign-ad-type">
                 <label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-[#9a9aad]">
-                  Ad Type
+                  Ad Type <span className="text-red-500">*</span>
                 </label>
                 <div className="grid grid-cols-2 gap-3">
                   {[
@@ -859,16 +744,19 @@ export default function ProgrammaticStep1Fields({
                 </p>
               </div>
               <div>
-                <label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-[#9a9aad]">
-                  Campaign Brief
+                <label htmlFor="campaign-brief" className="mb-2 block text-xs font-semibold uppercase tracking-wide text-[#9a9aad]">
+                  Campaign Brief <span className="text-red-500">*</span>
                 </label>
                 <ToolTextarea
+                  id="campaign-brief"
                   value={campaignBrief}
                   onChange={(event: ChangeEvent<HTMLTextAreaElement>) => onCampaignBriefChange(event.target.value)}
                   placeholder="Describe campaign goals, product, requirements, and context."
                   rows={4}
                   readOnly={isCampaignDetailsReadOnly}
                   className={isCampaignDetailsReadOnly ? "opacity-90" : ""}
+                  required
+                  aria-required="true"
                 />
                 <p className="mt-2 text-xs text-studio-tertiary">
                   Intent and audience update automatically as you edit the brief.
@@ -889,7 +777,7 @@ export default function ProgrammaticStep1Fields({
 
               <label htmlFor="programmatic-campaign-vertical" className="mb-2 block text-xs font-semibold uppercase tracking-wide text-studio-tertiary">
 
-                Vertical
+                Vertical <span className="text-red-500">*</span>
 
               </label>
 
@@ -902,6 +790,10 @@ export default function ProgrammaticStep1Fields({
                 onChange={(event: ChangeEvent<HTMLSelectElement>) => onVerticalChange(event.target.value)}
 
                 disabled={isCampaignDetailsReadOnly}
+
+                required
+
+                aria-required="true"
 
                 className={isCampaignDetailsReadOnly ? "opacity-90" : ""}
 

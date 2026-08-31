@@ -38,6 +38,7 @@ function resolveResumeStep(campaign: AdvertiserCampaign) {
   }
   if (campaign.validated) return 4;
   if (countCreatives(campaign) > 0) return 3;
+  if (campaign.name) return 2;
   return 1;
 }
 

@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState, type ChangeEvent } from "react";
 import type { CampaignIdOption } from "@/app/lib/programmaticCampaignStore";
 import { listCampaignIdsByName } from "@/app/lib/programmaticCampaignStore";
-import { fetchCampaignIdsByName } from "@/app/lib/programmaticCampaignApi";
+import { fetchCampaignIdsByName, fetchGoogleAdsCampaignIdOptions } from "@/app/lib/campaignApi";
 import { isAuthenticatedOwnerId } from "@/app/lib/campaignOwnerScope";
 import type { AnalyzerPlatform } from "@/app/lib/platforms/types";
 import { ToolInput, ToolSelect } from "@/app/components/preview-tool/PreviewToolUi";
@@ -59,11 +59,15 @@ export default function CampaignIdSelect({
     void (async () => {
       const localOptions = listCampaignIdsByName(trimmedName, ownerId);
       let remoteOptions: CampaignIdOption[] = [];
+      if (platform === "google_ads") {
+        remoteOptions = await fetchGoogleAdsCampaignIdOptions(trimmedName);
+      }
       if (accessToken && isAuthenticatedOwnerId(ownerId)) {
         const normalizedPlatform = platform === "google_ads" || platform === "meta_ads" || platform === "programmatic"
           ? platform as AnalyzerPlatform
           : undefined;
-        remoteOptions = await fetchCampaignIdsByName(trimmedName, accessToken, normalizedPlatform);
+        const savedOptions = await fetchCampaignIdsByName(trimmedName, accessToken, normalizedPlatform);
+        remoteOptions = [...remoteOptions, ...savedOptions];
       }
       if (!active) return;
       setOptions(mergeCampaignIdOptions(localOptions, remoteOptions));
@@ -79,7 +83,9 @@ export default function CampaignIdSelect({
   const helperText = useMemo(() => {
     if (!trimmedName) return "Enter a campaign name to see IDs from saved Adigator campaigns.";
     if (loading) return "Loading IDs from saved Adigator campaigns…";
-    if (options.length === 0) return "No saved Adigator campaigns found for this name on your account. Google Ads drafts are not loaded directly here.";
+    if (options.length === 0) return platform === "google_ads"
+      ? "No matching Google Ads or saved Adigator campaign IDs yet. You can still import by campaign name."
+      : "No saved Adigator campaigns found for this name on your account.";
     return `${options.length} saved campaign ID${options.length === 1 ? "" : "s"} found in Adigator.`;
   }, [trimmedName, loading, options.length]);
 

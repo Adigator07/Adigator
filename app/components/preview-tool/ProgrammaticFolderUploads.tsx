@@ -59,7 +59,9 @@ export default function ProgrammaticFolderUploads({
               <div>
                 <p className="text-sm font-semibold text-studio-text">{displayName}</p>
                 <p className="text-xs text-studio-muted">
-                  {uploadCount > 0 ? `${uploadCount} creative${uploadCount === 1 ? "" : "s"} uploaded` : "No folder uploaded yet"}
+                  {uploadCount > 0
+                    ? `${uploadCount} creative${uploadCount === 1 ? "" : "s"} imported or uploaded`
+                    : "Creatives import from Google Ads when available. Extra uploads are optional."}
                 </p>
               </div>
               <FolderUp size={18} className="shrink-0 text-studio-accent" aria-hidden />

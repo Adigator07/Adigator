@@ -52,6 +52,17 @@ function htmlResult(ok: boolean, message: string, email?: string) {
     </main>
 
     <script>
+      try {
+        localStorage.setItem("adigator_google_ads_oauth_result", JSON.stringify(${payload}));
+      } catch (e) {}
+      try {
+        if ("BroadcastChannel" in window) {
+          var channel = new BroadcastChannel("adigator-google-ads-auth");
+          channel.postMessage(${payload});
+          channel.close();
+        }
+      } catch (e) {}
+
       var posted = false;
       function postToOpener() {
         try {
@@ -125,8 +136,22 @@ export async function GET(request: NextRequest) {
     });
   }
 
-  const expectedState = readGoogleAdsState(request);
-  if (!expectedState || !state || expectedState !== state) {
+  const expectedStateRaw = readGoogleAdsState(request);
+  let expectedNonce = expectedStateRaw || "";
+  let returnTo = "/preview-tool?step=campaign-setup";
+  let isPopup = true;
+  try {
+    const parsed = expectedStateRaw ? JSON.parse(expectedStateRaw) as { nonce?: string; returnTo?: string; popup?: boolean } : null;
+    if (parsed?.nonce) {
+      expectedNonce = parsed.nonce;
+      returnTo = parsed.returnTo || returnTo;
+      isPopup = parsed.popup !== false;
+    }
+  } catch {
+    expectedNonce = expectedStateRaw || "";
+  }
+
+  if (!expectedNonce || !state || expectedNonce !== state) {
     return new NextResponse(htmlResult(false, "Invalid OAuth state. Please retry connection."), {
       status: 400,
       headers: { "Content-Type": "text/html; charset=utf-8" },
@@ -151,6 +176,21 @@ export async function GET(request: NextRequest) {
       email,
     });
     clearGoogleAdsState(response);
+    if (!isPopup) {
+      const destination = new URL(returnTo, request.nextUrl.origin);
+      destination.searchParams.set("google_ads", "connected");
+      const redirect = NextResponse.redirect(destination, { status: 302 });
+      writeGoogleAdsSession(redirect, {
+        accessToken: tokens.access_token,
+        refreshToken: tokens.refresh_token,
+        expiryAt: Date.now() + ((tokens.expires_in || 3600) * 1000),
+        scope: tokens.scope,
+        tokenType: tokens.token_type,
+        email,
+      });
+      clearGoogleAdsState(redirect);
+      return redirect;
+    }
     return response;
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to exchange Google Ads token.";

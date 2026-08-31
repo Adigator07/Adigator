@@ -326,7 +326,7 @@ export default function PreviewStudio({
     );
   }
 
-  if (useVideoPlacementStudio && (externalPlatform === "programmatic" || externalPlatform === "google_ads" || externalPlatform === "meta_ads")) {
+  if (useVideoPlacementStudio && (externalPlatform === "programmatic" || externalPlatform === "meta_ads")) {
     return (
       <StaticGoogleMetaPreviewStudio
         platform={externalPlatform}
@@ -343,7 +343,7 @@ export default function PreviewStudio({
     );
   }
 
-  if (externalPlatform === "programmatic") {
+  if (externalPlatform === "programmatic" || externalPlatform === "google_ads") {
     return (
       <ProgrammaticPreviewStudio
         sourceCreatives={sourceCreatives}
@@ -369,11 +369,12 @@ export default function PreviewStudio({
         initialTemplateId={initialTemplateId}
         initialPreviewDevice={initialPreviewDevice}
         initialPreviewCreativeId={initialPreviewCreativeId}
+        minimalChrome={externalPlatform === "google_ads"}
       />
     );
   }
 
-  if (externalPlatform === "google_ads" || externalPlatform === "meta_ads") {
+  if (externalPlatform === "meta_ads") {
     return (
       <StaticGoogleMetaPreviewStudio
         platform={externalPlatform}

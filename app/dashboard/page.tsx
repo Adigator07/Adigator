@@ -21,7 +21,7 @@ import { PROGRAMMATIC_CAMPAIGNS_STORAGE_KEY } from "../lib/programmaticCampaignS
 import { invalidateStorageCache } from "../lib/clientStorageCache";
 import { resolveCampaignOwnerId } from "../lib/campaignOwnerScope";
 import {
-  Zap, TrendingUp, Eye, ImageIcon, Plus, ArrowRight, Clock, Shield, Building2, ShieldCheck,
+  Zap, TrendingUp, Eye, ImageIcon, Plus, ArrowRight, Clock, Shield, Building2, ShieldCheck, HeartPulse, Radar,
 } from "lucide-react";
 import { useAdminAuth } from "../lib/admin-platform/AdminAuthContext";
 import { useOrgAuth } from "../lib/organization-platform/OrgAuthContext";
@@ -319,6 +319,8 @@ export default function Dashboard() {
             {[
               { href: "/preview-tool?step=campaign-setup", icon: Plus, label: "Campaign Intelligence Studio", sub: "Launch Campaign Setup through Preview Studio", color: "from-purple-600 to-blue-600" },
               { href: "/preview-tool?step=campaign-intelligence", icon: Clock, label: "Resume Campaign Intelligence", sub: "Continue where you left off", color: "from-blue-600 to-cyan-600" },
+              { href: "/dashboard/health", icon: HeartPulse, label: "Campaign Health", sub: "Monitor Google Ads 24/7 with scores, alerts, and fixes", color: "from-rose-600 to-orange-500" },
+              { href: "/dashboard/forecast", icon: Radar, label: "Audience Forecast", sub: "Estimate who will be available to see ads before launch", color: "from-cyan-600 to-sky-600" },
               { href: "/dashboard/qa", icon: ShieldCheck, label: "QA Workspace", sub: "Review readiness, alerts, and launch recommendations", color: "from-emerald-600 to-cyan-600" },
               ...(isOrgAdmin ? [{ href: "/dashboard/organization", icon: Building2, label: "Organization Console", sub: "Manage teams, users, and org activity", color: "from-sky-600 to-blue-600" }] : []),
               ...(isAdmin ? [{ href: "/dashboard/admin", icon: Shield, label: "Super Admin Console", sub: "Organizations, users, analytics & platform health", color: "from-amber-600 to-orange-600" }] : []),

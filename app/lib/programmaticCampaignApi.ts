@@ -2,6 +2,8 @@ export {
   stripSnapshotForRemotePersistence,
   fetchCampaignIdsByName,
   fetchCampaignFromApi,
+  importGoogleAdsCampaignFromSession,
+  fetchGoogleAdsCampaignIdOptions,
   persistCampaignToApi,
   persistProgrammaticCampaignToApi,
 } from "@/app/lib/campaignApi";

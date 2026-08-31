@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
-  createServerSupabaseClient,
+  createWritableSupabaseClient,
   getAccessTokenFromRequest,
   getAuthenticatedUser,
   isSupabaseConfigured,
@@ -8,22 +8,29 @@ import {
 import { isSchemaUnavailableError } from "@/app/lib/supabaseErrors";
 import {
   getGoogleAdsCampaignImportDetails,
-  listAccessibleCustomerResourceNames,
-  listGoogleAdsCampaigns,
-  listGoogleAdsDraftCampaigns,
   refreshGoogleAdsAccessToken,
-  type GoogleAdsCampaign,
 } from "@/app/lib/googleAds/client";
+import { resolveGoogleAdsWorkspace } from "@/app/lib/googleAds/resolveAccount";
 import {
   type GoogleAdsSession,
   readGoogleAdsSession,
   writeGoogleAdsSession,
 } from "@/app/lib/googleAds/session";
-import type { CampaignSnapshot, CampaignIdOption } from "@/app/lib/campaignSnapshot";
-import type { GoogleCampaignType } from "@/app/lib/googleCampaignTypes";
+import type { CampaignIdOption } from "@/app/lib/campaignSnapshot";
 import { isAnalyzerPlatform, type AnalyzerPlatform } from "@/app/lib/platforms/types";
+import {
+  buildGoogleAdsImportedSnapshot,
+  selectGoogleAdsCampaignCandidate,
+} from "@/app/lib/googleAds/importSnapshot";
+import { persistImportedGoogleAdsCampaign } from "@/app/lib/googleAds/persistImportedCampaign";
 
 export const runtime = "nodejs";
+
+export {
+  buildGoogleAdsImportedSnapshot,
+  mapGoogleAdsChannelToCampaignType,
+  selectGoogleAdsCampaignCandidate,
+} from "@/app/lib/googleAds/importSnapshot";
 
 function json(success: boolean, data: unknown, error: string | null, status = 200) {
   return NextResponse.json({ success, data, error }, { status });
@@ -32,116 +39,6 @@ function json(success: boolean, data: unknown, error: string | null, status = 20
 function normalizePlatform(value: unknown): AnalyzerPlatform {
   const platform = String(value || "programmatic");
   return isAnalyzerPlatform(platform) ? platform : "programmatic";
-}
-
-function mapGoogleAdsChannelToCampaignType(channelType: string): GoogleCampaignType {
-  const channel = String(channelType || "").toUpperCase();
-  if (channel === "DEMAND_GEN") return "demand_gen";
-  if (channel === "VIDEO") return "demand_gen";
-  return "display";
-}
-
-function inferVerticalFromGoogleCampaignName(campaignName: string): string {
-  const normalized = campaignName.toLowerCase();
-  if (/health|medical|clinic|pharma/.test(normalized)) return "healthcare";
-  if (/travel|hotel|trip|tour/.test(normalized)) return "travel";
-  if (/fashion|apparel|clothing|style/.test(normalized)) return "fashion";
-  if (/shop|store|retail|ecom|sale|product/.test(normalized)) return "ecommerce";
-  if (/finance|bank|loan|credit|fintech/.test(normalized)) return "finance";
-  if (/food|restaurant|delivery|cafe/.test(normalized)) return "food";
-  if (/game|gaming|esports/.test(normalized)) return "gaming";
-  if (/education|course|school|edtech/.test(normalized)) return "education";
-  if (/car|auto|automotive/.test(normalized)) return "automotive";
-  if (/real estate|property|housing/.test(normalized)) return "real_estate";
-  return "technology";
-}
-
-function inferProductFocusFromGoogleCampaignName(campaignName: string): string {
-  return campaignName
-    .replace(/\b(q[1-4]|awareness|traffic|conversion|leads?|campaign|google ads|display|video|search)\b/gi, "")
-    .replace(/[\-_]+/g, " ")
-    .replace(/\s{2,}/g, " ")
-    .trim();
-}
-
-export function buildGoogleAdsImportedSnapshot(
-  campaign: GoogleAdsCampaign,
-  userId: string,
-  customerId: string,
-  details: { landingUrl?: string; adGroupCount?: number },
-): CampaignSnapshot {
-  const timestamp = new Date().toISOString();
-  const inferredVertical = inferVerticalFromGoogleCampaignName(campaign.name);
-  const inferredProductFocus = inferProductFocusFromGoogleCampaignName(campaign.name);
-
-  return {
-    id: campaign.id,
-    platform: "google_ads",
-    ownerId: userId,
-    campaignName: campaign.name,
-    campaignBrief: "",
-    vertical: inferredVertical,
-    landingUrl: details.landingUrl || "",
-    campaignGoal: campaign.suggestedGoal || "awareness",
-    campaignAudienceStage: "cold",
-    campaignProductFocus: inferredProductFocus,
-    campaignTaskType: "campaign_setup",
-    creatives: [],
-    analysisResult: null,
-    urlValidation: null,
-    viewMode: "multiple",
-    showSlotLabels: false,
-    createdAt: timestamp,
-    updatedAt: timestamp,
-    googleCampaignType: mapGoogleAdsChannelToCampaignType(campaign.channelType),
-    googleAdGroupCount: details.adGroupCount ?? "",
-    googleAdsCustomerId: customerId,
-    googleAdsCampaignStatus: campaign.status,
-    googleAdsChannelType: campaign.channelType,
-    googleAdsChannelSummary: campaign.channelSummary || campaign.channelType,
-    googleAdsCampaignSource: campaign.sourceType || "published",
-    googleAdsDraftId: campaign.draftId,
-    googleAdsBudgetAmountMicros: campaign.budgetAmountMicros,
-    googleAdsStartDate: campaign.startDate,
-    googleAdsEndDate: campaign.endDate,
-    importSource: "google_ads",
-  };
-}
-
-export function selectGoogleAdsCampaignCandidate(
-  published: GoogleAdsCampaign[],
-  drafts: GoogleAdsCampaign[],
-  campaignName: string,
-  campaignId = "",
-): GoogleAdsCampaign | null {
-  const normalizedName = campaignName.trim().toLowerCase();
-  const normalizedId = campaignId.trim();
-  const hasId = normalizedId.length > 0;
-  const hasName = normalizedName.length > 0;
-
-  const matcher = (entry: GoogleAdsCampaign) => {
-    const sameId = hasId ? entry.id === normalizedId : true;
-    const sameName = hasName ? entry.name.trim().toLowerCase() === normalizedName : true;
-    return (hasId || hasName) && sameId && sameName;
-  };
-
-  const publishedMatches = published.filter(matcher);
-  if (!hasId && hasName && publishedMatches.length > 1) {
-    console.warn("[Adigator] Multiple published Google campaigns matched by name. Using newest candidate.", {
-      campaignName,
-      matches: publishedMatches.map((entry) => entry.id),
-    });
-  }
-  if (publishedMatches.length > 0) return publishedMatches[0];
-
-  const draftMatches = drafts.filter(matcher);
-  if (!hasId && hasName && draftMatches.length > 1) {
-    console.warn("[Adigator] Multiple draft Google campaigns matched by name. Using newest candidate.", {
-      campaignName,
-      matches: draftMatches.map((entry) => entry.id),
-    });
-  }
-  return draftMatches[0] || null;
 }
 
 async function resolveGoogleAdsAccessToken(request: NextRequest) {
@@ -172,37 +69,32 @@ async function resolveGoogleAdsAccessToken(request: NextRequest) {
 
 async function findGoogleAdsCampaignByNameOrId(request: NextRequest, campaignName: string, campaignId = "") {
   const { accessToken, refreshedSession } = await resolveGoogleAdsAccessToken(request);
-  if (!accessToken) return { campaign: null, refreshedSession, customerId: "", accessToken: "" };
+  if (!accessToken) return { campaign: null, refreshedSession, customerId: "", accessToken: "", loginCustomerId: undefined as string | undefined };
 
-  let customerId = String(request.nextUrl.searchParams.get("customerId") || "").trim();
-  if (!customerId) {
-    const resourceNames = await listAccessibleCustomerResourceNames(accessToken);
-    customerId = resourceNames[0]?.split("/")[1] || "";
-  }
-  if (!customerId) return { campaign: null as GoogleAdsCampaign | null, refreshedSession: null as GoogleAdsSession | null, customerId: "", accessToken };
+  const preferredCustomerId = String(request.nextUrl.searchParams.get("customerId") || "").trim();
+  const workspace = await resolveGoogleAdsWorkspace(accessToken, preferredCustomerId, 200);
+  const published = workspace.campaigns.filter((entry) => entry.sourceType !== "draft");
+  const drafts = workspace.campaigns.filter((entry) => entry.sourceType === "draft");
+  const campaign = selectGoogleAdsCampaignCandidate(published, drafts, campaignName, campaignId);
+  const customerId = campaign?.customerId || workspace.customerId || preferredCustomerId;
 
-  const campaigns = await listGoogleAdsCampaigns(accessToken, customerId, 200);
-  const drafts = await listGoogleAdsDraftCampaigns(accessToken, customerId, 200);
-  const campaign = selectGoogleAdsCampaignCandidate(campaigns, drafts, campaignName, campaignId);
-
-  return { campaign, refreshedSession, customerId, accessToken };
+  return {
+    campaign,
+    refreshedSession,
+    customerId,
+    accessToken,
+    loginCustomerId: campaign?.loginCustomerId || workspace.loginCustomerId,
+  };
 }
 
 async function listGoogleAdsCampaignIdOptions(request: NextRequest, campaignName: string) {
   const { accessToken, refreshedSession } = await resolveGoogleAdsAccessToken(request);
   if (!accessToken) return { options: [], refreshedSession };
 
-  let customerId = String(request.nextUrl.searchParams.get("customerId") || "").trim();
-  if (!customerId) {
-    const resourceNames = await listAccessibleCustomerResourceNames(accessToken);
-    customerId = resourceNames[0]?.split("/")[1] || "";
-  }
-  if (!customerId) return { options: [] as CampaignIdOption[], refreshedSession };
-
+  const preferredCustomerId = String(request.nextUrl.searchParams.get("customerId") || "").trim();
+  const workspace = await resolveGoogleAdsWorkspace(accessToken, preferredCustomerId, 200);
   const normalizedName = campaignName.trim().toLowerCase();
-  const campaigns = await listGoogleAdsCampaigns(accessToken, customerId, 200);
-  const drafts = await listGoogleAdsDraftCampaigns(accessToken, customerId, 200);
-  const options: CampaignIdOption[] = [...campaigns, ...drafts]
+  const options: CampaignIdOption[] = workspace.campaigns
     .filter((campaign) => campaign.name.trim().toLowerCase().includes(normalizedName))
     .map((campaign) => ({
       id: campaign.id,
@@ -212,41 +104,6 @@ async function listGoogleAdsCampaignIdOptions(request: NextRequest, campaignName
     }));
 
   return { options, refreshedSession };
-}
-
-async function persistImportedGoogleAdsCampaign(
-  supabase: ReturnType<typeof createServerSupabaseClient>,
-  userId: string,
-  snapshot: CampaignSnapshot,
-) {
-  const { data: existing } = await supabase
-    .from("campaigns")
-    .select("id")
-    .eq("user_id", userId)
-    .eq("id", snapshot.id)
-    .maybeSingle();
-
-  if (existing) {
-    await supabase
-      .from("campaigns")
-      .update({
-        platform: "google_ads",
-        campaign_name: snapshot.campaignName,
-        snapshot,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", snapshot.id)
-      .eq("user_id", userId);
-    return;
-  }
-
-  await supabase.from("campaigns").insert({
-    id: snapshot.id,
-    user_id: userId,
-    platform: "google_ads",
-    campaign_name: snapshot.campaignName,
-    snapshot,
-  });
 }
 
 export async function GET(request: NextRequest) {
@@ -263,15 +120,15 @@ export async function GET(request: NextRequest) {
     const platform = platformFilter ? normalizePlatform(platformFilter) : null;
 
     const supabaseReady = isSupabaseConfigured();
-    const supabase = supabaseReady ? createServerSupabaseClient(token) : null;
+    const supabase = supabaseReady ? createWritableSupabaseClient(token) : null;
     let refreshedGoogleAdsSession: GoogleAdsSession | null = null;
 
     if (campaignId && campaignName) {
       if (!supabase && platform === "google_ads") {
-        const { campaign, refreshedSession, customerId, accessToken } = await findGoogleAdsCampaignByNameOrId(request, campaignName, campaignId);
+        const { campaign, refreshedSession, customerId, accessToken, loginCustomerId } = await findGoogleAdsCampaignByNameOrId(request, campaignName, campaignId);
         refreshedGoogleAdsSession = refreshedSession;
         if (campaign) {
-          const importDetails = await getGoogleAdsCampaignImportDetails(accessToken, customerId, campaign.id);
+          const importDetails = await getGoogleAdsCampaignImportDetails(accessToken, customerId, campaign.id, loginCustomerId);
           const imported = buildGoogleAdsImportedSnapshot(campaign, user.id, customerId, importDetails);
           const response = json(true, imported, null, 200);
           if (refreshedGoogleAdsSession) {
@@ -305,10 +162,10 @@ export async function GET(request: NextRequest) {
       }
 
       if (!data && platform === "google_ads") {
-        const { campaign, refreshedSession, customerId, accessToken } = await findGoogleAdsCampaignByNameOrId(request, campaignName, campaignId);
+        const { campaign, refreshedSession, customerId, accessToken, loginCustomerId } = await findGoogleAdsCampaignByNameOrId(request, campaignName, campaignId);
         refreshedGoogleAdsSession = refreshedSession;
         if (campaign) {
-          const importDetails = await getGoogleAdsCampaignImportDetails(accessToken, customerId, campaign.id);
+          const importDetails = await getGoogleAdsCampaignImportDetails(accessToken, customerId, campaign.id, loginCustomerId);
           const imported = buildGoogleAdsImportedSnapshot(campaign, user.id, customerId, importDetails);
           if (supabase) {
             await persistImportedGoogleAdsCampaign(supabase, user.id, imported);
@@ -344,7 +201,7 @@ export async function GET(request: NextRequest) {
         return json(false, null, "Google Ads account is not connected. Connect Google Ads and try again.", 400);
       }
 
-      const { campaign, refreshedSession, customerId, accessToken } = await findGoogleAdsCampaignByNameOrId(request, campaignName, campaignId);
+      const { campaign, refreshedSession, customerId, accessToken, loginCustomerId } = await findGoogleAdsCampaignByNameOrId(request, campaignName, campaignId);
       refreshedGoogleAdsSession = refreshedSession;
       if (!campaign) {
         const response = json(true, null, null, 200);
@@ -354,7 +211,7 @@ export async function GET(request: NextRequest) {
         return response;
       }
 
-      const importDetails = await getGoogleAdsCampaignImportDetails(accessToken, customerId, campaign.id);
+      const importDetails = await getGoogleAdsCampaignImportDetails(accessToken, customerId, campaign.id, loginCustomerId);
       const imported = buildGoogleAdsImportedSnapshot(campaign, user.id, customerId, importDetails);
       if (supabase) {
         await persistImportedGoogleAdsCampaign(supabase, user.id, imported);
@@ -452,7 +309,7 @@ export async function POST(request: NextRequest) {
       }, null, 200);
     }
 
-    const supabase = createServerSupabaseClient(token);
+    const supabase = createWritableSupabaseClient(token);
 
     if (snapshotId) {
       const { data: existing } = await supabase

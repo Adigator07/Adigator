@@ -15,6 +15,7 @@ export type SetupFieldKey =
   | "campaignBrief"
   | "campaignName"
   | "landingUrl"
+  | "adType"
   | "lookupCampaign"
   | "creativeAdditionMode"
   | "renewalReference"
@@ -40,6 +41,7 @@ export type SetupFieldContext = {
   googleCampaignType?: string;
   campaignBrief: string;
   campaignName: string;
+  adType?: "display" | "video" | "" | null;
   landingUrl: string;
   /** Shared task type field — used by all platforms (stored as programmaticTaskType for backward compat) */
   programmaticTaskType: string;
@@ -95,6 +97,84 @@ export function getMissingSetupFields(context: SetupFieldContext): SetupMissingF
   return missing;
 }
 
+const REQUIRED_VERTICAL_IDS = new Set([
+  "healthcare",
+  "technology",
+  "automotive",
+  "news_media",
+  "sports",
+  "fitness",
+  "finance",
+  "luxury",
+  "travel",
+  "hotels",
+  "food",
+  "banking",
+  "real_estate",
+  "education",
+  "gaming",
+  "entertainment",
+  "ecommerce",
+  "fashion",
+]);
+
+/** Blocking Campaign Details fields (Step 2) — name, brief, ad type, and vertical. */
+export function getMissingCampaignDetailFields(context: SetupFieldContext): SetupMissingField[] {
+  const missing: SetupMissingField[] = [];
+
+  if (!context.campaignName.trim()) {
+    missing.push({
+      key: "campaignName",
+      label: "Campaign name",
+      prompt: "Enter the campaign name.",
+      inputType: "text",
+      placeholder: "e.g. Q2 Brand Awareness",
+      scrollTargetId: "campaign-name",
+      required: true,
+    });
+  }
+
+  if (!context.campaignBrief.trim()) {
+    missing.push({
+      key: "campaignBrief",
+      label: "Campaign brief",
+      prompt: "Add the campaign brief before continuing.",
+      inputType: "textarea",
+      placeholder: "Describe goals, offer, audience, and requirements.",
+      scrollTargetId: "campaign-brief",
+      required: true,
+    });
+  }
+
+  if (context.adType !== "display" && context.adType !== "video") {
+    missing.push({
+      key: "adType",
+      label: "Ad type",
+      prompt: "Select Display Ads or Video Ads.",
+      inputType: "select",
+      options: [
+        { value: "display", label: "Display Ads" },
+        { value: "video", label: "Video Ads" },
+      ],
+      scrollTargetId: "campaign-ad-type",
+      required: true,
+    });
+  }
+
+  if (!REQUIRED_VERTICAL_IDS.has(String(context.campaignVertical || ""))) {
+    missing.push({
+      key: "campaignVertical",
+      label: "Vertical",
+      prompt: "Select the industry vertical for this campaign.",
+      inputType: "select",
+      scrollTargetId: "programmatic-campaign-vertical",
+      required: true,
+    });
+  }
+
+  return missing;
+}
+
 export function isSetupComplete(context: SetupFieldContext): boolean {
   return getMissingSetupFields(context).length === 0;
 }
@@ -103,28 +183,6 @@ export function isSetupComplete(context: SetupFieldContext): boolean {
 export function getRecommendedCampaignDetailFields(context: SetupFieldContext): SetupMissingField[] {
   const recommended: SetupMissingField[] = [];
   const adapter = getPlatformAdapter(context.platform);
-
-  if (!context.campaignName.trim()) {
-    recommended.push({
-      key: "campaignName",
-      label: "Campaign name",
-      prompt: "Add a name so reports and exports are easy to identify.",
-      inputType: "text",
-      placeholder: "e.g. Q2 Brand Awareness",
-      required: false,
-    });
-  }
-
-  if (!context.campaignBrief.trim()) {
-    recommended.push({
-      key: "campaignBrief",
-      label: "Campaign brief",
-      prompt: "A brief improves readiness scoring, alignment checks, and analysis quality.",
-      inputType: "textarea",
-      placeholder: "Describe goals, offer, audience, and requirements.",
-      required: false,
-    });
-  }
 
   if (adapter.validationRules.landingUrlRequired && !context.landingUrl.trim() && context.platform) {
     recommended.push({

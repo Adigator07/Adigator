@@ -72,6 +72,7 @@ describe("buildGoogleAdsImportedSnapshot", () => {
         draftId: "draft-5001",
         channelType: "VIDEO",
         channelSummary: "Video",
+        suggestedGoal: "video_views",
       }),
       "owner-1",
       "1234567890",
@@ -84,6 +85,7 @@ describe("buildGoogleAdsImportedSnapshot", () => {
     expect(snapshot.googleAdsDraftId).toBe("draft-5001");
     expect(snapshot.googleAdsChannelSummary).toBe("Video");
     expect(snapshot.googleCampaignType).toBe("demand_gen");
+    expect(snapshot.campaignGoal).toBe("google_video_views");
   });
 
   it("maps display channels to the display campaign type", () => {
@@ -100,5 +102,6 @@ describe("buildGoogleAdsImportedSnapshot", () => {
     );
 
     expect(snapshot.googleCampaignType).toBe("display");
+    expect(snapshot.campaignGoal).toBe("google_traffic");
   });
 });

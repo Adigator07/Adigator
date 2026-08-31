@@ -153,18 +153,20 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="relative flex min-h-screen overflow-hidden text-slate-800">
-      <div className="pointer-events-none absolute inset-0 overflow-hidden [contain:paint]" aria-hidden>
+    <div className="relative min-h-dvh text-slate-800">
+      <div className="pointer-events-none fixed inset-0 overflow-hidden [contain:paint]" aria-hidden>
         <div className="agi-dashboard-wallpaper" />
         <div className="agi-smoke-fog opacity-40" />
         <div className="agi-dashboard-grain" />
       </div>
 
-      <div className="relative z-10 flex min-h-screen w-full">
+      <div className="relative z-10 flex min-h-dvh w-full">
         <Sidebar collapsed={sidebarCollapsed} setCollapsed={setSidebarCollapsed} user={user} />
-        <div className="flex flex-1 flex-col overflow-hidden">
-          <Topbar user={user} />
-          <main className="flex-1 overflow-y-auto overscroll-contain bg-transparent p-8 [scrollbar-gutter:stable]">{children}</main>
+        <div className="flex min-w-0 flex-1 flex-col">
+          <div className="sticky top-0 z-30">
+            <Topbar user={user} />
+          </div>
+          <main className="flex-1 bg-transparent p-8">{children}</main>
         </div>
       </div>
     </div>

@@ -8,6 +8,8 @@ import { onAuthStateChanged, updateProfile } from "firebase/auth";
 import { doc, getDoc, serverTimestamp, setDoc } from "firebase/firestore";
 import { getFirebaseClientAuth, getFirebaseClientFirestore } from "../lib/firebase/client";
 import RouteAccessShell from "@/app/components/RouteAccessShell";
+import { syncGoogleAdsIntoAdigator } from "@/app/lib/googleAds/syncClient";
+import { syncMetaAdsIntoAdigator } from "@/app/lib/metaAds/syncClient";
 
 type GoogleAdsConnectionState = {
   connected?: boolean;
@@ -16,7 +18,28 @@ type GoogleAdsConnectionState = {
   email?: string;
   customerId?: string;
   account?: { name?: string; currencyCode?: string; timeZone?: string };
-  campaigns?: Array<{ id: string; name: string; status: string; suggestedGoal?: string }>;
+  campaigns?: Array<{
+    id: string;
+    name: string;
+    status: string;
+    suggestedGoal?: string;
+    sourceType?: "published" | "draft";
+  }>;
+};
+
+type MetaAdsConnectionState = {
+  connected?: boolean;
+  expired?: boolean;
+  message?: string;
+  email?: string;
+  adAccountId?: string;
+  account?: { name?: string; currency?: string; timeZone?: string };
+  campaigns?: Array<{
+    id: string;
+    name: string;
+    status: string;
+    objective?: string;
+  }>;
 };
 
 type SettingsUser = {
@@ -38,6 +61,12 @@ function SettingsPageContent() {
   const [googleAdsLoading, setGoogleAdsLoading] = useState(false);
   const [googleAdsConnecting, setGoogleAdsConnecting] = useState(false);
   const [googleAdsNotice, setGoogleAdsNotice] = useState("");
+  const [googleAdsSyncing, setGoogleAdsSyncing] = useState(false);
+  const [metaAdsState, setMetaAdsState] = useState<MetaAdsConnectionState | null>(null);
+  const [metaAdsLoading, setMetaAdsLoading] = useState(false);
+  const [metaAdsConnecting, setMetaAdsConnecting] = useState(false);
+  const [metaAdsNotice, setMetaAdsNotice] = useState("");
+  const [metaAdsSyncing, setMetaAdsSyncing] = useState(false);
 
   const ensureProfileName = async (firebaseUser: { uid: string; email: string | null; displayName: string | null }) => {
     const db = getFirebaseClientFirestore();
@@ -94,6 +123,81 @@ function SettingsPageContent() {
     }
   };
 
+  const handleSyncGoogleAds = async (options?: { silent?: boolean }) => {
+    if (!user?.id) {
+      setGoogleAdsNotice("Sign in to Adigator before syncing Google Ads campaigns.");
+      return;
+    }
+
+    setGoogleAdsSyncing(true);
+    if (!options?.silent) setGoogleAdsNotice("Syncing Google Ads campaigns and drafts into Adigator…");
+
+    try {
+      const authUser = getFirebaseClientAuth().currentUser;
+      if (!authUser) throw new Error("Sign in to Adigator first.");
+      const token = await authUser.getIdToken();
+      const result = await syncGoogleAdsIntoAdigator({
+        accessToken: token,
+        ownerId: user.id,
+        customerId: googleAdsState?.customerId || undefined,
+        advertiserName: googleAdsState?.account?.name || "Google Ads",
+      });
+      setGoogleAdsNotice(
+        result.message
+          || `Synced ${result.total} campaign${result.total === 1 ? "" : "s"} (${result.drafts} draft${result.drafts === 1 ? "" : "s"}) into Adigator.`,
+      );
+      await loadGoogleAdsState();
+    } catch (syncError) {
+      const detail = syncError instanceof Error ? syncError.message : "Unable to sync Google Ads campaigns.";
+      setGoogleAdsNotice(detail);
+    } finally {
+      setGoogleAdsSyncing(false);
+    }
+  };
+
+  const loadMetaAdsState = async () => {
+    setMetaAdsLoading(true);
+    try {
+      const response = await fetch("/api/meta-ads/session", { cache: "no-store" });
+      const payload = (await response.json()) as MetaAdsConnectionState;
+      setMetaAdsState(payload);
+      if (!payload.connected && payload.message) setMetaAdsNotice(payload.message);
+    } catch (connectError) {
+      const detail = connectError instanceof Error ? connectError.message : "Unable to load Meta Ads status.";
+      setMetaAdsState({ connected: false, message: detail });
+      setMetaAdsNotice(detail);
+    } finally {
+      setMetaAdsLoading(false);
+    }
+  };
+
+  const handleSyncMetaAds = async (options?: { silent?: boolean }) => {
+    if (!user?.id) {
+      setMetaAdsNotice("Sign in to Adigator before syncing Meta Ads campaigns.");
+      return;
+    }
+    setMetaAdsSyncing(true);
+    if (!options?.silent) setMetaAdsNotice("Syncing Meta Ads campaigns into Adigator…");
+    try {
+      const authUser = getFirebaseClientAuth().currentUser;
+      if (!authUser) throw new Error("Sign in to Adigator first.");
+      const token = await authUser.getIdToken();
+      const result = await syncMetaAdsIntoAdigator({
+        accessToken: token,
+        ownerId: user.id,
+        adAccountId: metaAdsState?.adAccountId || undefined,
+        advertiserName: metaAdsState?.account?.name || "Meta Ads",
+      });
+      setMetaAdsNotice(result.message || `Synced ${result.total} Meta Ads campaign${result.total === 1 ? "" : "s"} into Adigator.`);
+      await loadMetaAdsState();
+    } catch (syncError) {
+      const detail = syncError instanceof Error ? syncError.message : "Unable to sync Meta Ads campaigns.";
+      setMetaAdsNotice(detail);
+    } finally {
+      setMetaAdsSyncing(false);
+    }
+  };
+
   useEffect(() => {
     const auth = getFirebaseClientAuth();
     let active = true;
@@ -146,12 +250,27 @@ function SettingsPageContent() {
 
     const timer = window.setTimeout(() => {
       void loadGoogleAdsState();
+      void loadMetaAdsState();
     }, 0);
     const onMessage = (event: MessageEvent) => {
-      const payload = event.data as { type?: string; message?: string } | undefined;
+      const payload = event.data as { type?: string; message?: string; ok?: boolean } | undefined;
       if (payload?.type === "google-ads-auth") {
-        setGoogleAdsNotice(payload.message || "Google Ads status refreshed.");
-        void loadGoogleAdsState();
+        setGoogleAdsNotice(payload.message || "Google Ads connected.");
+        void (async () => {
+          await loadGoogleAdsState();
+          if (payload.ok !== false) {
+            await handleSyncGoogleAds({ silent: true });
+          }
+        })();
+      }
+      if (payload?.type === "meta-ads-auth") {
+        setMetaAdsNotice(payload.message || "Meta Ads connected.");
+        void (async () => {
+          await loadMetaAdsState();
+          if (payload.ok !== false) {
+            await handleSyncMetaAds({ silent: true });
+          }
+        })();
       }
     };
     window.addEventListener("message", onMessage);
@@ -230,6 +349,32 @@ function SettingsPageContent() {
       setGoogleAdsNotice(detail);
     } finally {
       setGoogleAdsLoading(false);
+    }
+  };
+
+  const handleConnectMetaAds = () => {
+    setMetaAdsConnecting(true);
+    setMetaAdsNotice("Opening Meta authorization...");
+    const popup = window.open("/api/meta-ads/oauth/start?useDifferent=1", "meta-ads-connect", "width=640,height=760,scrollbars=yes,resizable=yes");
+    if (!popup) {
+      setMetaAdsConnecting(false);
+      setMetaAdsNotice("Popups are blocked. Please allow them and try again.");
+    }
+    window.setTimeout(() => setMetaAdsConnecting(false), 1200);
+  };
+
+  const handleDisconnectMetaAds = async () => {
+    try {
+      setMetaAdsLoading(true);
+      const response = await fetch("/api/meta-ads/disconnect", { method: "POST" });
+      const payload = (await response.json()) as MetaAdsConnectionState;
+      setMetaAdsState(payload);
+      setMetaAdsNotice(payload.message || "Meta Ads disconnected.");
+    } catch (connectError) {
+      const detail = connectError instanceof Error ? connectError.message : "Unable to disconnect Meta Ads.";
+      setMetaAdsNotice(detail);
+    } finally {
+      setMetaAdsLoading(false);
     }
   };
 
@@ -353,7 +498,7 @@ function SettingsPageContent() {
             <h2 className="font-semibold">Ad accounts</h2>
           </div>
           <p className="text-sm text-white/50">
-            Connect Google Ads to bring your campaigns and performance data into Adigator.
+            Connect Google Ads or Meta Ads to bring your campaigns into Adigator.
           </p>
 
           {googleAdsLoading ? (
@@ -373,6 +518,14 @@ function SettingsPageContent() {
                     <div className="flex flex-wrap gap-2">
                       <button
                         type="button"
+                        onClick={() => void handleSyncGoogleAds()}
+                        disabled={googleAdsSyncing}
+                        className="rounded-lg bg-sky-500 px-3 py-2 text-sm font-semibold text-white transition hover:bg-sky-400 disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        {googleAdsSyncing ? "Syncing…" : "Sync campaigns to Adigator"}
+                      </button>
+                      <button
+                        type="button"
                         onClick={() => void loadGoogleAdsState()}
                         className="rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-sm text-white/80 transition hover:bg-black/30"
                       >
@@ -390,17 +543,23 @@ function SettingsPageContent() {
 
                   {googleAdsState.campaigns && googleAdsState.campaigns.length > 0 ? (
                     <div className="mt-4 space-y-2">
-                      <p className="text-xs uppercase tracking-wide text-white/40">Recent campaigns</p>
+                      <p className="text-xs uppercase tracking-wide text-white/40">Recent campaigns and drafts</p>
                       {googleAdsState.campaigns.map((campaign) => (
-                        <div key={campaign.id} className="rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-sm text-white/80">
+                        <div key={`${campaign.sourceType || "published"}-${campaign.id}`} className="rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-sm text-white/80">
                           <div className="flex items-center justify-between gap-2">
                             <span>{campaign.name}</span>
-                            <span className="text-xs text-white/45">{campaign.status}</span>
+                            <span className="text-xs text-white/45">
+                              {campaign.sourceType === "draft" ? "Draft" : campaign.status}
+                            </span>
                           </div>
                         </div>
                       ))}
                     </div>
-                  ) : null}
+                  ) : (
+                    <p className="mt-4 text-sm text-white/55">
+                      No campaigns listed yet. Click Sync to pull published and draft campaigns into Adigator.
+                    </p>
+                  )}
                 </div>
               ) : (
                 <div className="rounded-xl border border-white/10 bg-black/20 p-4">
@@ -426,6 +585,68 @@ function SettingsPageContent() {
               )}
 
               {googleAdsNotice ? <p className="text-sm text-sky-300">{googleAdsNotice}</p> : null}
+
+              {metaAdsLoading ? (
+                <div className="h-24 animate-pulse rounded-xl bg-white/5" />
+              ) : metaAdsState?.connected ? (
+                <div className="rounded-xl border border-emerald-400/25 bg-emerald-500/10 p-4">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-semibold text-emerald-200">Meta Ads connected</p>
+                      <p className="text-sm text-white/70">{metaAdsState.account?.name || "Connected account"}</p>
+                      <p className="text-xs text-white/45">
+                        Ad account: {metaAdsState.adAccountId || "—"} · {metaAdsState.email || "—"}
+                      </p>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={() => void handleSyncMetaAds()}
+                        disabled={metaAdsSyncing}
+                        className="rounded-lg bg-sky-500 px-3 py-2 text-sm font-semibold text-white transition hover:bg-sky-400 disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        {metaAdsSyncing ? "Syncing…" : "Sync campaigns to Adigator"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => void loadMetaAdsState()}
+                        className="rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-sm text-white/80 transition hover:bg-black/30"
+                      >
+                        Refresh
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => void handleDisconnectMetaAds()}
+                        className="rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-sm text-white transition hover:bg-white/20"
+                      >
+                        Disconnect
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="rounded-xl border border-white/10 bg-black/20 p-4">
+                  <p className="text-sm text-white/70">No Meta Ads account connected yet.</p>
+                  <div className="mt-3 flex flex-wrap gap-3">
+                    <button
+                      type="button"
+                      onClick={handleConnectMetaAds}
+                      disabled={metaAdsConnecting}
+                      className="rounded-xl bg-sky-500 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-sky-400 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {metaAdsConnecting ? "Opening…" : "Connect Meta Ads"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => void loadMetaAdsState()}
+                      className="rounded-xl border border-white/10 bg-white/10 px-4 py-2.5 text-sm text-white transition hover:bg-white/20"
+                    >
+                      Refresh
+                    </button>
+                  </div>
+                </div>
+              )}
+              {metaAdsNotice ? <p className="text-sm text-sky-300">{metaAdsNotice}</p> : null}
             </div>
           )}
         </motion.section>

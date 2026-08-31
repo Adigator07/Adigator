@@ -33,7 +33,7 @@ export type ProgrammaticAdGroupPreset = {
 export type ProgrammaticAdGroup = {
   id: string;
   name: string;
-  objective: ProgrammaticObjectiveId | "";
+  objective: string;
   customObjective?: string;
 };
 
@@ -218,7 +218,7 @@ export function isProgrammaticAdGroupSelectionComplete(
   return selectedGroupIds.some((id) => groups.some((group) => group.id === id));
 }
 
-export function getPrimaryProgrammaticObjective(groups: ProgrammaticAdGroup[]): ProgrammaticObjectiveId | "" {
+export function getPrimaryProgrammaticObjective(groups: ProgrammaticAdGroup[]): string {
   const withObjective = groups.find((group) => group.objective && group.objective !== PROGRAMMATIC_OBJECTIVE_CUSTOM);
   return withObjective?.objective || groups.find((group) => group.objective)?.objective || "";
 }

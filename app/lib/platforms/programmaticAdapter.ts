@@ -7,34 +7,16 @@ import {
 import type { PlatformWorkflowAdapter } from "@/app/lib/platforms/types";
 import {
   PROGRAMMATIC_TASK_TYPES,
-  isProgrammaticAdGroupConfigComplete,
-  isProgrammaticAdGroupSelectionComplete,
   isProgrammaticCampaignRenewal,
   isProgrammaticCampaignSetup,
   isProgrammaticCreativeAddition,
   isProgrammaticCreativeReplacement,
   isProgrammaticUrlValidationUtmUpdate,
-  PROGRAMMATIC_AD_GROUP_COUNT_OPTIONS,
-  getProgrammaticAdGroupDisplayName,
 } from "@/app/lib/programmaticWorkflow";
-
-function describeIncompleteAdGroups(groups: SetupFieldContext["programmaticAdGroups"]): string {
-  const issues = groups.flatMap((group) => {
-    const name = getProgrammaticAdGroupDisplayName(group);
-    if (!group.name?.trim()) return [`${name}: add a name`];
-    if (!group.objective) return [`${name}: select an objective`];
-    if (group.objective === "custom" && !group.customObjective?.trim()) {
-      return [`${name}: describe the custom objective`];
-    }
-    return [];
-  });
-  return issues.length ? issues.join(" · ") : "Complete each ad group name and objective.";
-}
 
 function getProgrammaticMissingSetupFields(context: SetupFieldContext): SetupMissingField[] {
   const missing: SetupMissingField[] = [];
   const taskType = context.programmaticTaskType;
-  const isSetup = isProgrammaticCampaignSetup(taskType);
   const isAddition = isProgrammaticCreativeAddition(taskType);
   const isReplacement = isProgrammaticCreativeReplacement(taskType);
   const isRenewal = isProgrammaticCampaignRenewal(taskType);
@@ -97,30 +79,6 @@ function getProgrammaticMissingSetupFields(context: SetupFieldContext): SetupMis
     });
   }
 
-  if (isSetup) {
-    if (context.programmaticAdGroupCount === "") {
-      missing.push({
-        key: "programmaticAdGroupCount",
-        label: "Number of ad groups",
-        prompt: "How many ad groups will this campaign use?",
-        inputType: "select",
-        options: PROGRAMMATIC_AD_GROUP_COUNT_OPTIONS.map((count) => ({
-          value: String(count),
-          label: `${count} ad group${count === 1 ? "" : "s"}`,
-        })),
-        scrollTargetId: "programmatic-ad-groups",
-      });
-    } else if (!isProgrammaticAdGroupConfigComplete(context.programmaticAdGroups)) {
-      missing.push({
-        key: "adGroupConfig",
-        label: "Ad group configuration",
-        prompt: describeIncompleteAdGroups(context.programmaticAdGroups),
-        inputType: "info",
-        scrollTargetId: "programmatic-ad-groups",
-      });
-    }
-  }
-
   const needsGoal = isRenewal && !context.renewalUsesAdGroups && !context.campaignGoal;
   if (needsGoal) {
     missing.push({
@@ -145,39 +103,6 @@ function getProgrammaticMissingSetupFields(context: SetupFieldContext): SetupMis
       inputType: "textarea",
       placeholder: "Describe goals, offer, audience, and requirements.",
     });
-  }
-
-  const needsAdGroupSelection = (
-    (isAddition && context.loadedCampaignSnapshot && context.creativeAdditionMode && context.programmaticAdGroups.length > 0)
-    || (isReplacement && context.loadedCampaignSnapshot && context.programmaticAdGroups.length > 0)
-    || (isRenewal && context.renewalReferenceSnapshot && context.programmaticAdGroups.length > 0)
-    || (isUrlUtm && context.urlUtmReferenceSnapshot && context.programmaticAdGroups.length > 0)
-  ) && !isProgrammaticAdGroupSelectionComplete(
-    context.programmaticAdGroups,
-    context.selectedProgrammaticAdGroupIds,
-    context.applyProgrammaticAdGroupsToAll,
-  );
-
-  if (needsAdGroupSelection) {
-    missing.push({
-      key: "adGroupSelection",
-      label: "Ad group selection",
-      prompt: "Select at least one ad group — or apply changes to all ad groups.",
-      inputType: "info",
-      scrollTargetId: "programmatic-ad-groups",
-    });
-  }
-
-  if (isRenewal && context.renewalReferenceSnapshot && context.renewalUsesAdGroups) {
-    if (!isProgrammaticAdGroupConfigComplete(context.programmaticAdGroups)) {
-      missing.push({
-        key: "adGroupConfig",
-        label: "Ad group configuration",
-        prompt: describeIncompleteAdGroups(context.programmaticAdGroups),
-        inputType: "info",
-        scrollTargetId: "programmatic-ad-groups",
-      });
-    }
   }
 
   return missing;

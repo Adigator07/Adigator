@@ -8,7 +8,7 @@ import { useAdminAuth } from "../lib/admin-platform/AdminAuthContext";
 import { useOrgAuth } from "../lib/organization-platform/OrgAuthContext";
 import {
   LayoutDashboard, PlusSquare, FolderOpen, Download, Settings,
-  Eye, Brain, LogOut, ChevronLeft, ChevronRight, MessageSquare, Shield, Building2, ShieldCheck
+  Eye, Brain, LogOut, ChevronLeft, ChevronRight, MessageSquare, Shield, Building2, ShieldCheck, HeartPulse, Radar
 } from "lucide-react";
 
 const NAV_SECTIONS = [
@@ -27,6 +27,8 @@ const NAV_SECTIONS = [
     label: "Tools",
     items: [
       { icon: Eye,   label: "Campaign Intelligence Studio",  href: "/preview-tool?step=campaign-setup",      badge: "CORE" },
+      { icon: HeartPulse, label: "Campaign Health", href: "/dashboard/health", badge: "NEW" },
+      { icon: Radar, label: "Audience Forecast", href: "/dashboard/forecast", badge: "NEW" },
       { icon: Brain, label: "Ad Intelligence", href: "/intelligence",  badge: "CORE" },
       { icon: ShieldCheck, label: "QA Workspace", href: "/dashboard/qa", badge: "NEW" },
     ],
@@ -59,6 +61,8 @@ export default function Sidebar({ collapsed, setCollapsed, user }: any) {
       "/dashboard",
       "/dashboard/communications",
       "/dashboard/qa",
+      "/dashboard/health",
+      "/dashboard/forecast",
       "/projects",
       "/downloads",
       "/settings",
@@ -71,7 +75,9 @@ export default function Sidebar({ collapsed, setCollapsed, user }: any) {
     // Warm the heavy studio chunk so sidebar clicks feel instant.
     const warm = window.setTimeout(() => {
       void import("./PreviewTool");
-    }, 1200);
+      void import("./campaign-health/CampaignHealthDashboard");
+      void import("./audience-forecast/AudienceForecastStudio");
+    }, 400);
     return () => window.clearTimeout(warm);
   }, [router]);
 
@@ -88,7 +94,7 @@ export default function Sidebar({ collapsed, setCollapsed, user }: any) {
   return (
     <div
       style={{ width: collapsed ? 68 : 256 }}
-      className="relative z-20 min-h-screen border-r border-sky-200/80 bg-white/92 shadow-[8px_0_30px_-18px_rgba(14,116,144,0.22)] flex flex-col shrink-0 overflow-hidden transition-[width] duration-200 ease-out"
+      className="relative z-20 sticky top-0 flex h-dvh min-h-0 shrink-0 flex-col self-start overflow-hidden border-r border-sky-200/80 bg-white/92 shadow-[8px_0_30px_-18px_rgba(14,116,144,0.22)] transition-[width] duration-200 ease-out"
     >
       {/* Logo */}
       <div className="h-16 flex items-center px-4 border-b border-sky-100 justify-between shrink-0">
@@ -107,7 +113,7 @@ export default function Sidebar({ collapsed, setCollapsed, user }: any) {
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 p-3 pb-6 space-y-4 mt-1 overflow-y-auto scrollbar-none">
+      <nav className="mt-1 min-h-0 flex-1 space-y-4 overflow-y-auto p-3 pb-6 scrollbar-none">
         {NAV_SECTIONS.map((section) => (
           <div key={section.label}>
             {!collapsed && (
@@ -131,6 +137,12 @@ export default function Sidebar({ collapsed, setCollapsed, user }: any) {
                     onMouseEnter={() => {
                       if (hrefPath === "/preview-tool") {
                         void import("./PreviewTool");
+                      }
+                      if (hrefPath === "/dashboard/health") {
+                        void import("./campaign-health/CampaignHealthDashboard");
+                      }
+                      if (hrefPath === "/dashboard/forecast") {
+                        void import("./audience-forecast/AudienceForecastStudio");
                       }
                     }}
                   >

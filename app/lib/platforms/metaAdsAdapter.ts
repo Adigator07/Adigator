@@ -7,7 +7,6 @@ import { META_OBJECTIVE_REQUIREMENTS } from "@/app/constants/metaSpecs";
 import type { PlatformWorkflowAdapter } from "@/app/lib/platforms/types";
 import {
   STANDARD_CAMPAIGN_TASK_TYPES,
-  getAdGroupSetupMissingFields,
   isCampaignRenewalTask,
   isCampaignSetupTask,
   isCampaignUpdateTask,
@@ -19,7 +18,6 @@ import {
 function getMetaMissingSetupFields(context: SetupFieldContext): SetupMissingField[] {
   const missing: SetupMissingField[] = [];
   const taskType = context.programmaticTaskType;
-  const isSetup = isCampaignSetupTask(taskType);
   const isAddition = isCreativeAdditionTask(taskType);
   const isReplacement = isCreativeReplacementTask(taskType);
   const isRenewal = isCampaignRenewalTask(taskType);
@@ -74,9 +72,7 @@ function getMetaMissingSetupFields(context: SetupFieldContext): SetupMissingFiel
     });
   }
 
-  if (isSetup) {
-    missing.push(...getAdGroupSetupMissingFields(context));
-  } else if (isRenewal && !context.renewalUsesAdGroups && !context.campaignGoal) {
+  if (isRenewal && !context.renewalUsesAdGroups && !context.campaignGoal) {
     missing.push({
       key: "campaignGoal",
       label: "Campaign objective",

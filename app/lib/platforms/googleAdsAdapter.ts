@@ -7,7 +7,6 @@ import { GOOGLE_OBJECTIVE_REQUIREMENTS } from "@/app/constants/googleSpecs";
 import type { PlatformWorkflowAdapter } from "@/app/lib/platforms/types";
 import {
   STANDARD_CAMPAIGN_TASK_TYPES,
-  getAdGroupSetupMissingFields,
   isCampaignRenewalTask,
   isCampaignSetupTask,
   isCampaignUpdateTask,
@@ -84,7 +83,6 @@ function getGoogleMissingSetupFields(context: SetupFieldContext): SetupMissingFi
         scrollTargetId: "google-campaign-type",
       });
     }
-    missing.push(...getAdGroupSetupMissingFields(context));
   } else if (isRenewal && !context.renewalUsesAdGroups && !context.campaignGoal) {
     missing.push({
       key: "campaignGoal",
@@ -139,18 +137,20 @@ export const googleAdsAdapter: PlatformWorkflowAdapter = {
     uploadGuidance:
       "Display/RDA: IAB banners plus landscape, square, and logo assets. Demand Gen: JPG/PNG only — landscape 1.91:1, square 1:1, portrait 4:5, vertical 9:16 (≤5MB). Video: MP4/WebM/MOV for YouTube — prefer 16:9.",
   },
-  previewStudioMode: "static-placements",
-  defaultPreviewTemplateId: "display",
+  previewStudioMode: "contextual-ai",
+  defaultPreviewTemplateId: "news",
   getMissingSetupFields: getGoogleMissingSetupFields,
   isSetupTask: isCampaignSetupTask,
   isUpdateTask: isCampaignUpdateTask,
   buildSnapshotExtensions: (context) => ({
     googleCampaignType: context.googleCampaignType || "display",
-    googleAdGroupCount: context.googleAdGroupCount ?? "",
+    googleAdGroupCount: context.googleAdGroupCount ?? context.programmaticAdGroupCount ?? "",
+    programmaticAdGroupCount: context.programmaticAdGroupCount ?? context.googleAdGroupCount ?? "",
+    programmaticAdGroups: context.programmaticAdGroups || [],
   }),
   analysisPlatform: "google_ads",
   intelligenceLabel: "Inventory Intelligence",
-  previewStudioDescription: "Preview Google Display, Responsive Display, and Demand Gen placements with safe-zone and crop analysis.",
+  previewStudioDescription: "See your Google Ads creatives on realistic desktop and mobile websites. Saved previews are reused so Gemini is only called when needed.",
   analysisReportLabel: "Google Ads Analysis Report (PDF)",
   previewReportLabel: "Google Ads Preview (PDF)",
 };
