@@ -78,7 +78,7 @@ export default function MarketingNav({ activePath, showCta = true }: MarketingNa
     >
       <div className="mx-auto flex w-[min(1280px,92vw)] items-center justify-between gap-3">
         <Link href="/" className="text-xl font-black tracking-tight text-[#0D0D0D] sm:text-2xl">
-          Adigator
+          Adigator IQ
         </Link>
 
         <div className="hidden items-center gap-4 md:flex md:gap-5 lg:gap-6">

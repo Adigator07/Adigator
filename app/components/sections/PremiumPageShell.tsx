@@ -93,7 +93,7 @@ export default function PremiumPageShell({ children }: PremiumPageShellProps) {
       <div className="relative z-10">{children}</div>
 
       <footer className="relative z-10 px-6 py-8 text-center text-xs uppercase tracking-[0.14em] text-gray-500 md:px-10">
-        © 2026 Adigator. Creative intelligence for modern teams.
+        © 2026 Adigator IQ. Creative intelligence for modern teams.
       </footer>
     </main>
   );

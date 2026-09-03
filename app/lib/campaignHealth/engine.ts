@@ -253,7 +253,7 @@ export function evaluateCampaignHealth(
       [
         `Open ${first.url} and confirm it loads.`,
         "Update final URLs on ads or asset groups.",
-        "Re-run a health check in Adigator.",
+        "Re-run a health check in Adigator IQ.",
       ],
     ));
   } else if (snapshot.landingUrls.length === 0 && snapshot.enabledAdCount > 0) {

@@ -122,7 +122,7 @@ export async function POST(request: NextRequest) {
         persistErrors: persistErrors.slice(0, 10),
         googleAdsError: workspace.error || null,
         message: snapshots.length
-          ? `Synced ${snapshots.length} Google Ads campaign${snapshots.length === 1 ? "" : "s"} into Adigator (${snapshots.filter((item) => item.googleAdsCampaignSource === "draft").length} draft${snapshots.filter((item) => item.googleAdsCampaignSource === "draft").length === 1 ? "" : "s"}).`
+          ? `Synced ${snapshots.length} Google Ads campaign${snapshots.length === 1 ? "" : "s"} into Adigator IQ (${snapshots.filter((item) => item.googleAdsCampaignSource === "draft").length} draft${snapshots.filter((item) => item.googleAdsCampaignSource === "draft").length === 1 ? "" : "s"}).`
           : (workspace.error || "No live or draft campaigns were returned by Google Ads."),
       },
       null,

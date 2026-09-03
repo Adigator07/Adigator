@@ -30,7 +30,7 @@ const OVERVIEW_NOTES = [
   "Google / Meta / Programmatic size intelligence",
   "Goal and vertical alignment checks",
   "Contextual preview engine",
-  "Adigator output formatting",
+  "Adigator IQ output formatting",
   "PPTX strategic report export",
 ];
 
@@ -64,7 +64,7 @@ const LOGO_TICKER = [
 const TESTIMONIALS = [
   {
     quote:
-      "Adigator gave us a clearer path from strategy to execution. We launched better campaigns in half the time with stronger efficiency.",
+      "Adigator IQ gave us a clearer path from strategy to execution. We launched better campaigns in half the time with stronger efficiency.",
     author: "Nora Patel",
     role: "VP, Performance Marketing",
     company: "Brightline",
@@ -266,7 +266,7 @@ export default function ProductPage() {
                   <div className="grid gap-4 md:grid-cols-[1.08fr_0.92fr] md:items-center rounded-[22px] bg-[#0D0D0D] p-4">
                     <Image
                       src="/Screenshot_2026-04-29_134437-removebg-preview.png"
-                      alt="Adigator platform interface"
+                      alt="Adigator IQ platform interface"
                       width={900}
                       height={900}
                       className="h-auto w-full rounded-[18px] object-contain"
@@ -305,7 +305,7 @@ export default function ProductPage() {
                 <div className="rounded-[24px] border border-white/10 bg-[#171717] p-4">
                   <Image
                     src="/Screenshot_2026-04-29_134437-removebg-preview.png"
-                    alt="Adigator dashboard overview"
+                    alt="Adigator IQ dashboard overview"
                     width={1200}
                     height={900}
                     className="h-[420px] w-full rounded-[20px] bg-[#0D0D0D] object-contain"
@@ -366,7 +366,7 @@ export default function ProductPage() {
                 Your command center for campaign performance
               </h2>
               <p className="mt-6 max-w-xl text-lg leading-relaxed text-[#66665F]">
-                Adigator's advertising intelligence orchestrator evaluates creative assets through extraction, attention analysis,
+                Adigator IQ's advertising intelligence orchestrator evaluates creative assets through extraction, attention analysis,
                 platform-fit checks, inventory-fit checks, business impact, and final decision scoring so teams move faster with clearer signals.
               </p>
               <div className="mt-8 space-y-4">
@@ -403,7 +403,7 @@ export default function ProductPage() {
                 High-impact creativity at your fingertips
               </h2>
               <p className="mt-6 max-w-xl text-lg leading-relaxed text-[#66665F]">
-                Adigator's preview engine, environment templates, and fallback creative system generate polished,
+                Adigator IQ's preview engine, environment templates, and fallback creative system generate polished,
                 brand-tuned review surfaces so teams can evaluate placements in realistic context before launch.
               </p>
               <div className="mt-8 space-y-4">
@@ -536,12 +536,12 @@ export default function ProductPage() {
               {
                 icon: PlugZap,
                 title: "Plug in and perform",
-                body: "Adigator works alongside your existing ad platforms, preview workflows, and downstream reporting systems so teams can move without rebuilding their stack.",
+                body: "Adigator IQ works alongside your existing ad platforms, preview workflows, and downstream reporting systems so teams can move without rebuilding their stack.",
               },
               {
                 icon: ShieldCheck,
                 title: "Feel confident on compliance",
-                body: "Adigator keeps creative validation, platform fit checks, and review outputs aligned with the specifications that matter before launch.",
+                body: "Adigator IQ keeps creative validation, platform fit checks, and review outputs aligned with the specifications that matter before launch.",
               },
             ].map((card) => {
               const Icon = card.icon;
@@ -631,7 +631,7 @@ export default function ProductPage() {
       <footer className="bg-[#0D0D0D] px-4 pb-10 pt-16 text-white sm:px-6 lg:px-8">
         <div className="mx-auto grid w-[min(1320px,92vw)] gap-10 border-t border-white/10 pt-12 md:grid-cols-[1.25fr_repeat(4,1fr)]">
           <div>
-            <p className="text-2xl font-black tracking-tight">Adigator</p>
+            <p className="text-2xl font-black tracking-tight">Adigator IQ</p>
             <p className="mt-4 max-w-xs text-sm leading-relaxed text-white/60">
               Advertising intelligence for validation, preview, and clearer decisions before launch.
             </p>
@@ -655,7 +655,7 @@ export default function ProductPage() {
 
         <div className="mx-auto mt-10 flex w-[min(1320px,92vw)] flex-col gap-4 border-t border-white/10 pt-6 text-sm text-white/55 md:flex-row md:items-center md:justify-between">
           <div className="flex flex-wrap items-center gap-4">
-            <span>© 2026 Adigator</span>
+            <span>© 2026 Adigator IQ</span>
             <Link href="/privacy" className="transition hover:text-white">
               Privacy Policy
             </Link>

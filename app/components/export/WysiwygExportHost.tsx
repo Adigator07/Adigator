@@ -216,7 +216,7 @@ const WysiwygExportHost = forwardRef<WysiwygExportHostHandle>(function WysiwygEx
 
     const blob = await canvasesToPdf([canvas], {
       title: analysisFilename(exportScope, insight?.creativeName),
-      subject: `Adigator ${exportScope} export`,
+      subject: `Adigator IQ ${exportScope} export`,
     });
 
     return {
@@ -282,7 +282,7 @@ const WysiwygExportHost = forwardRef<WysiwygExportHostHandle>(function WysiwygEx
     const filename = previewFilename(templateId);
     const blob = await canvasesToPdf([canvas], {
       title: filename.replace(/\.pdf$/i, ""),
-      subject: "Adigator Preview Studio export",
+      subject: "Adigator IQ Preview Studio export",
     });
 
     return { blob, filename };
@@ -372,7 +372,7 @@ const WysiwygExportHost = forwardRef<WysiwygExportHostHandle>(function WysiwygEx
       const filename = meta.filename || "Preview_Placement_Report.pdf";
       const blob = await canvasesToPdf([canvas], {
         title: meta.title || "Preview Placement Report",
-        subject: "Adigator Preview Studio export",
+        subject: "Adigator IQ Preview Studio export",
       });
       return { blob, filename };
     },

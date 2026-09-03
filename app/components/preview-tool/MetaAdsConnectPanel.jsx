@@ -223,7 +223,7 @@ export default function MetaAdsConnectPanel({
       const payload = await readJsonResponse(response, "Unable to create the Meta campaign.");
       const created = payload.campaign;
       setNewCampaignName("");
-      setStatusMessage(`Created ${created?.name || name} in Meta Ads as paused. Loading it into Adigator…`);
+      setStatusMessage(`Created ${created?.name || name} in Meta Ads as paused. Loading it into Adigator IQ…`);
       await pullCampaigns({ populate: false });
       if (created?.id) {
         await loadSelectedCampaign({

@@ -2,8 +2,8 @@ export function buildAnalysisReportDownloadToast(fromCache: boolean, persistedOn
   if (persistedOnDownload) {
     return {
       message: fromCache
-        ? "Analysis report downloaded and saved in Adigator."
-        : "Analysis report generated, downloaded, and saved in Adigator.",
+        ? "Analysis report downloaded and saved in Adigator IQ."
+        : "Analysis report generated, downloaded, and saved in Adigator IQ.",
       type: "success",
     };
   }

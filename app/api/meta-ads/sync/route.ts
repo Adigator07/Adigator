@@ -76,7 +76,7 @@ export async function POST(request: NextRequest) {
       campaigns: snapshots,
       persistErrors: persistErrors.slice(0, 10),
       message: snapshots.length
-        ? `Synced ${snapshots.length} Meta Ads campaign${snapshots.length === 1 ? "" : "s"} into Adigator.`
+        ? `Synced ${snapshots.length} Meta Ads campaign${snapshots.length === 1 ? "" : "s"} into Adigator IQ.`
         : "No campaigns were returned by Meta Ads for this ad account.",
     }, null);
   } catch (error) {

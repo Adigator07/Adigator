@@ -27,7 +27,7 @@ export default function OperationalScenariosPage() {
             </h1>
             <p className="mt-6 max-w-2xl text-lg leading-relaxed text-[#5A5A55] sm:text-xl">
               Practical campaign validation workflows, not case studies. Each scenario shows the problem, the risk,
-              how Adigator helps, and the outcome.
+              how Adigator IQ helps, and the outcome.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
               <Link href={MARKETING_CTA.href} className="marketing-btn-lime rounded-full px-7 py-3.5 text-sm font-bold">
@@ -85,7 +85,7 @@ export default function OperationalScenariosPage() {
 
                   <div className="bg-[#0A0A0A] p-6 text-white sm:p-8">
                     <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-white/45">
-                      How Adigator helps
+                      How Adigator IQ helps
                     </p>
                     <p className="mt-2 text-sm leading-relaxed text-white/75">{item.howAdigatorHelps}</p>
                     <p className="mt-5 text-[11px] font-semibold uppercase tracking-[0.16em] text-white/45">Outcome</p>

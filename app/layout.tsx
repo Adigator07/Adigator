@@ -4,6 +4,7 @@ import { Inter, JetBrains_Mono, Cormorant_Garamond } from "next/font/google";
 import BrowserExtensionErrorGuard from "./components/BrowserExtensionErrorGuard";
 import FxPauseOnHidden from "./components/FxPauseOnHidden";
 import NavigationProgress from "./components/NavigationProgress";
+import { PRODUCTION_ORIGIN } from "./lib/siteConfig";
 import "./globals.css";
 
 const inter = Inter({
@@ -28,13 +29,21 @@ const cormorant = Cormorant_Garamond({
 });
 
 export const metadata: Metadata = {
-  title: "Adigator | Pre Launch Campaign Validation Platform",
+  metadataBase: new URL(PRODUCTION_ORIGIN),
+  title: "Adigator IQ | Pre Launch Campaign Validation Platform",
   description: "Analyze and optimize your ad creatives with AI",
   verification: {
     google: "bBVWyBqp28XqDwBS5iNMolrvyqhO9XB_z_yO3ggBwJA",
   },
   icons: {
     icon: "/Screenshot_2026-04-29_134437-removebg-preview.png",
+  },
+  openGraph: {
+    url: PRODUCTION_ORIGIN,
+    siteName: "Adigator IQ",
+  },
+  alternates: {
+    canonical: PRODUCTION_ORIGIN,
   },
 };
 

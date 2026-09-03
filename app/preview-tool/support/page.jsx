@@ -19,7 +19,7 @@ const CHAT_BG_PALETTE = [
 
 const INITIAL_MESSAGE = {
   role: "assistant",
-  content: "Hi, I am Adigator support. Share your blocker and I will help with clear, step-by-step guidance.",
+  content: "Hi, I am Adigator IQ support. Share your blocker and I will help with clear, step-by-step guidance.",
   createdAt: new Date().toISOString(),
 };
 
@@ -338,7 +338,7 @@ function SupportPageContent() {
                 className="h-10 w-10 rounded-xl border border-sky-200/35 bg-white/15 object-cover p-1"
               />
               <div>
-                <p className="text-sm font-semibold uppercase tracking-[0.16em] text-sky-100">Adigator Chat Help</p>
+                <p className="text-sm font-semibold uppercase tracking-[0.16em] text-sky-100">Adigator IQ Chat Help</p>
                 <p className="text-xs text-sky-50/82">{activeAgent.name} · {activeAgent.title}</p>
               </div>
               <div className="ml-2 hidden items-center gap-1.5 sm:flex">

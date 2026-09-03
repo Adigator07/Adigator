@@ -43,7 +43,7 @@ function htmlResult(ok: boolean, message: string, email?: string) {
 
       <div style="display:flex;gap:10px;flex-wrap:wrap;">
         <button id="continue" type="button" style="border:1px solid rgba(255,255,255,0.3);background:#1a2a55;color:#fff;padding:10px 14px;border-radius:9px;cursor:pointer;font-weight:600;">
-          Return to Adigator
+          Return to Adigator IQ
         </button>
         <button id="close" type="button" style="border:1px solid rgba(255,255,255,0.2);background:transparent;color:#d9e2ff;padding:10px 14px;border-radius:9px;cursor:pointer;">
           Close window
@@ -88,7 +88,7 @@ function htmlResult(ok: boolean, message: string, email?: string) {
       if (statusEl) {
         statusEl.textContent = posted
           ? "Connection synced. You can return to Adigator now."
-          : "Connection saved. Return to Adigator and click Refresh if needed.";
+          : "Connection saved. Return to Adigator IQ and click Refresh if needed.";
       }
 
       if (continueBtn) {

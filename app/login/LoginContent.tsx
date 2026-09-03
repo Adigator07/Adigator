@@ -229,6 +229,11 @@ type HiTechInputProps = {
   className?: string;
 };
 
+function safeNextPath(value: string | null) {
+  if (!value || !value.startsWith("/") || value.startsWith("//") || value.startsWith("/login")) return null;
+  return value;
+}
+
 export default function LoginContent() {
   const router = useRouter();
   const reduceMotion = useReducedMotion();
@@ -237,6 +242,7 @@ export default function LoginContent() {
   const isResetMode = searchParams.get("reset") === "1";
   const isPendingQuery = searchParams.get("pending") === "1";
   const isDisabledQuery = searchParams.get("disabled") === "1";
+  const nextPath = safeNextPath(searchParams.get("next"));
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -385,7 +391,7 @@ export default function LoginContent() {
 
       setSuccess(true);
       redirectedRef.current = true;
-      const destination = getPostAuthRedirect(resolvedRole);
+      const destination = nextPath || getPostAuthRedirect(resolvedRole);
       authDebug("redirecting", { destination, resolvedRole, accountStatus });
       window.location.assign(destination);
     } finally {
@@ -501,7 +507,7 @@ export default function LoginContent() {
   const leftSubtitle = isResetMode
     ? "We will send a secure link to your inbox."
     : isRegisterMode
-      ? "Join Adigator and move from brief to launch with clarity and confidence."
+      ? "Join Adigator IQ and move from brief to launch with clarity and confidence."
       : "A cleaner way to validate ideas, monitor performance, and launch with confidence.";
   const formTitle = isResetMode ? "Reset password" : isRegisterMode ? "Register" : "Log in";
   const submitLabel = isResetMode ? "Send reset link" : isRegisterMode ? "Register" : "Log in";
@@ -889,7 +895,7 @@ export default function LoginContent() {
       }
 
       setSuccess(true);
-      const destination = getPostAuthRedirect(resolvedRole);
+      const destination = nextPath || getPostAuthRedirect(resolvedRole);
       // Hard navigate immediately for a faster first paint of the dashboard shell.
       window.location.assign(destination);
       return;
@@ -1019,7 +1025,7 @@ export default function LoginContent() {
       setPassword("");
       setConfirmPassword("");
       redirectedRef.current = true;
-      window.location.assign(getPostAuthRedirect(pendingGoogleProfile.role));
+      window.location.assign(nextPath || getPostAuthRedirect(pendingGoogleProfile.role));
       return;
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unable to save your account details.";
@@ -1053,7 +1059,7 @@ export default function LoginContent() {
 
           <motion.div className="relative z-10" variants={shouldReduceMotion ? undefined : panelVariants}>
             <Link href="/" className="text-[1.35rem] font-black tracking-[-0.03em] text-slate-900">
-              Adigator
+              Adigator IQ
             </Link>
           </motion.div>
 
@@ -1077,7 +1083,7 @@ export default function LoginContent() {
               >
                 <img
                   src="/assets/illustrations/storyset/analysis-amico.svg"
-                  alt="Adigator dashboard illustration"
+                  alt="Adigator IQ dashboard illustration"
                   className="agi-login-hero-illustration w-full rounded-[20px]"
                   loading="eager"
                   decoding="async"
@@ -1134,7 +1140,7 @@ export default function LoginContent() {
             </motion.div>
 
             <p className="text-sm text-slate-600">
-              {isRegisterMode ? "Already have an account?" : "New to Adigator?"}{" "}
+              {isRegisterMode ? "Already have an account?" : "New to Adigator IQ?"}{" "}
               <Link
                 href={isRegisterMode ? "/login" : "/login?mode=register"}
                 className="font-semibold text-slate-800 transition hover:text-slate-950"
@@ -1161,7 +1167,7 @@ export default function LoginContent() {
           >
             <div className="mb-10 lg:hidden">
               <Link href="/" className="text-xl font-black tracking-tight text-[#0D0D0D]">
-                Adigator
+                Adigator IQ
               </Link>
             </div>
 

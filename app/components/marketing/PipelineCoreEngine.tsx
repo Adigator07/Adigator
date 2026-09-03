@@ -291,7 +291,7 @@ function CoreEngineHub({ active }: { active: boolean }) {
         <Brain className={active ? "text-[#C8F04D]" : "text-white/60"} size={36} strokeWidth={1.5} />
       </div>
       <p className="mt-2 max-w-[200px] text-center text-[11px] font-bold uppercase leading-snug tracking-[0.08em] text-white/85">
-        Adigator Validation Engine
+        Adigator IQ Validation Engine
       </p>
       <p className="text-center text-[9px] font-semibold uppercase tracking-wider text-white/45">Core Engine</p>
       <div className="mt-2 space-y-0.5">
@@ -407,7 +407,7 @@ export default function PipelineCoreEngine() {
 
       <div className="border-t border-white/5 bg-[#111111]/90 px-4 py-2.5 backdrop-blur-sm sm:px-5">
         <p className="text-center text-[11px] text-white/45 sm:text-xs">
-          Campaign Task → Adigator Validation Engine → Technical &amp; Creative checks → Final Outcome
+          Campaign Task → Adigator IQ Validation Engine → Technical &amp; Creative checks → Final Outcome
         </p>
       </div>
     </div>

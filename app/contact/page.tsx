@@ -3,16 +3,17 @@
 import Link from "next/link";
 import { useState } from "react";
 import { MARKETING_DEMO_VIDEO } from "@/app/lib/siteNavigation";
+import { SITE_EMAILS } from "@/app/lib/siteConfig";
 import MarketingFooter from "@/app/components/MarketingFooter";
 import MarketingNav from "@/app/components/MarketingNav";
 
 const HELP_OPTIONS = [
-  "Book a Demo",
-  "Sales Inquiry",
+  "Demo",
+  "Sales",
   "Partnership",
-  "Product Question",
-  "Technical Support",
-  "Google Ads OAuth / Connection",
+  "Product question",
+  "Support",
+  "Google Ads connection",
   "Other",
 ] as const;
 
@@ -71,31 +72,34 @@ export default function ContactPage() {
         <section className="marketing-section marketing-section-compact mx-auto w-[min(1280px,92vw)]">
           <div className="mx-auto max-w-3xl text-center">
             <h1 className="text-[clamp(2rem,5.5vw,3.75rem)] font-black leading-[1.04] tracking-[-0.04em]">
-              Let&apos;s Talk About Your Campaigns
+              Get in touch
             </h1>
             <p className="mt-6 text-lg leading-relaxed text-[#5C5C56] sm:text-xl">
-              Whether you&apos;re exploring Adigator, booking a demo, asking about Google Ads OAuth access, or looking
-              to improve your campaign workflow, we&apos;d love to hear from you.
+              Send the form or email us. We read everything — product questions, demos, and Google Ads connection
+              issues.
             </p>
             <p className="mx-auto mt-4 max-w-2xl text-sm leading-relaxed text-[#5C5C56]">
-              Adigator is a campaign validation SaaS product. Questions about connecting Google Ads via
-              OAuth? Read{" "}
+              Stuck connecting Google Ads?{" "}
               <Link href="/google-ads-oauth" className="font-semibold text-[#0D0D0D] underline underline-offset-2">
-                how Google Ads OAuth works
-              </Link>{" "}
-              or email us below.
+                How Google Ads OAuth works
+              </Link>
+              , or mail{" "}
+              <a href={`mailto:${SITE_EMAILS.hello}`} className="font-semibold text-[#0D0D0D] underline underline-offset-2">
+                {SITE_EMAILS.hello}
+              </a>
+              .
             </p>
           </div>
 
           <div className="mt-14 grid gap-8 lg:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)] lg:items-start lg:gap-10">
             <div className="rounded-[28px] border border-[#DEDDD5] bg-white px-6 py-8 shadow-[0_20px_50px_rgba(15,23,42,0.06)] sm:px-10 sm:py-10">
-              <h2 className="text-2xl font-black tracking-tight sm:text-3xl">Tell us about yourself</h2>
+              <h2 className="text-2xl font-black tracking-tight sm:text-3xl">Send a message</h2>
 
               {submitted ? (
                 <div className="mt-8 rounded-2xl border border-[#C8F04D]/40 bg-[#C8F04D]/10 px-6 py-8 text-center">
-                  <p className="text-lg font-bold text-[#0D0D0D]">Thanks for reaching out.</p>
+                  <p className="text-lg font-bold text-[#0D0D0D]">Got it — thanks.</p>
                   <p className="mt-2 text-sm leading-relaxed text-[#5C5C56]">
-                    We&apos;ve received your message and will be in touch shortly.
+                    We&apos;ll reply to your work email. If it&apos;s urgent, write to {SITE_EMAILS.hello}.
                   </p>
                 </div>
               ) : (
@@ -184,13 +188,23 @@ export default function ContactPage() {
                       </select>
                     </label>
 
+                    {form.helpType === "Google Ads connection" ? (
+                      <div className="sm:col-span-2 rounded-2xl border border-[#C8F04D]/40 bg-[#F7FCE8] px-4 py-3 text-sm leading-relaxed text-[#3D4A1A]">
+                        To connect an account, open{" "}
+                        <Link href="/google-ads-oauth" className="font-semibold underline underline-offset-2">
+                          Connect Google Ads
+                        </Link>
+                        . Use this form if something went wrong.
+                      </div>
+                    ) : null}
+
                     <label className="block sm:col-span-2">
                       <FieldLabel>Message</FieldLabel>
                       <textarea
                         name="message"
                         required
                         rows={5}
-                        placeholder="Tell us about your campaign workflow, challenges, or what you'd like to achieve with Adigator."
+                        placeholder="What’s going on? A demo request, a Google Ads connect issue, or anything else."
                         value={form.message}
                         onChange={(event) => updateField("message", event.target.value)}
                         className={`${inputClassName} min-h-[140px] resize-y`}
@@ -208,7 +222,7 @@ export default function ContactPage() {
                       className="mt-0.5 h-4 w-4 shrink-0 rounded border-[#DEDDD5] text-[#0D0D0D] focus:ring-[#0D0D0D]/20"
                     />
                     <span>
-                      I agree to Adigator&apos;s{" "}
+                      I agree to Adigator IQ&apos;s{" "}
                       <Link href="/privacy" className="font-semibold text-[#0D0D0D] underline underline-offset-2">
                         Privacy Policy
                       </Link>{" "}
@@ -232,27 +246,40 @@ export default function ContactPage() {
 
             <aside className="flex flex-col gap-6">
               <div className="rounded-[28px] border border-[#DEDDD5] bg-white px-6 py-8 shadow-[0_20px_50px_rgba(15,23,42,0.06)] sm:px-8 sm:py-9">
-                <h3 className="text-xl font-black tracking-tight">Prefer to talk?</h3>
+                <h3 className="text-xl font-black tracking-tight">Connect Google Ads</h3>
+                <p className="mt-3 text-sm leading-relaxed text-[#5C5C56]">
+                  Link the Google Ads account you manage. Google&apos;s sign-in page opens next.
+                </p>
+                <Link
+                  href="/google-ads-oauth"
+                  className="marketing-btn-lime saas-hover mt-5 inline-flex rounded-full px-6 py-3 text-sm font-bold"
+                >
+                  Connect Google Ads
+                </Link>
+              </div>
+
+              <div className="rounded-[28px] border border-[#DEDDD5] bg-white px-6 py-8 shadow-[0_20px_50px_rgba(15,23,42,0.06)] sm:px-8 sm:py-9">
+                <h3 className="text-xl font-black tracking-tight">Prefer email?</h3>
                 <a
-                  href="mailto:hello@adigator.in"
+                  href={`mailto:${SITE_EMAILS.hello}`}
                   className="mt-4 inline-flex items-center gap-2 text-base font-semibold text-[#0D0D0D] transition hover:text-[#2D2D27]"
                 >
-                  hello@adigator.in
+                  {SITE_EMAILS.hello}
                 </a>
                 <p className="mt-3 text-sm leading-relaxed text-[#5C5C56]">
-                  We typically respond within 1 business day.
+                  We usually reply the next working day.
                 </p>
                 <div className="mt-5 space-y-2 border-t border-[#DEDDD5] pt-5 text-sm text-[#5C5C56]">
                   <p>
                     Privacy:{" "}
-                    <a href="mailto:privacy@adigator.in" className="font-semibold text-[#0D0D0D] underline underline-offset-2">
-                      privacy@adigator.in
+                    <a href={`mailto:${SITE_EMAILS.privacy}`} className="font-semibold text-[#0D0D0D] underline underline-offset-2">
+                      {SITE_EMAILS.privacy}
                     </a>
                   </p>
                   <p>
                     Legal:{" "}
-                    <a href="mailto:legal@adigator.in" className="font-semibold text-[#0D0D0D] underline underline-offset-2">
-                      legal@adigator.in
+                    <a href={`mailto:${SITE_EMAILS.legal}`} className="font-semibold text-[#0D0D0D] underline underline-offset-2">
+                      {SITE_EMAILS.legal}
                     </a>
                   </p>
                   <p>
@@ -266,16 +293,16 @@ export default function ContactPage() {
                     </Link>
                     {" · "}
                     <Link href="/google-ads-oauth" className="font-semibold text-[#0D0D0D] underline underline-offset-2">
-                      Google Ads OAuth
+                      Connect Google Ads
                     </Link>
                   </p>
                 </div>
               </div>
 
               <div className="rounded-[28px] border border-[#DEDDD5] bg-[#FAFAF7] px-6 py-8 sm:px-8 sm:py-9">
-                <h3 className="text-xl font-black tracking-tight">Looking for a Demo?</h3>
+                <h3 className="text-xl font-black tracking-tight">Want a walkthrough?</h3>
                 <p className="mt-3 text-sm leading-relaxed text-[#5C5C56]">
-                  See how Adigator validates campaigns before campaign setup and helps teams launch with confidence.
+                  If you&apos;d rather see the product first, watch a short demo.
                 </p>
                 <Link
                   href={MARKETING_DEMO_VIDEO.href}
@@ -291,11 +318,10 @@ export default function ContactPage() {
         <section className="marketing-section marketing-section-compact mx-auto w-[min(980px,92vw)] pb-8">
           <div className="saas-hover rounded-[32px] border border-[#DBDAD2] bg-white px-8 py-10 text-center shadow-[0_20px_50px_rgba(15,23,42,0.08)] sm:px-12 sm:py-12">
             <h2 className="mx-auto max-w-3xl text-[clamp(1.75rem,4vw,3rem)] font-black leading-tight tracking-tight">
-              Every Great Campaign Starts With Validation.
+              Not sure where to start?
             </h2>
             <p className="mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-[#5A5A55]">
-              Let&apos;s discuss how Adigator can help your team reduce campaign errors, save media budget, and launch
-              with confidence.
+              Email us, or watch the demo. We&apos;ll tell you straight if Adigator IQ is a fit for your team.
             </p>
             <Link
               href={MARKETING_DEMO_VIDEO.href}

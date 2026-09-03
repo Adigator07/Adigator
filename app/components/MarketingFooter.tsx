@@ -6,6 +6,7 @@ import {
   MARKETING_FOOTER_PRODUCT_LINKS,
   MARKETING_FOOTER_RESOURCE_LINKS,
 } from "@/app/lib/siteNavigation";
+import { SITE_EMAILS } from "@/app/lib/siteConfig";
 
 type MarketingFooterProps = {
   description?: string;
@@ -43,8 +44,14 @@ export default function MarketingFooter({ description = MARKETING_FOOTER_DESCRIP
       <div className="mx-auto w-[min(1280px,92vw)] py-12 sm:py-14">
         <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-4 lg:gap-12">
           <div className="sm:col-span-2 lg:col-span-1">
-            <p className="text-2xl font-black tracking-tight">Adigator</p>
+            <p className="text-2xl font-black tracking-tight">Adigator IQ</p>
             <p className="mt-3 max-w-sm text-sm leading-relaxed text-[#66665F]">{description}</p>
+            <a
+              href={`mailto:${SITE_EMAILS.hello}`}
+              className="mt-4 inline-block text-sm font-semibold text-[#0D0D0D] transition-colors hover:text-[#2D2D27]"
+            >
+              {SITE_EMAILS.hello}
+            </a>
           </div>
           <FooterColumn title="Product" links={MARKETING_FOOTER_PRODUCT_LINKS} />
           <FooterColumn title="Resources" links={MARKETING_FOOTER_RESOURCE_LINKS} />
@@ -52,7 +59,7 @@ export default function MarketingFooter({ description = MARKETING_FOOTER_DESCRIP
         </div>
 
         <div className="mt-10 flex flex-col gap-3 border-t border-[#DDDCD4] pt-6 text-sm text-[#66665F] sm:flex-row sm:items-center sm:justify-between">
-          <span>© 2026 Adigator. All rights reserved.</span>
+          <span>© 2026 Adigator IQ. All rights reserved.</span>
           <div className="flex flex-wrap gap-x-4 gap-y-2 text-xs sm:justify-end sm:text-sm">
             <Link href="/privacy" className="transition-colors hover:text-[#0D0D0D]">
               Privacy
@@ -64,7 +71,7 @@ export default function MarketingFooter({ description = MARKETING_FOOTER_DESCRIP
               Contact
             </Link>
             <Link href="/google-ads-oauth" className="transition-colors hover:text-[#0D0D0D]">
-              Google Ads OAuth
+              Connect Google Ads
             </Link>
           </div>
         </div>

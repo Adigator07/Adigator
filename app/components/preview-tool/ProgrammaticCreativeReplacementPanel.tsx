@@ -38,7 +38,7 @@ export default function ProgrammaticCreativeReplacementPanel({
   return (
     <ProgrammaticCampaignLookupPanel
       title="Load Campaign for Replacement"
-      description="Select a previously saved Adigator campaign from your advertiser's history, or enter the saved campaign name and ID manually."
+      description="Select a previously saved Adigator IQ campaign from your advertiser's history, or enter the saved campaign name and ID manually."
       campaignName={campaignName}
       campaignId={campaignId}
       campaignOwnerId={campaignOwnerId}

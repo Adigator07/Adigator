@@ -245,7 +245,7 @@ function buildHtml(body) {
   <div class="cover">
     <h1>Adigator</h1>
     <p class="subtitle">Complete Website Documentation</p>
-    <p class="meta">Version 1.0 · June 2026 · adigator.in</p>
+    <p class="meta">Version 1.0 · June 2026 · adigatoriq.com</p>
     <p class="meta">All pages · features · tools · workflows · APIs · database schema</p>
   </div>
   ${body}

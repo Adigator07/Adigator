@@ -10,7 +10,7 @@ const STEPS = [
   "Landing page built",
   "Campaign configured",
   "Platform selected",
-  "Adigator validates everything",
+  "Adigator IQ validates everything",
   "Campaign launches confidently",
 ];
 
@@ -44,7 +44,7 @@ export default function CampaignJourneyFlow() {
             {STEPS.map((step, i) => {
               const active = i === activeIndex;
               const passed = i < activeIndex;
-              const isValidation = step === "Adigator validates everything";
+              const isValidation = step === "Adigator IQ validates everything";
               return (
                 <div key={step} className="flex flex-1 flex-col items-center">
                   <div
@@ -92,7 +92,7 @@ export default function CampaignJourneyFlow() {
         {STEPS.map((step, i) => {
           const active = i === activeIndex;
           const passed = i < activeIndex;
-          const isValidation = step === "Adigator validates everything";
+          const isValidation = step === "Adigator IQ validates everything";
           return (
             <div key={step} className="flex flex-col items-center">
               <div

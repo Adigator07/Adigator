@@ -65,13 +65,13 @@ export default function AboutWorkflowComparison() {
           <div className="flex items-center justify-center gap-2 border-r border-white/10 px-3 py-3 sm:px-5">
             <XCircle size={14} className="text-rose-400" />
             <p className="text-[10px] font-black uppercase tracking-[0.16em] text-rose-300/90 sm:text-[11px]">
-              Without Adigator
+              Without Adigator IQ
             </p>
           </div>
           <div className="flex items-center justify-center gap-2 px-3 py-3 sm:px-5">
             <CheckCircle2 size={14} className="text-[#C8F04D]" />
             <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#D4F56A] sm:text-[11px]">
-              With Adigator
+              With Adigator IQ
             </p>
           </div>
         </div>

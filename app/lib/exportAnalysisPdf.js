@@ -52,7 +52,7 @@ function fillPageBackground(doc) {
 function addPageFooter(doc, pageNum, totalPages) {
   setText(doc, COLORS.muted);
   doc.setFontSize(8);
-  doc.text("Adigator Advertising Intelligence System", MARGIN, PAGE_H - 24);
+  doc.text("Adigator IQ Advertising Intelligence System", MARGIN, PAGE_H - 24);
   doc.text(`${pageNum} / ${totalPages}`, PAGE_W - MARGIN, PAGE_H - 24, { align: "right" });
 }
 

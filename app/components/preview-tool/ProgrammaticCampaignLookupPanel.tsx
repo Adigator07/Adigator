@@ -57,7 +57,7 @@ export default function ProgrammaticCampaignLookupPanel({
         <h3 className="studio-heading text-2xl font-bold tracking-tight text-studio-text">{title}</h3>
         <p className="mt-1 text-studio-muted">{description}</p>
         <div className="mt-3 rounded-2xl border border-cyan-500/20 bg-cyan-500/8 p-3 text-sm leading-6 text-studio-muted">
-          This step loads saved Adigator campaigns and can import campaigns from connected Google Ads, including published and draft campaigns.
+          This step loads saved Adigator IQ campaigns and can import campaigns from connected Google Ads, including published and draft campaigns.
         </div>
       </div>
 

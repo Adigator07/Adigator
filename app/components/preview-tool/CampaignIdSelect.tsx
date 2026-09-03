@@ -81,12 +81,12 @@ export default function CampaignIdSelect({
   }, [trimmedName, ownerId, accessToken, platform]);
 
   const helperText = useMemo(() => {
-    if (!trimmedName) return "Enter a campaign name to see IDs from saved Adigator campaigns.";
-    if (loading) return "Loading IDs from saved Adigator campaigns…";
+    if (!trimmedName) return "Enter a campaign name to see IDs from saved Adigator IQ campaigns.";
+    if (loading) return "Loading IDs from saved Adigator IQ campaigns…";
     if (options.length === 0) return platform === "google_ads"
-      ? "No matching Google Ads or saved Adigator campaign IDs yet. You can still import by campaign name."
-      : "No saved Adigator campaigns found for this name on your account.";
-    return `${options.length} saved campaign ID${options.length === 1 ? "" : "s"} found in Adigator.`;
+      ? "No matching Google Ads or saved Adigator IQ campaign IDs yet. You can still import by campaign name."
+      : "No saved Adigator IQ campaigns found for this name on your account.";
+    return `${options.length} saved campaign ID${options.length === 1 ? "" : "s"} found in Adigator IQ.`;
   }, [trimmedName, loading, options.length]);
 
   if (options.length > 0) {
@@ -122,7 +122,7 @@ export default function CampaignIdSelect({
         type="text"
         value={campaignId}
         onChange={(event: ChangeEvent<HTMLInputElement>) => onCampaignIdChange(event.target.value)}
-        placeholder="Enter the saved Adigator campaign ID"
+        placeholder="Enter the saved Adigator IQ campaign ID"
       />
       <p className="mt-2 text-xs text-studio-tertiary">{helperText}</p>
     </div>

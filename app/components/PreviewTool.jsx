@@ -2061,7 +2061,7 @@ export default function PreviewTool() {
       setCreativeAdditionFindError(
         isGoogleLookup
           ? "Enter Google campaign name or campaign ID to import from your connected Google Ads account."
-          : "Enter the saved Adigator campaign name and ID, or select a campaign from your advertiser list.",
+          : "Enter the saved Adigator IQ campaign name and ID, or select a campaign from your advertiser list.",
       );
       return;
     }
@@ -2141,7 +2141,7 @@ export default function PreviewTool() {
       setCreativeAdditionFindError(
         isGoogleLookup
           ? "No Google Ads campaign matched that name/ID on your connected account. Check the value and try again."
-          : "No saved Adigator campaign matched that name and ID on your account. Save the campaign in Adigator first, or continue with a new setup.",
+          : "No saved Adigator IQ campaign matched that name and ID on your account. Save the campaign in Adigator IQ first, or continue with a new setup.",
       );
       return;
     }
@@ -2149,7 +2149,7 @@ export default function PreviewTool() {
     setCreativeAdditionMode("");
     if (isGoogleLookup && match.importSource === "google_ads") {
       const sourceLabel = match.googleAdsCampaignSource === "draft" ? "Draft" : "Published";
-      addToast(`Imported Google Ads ${sourceLabel} campaign into Adigator.`, "success");
+      addToast(`Imported Google Ads ${sourceLabel} campaign into Adigator IQ.`, "success");
     }
     if (isCreativeReplacementTask(programmaticTaskType)) {
       void applyCreativeReplacementLoad(match);
@@ -5437,7 +5437,7 @@ export default function PreviewTool() {
           persistedOnDownload = true;
         }
       } catch (persistError) {
-        console.warn("[Adigator] Report downloaded but campaign persistence failed:", persistError);
+        console.warn("[Adigator IQ] Report downloaded but campaign persistence failed:", persistError);
       }
       void trackUserActivity("download", {
         action_label: "PDF report downloaded",
@@ -5718,7 +5718,7 @@ export default function PreviewTool() {
           persistedOnDownload = true;
         }
       } catch (persistError) {
-        console.warn("[Adigator] Preview report downloaded but campaign persistence failed:", persistError);
+        console.warn("[Adigator IQ] Preview report downloaded but campaign persistence failed:", persistError);
       }
       void trackUserActivity("generate_action", {
         action_label: "Preview studio report generated",
@@ -5973,7 +5973,7 @@ export default function PreviewTool() {
           <div className="flex items-center justify-between gap-4">
             <div>
               <p className="tool-neon-accent text-[10px] font-bold uppercase tracking-[0.22em]">
-                Adigator
+                Adigator IQ
               </p>
               <h1 className="studio-heading text-xl font-bold tracking-tight text-[#f4f4f8] md:text-2xl">
                 Campaign Intelligence Studio
@@ -6036,6 +6036,11 @@ export default function PreviewTool() {
                           </div>
 
                           <p className="relative z-10 mt-4 text-sm leading-relaxed text-studio-muted">{p.desc}</p>
+                          {p.id === "google_ads" ? (
+                            <p className="relative z-10 mt-3 text-xs font-semibold text-cyan-200">
+                              Connect Google Ads shows up here after you choose this platform.
+                            </p>
+                          ) : null}
                         </div>
                       </ToolSelectionCard>
                     );

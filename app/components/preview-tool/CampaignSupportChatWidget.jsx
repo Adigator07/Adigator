@@ -159,7 +159,7 @@ export default function CampaignSupportChatWidget({
             <div className="flex items-center justify-between border-b border-white/10 bg-[linear-gradient(120deg,rgba(12,28,48,0.96),rgba(14,22,38,0.94))] px-4 py-3">
               <div className="flex items-center gap-2 text-white">
                 <MessageCircle size={16} />
-                <p className="text-xs font-semibold uppercase tracking-[0.14em]">Adigator Chat Help</p>
+                <p className="text-xs font-semibold uppercase tracking-[0.14em]">Adigator IQ Chat Help</p>
                 <span className="ml-1 inline-flex items-center gap-1">
                   <span className="inline-flex h-5 w-5 items-center justify-center rounded-md bg-white/95">
                     <GoogleAdsIcon className="h-3 w-3" />
@@ -194,7 +194,7 @@ export default function CampaignSupportChatWidget({
               </div>
             </div>
             <iframe
-              title="Adigator support chat small window"
+              title="Adigator IQ support chat small window"
               src="/preview-tool/support?mode=small"
               className="h-[calc(100%-53px)] w-full border-0 bg-[#090f1f]"
             />
@@ -262,7 +262,7 @@ export default function CampaignSupportChatWidget({
           whileHover={reduceMotion ? undefined : { y: -3, scale: 1.01 }}
           whileTap={reduceMotion ? undefined : { scale: 0.98 }}
           className="group relative flex items-center gap-3 overflow-hidden rounded-full border border-rose-300/40 bg-[linear-gradient(120deg,rgba(45,12,18,0.96),rgba(22,8,14,0.94))] px-4 py-3 text-left shadow-[0_18px_48px_rgba(239,68,68,0.32)] transition"
-          aria-label="Open Adigator chat mode picker"
+          aria-label="Open Adigator IQ chat mode picker"
         >
           <span className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(251,113,133,0.28),transparent_42%),radial-gradient(circle_at_bottom_left,rgba(239,68,68,0.28),transparent_45%)]" />
           <span className="relative flex h-9 w-9 items-center justify-center rounded-full border border-rose-200/35 bg-rose-400/15 text-rose-100 shadow-[0_0_0_1px_rgba(255,255,255,0.12)]">
@@ -274,7 +274,7 @@ export default function CampaignSupportChatWidget({
             />
           </span>
           <span className="relative min-w-0">
-            <span className="block text-xs font-semibold uppercase tracking-[0.14em] text-rose-50">Adigator Chat Help</span>
+            <span className="block text-xs font-semibold uppercase tracking-[0.14em] text-rose-50">Adigator IQ Chat Help</span>
             <span className="block text-sm font-medium text-white">
               {preferredMode ? (preferredMode === "full" ? "Opening full screen" : "Opening small window") : "Choose window mode"}
             </span>

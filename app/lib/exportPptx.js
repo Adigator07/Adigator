@@ -135,7 +135,7 @@ function addSlideBackground(slide) {
 }
 
 function addFooter(slide, slideNum, totalSlides) {
-  slide.addText("Adigator Advertising Intelligence System", {
+  slide.addText("Adigator IQ Advertising Intelligence System", {
     x: 0.3,
     y: SLIDE_H - 0.4,
     w: 5,
@@ -215,7 +215,7 @@ function addCoverSlide(prs, entries, meta, slideNum, totalSlides) {
   addHeader(
     prs,
     slide,
-    "Adigator Creative Validation Report",
+    "Adigator IQ Creative Validation Report",
     `Goal: ${meta?.goal || "awareness"}  |  Vertical: ${meta?.verticalLabel || meta?.vertical || "general"}  |  Platform: ${platformLabel}`,
   );
 
@@ -719,7 +719,7 @@ function buildStrategicDeck(prs, validCreatives, templateName, meta = {}) {
   if (entries.length === 0) {
     const slide = prs.addSlide();
     addSlideBackground(slide);
-    addHeader(prs, slide, "Adigator Validation Report", "Run AI analysis before exporting — no analysis payloads found.");
+    addHeader(prs, slide, "Adigator IQ Validation Report", "Run AI analysis before exporting — no analysis payloads found.");
     addFooter(slide, 1, 1);
     return;
   }
@@ -1131,14 +1131,14 @@ function buildPreviewStudioDeck(prs, validCreatives, meta = {}) {
 export async function exportToPptx(validCreatives, viewMode = "multiple", templateName = "Template", meta = {}) {
   const prs = new pptxgen();
   prs.layout = "LAYOUT_WIDE";
-  prs.author = "Adigator Advertising Intelligence";
-  prs.company = "Adigator";
+  prs.author = "Adigator IQ Advertising Intelligence";
+  prs.company = "Adigator IQ";
   prs.subject = meta.reportKind === "preview_studio"
     ? "Preview Studio Visual Report"
     : "Advertising Intelligence Report";
   prs.title = meta.reportKind === "preview_studio"
-    ? `Adigator Preview Studio — ${meta.campaignName || templateName}`
-    : `Adigator Validation Report — ${templateName}`;
+    ? `Adigator IQ Preview Studio — ${meta.campaignName || templateName}`
+    : `Adigator IQ Validation Report — ${templateName}`;
 
   const hydratedCreatives = await hydrateCreativesForExport(validCreatives);
 
@@ -1149,8 +1149,8 @@ export async function exportToPptx(validCreatives, viewMode = "multiple", templa
   }
 
   const filename = meta.reportKind === "preview_studio"
-    ? `Adigator_Preview_Studio_${validCreatives.length}Creatives.pptx`
-    : `Adigator_Advertising_Intelligence_${viewMode === "single" ? "Single" : `${validCreatives.length}Creatives`}.pptx`;
+    ? `AdigatorIQ_Preview_Studio_${validCreatives.length}Creatives.pptx`
+    : `AdigatorIQ_Advertising_Intelligence_${viewMode === "single" ? "Single" : `${validCreatives.length}Creatives`}.pptx`;
   await prs.writeFile({ fileName: filename });
   return filename;
 }

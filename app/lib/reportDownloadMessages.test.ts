@@ -9,7 +9,7 @@ describe("report download toast messaging", () => {
   it("returns success message when analysis report is saved", () => {
     const toast = buildAnalysisReportDownloadToast(false, true);
     expect(toast.type).toBe("success");
-    expect(toast.message).toContain("saved in Adigator");
+    expect(toast.message).toContain("saved in Adigator IQ");
   });
 
   it("returns skipped message when analysis report save is skipped", () => {

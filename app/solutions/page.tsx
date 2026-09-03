@@ -105,10 +105,10 @@ export default function SolutionsPage() {
         <section className="marketing-section marketing-section-compact mx-auto w-[min(1100px,92vw)]">
           <FadeIn>
             <h1 className="text-[clamp(2.25rem,5.5vw,4rem)] font-black leading-[1.05] tracking-[-0.04em]">
-              How Adigator solves campaign operation problems
+              How Adigator IQ solves campaign operation problems
             </h1>
             <p className="mt-6 max-w-2xl text-lg leading-relaxed text-[#5A5A55] sm:text-xl">
-              Adigator sits between campaign work and execution. It gives teams a validation check so preventable
+              Adigator IQ sits between campaign work and execution. It gives teams a validation check so preventable
               errors never become live spend.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
@@ -147,7 +147,7 @@ export default function SolutionsPage() {
             <SectionHeader
               dark
               title="A repeatable check for every campaign task"
-              description="Adigator does not replace your teams. It gives them a shared sequence before anything ships."
+              description="Adigator IQ does not replace your teams. It gives them a shared sequence before anything ships."
             />
             <div className="rounded-[24px] border border-white/10 bg-white/[0.04] p-6 sm:p-8">
               <WorkflowSteps steps={VALIDATION_WORKFLOW} dark />

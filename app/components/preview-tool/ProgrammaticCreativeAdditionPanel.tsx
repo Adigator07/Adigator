@@ -53,7 +53,7 @@ export default function ProgrammaticCreativeAdditionPanel({
       <div>
         <h3 className="studio-heading text-2xl font-bold tracking-tight text-studio-text">Load Existing Campaign</h3>
         <p className="mt-1 text-studio-muted">
-          Select a previously saved Adigator campaign from your advertiser&apos;s history, or enter the saved campaign name and ID manually.
+          Select a previously saved Adigator IQ campaign from your advertiser&apos;s history, or enter the saved campaign name and ID manually.
         </p>
       </div>
 

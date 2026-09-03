@@ -3,7 +3,7 @@
 **Document Version:** 1.0  
 **Platform Version:** 0.1.0  
 **Last Updated:** June 2026  
-**Production URL:** https://adigator.in  
+**Production URL:** https://adigatoriq.com  
 **Repository:** github.com/Adigator07/Adigator
 
 ---
@@ -985,7 +985,7 @@ npm run lint
 ### Deployment
 
 - **Platform:** Vercel (Next.js native)
-- **Production URL:** adigator.in
+- **Production URL:** adigatoriq.com
 - **Database:** Apply Supabase migrations via SQL Editor
 - **Realtime server:** Optional separate service at `services/realtime-server/`
 

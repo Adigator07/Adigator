@@ -173,7 +173,7 @@ export default function CampaignErrorLibraryPage() {
 
         <FinalCtaBand
           title="Catch these errors before spend"
-          description="Adigator turns known failure patterns into checks before launch, so your team fixes issues while they are still cheap."
+          description="Adigator IQ turns known failure patterns into checks before launch, so your team fixes issues while they are still cheap."
           href={MARKETING_CTA.href}
           label={MARKETING_CTA.label}
         />

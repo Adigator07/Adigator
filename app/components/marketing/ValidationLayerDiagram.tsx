@@ -15,7 +15,7 @@ import {
 import type { LucideIcon } from "lucide-react";
 
 const BLACK_BOX_COPY =
-  "Campaign managers, creative teams, and Ad Operations often work in separate systems. Adigator validates every campaign task before execution so issues are caught before they become rework.";
+  "Campaign managers, creative teams, and Ad Operations often work in separate systems. Adigator IQ validates every campaign task before execution so issues are caught before they become rework.";
 
 const PRE_HANDOFF = [
   { label: "Client Brief", icon: FileText },
@@ -121,13 +121,13 @@ function ScrollingComparison({ reduceMotion }: { reduceMotion: boolean }) {
         <div className="flex items-center justify-center gap-2 border-r border-white/10 px-3 py-2.5">
           <XCircle size={14} className="text-rose-400" />
           <p className="text-[10px] font-black uppercase tracking-[0.16em] text-rose-300/90 sm:text-[11px]">
-            Without Adigator
+            Without Adigator IQ
           </p>
         </div>
         <div className="flex items-center justify-center gap-2 px-3 py-2.5">
           <CheckCircle2 size={14} className="text-[#C8F04D]" />
           <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#D4F56A] sm:text-[11px]">
-            With Adigator
+            With Adigator IQ
           </p>
         </div>
       </div>
@@ -240,7 +240,7 @@ export default function ValidationLayerDiagram({
       >
         <CheckCircle2 size={20} className="shrink-0 text-emerald-600" />
         <p className="text-sm font-semibold text-[#0D0D0D] sm:text-base">
-          Adigator validates every layer before a single dollar of media is spent.
+          Adigator IQ validates every layer before a single dollar of media is spent.
         </p>
       </motion.div>
     </section>

@@ -125,16 +125,16 @@ function SettingsPageContent() {
 
   const handleSyncGoogleAds = async (options?: { silent?: boolean }) => {
     if (!user?.id) {
-      setGoogleAdsNotice("Sign in to Adigator before syncing Google Ads campaigns.");
+      setGoogleAdsNotice("Sign in to Adigator IQ before syncing Google Ads campaigns.");
       return;
     }
 
     setGoogleAdsSyncing(true);
-    if (!options?.silent) setGoogleAdsNotice("Syncing Google Ads campaigns and drafts into Adigator…");
+    if (!options?.silent) setGoogleAdsNotice("Syncing Google Ads campaigns and drafts into Adigator IQ…");
 
     try {
       const authUser = getFirebaseClientAuth().currentUser;
-      if (!authUser) throw new Error("Sign in to Adigator first.");
+      if (!authUser) throw new Error("Sign in to Adigator IQ first.");
       const token = await authUser.getIdToken();
       const result = await syncGoogleAdsIntoAdigator({
         accessToken: token,
@@ -144,7 +144,7 @@ function SettingsPageContent() {
       });
       setGoogleAdsNotice(
         result.message
-          || `Synced ${result.total} campaign${result.total === 1 ? "" : "s"} (${result.drafts} draft${result.drafts === 1 ? "" : "s"}) into Adigator.`,
+          || `Synced ${result.total} campaign${result.total === 1 ? "" : "s"} (${result.drafts} draft${result.drafts === 1 ? "" : "s"}) into Adigator IQ.`,
       );
       await loadGoogleAdsState();
     } catch (syncError) {
@@ -173,14 +173,14 @@ function SettingsPageContent() {
 
   const handleSyncMetaAds = async (options?: { silent?: boolean }) => {
     if (!user?.id) {
-      setMetaAdsNotice("Sign in to Adigator before syncing Meta Ads campaigns.");
+      setMetaAdsNotice("Sign in to Adigator IQ before syncing Meta Ads campaigns.");
       return;
     }
     setMetaAdsSyncing(true);
-    if (!options?.silent) setMetaAdsNotice("Syncing Meta Ads campaigns into Adigator…");
+    if (!options?.silent) setMetaAdsNotice("Syncing Meta Ads campaigns into Adigator IQ…");
     try {
       const authUser = getFirebaseClientAuth().currentUser;
-      if (!authUser) throw new Error("Sign in to Adigator first.");
+      if (!authUser) throw new Error("Sign in to Adigator IQ first.");
       const token = await authUser.getIdToken();
       const result = await syncMetaAdsIntoAdigator({
         accessToken: token,
@@ -188,7 +188,7 @@ function SettingsPageContent() {
         adAccountId: metaAdsState?.adAccountId || undefined,
         advertiserName: metaAdsState?.account?.name || "Meta Ads",
       });
-      setMetaAdsNotice(result.message || `Synced ${result.total} Meta Ads campaign${result.total === 1 ? "" : "s"} into Adigator.`);
+      setMetaAdsNotice(result.message || `Synced ${result.total} Meta Ads campaign${result.total === 1 ? "" : "s"} into Adigator IQ.`);
       await loadMetaAdsState();
     } catch (syncError) {
       const detail = syncError instanceof Error ? syncError.message : "Unable to sync Meta Ads campaigns.";
@@ -436,7 +436,7 @@ function SettingsPageContent() {
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className="text-lg font-semibold text-white">{profileDisplayName}</p>
-                    <p className="mt-1 text-sm text-white/45">Active Adigator account profile</p>
+                    <p className="mt-1 text-sm text-white/45">Active Adigator IQ account profile</p>
                     <div className="mt-4 grid gap-3 sm:grid-cols-2">
                       <div className="rounded-xl border border-white/8 bg-white/5 p-3">
                         <p className="text-[10px] uppercase tracking-[0.18em] text-white/35">Username</p>
@@ -498,7 +498,7 @@ function SettingsPageContent() {
             <h2 className="font-semibold">Ad accounts</h2>
           </div>
           <p className="text-sm text-white/50">
-            Connect Google Ads or Meta Ads to bring your campaigns into Adigator.
+            Connect Google Ads or Meta Ads to bring your campaigns into Adigator IQ.
           </p>
 
           {googleAdsLoading ? (
@@ -522,7 +522,7 @@ function SettingsPageContent() {
                         disabled={googleAdsSyncing}
                         className="rounded-lg bg-sky-500 px-3 py-2 text-sm font-semibold text-white transition hover:bg-sky-400 disabled:cursor-not-allowed disabled:opacity-60"
                       >
-                        {googleAdsSyncing ? "Syncing…" : "Sync campaigns to Adigator"}
+                        {googleAdsSyncing ? "Syncing…" : "Sync campaigns to Adigator IQ"}
                       </button>
                       <button
                         type="button"
@@ -557,7 +557,7 @@ function SettingsPageContent() {
                     </div>
                   ) : (
                     <p className="mt-4 text-sm text-white/55">
-                      No campaigns listed yet. Click Sync to pull published and draft campaigns into Adigator.
+                      No campaigns listed yet. Click Sync to pull published and draft campaigns into Adigator IQ.
                     </p>
                   )}
                 </div>
@@ -605,7 +605,7 @@ function SettingsPageContent() {
                         disabled={metaAdsSyncing}
                         className="rounded-lg bg-sky-500 px-3 py-2 text-sm font-semibold text-white transition hover:bg-sky-400 disabled:cursor-not-allowed disabled:opacity-60"
                       >
-                        {metaAdsSyncing ? "Syncing…" : "Sync campaigns to Adigator"}
+                        {metaAdsSyncing ? "Syncing…" : "Sync campaigns to Adigator IQ"}
                       </button>
                       <button
                         type="button"

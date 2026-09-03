@@ -38,7 +38,7 @@ export default function ProgrammaticUrlValidationUtmPanel({
   return (
     <ProgrammaticCampaignLookupPanel
       title="Load Campaign for URL / UTM Update"
-      description="Select a previously saved Adigator campaign from your advertiser's history, or enter the saved campaign name and ID to load previous URLs, UTM parameters, and validation history."
+      description="Select a previously saved Adigator IQ campaign from your advertiser's history, or enter the saved campaign name and ID to load previous URLs, UTM parameters, and validation history."
       campaignName={campaignName}
       campaignId={campaignId}
       campaignOwnerId={campaignOwnerId}

@@ -101,7 +101,7 @@ export default function Sidebar({ collapsed, setCollapsed, user }: any) {
         {!collapsed && (
           <div className="flex items-center gap-2">
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-linear-to-br from-sky-500 to-cyan-500 font-bold text-sm text-white shadow-lg shadow-sky-500/25 shrink-0">A</div>
-            <span className="text-lg font-extrabold tracking-tight text-slate-800">Adigator</span>
+            <span className="text-lg font-extrabold tracking-tight text-slate-800">Adigator IQ</span>
           </div>
         )}
         <button

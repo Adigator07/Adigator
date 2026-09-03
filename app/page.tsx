@@ -289,6 +289,7 @@ export default function HomePage() {
                   transition={{ duration: reduceMotion ? 0 : 0.7, delay: reduceMotion ? 0 : 0.1, ease: [0.22, 1, 0.36, 1] }}
                   className="text-[clamp(2rem,4.5vw,3.25rem)] font-black leading-[1.08] tracking-[-0.035em]"
                 >
+                  <span className="block">Adigator IQ</span>
                   Catch Campaign Mistakes Before Media Spend Begins
                 </motion.h1>
 
@@ -298,8 +299,8 @@ export default function HomePage() {
                   transition={{ duration: reduceMotion ? 0 : 0.7, delay: reduceMotion ? 0 : 0.2, ease: [0.22, 1, 0.36, 1] }}
                   className="mt-6 max-w-2xl text-lg leading-relaxed text-[#5A5A55] sm:text-xl"
                 >
-                  Adigator helps AdOps teams check brief, creative, landing page, URLs, and platform requirements
-                  before media spend begins.
+                  AdOps teams check brief, creative, landing page, URLs, and platform requirements before media
+                  spend begins.
                 </motion.p>
 
                 <motion.div
@@ -462,11 +463,11 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* What Adigator understands */}
+        {/* What Adigator IQ understands */}
         <section className="marketing-section marketing-section-compact mx-auto w-[min(1280px,92vw)]">
           <div className="mb-6 max-w-3xl">
             <h2 className="text-3xl font-black leading-tight tracking-tight sm:text-4xl lg:text-5xl">
-              What Adigator checks against
+              What Adigator IQ checks against
             </h2>
             <p className="mt-4 text-lg leading-relaxed text-[#5A5A55]">
               Validation only works when the product understands campaign intent, then checks every asset and task
@@ -498,7 +499,7 @@ export default function HomePage() {
               Built for the channels you already run
             </h2>
             <p className="mt-4 max-w-2xl text-base leading-relaxed text-[#5A5A55]">
-              Specs, placements, and creative constraints differ by channel. Adigator validates against the
+              Specs, placements, and creative constraints differ by channel. Adigator IQ validates against the
               environments your campaigns actually traffic into.
             </p>
             <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
@@ -622,7 +623,7 @@ export default function HomePage() {
           <div className="mx-auto w-[min(1280px,92vw)]">
             <div className="grid gap-10 lg:grid-cols-2">
               <div>
-                <h2 className="text-3xl font-black tracking-tight sm:text-4xl">Who runs on Adigator</h2>
+                <h2 className="text-3xl font-black tracking-tight sm:text-4xl">Who runs on Adigator IQ</h2>
                 <div className="mt-6 flex flex-wrap gap-2">
                   {BUILT_FOR.map((role) => (
                     <span

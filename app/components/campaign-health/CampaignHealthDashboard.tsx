@@ -320,7 +320,7 @@ export default function CampaignHealthDashboard() {
           <p className="text-xs font-bold uppercase tracking-[0.2em] text-sky-700">Campaign Health & Validation</p>
           <h1 className="mt-1 text-3xl font-extrabold text-slate-800">Keep live Google Ads campaigns healthy</h1>
           <p className="mt-2 max-w-2xl text-sm text-slate-500">
-            Select accounts and campaigns to monitor. Adigator checks budgets, conversion tracking, ads, landing pages, and policy status, then alerts you with actionable fixes.
+            Select accounts and campaigns to monitor. Adigator IQ checks budgets, conversion tracking, ads, landing pages, and policy status, then alerts you with actionable fixes.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -361,7 +361,7 @@ export default function CampaignHealthDashboard() {
       {!connected && !loadingCatalog ? (
         <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5">
           <p className="font-semibold text-amber-950">Connect Google Ads to start monitoring</p>
-          <p className="mt-1 text-sm text-amber-900/80">Sign in once, then choose the accounts and campaigns Adigator should watch.</p>
+          <p className="mt-1 text-sm text-amber-900/80">Sign in once, then choose the accounts and campaigns Adigator IQ should watch.</p>
           <a href="/api/google-ads/oauth/start" className="mt-3 inline-flex rounded-xl bg-amber-600 px-4 py-2 text-sm font-semibold text-white">
             Connect Google Ads
           </a>

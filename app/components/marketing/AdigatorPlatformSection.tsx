@@ -92,7 +92,7 @@ const PLATFORM_MODULES: PlatformModule[] = [
     iconClass: "text-purple-600 bg-purple-100",
     name: "Integrations & APIs",
     description:
-      "Connect Adigator with your campaign operations ecosystem through APIs and integrations.",
+      "Connect Adigator IQ with your campaign operations ecosystem through APIs and integrations.",
     status: "coming-soon",
     badge: "Coming Soon",
     partners: ["Google Ads", "Meta", "DV360", "CM360", "HubSpot", "Salesforce"],
@@ -255,7 +255,7 @@ export default function AdigatorPlatformSection() {
           className="min-w-0"
         >
           <h2 className="text-[clamp(1.75rem,3.5vw,2.75rem)] font-black leading-[1.12] tracking-[-0.035em]">
-            The Adigator Platform
+            The Adigator IQ Platform
           </h2>
           <p className="mt-5 max-w-xl text-lg leading-relaxed text-[#5A5A55] sm:text-xl">
             Validate every campaign task, keep campaign knowledge in one place, and help teams execute with

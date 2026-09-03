@@ -68,15 +68,15 @@ export default function AboutPage() {
                 We are building the validation layer campaign operations never had.
               </h1>
               <p className="mt-6 max-w-2xl text-lg leading-relaxed text-[#5A5A55] sm:text-xl">
-                Adigator helps agencies, brands, and AdOps teams check advertising campaigns before media spend
+                Adigator IQ helps agencies, brands, and AdOps teams check advertising campaigns before media spend
                 begins. That includes creatives, landing pages, and campaign setup across Google Ads, Meta Ads, and
                 programmatic channels.
               </p>
               <p className="mt-4 max-w-2xl text-base leading-relaxed text-[#5A5A55] sm:text-lg">
-                Optional Google Ads access uses Google OAuth. Users authorize Adigator to access their own Google Ads
-                accounts (or accounts they administer). See{" "}
+                Optional Google Ads access uses Google OAuth. Users authorize Adigator IQ to access their own Google Ads
+                accounts (or accounts they administer).{" "}
                 <Link href="/google-ads-oauth" className="font-semibold text-[#0D0D0D] underline underline-offset-2">
-                  how Google Ads OAuth works
+                  Connect Google Ads
                 </Link>
                 .
               </p>
@@ -133,7 +133,7 @@ export default function AboutPage() {
               </h2>
               <div className="mt-6 space-y-4 text-base leading-relaxed text-white/70 sm:text-lg">
                 <p>
-                  Adigator began with a pattern that kept repeating inside campaign operations: talented teams, strong
+                  Adigator IQ began with a pattern that kept repeating inside campaign operations: talented teams, strong
                   creatives, and still painful launches. The failures were rarely mysterious. They were seams:
                   handoffs, outdated links, mismatched offers, late technical rejects.
                 </p>
@@ -183,7 +183,7 @@ export default function AboutPage() {
         <section className="border-y border-[#DEDDD5] bg-[#FAFAF7] marketing-section-compact">
           <div className="mx-auto w-[min(1280px,92vw)]">
             <SectionHeader
-              title="The Adigator platform"
+              title="The Adigator IQ platform"
               description="Validation designed for campaign operations across channels, tasks, and team handoffs."
             />
             <div className="mt-8">
@@ -206,7 +206,7 @@ export default function AboutPage() {
 
         <FinalCtaBand
           title="Join the teams raising the launch bar"
-          description="Whether you run agency pods or enterprise markets, Adigator helps you validate before spend."
+          description="Whether you run agency pods or enterprise markets, Adigator IQ helps you validate before spend."
           href={MARKETING_CTA.href}
           label={MARKETING_CTA.label}
         />

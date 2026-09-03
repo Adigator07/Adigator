@@ -10,18 +10,19 @@ export type MarketingFooterLink = {
 };
 
 export const MARKETING_NAV_LINKS: MarketingNavLink[] = [
-  { label: "Solutions", href: "/solutions", hint: "How Adigator solves campaign operations" },
+  { label: "Solutions", href: "/solutions", hint: "How Adigator IQ solves campaign operations" },
   { label: "About", href: "/about", hint: "Company story, mission, and roadmap" },
-  { label: "Contact", href: "/contact", hint: "Get in touch with our team" },
+  { label: "Google Ads", href: "/google-ads-oauth", hint: "Connect your Google Ads account" },
+  { label: "Contact", href: "/contact", hint: "Email or send a message" },
 ];
 
 /** Public policy URLs Google / reviewers commonly check */
 export const MARKETING_TRUST_LINKS: MarketingFooterLink[] = [
-  { label: "What Adigator does", href: "/about" },
+  { label: "What Adigator IQ does", href: "/about" },
   { label: "Privacy Policy", href: "/privacy" },
   { label: "Terms of Service", href: "/terms" },
   { label: "Contact", href: "/contact" },
-  { label: "Google Ads OAuth", href: "/google-ads-oauth" },
+  { label: "Connect Google Ads", href: "/google-ads-oauth" },
 ];
 
 export const MARKETING_CTA = {
@@ -58,12 +59,12 @@ export const MARKETING_FOOTER_RESOURCE_LINKS: MarketingFooterLink[] = [
   { label: "Validation Methodology", href: "/methodology" },
   { label: "Operational Scenarios", href: "/operational-scenarios" },
   { label: "Campaign Error Library", href: "/campaign-error-library" },
-  { label: "Google Ads OAuth", href: "/google-ads-oauth" },
+  { label: "Connect Google Ads", href: "/google-ads-oauth" },
 ];
 
 export const MARKETING_FOOTER_LEGAL_LINKS: MarketingFooterLink[] = [
   { label: "Privacy Policy", href: "/privacy" },
   { label: "Terms of Service", href: "/terms" },
   { label: "Contact Us", href: "/contact" },
-  { label: "Google Ads Connection", href: "/google-ads-oauth" },
+  { label: "Connect Google Ads", href: "/google-ads-oauth" },
 ];

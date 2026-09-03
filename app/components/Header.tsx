@@ -77,7 +77,7 @@ export default function Header() {
         <div className="logo-symbol">
           <Logo />
         </div>
-        <span className="adigator-text">Adigator</span>
+        <span className="adigator-text">Adigator IQ</span>
       </Link>
 
       {/* Desktop Navigation */}

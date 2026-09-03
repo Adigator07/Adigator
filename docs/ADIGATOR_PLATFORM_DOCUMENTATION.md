@@ -1,7 +1,7 @@
 # Adigator Platform — Complete Application Documentation
 
 **Version:** 0.1.0 (as of June 2026)  
-**Production URL:** [https://adigator.in](https://adigator.in)  
+**Production URL:** [https://adigatoriq.com](https://adigatoriq.com)  
 **Repository:** [github.com/Adigator07/Adigator](https://github.com/Adigator07/Adigator)
 
 ---
@@ -700,7 +700,7 @@ npm run lint
 
 ### Deployment
 - Designed for **Vercel** (Next.js native)
-- Production site: **adigator.in**
+- Production site: **adigatoriq.com**
 - Environment variables must be set in hosting provider dashboard
 - Supabase migrations applied via Supabase SQL editor or CLI
 

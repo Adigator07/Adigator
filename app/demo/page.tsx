@@ -32,7 +32,7 @@ export default function DemoPage() {
       <main className="mx-auto w-[min(1100px,92vw)] pt-28 pb-12">
         <section className="rounded-[28px] border border-[#DEDDD5] bg-white p-8 md:p-10 shadow-[0_25px_80px_rgba(15,23,42,0.08)]">
           <h1 className="text-[clamp(2.2rem,5vw,3.8rem)] font-black leading-[0.95] tracking-[-0.04em]">
-            See how Adigator works
+            See how Adigator IQ works
           </h1>
           <p className="mt-4 max-w-3xl text-lg leading-relaxed text-[#5E5E58]">
             Watch the platform overview, then launch Campaign Intelligence Studio to experience the full workflow yourself.

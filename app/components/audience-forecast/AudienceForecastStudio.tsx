@@ -54,7 +54,7 @@ export default function AudienceForecastStudio() {
           <p className="text-xs font-bold uppercase tracking-[0.2em] text-sky-700">Audience Availability Forecast</p>
           <h1 className="mt-1 text-3xl font-extrabold text-slate-800">Plan media when people are actually available</h1>
           <p className="mt-2 max-w-2xl text-sm text-slate-500">
-            Choose a location and flight dates. Adigator combines holidays, weather, weekend patterns, and market size to estimate audience availability before you launch.
+            Choose a location and flight dates. Adigator IQ combines holidays, weather, weekend patterns, and market size to estimate audience availability before you launch.
           </p>
         </div>
         <Link href="/dashboard/health" className="rounded-xl border border-sky-200 bg-white px-4 py-2 text-sm font-semibold text-sky-800">

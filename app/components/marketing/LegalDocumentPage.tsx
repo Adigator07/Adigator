@@ -3,7 +3,7 @@ import MarketingFooter from "@/app/components/MarketingFooter";
 import MarketingNav from "@/app/components/MarketingNav";
 
 export const CAMPAIGN_DATA_CONFIDENTIALITY =
-  "Customer campaign data remains confidential. Adigator does not use customer campaign assets, briefs, creatives, or validation results to train public AI models or disclose them to other customers.";
+  "Customer campaign data remains confidential. Adigator IQ does not use customer campaign assets, briefs, creatives, or validation results to train public AI models or disclose them to other customers.";
 
 export type LegalSection = {
   title: string;
@@ -92,14 +92,15 @@ function LegalDocumentPage({
           </section>
 
           <p className="mt-10 text-sm text-[#8A8A82]">
+            Anything else?{" "}
             <Link href="/contact" className="font-medium text-[#0D0D0D] underline underline-offset-2">
-              Contact us
-            </Link>{" "}
-            for general inquiries. Learn how{" "}
+              Contact page
+            </Link>
+            . Connecting Google Ads?{" "}
             <Link href="/google-ads-oauth" className="font-medium text-[#0D0D0D] underline underline-offset-2">
-              Google Ads OAuth connection
-            </Link>{" "}
-            works.
+              How OAuth works
+            </Link>
+            .
           </p>
         </article>
       </main>

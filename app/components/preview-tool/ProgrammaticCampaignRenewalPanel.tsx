@@ -38,7 +38,7 @@ export default function ProgrammaticCampaignRenewalPanel({
   return (
     <ProgrammaticCampaignLookupPanel
       title="Load Campaign for Renewal"
-      description="Select a previously saved Adigator campaign from your advertiser's history, or enter the saved campaign name and ID to use as a starting point for renewal."
+      description="Select a previously saved Adigator IQ campaign from your advertiser's history, or enter the saved campaign name and ID to use as a starting point for renewal."
       campaignName={campaignName}
       campaignId={campaignId}
       campaignOwnerId={campaignOwnerId}

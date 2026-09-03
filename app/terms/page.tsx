@@ -1,26 +1,27 @@
 import LegalDocumentPage, { type LegalSection } from "@/app/components/marketing/LegalDocumentPage";
+import { SITE_EMAILS } from "@/app/lib/siteConfig";
 
 const TERMS_SECTIONS: LegalSection[] = [
   {
     title: "Our Service",
     paragraphs: [
-      "Adigator is a SaaS product that provides campaign validation tools. We help advertising teams review campaign assets, technical requirements, landing destinations, and readiness before campaign execution across Google Ads, Meta Ads, and programmatic channels.",
-      "Adigator is not a media-buying agency substitute by default. Final campaign decisions and media spend remain your responsibility.",
+      "Adigator IQ is a SaaS product that provides campaign validation tools. We help advertising teams review campaign assets, technical requirements, landing destinations, and readiness before campaign execution across Google Ads, Meta Ads, and programmatic channels.",
+      "Adigator IQ is not a media-buying agency substitute by default. Final campaign decisions and media spend remain your responsibility.",
     ],
   },
   {
     title: "Google Ads Connection via OAuth",
     paragraphs: [
-      "Adigator may offer an optional Google Ads integration. When you connect Google Ads, you do so through Google’s OAuth process.",
-      "By connecting Google Ads, you confirm that you are authorizing Adigator to access Google Ads accounts that you own or are authorized to administer. You must not connect accounts you do not have permission to manage.",
-      "Google’s own terms and policies also apply to your use of Google Ads. Adigator’s access is limited to the permissions you grant on the Google consent screen and to the features you use inside Adigator.",
-      "You may disconnect Google Ads from Adigator at any time, and you may revoke Adigator’s access in your Google Account settings.",
+      "Adigator IQ may offer an optional Google Ads integration. When you connect Google Ads, you do so through Google’s OAuth process.",
+      "By connecting Google Ads, you confirm that you are authorizing Adigator IQ to access Google Ads accounts that you own or are authorized to administer. You must not connect accounts you do not have permission to manage.",
+      "Google’s own terms and policies also apply to your use of Google Ads. Adigator IQ’s access is limited to the permissions you grant on the Google consent screen and to the features you use inside Adigator IQ.",
+      "You may disconnect Google Ads from Adigator IQ at any time, and you may revoke Adigator IQ’s access in your Google Account settings.",
     ],
     bullets: [
       "Users authorize access to their own Google Ads accounts (or accounts they are permitted to manage)",
       "OAuth consent is explicit and user-initiated",
       "You remain responsible for actions taken with accounts you connect",
-      "Adigator does not claim ownership of your Google Ads accounts or campaign assets",
+      "Adigator IQ does not claim ownership of your Google Ads accounts or campaign assets",
     ],
   },
   {
@@ -42,7 +43,7 @@ const TERMS_SECTIONS: LegalSection[] = [
       "Attempt to disrupt the platform",
       "Reverse engineer the service",
       "Upload malicious software",
-      "Use Adigator for unlawful activities",
+      "Use Adigator IQ for unlawful activities",
       "Attempt unauthorized access to other accounts",
       "Use OAuth connections to access Google Ads accounts without proper authorization",
     ],
@@ -50,16 +51,16 @@ const TERMS_SECTIONS: LegalSection[] = [
   {
     title: "Intellectual Property",
     paragraphs: [
-      "The Adigator platform, software, branding, and related materials are owned by Adigator.",
+      "The Adigator IQ platform, software, branding, and related materials are owned by Adigator IQ.",
       "Users retain ownership of the campaign materials they upload and of their connected advertising-platform accounts.",
     ],
   },
   {
     title: "AI-Assisted Validation",
     paragraphs: [
-      "Adigator provides automated validation and recommendations designed to support campaign operations.",
+      "Adigator IQ provides automated validation and recommendations designed to support campaign operations.",
       "Users remain responsible for reviewing campaign materials and making final execution decisions.",
-      "Adigator does not guarantee campaign performance or business outcomes.",
+      "Adigator IQ does not guarantee campaign performance or business outcomes.",
     ],
   },
   {
@@ -72,7 +73,7 @@ const TERMS_SECTIONS: LegalSection[] = [
   {
     title: "Limitation of Liability",
     paragraphs: [
-      "To the maximum extent permitted by law, Adigator shall not be liable for indirect, incidental, or consequential damages arising from the use of the platform.",
+      "To the maximum extent permitted by law, Adigator IQ shall not be liable for indirect, incidental, or consequential damages arising from the use of the platform.",
     ],
   },
   {
@@ -89,7 +90,7 @@ const TERMS_SECTIONS: LegalSection[] = [
   {
     title: "Governing Law",
     paragraphs: [
-      "These Terms shall be governed by the applicable laws of the jurisdiction in which Adigator operates.",
+      "These Terms shall be governed by the applicable laws of the jurisdiction in which Adigator IQ operates.",
     ],
   },
 ];
@@ -100,12 +101,11 @@ export default function TermsOfServicePage() {
       title="Terms of Service"
       lastUpdated="August 2026"
       intro={[
-        "Welcome to Adigator.",
-        "By accessing or using the Adigator platform, you agree to these Terms of Service.",
+        "These terms apply when you use Adigator IQ. If you don’t agree with them, don’t use the product.",
       ]}
       sections={TERMS_SECTIONS}
-      contactLabel="Questions regarding these Terms may be directed to:"
-      contactEmail="legal@adigator.in"
+      contactLabel="Questions about these terms? Email"
+      contactEmail={SITE_EMAILS.legal}
     />
   );
 }

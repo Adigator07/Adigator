@@ -26,7 +26,7 @@ export default function MethodologyPage() {
               Campaign Validation Methodology
             </h1>
             <p className="mt-6 max-w-2xl text-lg leading-relaxed text-[#5A5A55] sm:text-xl">
-              Adigator&apos;s five layer framework turns campaign operations into a repeatable validation system,
+              Adigator IQ&apos;s five layer framework turns campaign operations into a repeatable validation system,
               from context and alignment to technical checks, task reviews, and shared memory.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
@@ -123,7 +123,7 @@ export default function MethodologyPage() {
 
         <FinalCtaBand
           title="Put the methodology to work"
-          description="Validate your next campaign with the same layered system Adigator uses in production."
+          description="Validate your next campaign with the same layered system Adigator IQ uses in production."
           href={MARKETING_CTA.href}
           label={MARKETING_CTA.label}
         />

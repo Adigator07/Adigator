@@ -50,7 +50,7 @@ export default function CampaignValidationCheckpoint() {
           Every campaign passes through multiple teams. Validation should too.
         </h2>
         <p className="mt-5 text-base leading-relaxed text-[#5A5A55] sm:text-lg">
-          Adigator becomes the final checkpoint before campaign setup, validating every campaign input before media
+          Adigator IQ becomes the final checkpoint before campaign setup, validating every campaign input before media
           spend begins.
         </p>
       </div>
@@ -71,7 +71,7 @@ export default function CampaignValidationCheckpoint() {
         >
           <div className="border-b border-[#C8F04D]/30 bg-[#C8F04D]/20 px-4 py-3 text-center">
             <p className="text-xs font-black uppercase tracking-[0.2em] text-[#0D0D0D] sm:text-sm">
-              Adigator Validation
+              Adigator IQ Validation
             </p>
           </div>
           <ul className="grid gap-2.5 px-4 py-5 sm:grid-cols-2 sm:gap-3 sm:px-5 sm:py-6">

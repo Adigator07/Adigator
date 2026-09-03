@@ -158,7 +158,7 @@ export default function ValidationReportSection() {
             Know what needs attention before you execute
           </h2>
           <p className="mt-5 max-w-xl text-lg leading-relaxed text-[#5A5A55] sm:text-xl">
-            Adigator doesn&apos;t just detect issues. It generates a structured validation report that tells your team
+            Adigator IQ doesn&apos;t just detect issues. It generates a structured validation report that tells your team
             what&apos;s ready, what&apos;s missing, and what needs to be fixed before execution.
           </p>
 

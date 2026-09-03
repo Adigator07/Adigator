@@ -42,7 +42,7 @@ function htmlResult(ok: boolean, message: string, email?: string) {
       ${email ? `<p style="margin:0 0 14px;color:#b8c6ff;font-size:13px;">Connected as: ${escapedEmail}</p>` : ""}
       <p id="status" style="margin:0 0 14px;color:#9fb2ff;font-size:13px;">Finalizing connection...</p>
       <button id="continue" type="button" style="border:1px solid rgba(255,255,255,0.3);background:#1a2a55;color:#fff;padding:10px 14px;border-radius:9px;cursor:pointer;font-weight:600;">
-        Return to Adigator
+          Return to Adigator IQ
       </button>
     </main>
     <script>
@@ -68,7 +68,7 @@ function htmlResult(ok: boolean, message: string, email?: string) {
       if (statusEl) {
         statusEl.textContent = posted
           ? "Connection synced. You can return to Adigator now."
-          : "Connection saved. Return to Adigator and click Refresh if needed.";
+          : "Connection saved. Return to Adigator IQ and click Refresh if needed.";
       }
       var continueBtn = document.getElementById("continue");
       if (continueBtn) {
