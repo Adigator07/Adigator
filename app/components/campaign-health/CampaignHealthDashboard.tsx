@@ -206,11 +206,12 @@ export default function CampaignHealthDashboard() {
     if (exists) {
       const enabled = !exists.enabled;
       monitors = workspace.monitors.map((monitor) => (monitor.id === id ? { ...monitor, enabled } : monitor));
+      const event: CampaignHealthAuditEntry["event"] = enabled ? "monitor_added" : "monitor_removed";
       audit = [{
         id: `audit-${id}-${Date.now()}`,
         monitorId: id,
         campaignName: campaign.name,
-        event: enabled ? "monitor_added" : "monitor_removed",
+        event,
         summary: enabled ? `Started monitoring ${campaign.name}` : `Stopped monitoring ${campaign.name}`,
         createdAt: new Date().toISOString(),
       }, ...audit].slice(0, 200);
