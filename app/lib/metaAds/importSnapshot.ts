@@ -133,11 +133,11 @@ export function buildMetaAdsImportedSnapshot(
       adGroupNames: programmaticAdGroups.map((group) => group.name),
       headlines: [
         ...(details.adCopyHeadlines || []),
-        ...(details.creatives || []).map((creative) => creative.headline),
+        ...(details.creatives || []).map((creative) => creative.headline).filter((value): value is string => Boolean(value)),
       ],
       descriptions: [
         ...(details.adCopyDescriptions || []),
-        ...(details.creatives || []).map((creative) => creative.description),
+        ...(details.creatives || []).map((creative) => creative.description).filter((value): value is string => Boolean(value)),
       ],
       verticalSignals: details.verticalSignals,
       productFocus: [inferredProductFocus],

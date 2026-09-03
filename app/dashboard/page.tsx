@@ -358,7 +358,6 @@ export default function Dashboard() {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                transition={{ duration: 0.15 }}
                 transition={crossfadeTransition}
                 className="space-y-4"
               >

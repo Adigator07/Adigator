@@ -57,6 +57,20 @@ function writeJsonCache<T>(key: string, value: T) {
   }
 }
 
+function makeAuditEntry(
+  event: CampaignHealthAuditEntry["event"],
+  summary: string,
+  extra: Partial<Pick<CampaignHealthAuditEntry, "monitorId" | "campaignName">> = {},
+): CampaignHealthAuditEntry {
+  return {
+    id: `audit-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    event,
+    summary,
+    createdAt: new Date().toISOString(),
+    ...extra,
+  };
+}
+
 function initialOwnerId() {
   try {
     return getFirebaseClientAuthOrNull()?.currentUser?.uid || "";
@@ -202,19 +216,18 @@ export default function CampaignHealthDashboard() {
     const id = monitorKey(account.customerId, campaign.id);
     const exists = workspace.monitors.find((monitor) => monitor.id === id);
     let monitors: CampaignHealthMonitor[];
-    let audit = workspace.audit;
+    let audit: CampaignHealthAuditEntry[] = workspace.audit;
     if (exists) {
       const enabled = !exists.enabled;
       monitors = workspace.monitors.map((monitor) => (monitor.id === id ? { ...monitor, enabled } : monitor));
-      const event: CampaignHealthAuditEntry["event"] = enabled ? "monitor_added" : "monitor_removed";
-      audit = [{
-        id: `audit-${id}-${Date.now()}`,
-        monitorId: id,
-        campaignName: campaign.name,
-        event,
-        summary: enabled ? `Started monitoring ${campaign.name}` : `Stopped monitoring ${campaign.name}`,
-        createdAt: new Date().toISOString(),
-      }, ...audit].slice(0, 200);
+      audit = [
+        makeAuditEntry(
+          enabled ? "monitor_added" : "monitor_removed",
+          enabled ? `Started monitoring ${campaign.name}` : `Stopped monitoring ${campaign.name}`,
+          { monitorId: id, campaignName: campaign.name },
+        ),
+        ...audit,
+      ].slice(0, 200);
     } else {
       const monitor: CampaignHealthMonitor = {
         id,
@@ -232,14 +245,13 @@ export default function CampaignHealthDashboard() {
         lastIssueIds: [],
       };
       monitors = [monitor, ...workspace.monitors];
-      audit = [{
-        id: `audit-${id}-${Date.now()}`,
-        monitorId: id,
-        campaignName: campaign.name,
-        event: "monitor_added",
-        summary: `Started monitoring ${campaign.name} in ${account.name}`,
-        createdAt: new Date().toISOString(),
-      }, ...audit].slice(0, 200);
+      audit = [
+        makeAuditEntry("monitor_added", `Started monitoring ${campaign.name} in ${account.name}`, {
+          monitorId: id,
+          campaignName: campaign.name,
+        }),
+        ...audit,
+      ].slice(0, 200);
     }
     persist({ ...workspace, ownerId, monitors, audit });
   };
@@ -385,12 +397,10 @@ export default function CampaignHealthDashboard() {
                   ...workspace,
                   ownerId,
                   intervalMinutes: Number(event.target.value),
-                  audit: [{
-                    id: `audit-interval-${Date.now()}`,
-                    event: "interval_changed",
-                    summary: `Monitoring interval set to ${event.target.value} minutes`,
-                    createdAt: new Date().toISOString(),
-                  }, ...workspace.audit].slice(0, 200),
+                  audit: [
+                    makeAuditEntry("interval_changed", `Monitoring interval set to ${event.target.value} minutes`),
+                    ...workspace.audit,
+                  ].slice(0, 200),
                 })}
               >
                 {HEALTH_INTERVALS.map((interval) => (

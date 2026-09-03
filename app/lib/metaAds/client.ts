@@ -197,13 +197,13 @@ async function graphGetAll<T>(
   let nextSearch: Record<string, string> | undefined = { ...search, limit: String(Math.min(limit, 100)) };
 
   while (nextPath && rows.length < limit) {
-    const page = await graphRequest<{ data?: T[]; paging?: { next?: string } }>(accessToken, nextPath, {
+    const page: { data?: T[]; paging?: { next?: string } } = await graphRequest(accessToken, nextPath, {
       search: nextSearch,
       wrapPermissionErrors,
     });
     rows.push(...(page.data || []));
     if (!page.paging?.next || rows.length >= limit) break;
-    const nextUrl = new URL(page.paging.next);
+    const nextUrl: URL = new URL(page.paging.next);
     nextPath = nextUrl.pathname.replace(/^\/v\d+\.\d+/, "") || nextPath;
     nextSearch = Object.fromEntries(nextUrl.searchParams.entries());
     delete nextSearch.access_token;
